@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NicheGate — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293b;height:100vh;overflow:hidden;display:flex;}
+h1,h2,h3,.sidebar-header,.stat-card .value,.section-label,.badge,.grade-badge,.auto-status-pill{font-family:'Space Grotesk','Inter',system-ui,sans-serif;}
+
+/* ═══ SIDEBAR ═══ */
+#sidebar{width:300px;background:#000000;color:#e2e8f0;display:flex;flex-direction:column;height:100vh;flex-shrink:0;border-right:1px solid #1a1a1a;}
+.sidebar-header{padding:18px;font-size:1.05rem;font-weight:700;color:#fff;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:8px;letter-spacing:0.5px;}
+.sidebar-header .logo{font-size:1.4rem;}
+.sidebar-header a{margin-left:auto;font-size:0.7rem;color:#2dd4bf;text-decoration:none;border:1px solid #2dd4bf;border-radius:6px;padding:2px 8px;}
+.sidebar-search{padding:10px 14px;}
+.sidebar-search input{width:100%;padding:8px 12px;background:#0a0a0a;border:1px solid #222;border-radius:8px;color:#e2e8f0;font-size:0.85rem;outline:none;}
+.sidebar-search input:focus{border-color:#2dd4bf;}
+.sidebar-section{flex:1;overflow-y:auto;padding:8px 0;}
+.sidebar-section::-webkit-scrollbar{width:4px;}
+.sidebar-section::-webkit-scrollbar-thumb{background:#222;border-radius:4px;}
+.section-label{padding:8px 16px;font-size:0.68rem;text-transform:uppercase;letter-spacing:1.8px;color:#64748b;font-weight:700;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;transition:color 0.15s;}
+.section-label:hover{color:#94a3b8;}
+.section-label .count{background:#222;padding:1px 8px;border-radius:10px;font-size:0.65rem;}
+.section-label .chevron{margin-left:auto;padding-left:8px;font-size:0.7rem;transition:transform 0.2s;color:#475569;}
+.section-label .chevron.collapsed{transform:rotate(-90deg);}
+.section-content{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:2400px;opacity:1;}
+.section-content.collapsed{max-height:0;opacity:0;}
+.profession-item{padding:9px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .15s;border-left:3px solid transparent;}
+.profession-item:hover{background:#0a0a0a;}
+.profession-item.active{background:#0a0a0a;border-left-color:#2dd4bf;}
+.profession-item .emoji{font-size:1.1rem;flex-shrink:0;}
+.profession-item .info{flex:1;min-width:0;}
+.profession-item .name{font-size:0.82rem;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.profession-item .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.status-dot.researching{background:#f59e0b;}
+.status-dot.generating{background:#3b82f6;animation:pulse 1.5s infinite;}
+.status-dot.reviewing{background:#a855f7;}
+.status-dot.listed{background:#22c55e;}
+.status-dot.draft{background:#64748b;}
+.status-dot.approved{background:#2dd4bf;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+/* ═══ MAIN ═══ */
+#main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+#topbar{background:white;border-bottom:1px solid #e2e8f0;padding:14px 22px;flex-shrink:0;}
+.profession-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.profession-header h1{font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px;letter-spacing:-0.5px;}
+.badge{font-size:0.68rem;padding:3px 10px;border-radius:4px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+.badge.researching{background:#fef3c7;color:#92400e;}
+.badge.listed{background:#dcfce7;color:#166534;}
+.badge.draft{background:#f1f5f9;color:#475569;}
+.topbar-right{display:flex;align-items:center;gap:14px;}
+.auto-status-pill{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:0.72rem;font-weight:600;cursor:pointer;}
+.auto-status-pill.idle{background:#f1f5f9;color:#64748b;}
+.auto-status-pill.processing{background:#dbeafe;color:#2563eb;}
+.auto-status-pill.paused{background:#fef3c7;color:#92400e;}
+.pulse-dot{width:8px;height:8px;border-radius:50%;}
+.auto-status-pill.idle .pulse-dot{background:#94a3b8;}
+.auto-status-pill.processing .pulse-dot{background:#3b82f6;animation:pulse 1.5s infinite;}
+.auto-status-pill.paused .pulse-dot{background:#f59e0b;animation:pulse 1.5s infinite;}
+
+/* ═══ STATS BAR (upgrade) ═══ */
+#stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 22px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0;}
+.stat-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;border-top:3px solid #2dd4bf;}
+.stat-card .label{font-size:0.66rem;color:#94a3b8;text-transform:uppercase;letter-spacing:1.2px;font-weight:700;}
+.stat-card .value{font-size:1.5rem;font-weight:800;margin-top:2px;}
+.stat-card .sub{font-size:0.68rem;color:#94a3b8;margin-top:2px;}
+
+/* ═══ PROMPT ═══ */
+.prompt-bar{display:flex;gap:10px;align-items:flex-end;}
+.prompt-bar textarea{flex:1;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;resize:none;outline:none;font-family:inherit;min-height:44px;max-height:120px;transition:border-color .15s,box-shadow .15s;}
+.prompt-bar textarea:focus{border-color:#2dd4bf;box-shadow:0 0 0 3px rgba(45,212,191,0.15);}
+.prompt-bar textarea:focus{border-color:#2dd4bf;}
+.prompt-bar button{padding:12px 24px;background:#2dd4bf;color:#000;border:none;border-radius:8px;font-size:0.82rem;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:1px;font-family:'Space Grotesk','Inter',sans-serif;transition:background .15s,transform .1s;}
+.prompt-bar button:hover{background:#14b8a6;transform:translateY(-1px);}
+.prompt-bar button:disabled{background:#cbd5e1;cursor:not-allowed;}
+
+#action-bar{display:flex;gap:8px;padding:10px 22px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0;overflow-x:auto;}
+.action-btn{padding:8px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;font-weight:600;color:#475569;cursor:pointer;white-space:nowrap;}
+.action-btn:hover{background:#f1f5f9;}
+
+#chat-area{flex:1;overflow-y:auto;padding:22px;}
+#chat-area::-webkit-scrollbar{width:6px;}
+#chat-area::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px;}
+.empty-state{text-align:center;padding:50px 20px;color:#94a3b8;}
+.empty-state .icon{font-size:3rem;margin-bottom:12px;}
+.empty-state h3{font-size:1.1rem;color:#64748b;margin-bottom:6px;}
+.empty-state p{font-size:0.85rem;max-width:420px;margin:0 auto;line-height:1.6;}
+
+.chat-msg{margin-bottom:16px;max-width:90%;}
+.chat-msg.user{margin-left:auto;max-width:70%;}
+.chat-msg .role{font-size:0.7rem;color:#94a3b8;margin-bottom:3px;text-transform:uppercase;}
+.chat-msg.user .role{text-align:right;}
+.chat-msg .bubble{padding:12px 16px;border-radius:16px;font-size:0.9rem;line-height:1.6;}
+.chat-msg.user .bubble{background:#2dd4bf;color:#000;border-bottom-right-radius:4px;}
+.chat-msg.ai .bubble{background:white;border:1px solid #e2e8f0;border-bottom-left-radius:4px;}
+
+/* ═══ MOCKUP GRID (upgrade: real iframe previews) ═══ */
+.mockup-section{margin-top:12px;}
+.mockup-section .label{font-size:0.78rem;color:#64748b;margin-bottom:10px;font-weight:600;}
+.mockup-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+@media(max-width:1200px){.mockup-grid{grid-template-columns:repeat(3,1fr);}}
+.mockup-card{background:white;border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;}
+.mockup-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,0.08);border-color:#2dd4bf;}
+.mockup-card .preview{height:170px;overflow:hidden;position:relative;background:#f8fafc;}
+.mockup-card .preview iframe{width:100%;height:100%;border:none;pointer-events:none;}
+.mockup-card .meta{padding:9px 12px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;}
+.mockup-card .meta .title{font-size:0.74rem;font-weight:600;color:#1e293b;}
+.mockup-card .meta .theme{font-size:0.66rem;color:#94a3b8;}
+.mockup-card .price-tag{font-size:0.7rem;font-weight:700;color:#2dd4bf;background:#f0fdfa;padding:2px 8px;border-radius:8px;}
+.edit-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);color:white;font-size:0.8rem;font-weight:700;opacity:0;transition:opacity .15s;}
+.mockup-card:hover .edit-hint{opacity:1;}
+
+/* ═══ PANEL ═══ */
+#panel-overlay{position:fixed;top:0;right:0;width:440px;height:100vh;background:white;box-shadow:-4px 0 24px rgba(0,0,0,0.12);z-index:100;transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column;}
+#panel-overlay.open{transform:translateX(0);}
+.panel-header{padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:white;z-index:1;}
+.panel-header h2{font-size:1.05rem;font-weight:700;}
+.panel-close{background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;}
+.panel-body{padding:18px;flex:1;overflow-y:auto;}
+
+.review-banner{background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:12px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;}
+.review-banner .icon{font-size:1.5rem;}
+.review-banner h4{font-size:0.88rem;color:#92400e;}
+.review-banner p{font-size:0.75rem;color:#b45309;margin-top:2px;}
+.review-item{display:flex;gap:12px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;}
+.review-item .thumb{width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;background:#f59e0b20;}
+.review-item .info{flex:1;min-width:0;}
+.review-item .name{font-size:0.8rem;font-weight:600;color:#1e293b;}
+.review-item .meta{font-size:0.7rem;color:#94a3b8;margin-top:2px;}
+.review-item .actions{display:flex;flex-direction:column;gap:6px;}
+.review-btn{padding:6px 12px;border:none;border-radius:4px;font-size:0.72rem;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;}
+.review-btn.approve{background:#22c55e;color:white;}
+.review-btn.reject{background:#fee2e2;color:#dc2626;}
+.review-btn.edit{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;}
+.review-btn.publish{background:#2dd4bf;color:#000;}
+.review-btn:hover{opacity:0.85;}
+
+.auto-section{margin-bottom:18px;}
+.auto-section h3{font-size:0.82rem;font-weight:600;margin-bottom:8px;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f1f5f9;}
+.toggle-row .label{font-size:0.82rem;}
+.toggle-row .desc{font-size:0.7rem;color:#94a3b8;margin-top:2px;}
+.auto-log-entry{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:0.75rem;}
+.auto-log-entry .time{color:#94a3b8;flex-shrink:0;width:55px;}
+.auto-log-entry .text{flex:1;color:#475569;}
+.auto-log-entry.error .text{color:#dc2626;}
+.auto-log-entry.success .text{color:#16a34a;}
+.auto-log-entry.warning .text{color:#d97706;}
+
+/* ═══ TRENDS (upgrade: scores + grades) ═══ */
+.trend-card{border-left:3px solid;padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:10px;font-size:0.82rem;}
+.trend-card.hot{border-left-color:#ef4444;}
+.trend-card.peaking{border-left-color:#ec4899;}
+.trend-card.rising{border-left-color:#f59e0b;}
+.trend-card .emoji{font-size:1.4rem;margin-bottom:6px;}
+.trend-card .name{font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;}
+.grade-badge{font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:3px;color:white;letter-spacing:0.5px;}
+.grade-badge.A{background:#16a34a;}
+.grade-badge.B{background:#2dd4bf;}
+.grade-badge.C{background:#f59e0b;}
+.grade-badge.D{background:#94a3b8;}
+.trend-card .meta{font-size:0.72rem;color:#64748b;margin-top:4px;}
+.trend-card .actions{display:flex;gap:8px;margin-top:10px;}
+
+.metric-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;}
+.metric-card .label{font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;}
+.metric-card .value{font-size:1.6rem;font-weight:800;margin-top:2px;}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+.drop-zone{border:2px dashed #cbd5e1;border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;}
+.drop-zone:hover{border-color:#f59e0b;}
+.drop-zone .icon{font-size:2rem;margin-bottom:8px;}
+.drop-zone p{color:#94a3b8;font-size:0.85rem;}
+
+.pipeline-bar{display:flex;gap:4px;margin:16px 0;}
+.pipeline-stage{flex:1;height:8px;border-radius:4px;background:#e2e8f0;}
+.pipeline-stage.done{background:#22c55e;}
+.pipeline-stage.active{background:#f59e0b;}
+.pipeline-labels{display:flex;gap:4px;font-size:0.62rem;color:#94a3b8;}
+.pipeline-labels span{flex:1;text-align:center;}
+
+/* ═══ EDITOR ═══ */
+#editor-modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;}
+#editor-modal.open{display:flex;}
+.editor-window{width:92%;max-width:1100px;height:90vh;background:white;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
+.editor-toolbar{padding:12px 18px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.editor-toolbar .title{font-size:0.88rem;font-weight:600;margin-right:auto;}
+.toolbar-group{display:flex;align-items:center;gap:6px;}
+.toolbar-group label{font-size:0.72rem;color:#64748b;}
+.color-input{width:30px;height:30px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;padding:2px;}
+.font-select{padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.78rem;outline:none;background:white;}
+.editor-btn{padding:8px 16px;border:none;border-radius:6px;font-size:0.78rem;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;}
+.editor-btn.save{background:#22c55e;color:white;}
+.editor-btn.export{background:#2dd4bf;color:#000;}
+.editor-btn.close{background:#f1f5f9;color:#475569;}
+.editor-body{flex:1;overflow:auto;padding:28px;background:#f8fafc;display:flex;justify-content:center;}
+.editor-preview{width:100%;max-width:800px;background:white;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;min-height:400px;}
+.editor-preview [contenteditable]:focus{outline:2px solid #2dd4bf;outline-offset:2px;}
+
+/* ═══ TOASTS ═══ */
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:10px;max-width:380px;}
+.toast{background:white;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.15);padding:14px 18px;display:flex;gap:12px;animation:slideIn .3s ease;border-left:4px solid #cbd5e1;}
+.toast.info{border-left-color:#3b82f6;}
+.toast.success{border-left-color:#22c55e;}
+.toast.warning{border-left-color:#f59e0b;}
+.toast.error{border-left-color:#ef4444;}
+.toast .toast-icon{font-size:1.2rem;}
+.toast .toast-title{font-size:0.82rem;font-weight:700;}
+.toast .toast-msg{font-size:0.75rem;color:#64748b;line-height:1.4;}
+.toast .toast-close{background:none;border:none;font-size:1rem;color:#cbd5e1;cursor:pointer;margin-left:8px;}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+.loading-mockups{display:flex;align-items:center;justify-content:center;padding:40px;gap:12px;color:#94a3b8;font-size:0.85rem;}
+.spinner{width:20px;height:20px;border:3px solid #e2e8f0;border-top-color:#f59e0b;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media(max-width:900px){#sidebar{width:240px;}.mockup-grid{grid-template-columns:repeat(2,1fr);}#panel-overlay{width:100%;}#stats-bar{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){body{flex-direction:column;height:auto;overflow:auto;}#sidebar{width:100%;max-height:45vh;}.mockup-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="sidebar-header"><span class="logo">🚪</span> NicheGate <a href="/setup">Setup</a></div>
+  <div class="sidebar-search">
+    <input type="text" id="search-input" placeholder="Search professions..." oninput="filterProfessions()">
+  </div>
+  <div class="sidebar-section">
+    <div class="section-label" onclick="toggleSection('active')">Active Professions <span class="count" id="active-count">0</span><span class="chevron" id="chevron-active">▼</span></div>
+    <div id="active-list" class="section-content"></div>
+    <div class="section-label" style="margin-top:10px;" onclick="toggleSection('passion')">❤️ Passion Picked <span class="count" id="passion-count">0</span><span class="chevron" id="chevron-passion">▼</span></div>
+    <div id="passion-list" class="section-content"></div>
+    <div class="section-label" style="margin-top:10px;" onclick="toggleSection('trends')">🔥 Trends <span class="count" id="trend-count">0</span><span class="chevron" id="chevron-trends">▼</span></div>
+    <div id="trend-list" class="section-content"></div>
+    <div class="section-label" style="margin-top:10px;" onclick="toggleSection('archive')">Archive & Seasonal <span class="count" id="archive-count">0</span><span class="chevron" id="chevron-archive">▼</span></div>
+    <div id="archive-list" class="section-content"></div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="topbar">
+    <div class="profession-header">
+      <h1><span id="prof-emoji">🚁</span> <span id="prof-name">Loading…</span></h1>
+      <div class="topbar-right">
+        <div class="auto-status-pill idle" id="auto-status-pill" onclick="openPanel('automation')">
+          <span class="pulse-dot"></span>
+          <span id="auto-status-text">Automation: Idle</span>
+        </div>
+        <span class="badge researching" id="prof-badge">Researching</span>
+      </div>
+    </div>
+    <div class="prompt-bar">
+      <textarea id="prompt-input" placeholder="Describe what to create… e.g. 'Modern invoice with bold colors'" rows="1" onkeydown="handlePromptKey(event)"></textarea>
+      <button onclick="generateMockups()" id="generate-btn">Generate 5 Mockups</button>
+    </div>
+  </div>
+
+  <div id="stats-bar">
+    <div class="stat-card"><div class="label">Total Products</div><div class="value" id="stat-products">—</div><div class="sub">across all professions</div></div>
+    <div class="stat-card"><div class="label">Pending Review</div><div class="value" id="stat-pending">—</div><div class="sub">awaiting your approval</div></div>
+    <div class="stat-card"><div class="label">Active Trends</div><div class="value" id="stat-trends">—</div><div class="sub">windows still open</div></div>
+    <div class="stat-card"><div class="label">Listed</div><div class="value" id="stat-listed">—</div><div class="sub">live on marketplaces</div></div>
+  </div>
+
+  <div id="action-bar">
+    <button class="action-btn" onclick="openPanel('reviewqueue')">✅ Review Queue</button>
+    <button class="action-btn" onclick="openPanel('upload')">📸 Upload Inspiration</button>
+    <button class="action-btn" onclick="openPanel('status')">📊 Status</button>
+    <button class="action-btn" onclick="openPanel('metrics')">📈 Metrics</button>
+    <button class="action-btn" onclick="openPanel('automation')">🤖 Automation</button>
+    <button class="action-btn" onclick="openPanel('trends')" style="border-color:#f59e0b;color:#92400e;">🔥 Trends</button>
+    <button class="action-btn" onclick="openPanel('notifications')">🔔 Notifications</button>
+  </div>
+
+  <div id="chat-area"></div>
+</div>
+
+<div id="panel-overlay">
+  <div class="panel-header">
+    <h2 id="panel-title">Panel</h2>
+    <button class="panel-close" onclick="closePanel()">&times;</button>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+</div>
+
+<div id="editor-modal">
+  <div class="editor-window">
+    <div class="editor-toolbar">
+      <div class="title" id="editor-title">Visual Editor</div>
+      <div class="toolbar-group"><label>Primary</label><input type="color" class="color-input" id="ed-primary" value="#0f172a" onchange="updateEditorColor('primary',this.value)"></div>
+      <div class="toolbar-group"><label>Accent</label><input type="color" class="color-input" id="ed-accent" value="#2dd4bf" onchange="updateEditorColor('accent',this.value)"></div>
+      <div class="toolbar-group"><label>Font</label><select class="font-select" id="ed-font" onchange="updateEditorFont(this.value)">
+        <option value="'Space Grotesk','Inter',system-ui,sans-serif">Space Grotesk</option>
+        <option value="'Inter',system-ui,sans-serif">Inter</option>
+        <option value="Georgia,serif">Georgia</option>
+        <option value="'Courier New',monospace">Courier</option>
+      </select></div>
+      <button class="editor-btn export" onclick="exportEditor()">📥 Export PDF</button>
+      <button class="editor-btn save" onclick="saveEditor()">💾 Save</button>
+      <button class="editor-btn close" onclick="closeEditor()">Close</button>
+    </div>
+    <div class="editor-body"><div class="editor-preview" id="editor-preview" contenteditable="true"></div></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const API = '/api';
+let state = { activeId: null, collapsedSections: {}, currentPanel: null, professions: [], trends: [], reviewNotified: false };
+
+/* ── DATA ── */
+async function fetchProfessions() {
+  const res = await fetch(`${API}/professions`);
+  state.professions = await res.json();
+  renderSidebar();
+  if (!state.activeId && state.professions.length) selectProfession(state.professions[0].id);
+}
+async function fetchTrends() {
+  const res = await fetch(`${API}/trends`);
+  const data = await res.json();
+  state.trends = data.all || [];
+  renderSidebar();
+}
+
+/* ── SIDEBAR ── */
+function renderSidebar() {
+  const search = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const active = state.professions.filter(p => p.tier !== 'passion' && p.tier !== 'trend' && p.name.toLowerCase().includes(search));
+  const passion = state.professions.filter(p => p.tier === 'passion' && p.name.toLowerCase().includes(search));
+  const trendProfs = state.professions.filter(p => p.tier === 'trend' && p.name.toLowerCase().includes(search));
+  const activeTrends = state.trends.filter(t => t.activated && !t.outcome);
+
+  const item = (p, border) => `
+    <div class="profession-item ${p.id === state.activeId ? 'active' : ''}" ${border ? `style="border-left-color:${border};"` : ''} onclick="selectProfession(${p.id})">
+      <span class="emoji">${p.emoji}</span><div class="info"><div class="name">${p.name}</div></div>
+      <span class="status-dot ${p.status}"></span>
+    </div>`;
+
+  document.getElementById('active-list').innerHTML = active.map(p => item(p)).join('');
+  document.getElementById('passion-list').innerHTML = passion.map(p => item(p, '#ec4899')).join('');
+  document.getElementById('trend-list').innerHTML = trendProfs.map(p => item(p, '#f59e0b')).join('');
+  document.getElementById('archive-list').innerHTML = state.professions.filter(p => p.status === 'archived').map(p => item(p)).join('');
+  document.getElementById('active-count').textContent = active.length;
+  document.getElementById('passion-count').textContent = passion.length;
+  document.getElementById('trend-count').textContent = activeTrends.length;
+  document.getElementById('archive-count').textContent = state.professions.filter(p => p.status === 'archived').length;
+  applyCollapsedState();
+}
+function toggleSection(name) {
+  state.collapsedSections[name] = !state.collapsedSections[name];
+  applyCollapsedState();
+}
+function applyCollapsedState() {
+  ['active','archive','passion','trends'].forEach(n => {
+    const c = document.getElementById(n + '-list');
+    const ch = document.getElementById('chevron-' + n);
+    if (c) c.classList.toggle('collapsed', !!state.collapsedSections[n]);
+    if (ch) ch.classList.toggle('collapsed', !!state.collapsedSections[n]);
+  });
+}
+
+/* ── SELECT / CHAT ── */
+async function selectProfession(id) {
+  state.activeId = id;
+  const p = state.professions.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('prof-emoji').textContent = p.emoji;
+  document.getElementById('prof-name').textContent = p.name;
+  const badge = document.getElementById('prof-badge');
+  badge.textContent = (p.status || 'researching').charAt(0).toUpperCase() + (p.status || 'researching').slice(1);
+  badge.className = 'badge ' + (p.status || 'researching');
+  renderSidebar();
+  await loadChatHistory(id);
+  closePanel();
+}
+async function loadChatHistory(profId) {
+  const res = await fetch(`${API}/chat/${profId}`);
+  const history = await res.json();
+  renderChatArea(history);
+}
+function renderEmptyState() {
+  document.getElementById('chat-area').innerHTML = `
+    <div class="empty-state">
+      <div class="icon">🎨</div>
+      <h3>Describe what you need</h3>
+      <p>Generate 5 themed mockup variations. Click any mockup to open the visual editor, customize it, and save it as a product.</p>
+      <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button class="action-btn" onclick="quickPrompt('invoice')">🧾 Invoice</button>
+        <button class="action-btn" onclick="quickPrompt('website')">🌐 Website</button>
+        <button class="action-btn" onclick="quickPrompt('social')">📱 Social</button>
+        <button class="action-btn" onclick="quickPrompt('brand')">🎨 Brand</button>
+        <button class="action-btn" onclick="quickPrompt('checklist')">✅ Checklist</button>
+        <button class="action-btn" onclick="quickPrompt('journal')">📓 Journal</button>
+      </div>
+    </div>`;
+}
+function escapeHtml(t) { return (t || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderChatArea(history) {
+  const area = document.getElementById('chat-area');
+  if (!history.length) { renderEmptyState(); return; }
+  area.innerHTML = history.map(h => {
+    if (h.role === 'user') return `<div class="chat-msg user"><div class="role">You</div><div class="bubble">${escapeHtml(h.text)}</div></div>`;
+    let html = `<div class="chat-msg ai"><div class="role">NicheGate Engine</div><div class="bubble">${escapeHtml(h.text)}</div>`;
+    if (h.mockups) {
+      let mockups; try { mockups = JSON.parse(h.mockups); } catch { mockups = []; }
+      if (mockups.length) {
+        html += `<div class="mockup-section"><div class="label">${mockups.length} Mockup Variations — click to edit</div><div class="mockup-grid">` +
+          mockups.map((m, i) => `<div class="mockup-card" onclick="openEditor(${state.activeId}, ${i})">
+            <div class="preview"><iframe srcdoc="${escapeHtml(m.html).replace(/"/g,'&quot;')}" sandbox="allow-same-origin" loading="lazy"></iframe><div class="edit-hint">✏️ Edit in Visual Editor</div></div>
+            <div class="meta"><div><div class="title">${m.themeName}</div><div class="theme">${m.type || 'Template'}</div></div>${m.price ? `<span class="price-tag">${m.price}</span>` : ''}</div>
+          </div>`).join('') + `</div></div>`;
+      }
+    }
+    return html + `</div>`;
+  }).join('');
+  area.scrollTop = area.scrollHeight;
+}
+
+/* ── GENERATION ── */
+function quickPrompt(type) {
+  const prompts = { invoice:'Create a professional invoice template', website:'Design a one-page service website', social:'Generate a social media content pack', brand:'Build a complete brand identity kit', checklist:'Make a service quality checklist', journal:'Design a daily reflection journal' };
+  document.getElementById('prompt-input').value = prompts[type] || '';
+  generateMockups();
+}
+function handlePromptKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generateMockups(); } }
+
+async function generateMockups() {
+  const input = document.getElementById('prompt-input');
+  const prompt = input.value.trim();
+  if (!prompt) return;
+  const prof = state.professions.find(p => p.id === state.activeId);
+  if (!prof) { showToast('warning','No profession','Select a profession first.'); return; }
+
+  const lower = prompt.toLowerCase();
+  let type = 'invoice';
+  if (lower.includes('website')) type = 'website';
+  else if (lower.includes('social')) type = 'social';
+  else if (lower.includes('brand')) type = 'brand';
+  else if (lower.includes('checklist')) type = 'checklist';
+  else if (lower.includes('journal') || lower.includes('recovery')) type = 'journal';
+
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true; btn.textContent = 'Generating 5 mockups…';
+
+  await fetch(`${API}/chat`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, role:'user', text: prompt }) });
+
+  const res = await fetch(`${API}/templates/generate`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, type }) });
+  const data = await res.json();
+  const mockups = data.mockups || [];
+
+  const created = [];
+  for (const m of mockups) {
+    const price = { invoice:'$12', website:'$24', social:'$15', brand:'$19', spreadsheet:'$17', booking:'$22', checklist:'$10', journal:'$15' }[type] || '$12';
+    const prodRes = await fetch(`${API}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, name: `${prof.name} ${type} — ${m.themeName}`, type, price, theme: m.themeName, html_content: m.html }) });
+    const pd = await prodRes.json();
+    created.push({ ...m, productId: pd.id, type, price });
+  }
+
+  await fetch(`${API}/chat`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, role:'ai', text: `Generated 5 ${type} templates across 5 themes. Click any to edit and save.`, mockups: created }) });
+
+  btn.disabled = false; btn.textContent = 'Generate 5 Mockups';
+  input.value = '';
+  await loadChatHistory(prof.id);
+  await refreshStats();
+}
+
+/* ── EDITOR ── */
+let editorData = { productId: null, originalHtml: '', colors: {}, type: 'invoice', profName: '' };
+
+async function openEditor(profId, mockupIdx) {
+  const chatRes = await fetch(`${API}/chat/${profId}`);
+  const history = await chatRes.json();
+  const lastAi = history.filter(h => h.role === 'ai').pop();
+  if (!lastAi?.mockups) return;
+  let mockups; try { mockups = JSON.parse(lastAi.mockups); } catch { return; }
+  const m = mockups[mockupIdx];
+  if (!m) return;
+  const prof = state.professions.find(p => p.id === profId);
+  editorData = {
+    productId: m.productId,
+    originalHtml: m.html,
+    colors: m.colors || {},
+    type: m.type || 'invoice',
+    profName: prof?.name || ''
+  };
+  document.getElementById('editor-title').textContent = `Editing: ${editorData.profName} — ${m.themeName}`;
+  document.getElementById('editor-preview').innerHTML = m.html;
+  if (m.colors?.primary) document.getElementById('ed-primary').value = m.colors.primary;
+  if (m.colors?.accent) document.getElementById('ed-accent').value = m.colors.accent;
+  if (m.colors?.font) document.getElementById('ed-font').value = m.colors.font;
+  document.getElementById('editor-modal').classList.add('open');
+}
+
+function closeEditor() { document.getElementById('editor-modal').classList.remove('open'); }
+
+// Replace a theme color hex across the preview HTML and re-render
+function updateEditorColor(key, newColor) {
+  const oldColor = editorData.colors[key];
+  if (!oldColor || oldColor.toLowerCase() === newColor.toLowerCase()) return;
+  const preview = document.getElementById('editor-preview');
+  let html = preview.innerHTML;
+  // Replace all occurrences of the old hex (case-insensitive)
+  html = html.replace(new RegExp(oldColor.replace('#', '#'), 'gi'), newColor);
+  editorData.colors[key] = newColor;
+  preview.innerHTML = html;
+}
+
+// Swap the font-family across the preview
+function updateEditorFont(font) {
+  const preview = document.getElementById('editor-preview');
+  let html = preview.innerHTML;
+  // Replace font-family declarations (from the theme's font or generic)
+  html = html.replace(/font-family:[^;]+;/gi, `font-family:${font};`);
+  preview.innerHTML = html;
+  editorData.colors.font = font;
+}
+
+async function saveEditor() {
+  if (!editorData.productId) return;
+  const html = document.getElementById('editor-preview').innerHTML;
+  await fetch(`${API}/products/${editorData.productId}/html`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ html_content: html }) });
+  showToast('success','Saved','Template updated in database.');
+}
+
+async function exportEditor() {
+  if (!editorData.productId) return;
+  const html = document.getElementById('editor-preview').innerHTML;
+  const name = (editorData.profName || 'design').toLowerCase().replace(/[^a-z0-9]+/g,'-') + '-' + editorData.type;
+  showToast('info','Exporting…','Generating your PDF');
+  try {
+    const res = await fetch(`${API}/export/render`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ html, type: editorData.type, filename: name })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Export failed'); }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name + '.pdf'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('success','Exported','PDF downloaded.');
+  } catch (e) {
+    showToast('error','Export Failed', e.message);
+  }
+}
+
+/* ── PANELS ── */
+function openPanel(type) {
+  state.currentPanel = type;
+  document.getElementById('panel-overlay').classList.add('open');
+  const titles = { reviewqueue:'✅ Review Queue', upload:'📸 Upload Inspiration', status:'📊 Status', metrics:'📈 Metrics', automation:'🤖 Automation Engine', trends:'🔥 Trend Monitor', notifications:'🔔 Notifications' };
+  document.getElementById('panel-title').textContent = titles[type] || 'Panel';
+  getPanelContent(type).then(html => { document.getElementById('panel-body').innerHTML = html; });
+}
+function closePanel() { document.getElementById('panel-overlay').classList.remove('open'); state.currentPanel = null; }
+
+async function getPanelContent(type) {
+  if (type === 'trends') {
+    const res = await fetch(`${API}/trends`);
+    const data = await res.json();
+    const active = data.active || [];
+    let html = `<div style="margin-bottom:14px;padding:14px;background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(236,72,153,0.08));border:1px solid #cbd5e1;border-radius:12px;">
+      <div style="font-weight:700;">🔥 Trend Monitor</div>
+      <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">Velocity-scored viral opportunities. Grade A = act now.</div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="review-btn approve" style="flex:1;padding:10px;" onclick="scanTrends()">🔍 Scan Now</button>
+        <button class="review-btn publish" style="flex:1;padding:10px;" onclick="runDiscoverySweep()">🔭 Discovery Sweep</button>
+      </div>
+      <div style="font-size:0.7rem;color:#94a3b8;margin-top:8px;">Discovery hunts across 150+ industries/hobbies + live Google/Reddit/Amazon/eBay signals every 2h automatically.</div>
+    </div>`;
+    html += active.sort((a,b) => b.score - a.score).map(t => `
+      <div class="trend-card ${t.phase}">
+        <div class="emoji">${t.emoji}</div>
+        <div class="name">${t.name} ${sourceBadge(t)} <span class="grade-badge ${t.grade}">${t.grade} · ${t.score}</span></div>
+        <div class="meta">${t.phase} · ${t.velocity} · ${t.window}d window · Est ${t.est_revenue}</div>
+        <div class="meta" style="font-size:0.7rem;margin-top:2px;">${t.why}</div>
+        <div class="meta" style="font-size:0.72rem;margin-top:4px;color:#16a34a;">🛡️ Vetting: <strong>${t.vet?.verdict || '—'}</strong> · ${t.vet?.score ?? '—'} pts</div>
+        <div class="actions"><button class="review-btn approve" onclick="activateTrendNow(${t.id})">Activate</button><button class="review-btn edit" onclick="showVetting(${t.id})">Vet</button><button class="review-btn reject" onclick="dismissTrendNow(${t.id})">Dismiss</button></div>
+      </div>`).join('');
+    if (!active.length) html += '<div style="color:#94a3b8;text-align:center;padding:20px;">No active trends. Hit Scan.</div>';
+    return html;
+  }
+  if (type === 'automation') {
+    const [logRes, statusRes] = await Promise.all([fetch(`${API}/automation/log`), fetch(`${API}/automation/status`)]);
+    const logs = await logRes.json();
+    const s = await statusRes.json();
+    const banner = s.isReviewDay ? `<div class="review-banner"><div class="icon">⏸️</div><div><h4>Review Day</h4><p>${s.pendingCount} products awaiting approval. Automation paused.</p></div></div>` : '';
+    const badge = s.running ? '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">● Running</span>' : '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">○ Idle</span>';
+    return `<div class="auto-section"><h3>⚙️ Engine ${badge}</h3>${banner}
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <button class="review-btn approve" onclick="runAutomation()">▶ Run Now</button>
+        <button class="review-btn approve" onclick="startScheduler()">⏱ Scheduler</button>
+        <button class="review-btn reject" onclick="stopScheduler()">⏹ Stop</button>
+        <button class="review-btn publish" onclick="autoListToggle()">${s.autoList ? '✅' : '⬜'} Auto-List</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <button class="review-btn publish" onclick="deployBundles()">🎁 Deploy Bundles</button>
+        <button class="review-btn edit" onclick="deployLeadMagnet()">🧲 Lead Magnet</button>
+        <button class="review-btn edit" onclick="syncSales()">💰 Sync Sales</button>
+      </div>
+      <div class="toggle-row"><div><div class="label">Auto-Generate</div><div class="desc">Every 6 hours</div></div><div>${s.autoGenerate !== false ? '✅' : '❌'}</div></div>
+      <div class="toggle-row"><div><div class="label">Auto-List</div><div class="desc">Real APIs if keys set, else simulated</div></div><div>${s.autoList ? '✅ On' : '⬜ Off'}</div></div>
+      <div class="toggle-row"><div><div class="label">Review Gate</div><div class="desc">Every ${s.reviewInterval || 2} days</div></div><div>${s.isReviewDay ? '⏸️ Paused' : '▶️ Active'}</div></div>
+      <div class="toggle-row"><div><div class="label">Pending</div></div><div><strong>${s.pendingCount}</strong></div></div>
+    </div>
+    <div class="auto-section"><h3>📋 Log</h3>${logs.slice(0,15).map(l => `<div class="auto-log-entry ${l.status}"><span class="time">${new Date(l.created_at).toLocaleTimeString()}</span><span class="text">${l.action}${l.details ? ': ' + l.details : ''}</span></div>`).join('')}</div>`;
+  }
+  if (type === 'reviewqueue') {
+    const res = await fetch(`${API}/products`);
+    const products = (await res.json()).filter(p => p.status === 'draft' || p.status === 'pending-review');
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span><strong>${products.length}</strong> pending</span><button class="review-btn approve" onclick="approveAll()">✅ Approve All</button></div>`;
+    html += products.map(p => `<div class="review-item"><div class="thumb">📦</div><div class="info"><div class="name">${p.name}</div><div class="meta">${p.prof_emoji || ''} ${p.prof_name || ''} · ${p.type} · ${p.price}</div></div><div class="actions"><button class="review-btn approve" onclick="approveProduct(${p.id})">Approve</button><button class="review-btn publish" onclick="publishProduct(${p.id})">🚀 Publish</button><button class="review-btn edit" onclick="showSEO(${p.id})">SEO</button><button class="review-btn reject" onclick="rejectProduct(${p.id})">Reject</button></div></div>`).join('');
+    if (!products.length) html += '<div style="color:#94a3b8;text-align:center;padding:30px;">✅ All caught up!</div>';
+    return html;
+  }
+  if (type === 'metrics') {
+    const res = await fetch(`${API}/metrics/summary`);
+    const d = await res.json();
+    const o = d.overall || {};
+    const rows = (d.byProfession || []).map(p =>
+      `<div class="review-item"><div class="thumb">${p.prof_emoji || '📦'}</div><div class="info"><div class="name">${p.prof_name}</div><div class="meta">${p.products} products · ${p.listed} listed · ${p.pending} pending</div></div></div>`
+    ).join('');
+    return `<div class="metric-grid">
+      <div class="metric-card" style="border-top:3px solid #22c55e;"><div class="label">Real Sales</div><div class="value">${o.realSales || 0}</div><div class="sub">from marketplaces (Sync Sales)</div></div>
+      <div class="metric-card" style="border-top:3px solid #22c55e;"><div class="label">Real Revenue</div><div class="value">$${(o.realRevenue || 0).toFixed(2)}</div></div>
+      <div class="metric-card"><div class="label">Est. Catalog Value</div><div class="value">$${(o.revenue || 0).toFixed(0)}</div></div>
+      <div class="metric-card"><div class="label">Listed</div><div class="value">${o.listed || 0}</div></div>
+      <div class="metric-card"><div class="label">Approved</div><div class="value">${o.approved || 0}</div></div>
+      <div class="metric-card"><div class="label">Products</div><div class="value">${o.products || 0}</div></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;"><button class="review-btn approve" onclick="syncSales()">🔄 Sync Gumroad Sales</button></div>
+    <div style="margin-top:16px;"><h3 style="font-size:0.85rem;font-weight:700;margin-bottom:10px;">By Profession</h3>${rows || '<div style="color:#94a3b8;text-align:center;padding:20px;">No products yet.</div>'}</div>`;
+  }
+  if (type === 'upload') return `<div class="drop-zone" onclick="document.getElementById('upload-input').click()"><div class="icon">📸</div><p>Click to upload inspiration photos</p></div><input type="file" id="upload-input" style="display:none;" onchange="handleUpload(this)">`;
+  if (type === 'status') {
+    const prof = state.professions.find(p => p.id === state.activeId);
+    const stages = ['Researching','Generating','Reviewing','Approved','Listed'];
+    const cur = stages.indexOf((prof?.status || 'researching').replace(/\b\w/g, c => c.toUpperCase()));
+    return `<div class="pipeline-bar">${stages.map((s,i) => `<div class="pipeline-stage ${i <= cur ? 'done' : ''} ${i === cur ? 'active' : ''}"></div>`).join('')}</div><div class="pipeline-labels">${stages.map(s => `<span>${s}</span>`).join('')}</div>`;
+  }
+  if (type === 'notifications') {
+    const res = await fetch(`${API}/automation/log`);
+    const logs = (await res.json()).filter(l => l.status !== 'info').slice(0, 20);
+    return logs.length ? logs.map(l => `<div class="auto-log-entry ${l.status}"><span class="time">${new Date(l.created_at).toLocaleTimeString()}</span><span class="text">${l.action}: ${l.details || ''}</span></div>`).join('') : '<div style="color:#94a3b8;text-align:center;padding:30px;">No notifications</div>';
+  }
+  return `<div style="padding:40px;text-align:center;color:#94a3b8;">${type}</div>`;
+}
+
+/* ── ACTIONS ── */
+function sourceBadge(t) {
+  const why = (t.why || '').toLowerCase();
+  if (why.includes('radar') || why.includes('google') || why.includes('reddit') || why.includes('amazon') || why.includes('ebay')) {
+    return '<span style="font-size:0.6rem;background:rgba(45,212,191,0.15);color:#2dd4bf;padding:1px 6px;border-radius:8px;letter-spacing:1px;">🛰 LIVE</span>';
+  }
+  if (why.includes('discovery') || why.includes('seasonal')) {
+    return '<span style="font-size:0.6rem;background:rgba(236,72,153,0.15);color:#ec4899;padding:1px 6px;border-radius:8px;letter-spacing:1px;">🔎 DISCOVERY</span>';
+  }
+  return '';
+}
+async function scanTrends() {
+  const res = await fetch(`${API}/trends/scan`, { method:'POST' });
+  const data = await res.json();
+  if (data.trend) showToast('warning','🔥 Trend Detected', `${data.trend.name} — ${data.trend.velocity}`);
+  else showToast('info','Scan Complete','No new niches this sweep.');
+  await fetchTrends();
+  if (state.currentPanel === 'trends') openPanel('trends');
+}
+async function runDiscoverySweep() {
+  showToast('info','🔭 Discovery Sweep…','Hunting across all industries/hobbies');
+  const res = await fetch(`${API}/discovery/sweep`, { method:'POST' });
+  const data = await res.json();
+  if (data.count > 0) showToast('success','Discovery Complete', `${data.count} new niche(s) surfaced: ${data.names.slice(0,3).join(', ')}`);
+  else showToast('info','Discovery Complete','Nothing new this sweep — checking again automatically.');
+  await fetchTrends();
+  if (state.currentPanel === 'trends') openPanel('trends');
+}
+async function activateTrendNow(id) {
+  await fetch(`${API}/trends/${id}/activate`, { method:'POST' });
+  showToast('success','Trend Activated','Profession created — generate products for it!');
+  await Promise.all([fetchTrends(), fetchProfessions()]);
+}
+async function dismissTrendNow(id) {
+  await fetch(`${API}/trends/${id}/dismiss`, { method:'POST' });
+  await fetchTrends();
+  if (state.currentPanel === 'trends') openPanel('trends');
+}
+async function showSEO(productId) {
+  const res = await fetch(`${API}/seo/${productId}`);
+  const s = await res.json();
+  if (!s || !s.title) return showToast('error','SEO','Could not load SEO data');
+  const tags = (s.tags || []).map(t => `<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:0.7rem;margin:2px;">${t}</span>`).join('');
+  showToast('info', '🔍 SEO Preview', `<div style="font-size:0.78rem;"><strong>Title:</strong><br>${s.title}<br><br><strong>Gumroad:</strong> ${s.shortTitle}<br><br><strong>Tags (${(s.tags||[]).length}):</strong><br>${tags}</div>`);
+}
+async function showVetting(id) {
+  const res = await fetch(`${API}/trends/vet/${id}`);
+  const v = await res.json();
+  if (!v || v.score === undefined) return showToast('error','Vetting','Could not load vetting data');
+  const s = v.signals || {};
+  const bar = (label, val) => `<div style="margin:6px 0;"><div style="display:flex;justify-content:space-between;font-size:0.78rem;"><span>${label}</span><strong>${Math.round(val)}</strong></div><div style="background:#e2e8f0;border-radius:4px;height:8px;margin-top:3px;"><div style="width:${Math.min(100,val)}%;background:${val>=70?'#22c55e':val>=45?'#f59e0b':'#ef4444'};height:8px;border-radius:4px;"></div></div></div>`;
+  showToast('info', `🛡️ Vetting: ${v.verdict} (${v.score})`, `Demand ${bar('Demand',s.demand)}${bar('Competition edge',s.competition)}${bar('Margin',s.margin)}${bar('Seasonality',s.seasonality)}${bar('Longevity',s.longevity)}`);
+}
+async function runAutomation() {
+  const res = await fetch(`${API}/automation/run`, { method:'POST' });
+  const data = await res.json();
+  showToast('success','🤖 Engine Run', `Generated ${data.generated} products`);
+  await refreshStats();
+}
+async function startScheduler() { await fetch(`${API}/automation/scheduler/start`, { method:'POST' }); showToast('success','Scheduler','Cron started (every 6 hours)'); updateAutoStatus(); }
+async function stopScheduler() { await fetch(`${API}/automation/scheduler/stop`, { method:'POST' }); showToast('info','Scheduler','Stopped'); updateAutoStatus(); }
+async function autoListToggle() {
+  const s = await (await fetch(`${API}/settings`)).json();
+  const v = s.auto_list !== 'true' ? 'true' : 'false';
+  await fetch(`${API}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key:'auto_list', value: v }) });
+  showToast('success','Auto-List', v === 'true' ? 'Enabled — approved products publish automatically' : 'Disabled');
+  if (state.currentPanel === 'automation') openPanel('automation');
+}
+async function approveProduct(id) {
+  await fetch(`${API}/products/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status:'approved' }) });
+  showToast('success','Approved','Product approved');
+  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
+  refreshStats();
+}
+async function rejectProduct(id) {
+  await fetch(`${API}/products/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status:'rejected' }) });
+  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
+  refreshStats();
+}
+async function publishProduct(id) {
+  showToast('info','Publishing…','Contacting marketplaces');
+  const res = await fetch(`${API}/marketplace/publish/${id}`, { method:'POST' });
+  const data = await res.json();
+  if (res.ok) showToast('success','🚀 Published', `Live on ${data.platform}`);
+  else showToast('error','Publish Failed', data.error || 'Unknown error');
+  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
+  refreshStats();
+}
+async function approveAll() {
+  await fetch(`${API}/automation/approve-all`, { method:'POST' });
+  showToast('success','Batch Approved','All pending approved');
+  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
+  refreshStats();
+}
+async function deployBundles() {
+  showToast('info','Building toolkits…','Generating bundle files — this can take a few minutes');
+  try {
+    const g = await (await fetch(`${API}/bundles/generate`, { method:'POST' })).json();
+    if (g.error) throw new Error(g.error);
+    showToast('success','Toolkits Ready', `${g.created} new bundles built (${g.skipped} already existed)`);
+    showToast('info','Publishing…','Uploading toolkits to Gumroad');
+    const p = await (await fetch(`${API}/bundles/publish`, { method:'POST' })).json();
+    if (p.error) throw new Error(p.error);
+    showToast('success','🚀 Live on Gumroad', `${p.published} toolkits published${p.failed ? ', ' + p.failed + ' failed' : ''}`);
+  } catch (e) { showToast('error','Bundle Deploy Failed', e.message); }
+  refreshStats();
+}
+async function deployLeadMagnet() {
+  showToast('info','Deploying…','Creating free starter pack on Gumroad');
+  try {
+    const d = await (await fetch(`${API}/leadmagnet/deploy`, { method:'POST' })).json();
+    if (d.error) throw new Error(d.error);
+    if (d.alreadyLive) showToast('info','Already Live', d.url);
+    else showToast('success','🧲 Lead Magnet Live', d.url || 'Free pack is up — email capture enabled');
+  } catch (e) { showToast('error','Lead Magnet Failed', e.message); }
+}
+async function syncSales() {
+  try {
+    const d = await (await fetch(`${API}/metrics/sync-gumroad`, { method:'POST' })).json();
+    if (d.error) throw new Error(d.error);
+    if (d.newSales > 0) showToast('success','💰 New Sales!', `${d.newSales} sale(s) — $${d.revenue.toFixed(2)}`);
+    else showToast('info','Synced','No new sales yet — keep publishing!');
+    if (state.currentPanel === 'metrics') openPanel('metrics');
+  } catch (e) { showToast('error','Sync Failed', e.message); }
+}
+async function handleUpload(input) {
+  if (!input.files.length) return;
+  const fd = new FormData();
+  fd.append('photo', input.files[0]);
+  await fetch(`${API}/inspiration/${state.activeId}`, { method:'POST', body: fd });
+  showToast('success','Uploaded','Inspiration photo saved');
+}
+function filterProfessions() { renderSidebar(); }
+
+/* ── STATS + STATUS ── */
+async function refreshStats() {
+  const res = await fetch(`${API}/products`);
+  const products = await res.json();
+  document.getElementById('stat-products').textContent = products.length;
+  document.getElementById('stat-pending').textContent = products.filter(p => p.status === 'draft' || p.status === 'pending-review').length;
+  document.getElementById('stat-listed').textContent = products.filter(p => p.status === 'listed').length;
+  const t = await (await fetch(`${API}/trends`)).json();
+  document.getElementById('stat-trends').textContent = (t.active || []).length;
+}
+async function updateAutoStatus() {
+  try {
+    const s = await (await fetch(`${API}/automation/status`)).json();
+    const pill = document.getElementById('auto-status-pill');
+    const text = document.getElementById('auto-status-text');
+    if (s.isReviewDay) { pill.className = 'auto-status-pill paused'; text.textContent = 'Automation: Paused for Review'; }
+    else if (s.running) { pill.className = 'auto-status-pill processing'; text.textContent = 'Automation: Running'; }
+    else { pill.className = 'auto-status-pill idle'; text.textContent = 'Automation: Idle'; }
+    if (s.isReviewDay && !state.reviewNotified) {
+      state.reviewNotified = true;
+      showToast('warning','⏸️ Review Day', `${s.pendingCount} products awaiting approval.`);
+    }
+    if (!s.isReviewDay) state.reviewNotified = false;
+  } catch {}
+}
+
+/* ── TOASTS ── */
+function showToast(type, title, msg) {
+  const icons = { info:'ℹ️', success:'✅', warning:'⚠️', error:'❌' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span class="toast-icon">${icons[type]}</span><div><div class="toast-title">${title}</div><div class="toast-msg">${msg}</div></div><button class="toast-close" onclick="this.parentElement.remove()">&times;</button>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 6000);
+}
+
+/* ── INIT ── */
+(async function init() {
+  await fetchProfessions();
+  await fetchTrends();
+  await refreshStats();
+  await updateAutoStatus();
+  renderEmptyState();
+  setInterval(updateAutoStatus, 30000);
+})();
+</script>
+</body>
+</html>

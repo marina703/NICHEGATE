@@ -1,0 +1,22 @@
+# ── Secrets — NEVER commit these ──
+.env
+.env.local
+*.env
+
+# ── Dependencies ──
+node_modules/
+
+# ── Runtime data (generated products, DB, logs, uploads) ──
+data/*.db
+data/*.db-*
+generated/
+logs/
+uploads/
+*.log
+
+# ── OS / editor ──
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

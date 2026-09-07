@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setup Wizard — NicheGate</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#0a0a0a;color:#e2e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+.container{max-width:640px;width:100%;}
+.header{text-align:center;margin-bottom:40px;}
+.header .logo{font-size:3rem;margin-bottom:12px;}
+.header h1{font-size:1.8rem;color:white;margin-bottom:8px;}
+.header p{color:#94a3b8;font-size:0.95rem;}
+.step{background:#111;border:1px solid #222;border-radius:16px;padding:24px;margin-bottom:16px;transition:all 0.3s;}
+.step.done{border-color:#22c55e;}
+.step.done .step-num{background:#22c55e;color:white;}
+.step-header{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.step-num{width:36px;height:36px;border-radius:50%;background:#222;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;color:#94a3b8;flex-shrink:0;}
+.step h2{font-size:1.1rem;color:white;}
+.step p{color:#94a3b8;font-size:0.85rem;margin-top:4px;line-height:1.5;}
+
+.btn{display:inline-block;padding:10px 20px;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;margin-top:12px;}
+.btn-primary{background:#2dd4bf;color:#000;}
+.btn-primary:hover{background:#14b8a6;}
+.btn-secondary{background:#222;color:#e2e8f0;}
+.btn-secondary:hover{background:#333;}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+.status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;margin-top:12px;}
+.status-pill.done{background:rgba(34,197,94,0.15);color:#22c55e;}
+.status-pill.pending{background:rgba(245,158,11,0.15);color:#f59e0b;}
+.status-pill.error{background:rgba(239,68,68,0.15);color:#ef4444;}
+
+.code-block{background:#0a0a0a;border:1px solid #222;border-radius:8px;padding:12px;font-family:'Courier New',monospace;font-size:0.8rem;color:#2dd4bf;margin-top:10px;word-break:break-all;}
+.copy-btn{float:right;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:0.75rem;}
+.copy-btn:hover{color:white;}
+
+.instructions{margin-top:12px;padding-left:18px;}
+.instructions li{color:#94a3b8;font-size:0.82rem;margin-bottom:8px;line-height:1.5;}
+.instructions li strong{color:#e2e8f0;}
+
+a{color:#2dd4bf;text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+.bottom-cta{text-align:center;margin-top:30px;}
+.bottom-cta a{display:inline-block;padding:14px 32px;background:#2dd4bf;color:#000;border-radius:12px;font-weight:700;font-size:1rem;}
+.bottom-cta a:hover{background:#14b8a6;text-decoration:none;}
+
+.ready-banner{background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(45,212,191,0.1));border:1px solid #22c55e;border-radius:16px;padding:20px;text-align:center;margin-bottom:24px;display:none;}
+.ready-banner.show{display:block;}
+.ready-banner h2{color:#22c55e;font-size:1.2rem;margin-bottom:6px;}
+.ready-banner p{color:#94a3b8;font-size:0.85rem;}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo">📦</div>
+    <h1>Setup Wizard</h1>
+    <p>Connect your marketplaces and notifications to go live</p>
+  </div>
+
+  <div class="ready-banner" id="ready-banner">
+    <h2>✅ You're Ready to Go Live!</h2>
+    <p>All required connections are configured. <a href="/" style="color:#2dd4bf;">Open the app →</a></p>
+  </div>
+
+  <div class="step" id="step-etsy">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div>
+        <h2>Etsy Connection</h2>
+        <p>Auto-list products on the world's largest handmade marketplace</p>
+      </div>
+    </div>
+    <div id="etsy-content">
+      <ol class="instructions">
+        <li>Go to <a href="https://www.etsy.com/developers/register" target="_blank">etsy.com/developers/register</a></li>
+        <li>Click <strong>"Create a new app"</strong></li>
+        <li>App name: <strong>NicheGate</strong></li>
+        <li>Redirect URI: <span id="etsy-callback">loading...</span> <button class="copy-btn" onclick="copyText('etsy-callback')">Copy</button></li>
+        <li>Copy <strong>Keystring</strong> → paste into <code>.env</code> as <code>ETSY_CLIENT_ID</code></li>
+        <li>Copy <strong>Shared Secret</strong> → paste into <code>.env</code> as <code>ETSY_CLIENT_SECRET</code></li>
+        <li>Restart the server</li>
+      </ol>
+      <button class="btn btn-primary" onclick="connectEtsy()" style="margin-top:12px;">🔗 Connect Etsy Now</button>
+    </div>
+    <div class="status-pill pending" id="etsy-status">⏳ Waiting — click Connect Etsy above when your Etsy app is approved</div>
+  </div>
+
+  <div class="step" id="step-gumroad">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div>
+        <h2>Gumroad Connection</h2>
+        <p>Sell digital products directly to your audience</p>
+      </div>
+    </div>
+    <div id="gumroad-content">
+      <ol class="instructions">
+        <li>Go to <a href="https://gumroad.com/settings/advanced" target="_blank">gumroad.com/settings/advanced</a></li>
+        <li>Scroll to <strong>"Application Secrets"</strong></li>
+        <li>Click <strong>"Generate new application secret"</strong></li>
+        <li>Copy the token → paste into <code>.env</code> as <code>GUMROAD_ACCESS_TOKEN</code></li>
+        <li>Restart the server</li>
+      </ol>
+      <button class="btn btn-secondary" onclick="checkStatus()">🔄 Test Gumroad Connection</button>
+    </div>
+    <div class="status-pill pending" id="gumroad-status">⏳ Waiting for API key</div>
+  </div>
+
+  <div class="step" id="step-discord">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div>
+        <h2>Discord Notifications (Optional)</h2>
+        <p>Get instant alerts for review day, trends, and sales</p>
+      </div>
+    </div>
+    <div id="discord-content">
+      <ol class="instructions">
+        <li>In Discord, go to a server you admin</li>
+        <li>Channel Settings → <strong>Integrations → Webhooks → New Webhook</strong></li>
+        <li>Copy webhook URL</li>
+        <li>Run this in your project folder:</li>
+      </ol>
+      <div class="code-block">node -e "require('./server/database').db.prepare('UPDATE settings SET value = \"YOUR_WEBHOOK_URL\" WHERE key = \"webhook_url\"').run()"</div>
+      <button class="btn btn-secondary" onclick="checkStatus()">🔄 Check Connection</button>
+    </div>
+    <div class="status-pill pending" id="discord-status">⏳ Optional</div>
+  </div>
+
+  <div class="bottom-cta">
+    <a href="/">← Back to App</a>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+
+function showToast(type, title, msg) {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:12px 18px;border-radius:8px;color:#e2e8f0;font-size:0.82rem;font-weight:600;z-index:999;background:#1a1a2e;border-left:3px solid ' + (type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6') + ';';
+  el.textContent = title + ': ' + msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 5000);
+}
+
+async function connectEtsy() {
+  try {
+    // Pass our exact origin so Etsy's redirect_uri matches what's registered
+    const callback = window.location.origin + '/api/marketplace/etsy/callback';
+    const res = await fetch(`${API}/marketplace/etsy/auth?redirectUri=${encodeURIComponent(callback)}`);
+    const data = await res.json();
+    if (data.authUrl) {
+      window.location.href = data.authUrl;
+    } else {
+      showToast('error', 'Auth URL Error', data.error || 'Could not get auth URL');
+    }
+  } catch (e) {
+    showToast('error', 'Failed', e.message);
+  }
+}
+
+async function checkStatus() {
+  try {
+    const res = await fetch(`${API}/setup/status`);
+    const data = await res.json();
+    
+    // Etsy
+    const etsyStep = document.getElementById('step-etsy');
+    const etsyStatus = document.getElementById('etsy-status');
+    if (data.etsy.connected) {
+      etsyStep.classList.add('done');
+      etsyStatus.className = 'status-pill done';
+      etsyStatus.textContent = '✅ Etsy is fully connected and ready to list products.';
+    } else {
+      etsyStep.classList.remove('done');
+      etsyStatus.className = 'status-pill error';
+      etsyStatus.textContent = '❌ OAuth not completed — click Connect Etsy below';
+    }
+    
+    // Gumroad
+    const gumroadStep = document.getElementById('step-gumroad');
+    const gumroadStatus = document.getElementById('gumroad-status');
+    if (data.gumroad.connected) {
+      gumroadStep.classList.add('done');
+      gumroadStatus.className = 'status-pill done';
+      gumroadStatus.textContent = '✅ Gumroad is fully connected and ready to list products.';
+      document.getElementById('gumroad-content').innerHTML = '<p style="color:#22c55e;">✅ Gumroad is connected and ready to list products.</p>';
+    } else {
+      gumroadStatus.textContent = '❌ ' + data.gumroad.message;
+      gumroadStatus.className = 'status-pill error';
+    }
+    
+    // Discord
+    const discordStep = document.getElementById('step-discord');
+    const discordStatus = document.getElementById('discord-status');
+    if (data.discord.configured) {
+      discordStep.classList.add('done');
+      discordStatus.className = 'status-pill done';
+      discordStatus.textContent = '✅ Notifications active';
+      document.getElementById('discord-content').innerHTML = '<p style="color:#22c55e;">✅ Discord notifications are active.</p>';
+    }
+    
+    // Ready banner
+    if (data.allReady) {
+      document.getElementById('ready-banner').classList.add('show');
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function copyText(elementId) {
+  const text = document.getElementById(elementId).textContent;
+  navigator.clipboard.writeText(text).then(() => alert('Copied!'));
+}
+
+// Set callback URL + surface OAuth result when redirected back
+fetch(`${API}/setup/status`).then(() => {
+  document.getElementById('etsy-callback').textContent = window.location.origin + '/api/marketplace/etsy/callback';
+});
+
+const params = new URLSearchParams(window.location.search);
+if (params.get('etsy') === 'connected') {
+  showToast('success', 'Etsy Connected', 'NicheGate can now list products on Etsy.');
+}
+
+checkStatus();
+</script>
+
+</body>
+</html>
