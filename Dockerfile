@@ -23,7 +23,7 @@ ENV PORT=5000 \
 
 EXPOSE 5000
 
-# Persist the SQLite DB across deploys: mount a Railway Volume at /app/data
-VOLUME ["/app/data"]
+# Persistence: attach a Railway Volume at /app/data in the dashboard/CLI
+# (Railway does not support the docker VOLUME directive)
 
 CMD ["node", "server/index.js"]
