@@ -23,6 +23,7 @@ const { buildWebsiteHTML, getRecoveryPrompts } = fileFactory;
 const bundles = require('./services/bundleEngine');
 const seasonal = require('./services/seasonalEngine');
 const discovery = require('./services/discovery');
+const decision = require('./services/decisionEngine');
 const axios = require('axios');
 
 const app = express();
@@ -140,7 +141,8 @@ app.post('/api/templates/generate', async (req, res) => {
     
     for (const theme of themes) {
       let html = '';
-      if (type === 'invoice') html = pdfGen.buildInvoiceHTML(prof, theme);
+      if (Object.keys(decision.DECISION_TYPES).includes(type)) html = decision.buildHTML(prof, type, theme);
+      else if (type === 'invoice') html = pdfGen.buildInvoiceHTML(prof, theme);
       else if (type === 'checklist') html = pdfGen.buildChecklistHTML(prof, theme);
       else if (type === 'journal') html = pdfGen.buildJournalHTML(prof, theme, getRecoveryPrompts(prof));
       else if (type === 'brand') html = pdfGen.buildBrandKitHTML(prof, theme);
@@ -158,6 +160,24 @@ app.post('/api/templates/generate', async (req, res) => {
   } catch (e) {
     console.error('[TEMPLATE ERROR]', e.message, e.stack);
     res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
+// Generate a decision-support tool deliverable (XLSX/PDF) for a profession
+app.post('/api/decision/generate', async (req, res) => {
+  try {
+    const { profession_id, type } = req.body;
+    const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(profession_id);
+    if (!prof) return res.status(404).json({ error: 'Profession not found' });
+    if (!decision.DECISION_TYPES[type]) return res.status(400).json({ error: 'Unknown decision type' });
+
+    const stamp = Date.now();
+    const ext = decision.DECISION_TYPES[type].format === 'pdf' ? 'pdf' : 'xlsx';
+    const filePath = await decision.buildFile(prof, type, `${prof.slug}-${type}-${stamp}.${ext}`);
+    res.json({ success: true, file_path: filePath, type, price: decision.DECISION_TYPES[type].price });
+  } catch (e) {
+    console.error('[DECISION] generate error:', e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -463,15 +483,16 @@ app.post('/api/automation/run', async (req, res) => {
   const results = [];
   
   for (const prof of profs) {
-    const types = ['invoice', 'social', 'checklist', 'spreadsheet'];
+    const types = ['invoice', 'social', 'checklist', 'spreadsheet', 'decision-matrix', 'roi'];
     const type = types[Math.floor(Math.random() * types.length)];
+    const price = decision.DECISION_TYPES[type]?.price || '$12';
     const theme = 'Black Teal';
     
     try {
       const result = db.prepare(`
         INSERT INTO products (profession_id, name, type, price, status, theme, html_content)
         VALUES (?, ?, ?, ?, 'draft', ?, ?)
-      `).run(prof.id, `${prof.name} ${type.charAt(0).toUpperCase() + type.slice(1)}`, type, '$12', theme, '<!-- auto-generated -->');
+      `).run(prof.id, `${prof.name} ${type.charAt(0).toUpperCase() + type.slice(1)}`, type, price, theme, '<!-- auto-generated -->');
       
       db.prepare('INSERT INTO automation_log (action, profession_id, product_id, details, status) VALUES (?, ?, ?, ?, ?)')
         .run('auto_generate', prof.id, result.lastInsertRowid, `Auto-generated ${type} for ${prof.name}`, 'success');
@@ -490,7 +511,16 @@ app.post('/api/automation/approve-all', (req, res) => {
   const result = db.prepare("UPDATE products SET status = 'approved' WHERE status = 'draft' OR status = 'pending-review'").run();
   db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
     .run('batch_approve', `Approved ${result.changes} products`, 'success');
+  completeReview(); // approving the backlog counts as completing the review gate
   res.json({ approved: result.changes });
+});
+
+// Mark the review gate complete so automation resumes (resets the 2-day timer)
+app.post('/api/automation/complete-review', (req, res) => {
+  completeReview();
+  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+    .run('review_complete', 'Review marked complete — automation resuming', 'success');
+  res.json({ success: true });
 });
 
 // ════════════════════════════════════════════════════════════════════════
@@ -774,6 +804,11 @@ function checkIsReviewDay() {
   return daysSince >= reviewInterval;
 }
 
+// Reset the review-gate timer so the automation loop resumes after a review
+function completeReview() {
+  db.prepare("UPDATE settings SET value = ? WHERE key = 'last_review'").run(new Date().toISOString());
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // AUTO-START: On server boot
 // ════════════════════════════════════════════════════════════════════════
@@ -840,11 +875,12 @@ async function runAutoCycle() {
   const profs = db.prepare("SELECT * FROM professions WHERE status != 'archived'").all();
   let generated = 0;
   for (const prof of profs) {
-    const types = ['invoice', 'social', 'checklist', 'spreadsheet', 'booking'];
+    const types = ['invoice', 'social', 'checklist', 'spreadsheet', 'booking', 'decision-matrix', 'roi'];
     const type = types[Math.floor(Math.random() * types.length)];
+    const price = decision.DECISION_TYPES[type]?.price || '$12';
     try {
       db.prepare(`INSERT INTO products (profession_id, name, type, price, status, theme, html_content) VALUES (?, ?, ?, ?, 'draft', ?, ?)`)
-        .run(prof.id, `${prof.name} ${type.charAt(0).toUpperCase()+type.slice(1)}`, type, '$12', 'Auto Theme', '<!-- auto-generated -->');
+        .run(prof.id, `${prof.name} ${type.charAt(0).toUpperCase()+type.slice(1)}`, type, price, 'Auto Theme', '<!-- auto-generated -->');
       generated++;
     } catch (e) {}
   }
@@ -859,7 +895,7 @@ async function runAutoCycle() {
     if (s) console.log(`[AUTO] Seasonal: ${s.type} for ${s.profession}`);
   } catch (e) { console.error('[AUTO] seasonal:', e.message); }
   
-  // 4. Auto-list approved products (if enabled) — real APIs first, simulated fallback
+  // 4. Auto-list approved products (if enabled) — real APIs only, failures throw
   const autoList = db.prepare('SELECT * FROM settings WHERE key = ?').get('auto_list');
   if (autoList && autoList.value === 'true') {
     const approved = db.prepare("SELECT * FROM products WHERE status = 'approved' AND marketplace_id IS NULL").all();

@@ -37,6 +37,7 @@ function getFocusProfessions() {
 function generateSeasonalProduct() {
   const profs = getFocusProfessions();
   if (!profs.length) return null;
+  const focus = getCurrentFocus();
   const prof = profs[Math.floor(Math.random() * profs.length)];
   const types = ['checklist', 'spreadsheet', 'booking'];
   const type = types[Math.floor(Math.random() * types.length)];

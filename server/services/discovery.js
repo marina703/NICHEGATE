@@ -12,6 +12,7 @@ const radar = require('./trendRadar');
 const { UNIVERSE } = require('./nicheUniverse');
 const seasonal = require('./seasonalEngine');
 const vetting = require('./vettingEngine');
+const decision = require('./decisionEngine');
 
 // ── Niche universe sampling ──
 function sampleUniverse(count = 4) {
@@ -79,7 +80,10 @@ async function sweep(maxNew = 8) {
 }
 
 // ── Trend → product generation (fresh, relevant products for a new niche) ──
-const TYPE_PRICES = { invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15', brand: '$19', journal: '$15' };
+const TYPE_PRICES = {
+  invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15', brand: '$19', journal: '$15',
+  ...Object.fromEntries(Object.entries(decision.DECISION_TYPES).map(([k, v]) => [k, v.price]))
+};
 
 function productsForTrend(trend) {
   const cat = (trend.why || '').toLowerCase();
@@ -97,13 +101,13 @@ function productsForTrend(trend) {
     return ['booking', 'checklist', 'spreadsheet', 'social'];
   }
   if (/recovery|sober|wellness|mental|therapy|counsel/.test(cat)) {
-    return ['journal', 'checklist', 'spreadsheet', 'social'];
+    return ['journal', 'checklist', 'spreadsheet', 'social', 'selector'];
   }
   if (/tech|app|digital|ai|software|template|online/.test(cat)) {
-    return ['spreadsheet', 'checklist', 'social', 'brand'];
+    return ['spreadsheet', 'checklist', 'social', 'brand', 'roi'];
   }
   // Default service-business mix
-  return ['invoice', 'checklist', 'spreadsheet', 'booking'];
+  return ['invoice', 'checklist', 'spreadsheet', 'booking', 'decision-matrix'];
 }
 
 // Generate a batch of products for a newly-activated trend profession

@@ -4,6 +4,9 @@ Ranked by expected revenue impact vs. effort. ✅ = free, 💵 = needs budget.
 
 ## 🔥 SHORT-TERM (this week — mostly free)
 
+0. **Auto-approve + auto-list on non-review days** 🔴 **THE #1 LEVER — NOT YET BUILT**
+   The 872-draft backlog never reaches a marketplace because nothing auto-approves. Add a non-review-day auto-approve pass so drafts → approved → listed automatically, with the every-other-day review gate as a human checkpoint (not a per-item gate). This is the single biggest revenue unlock and matches your "~90–100% autonomous" goal.
+
 1. **Publish the draft backlog as bundles** ✅ **DONE** — 22 × $29 Complete Toolkits built; 9 live on Gumroad, 13 queued behind Gumroad's 10-creations/day limit (click 🎁 Deploy Bundles tomorrow).
 
 2. **Finish Etsy OAuth** ✅

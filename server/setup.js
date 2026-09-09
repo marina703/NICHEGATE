@@ -1,3 +1,4 @@
-const { init } = require('./database');
+const { init, db } = require('./database');
 init();
-console.log('Database initialized and seeded with 21 professions.');
+const count = db.prepare('SELECT COUNT(*) as c FROM professions').get().c;
+console.log(`Database initialized and seeded with ${count} professions.`);

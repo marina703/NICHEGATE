@@ -109,4 +109,4 @@ function generateXLSX(type, prof, filename) {
   return outputPath;
 }
 
-module.exports = { generateXLSX, OUTPUT_DIR };
+module.exports = { generateXLSX, coerceFormulas, OUTPUT_DIR };

@@ -143,38 +143,6 @@ async function listOnEtsy(product, shopId) {
   return resp.data;
 }
 
-// ── GUMROAD ──
-async function listOnGumroad(product) {
-  const check = checkGumroadKey();
-  if (!check.ok) throw new Error(check.message);
-  
-  const token = process.env.GUMROAD_ACCESS_TOKEN;
-  const form = new URLSearchParams();
-  form.append('name', product.name.substring(0, 200));
-  form.append('url', `${product.slug || product.id}-${Date.now()}`);
-  form.append('price', (parseFloat(product.price.replace('$', '')) || 12) * 100);
-  form.append('description', 'Instant digital download');
-  
-  const resp = await axios.post(`${GUMROAD_API_BASE}/products`, form.toString(), {
-    headers: { 
-      Authorization: `Bearer ${token}`, 
-      'Content-Type': 'application/x-www-form-urlencoded' 
-    }
-  });
-  
-  return resp.data;
-}
-
-async function uploadGumroadFile(productId, filePath) {
-  const check = checkGumroadKey();
-  if (!check.ok) throw new Error(check.message);
-  
-  // In production: use multipart/form-data with fs.createReadStream
-  // This is a stub that would need multer/file upload integration
-  console.log(`[GUMROAD] Would upload ${filePath} to product ${productId}`);
-  return { status: 'stub' };
-}
-
 // ── STATUS ──
 function getMarketplaceStatus() {
   const etsy = checkEtsyKeys();
@@ -327,7 +295,7 @@ async function getGumroadProductUrls() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PUBLISH DISPATCHER — tries real APIs in priority order, simulated fallback
+// PUBLISH DISPATCHER — tries real APIs in priority order. NO simulated fallback.
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Upload a local file to Gumroad via the 4-step S3 flow:
@@ -466,7 +434,6 @@ module.exports = {
   exchangeEtsyToken,
   refreshEtsyToken,
   listOnEtsy,
-  listOnGumroad,
   uploadGumroadFile,
   getMarketplaceStatus,
   checkEtsyKeys,

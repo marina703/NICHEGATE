@@ -13,7 +13,17 @@ const PRODUCT_TERMS = {
   checklist:  ['Checklist Template', 'Service Checklist', 'Quality Checklist', 'Checklist'],
   journal:    ['Journal Template', 'Recovery Journal', 'Guided Journal', 'Journal'],
   bundle:     ['Complete Toolkit', 'Template Bundle', 'Business Toolkit', 'Bundle'],
-  leadmagnet: ['Free Template Pack', 'Starter Pack', 'Free Templates', 'Freebie']
+  leadmagnet: ['Free Template Pack', 'Starter Pack', 'Free Templates', 'Freebie'],
+  // Decision-support family (real formulas / printable tools)
+  'decision-matrix': ['Decision Matrix', 'Decision Maker', 'Weighted Scoring Tool', 'Decision Template'],
+  'comparison':      ['Comparison Tool', 'Compare Options', 'Side-by-Side Comparison', 'Comparison Chart'],
+  'cost-benefit':    ['Cost-Benefit Analysis', 'Break-Even Calculator', 'Cost Analysis', 'Benefit Calculator'],
+  'roi':             ['ROI Calculator', 'Return on Investment', 'Payback Calculator', 'ROI Template'],
+  'risk-matrix':     ['Risk Assessment Matrix', 'Risk Matrix', 'Risk Analysis', 'Risk Template'],
+  'decision-tree':   ['Decision Tree', 'Decision Flowchart', 'Decision Guide', 'Decision Path'],
+  'selector':        ['Which Is Right For You', 'Decision Quiz', 'Selection Guide', 'Choice Quiz'],
+  'swot':            ['SWOT Analysis', 'SWOT Template', 'Strengths Weaknesses', 'SWOT'],
+  'priority-matrix': ['Priority Matrix', 'Eisenhower Matrix', 'Task Prioritization', 'Priority Planner']
 };
 
 const TIER_TERMS = {
@@ -71,9 +81,16 @@ function buildDescription(prof, type, theme) {
     ``,
     `PERFECT FOR: ${prof.name} professionals, ${serviceList}`,
     ``,
-    `Theme: ${theme} | Format: ${type === 'spreadsheet' ? 'XLSX' : type === 'social' ? 'ZIP' : 'PDF'}`,
+    `Theme: ${theme} | Format: ${formatForType(type)}`,
     `Instant download after purchase.`
   ].join('\n');
+}
+
+// XLSX decision tools ship as spreadsheets; PDF decision tools ship as PDFs
+function formatForType(type) {
+  if (type === 'social') return 'ZIP';
+  if (['spreadsheet', 'decision-matrix', 'comparison', 'cost-benefit', 'roi', 'risk-matrix'].includes(type)) return 'XLSX';
+  return 'PDF';
 }
 
 // Build Etsy tags (max 13, ≤20 chars each)

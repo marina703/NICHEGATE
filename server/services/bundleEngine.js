@@ -9,12 +9,16 @@ const path = require('path');
 const AdmZip = require('adm-zip');
 const { db } = require('../database');
 const { ensureProductFile } = require('./fileFactory');
+const decision = require('./decisionEngine');
 
 const OUTPUT_DIR = path.join(__dirname, '..', '..', 'generated');
 
-const MEMBER_TYPES = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social'];
+const MEMBER_TYPES = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social', 'decision-matrix'];
 const RECOVERY_SLUGS = ['aa-recovery', 'smart-recovery', 'refuge-recovery', 'womens-recovery', 'secular-recovery', 'faith-recovery'];
-const TYPE_PRICES = { invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15', journal: '$15' };
+const TYPE_PRICES = {
+  invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15', journal: '$15',
+  ...Object.fromEntries(Object.entries(decision.DECISION_TYPES).map(([k, v]) => [k, v.price]))
+};
 
 async function getOrCreateMemberFile(prof, type) {
   let row = db.prepare(`
@@ -41,9 +45,10 @@ async function buildBundleForProfession(prof) {
   `).get(prof.id);
   if (existing) return { skipped: true, product: existing };
 
-  const memberTypes = (prof.tier === 'passion' || RECOVERY_SLUGS.includes(prof.slug))
-    ? [...MEMBER_TYPES, 'journal']
-    : MEMBER_TYPES;
+  // Recovery slugs get the "which program" selector; passion gets a journal
+  const memberTypes = RECOVERY_SLUGS.includes(prof.slug)
+    ? [...MEMBER_TYPES, 'journal', 'selector']
+    : (prof.tier === 'passion' ? [...MEMBER_TYPES, 'journal'] : MEMBER_TYPES);
 
   const members = [];
   for (const type of memberTypes) {

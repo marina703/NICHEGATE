@@ -1,7 +1,7 @@
 # NicheGate — Roadmap & Status
 
-**Last updated:** 2026-09-06
-**Server:** http://localhost:5000 (auto-starts with `start-nichegate.bat`; currently stopped — start it)
+**Last updated:** 2026-09-06 (post full audit — see [`AUDIT.md`](AUDIT.md))
+**Server:** http://localhost:5000 (auto-starts with `start-nichegate.bat`) · **Cloud:** https://nichegate-production.up.railway.app (live, 24/7)
 **Storefront:** `/store` · **Setup:** `/setup`
 **Catalog:** 23 professions · 895 products · **10 live on Gumroad** · 13 toolkits + 1 lead magnet queued
 
@@ -39,16 +39,21 @@
 - Publish dispatcher: **no simulated success** — failures throw and log
 - Windows `sendFile/download` bugs fixed everywhere; launcher kills only port 5000
 
+### Fixed in the full audit (2026-09-06)
+- Seasonal engine crash (`focus is not defined`) — was silently failing every seasonal push
+- **Review-gate deadlock** — `last_review` was never reset, so automation permanently paused after 2 days; added "▶ Resume" + `completeReview()`
+- Removed dead Gumroad stub + `listOnGumroad`; corrected stale "simulated" text; honest storefront stats
+
 ---
 
 ## ⏳ NEXT STEPS (in order)
 
 ### 1. Today (free, one click each)
-- [ ] Start the server (`start-nichegate.bat` or `npm start`)
-- [ ] Click **🎁 Deploy Bundles** in Automation → publishes the 13 queued toolkits
+- [ ] Click **🎁 Deploy Bundles** in Automation → publishes the 13 queued toolkits (re-run tomorrow if the 10/day cap blocks some)
 - [ ] Click **🧲 Lead Magnet** → free Starter Pack goes live (email capture on)
 - [ ] Rename Gumroad username to `nichegate` (settings → Profile) — name is confirmed available
-- [ ] Add `DISCORD_WEBHOOK_URL` to `.env` for instant sale/trend alerts
+- [ ] Add `DISCORD_WEBHOOK_URL` to `.env` for instant sale/trend alerts (email is still a stub — Discord is the only working channel)
+- [ ] **Decide on auto-approve** — the #1 lever: auto-approve drafts on non-review days so the 872-draft backlog actually lists (see UPGRADES.md)
 
 ### 2. This week (24/7 + traffic)
 - [ ] **Deploy to Railway** (~$5/mo) so discovery sweeps + sales sync run without your PC on

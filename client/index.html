@@ -398,6 +398,7 @@ function renderEmptyState() {
         <button class="action-btn" onclick="quickPrompt('brand')">🎨 Brand</button>
         <button class="action-btn" onclick="quickPrompt('checklist')">✅ Checklist</button>
         <button class="action-btn" onclick="quickPrompt('journal')">📓 Journal</button>
+        <button class="action-btn" onclick="quickPrompt('decision')">🧭 Decision</button>
       </div>
     </div>`;
 }
@@ -425,7 +426,7 @@ function renderChatArea(history) {
 
 /* ── GENERATION ── */
 function quickPrompt(type) {
-  const prompts = { invoice:'Create a professional invoice template', website:'Design a one-page service website', social:'Generate a social media content pack', brand:'Build a complete brand identity kit', checklist:'Make a service quality checklist', journal:'Design a daily reflection journal' };
+  const prompts = { invoice:'Create a professional invoice template', website:'Design a one-page service website', social:'Generate a social media content pack', brand:'Build a complete brand identity kit', checklist:'Make a service quality checklist', journal:'Design a daily reflection journal', decision:'Create a decision matrix to score my options' };
   document.getElementById('prompt-input').value = prompts[type] || '';
   generateMockups();
 }
@@ -445,6 +446,15 @@ async function generateMockups() {
   else if (lower.includes('brand')) type = 'brand';
   else if (lower.includes('checklist')) type = 'checklist';
   else if (lower.includes('journal') || lower.includes('recovery')) type = 'journal';
+  else if (lower.includes('roi') || lower.includes('return on investment')) type = 'roi';
+  else if (lower.includes('compare') || lower.includes('comparison')) type = 'comparison';
+  else if (lower.includes('cost-benefit') || lower.includes('break-even')) type = 'cost-benefit';
+  else if (lower.includes('risk')) type = 'risk-matrix';
+  else if (lower.includes('swot')) type = 'swot';
+  else if (lower.includes('priority')) type = 'priority-matrix';
+  else if (lower.includes('decision tree') || lower.includes('flowchart')) type = 'decision-tree';
+  else if (lower.includes('which') || lower.includes('selector') || lower.includes('right for')) type = 'selector';
+  else if (lower.includes('decision') || lower.includes('matrix')) type = 'decision-matrix';
 
   const btn = document.getElementById('generate-btn');
   btn.disabled = true; btn.textContent = 'Generating 5 mockups…';
@@ -457,7 +467,7 @@ async function generateMockups() {
 
   const created = [];
   for (const m of mockups) {
-    const price = { invoice:'$12', website:'$24', social:'$15', brand:'$19', spreadsheet:'$17', booking:'$22', checklist:'$10', journal:'$15' }[type] || '$12';
+    const price = { invoice:'$12', website:'$24', social:'$15', brand:'$19', spreadsheet:'$17', booking:'$22', checklist:'$10', journal:'$15', 'decision-matrix':'$19', 'comparison':'$17', 'cost-benefit':'$19', 'roi':'$22', 'risk-matrix':'$19', 'decision-tree':'$15', 'selector':'$17', 'swot':'$12', 'priority-matrix':'$12' }[type] || '$12';
     const prodRes = await fetch(`${API}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, name: `${prof.name} ${type} — ${m.themeName}`, type, price, theme: m.themeName, html_content: m.html }) });
     const pd = await prodRes.json();
     created.push({ ...m, productId: pd.id, type, price });
@@ -591,7 +601,7 @@ async function getPanelContent(type) {
     const [logRes, statusRes] = await Promise.all([fetch(`${API}/automation/log`), fetch(`${API}/automation/status`)]);
     const logs = await logRes.json();
     const s = await statusRes.json();
-    const banner = s.isReviewDay ? `<div class="review-banner"><div class="icon">⏸️</div><div><h4>Review Day</h4><p>${s.pendingCount} products awaiting approval. Automation paused.</p></div></div>` : '';
+    const banner = s.isReviewDay ? `<div class="review-banner"><div class="icon">⏸️</div><div style="flex:1;"><h4>Review Day</h4><p>${s.pendingCount} products awaiting approval. Automation paused.</p></div><button class="review-btn approve" onclick="completeReview()">▶ Resume</button></div>` : '';
     const badge = s.running ? '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">● Running</span>' : '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">○ Idle</span>';
     return `<div class="auto-section"><h3>⚙️ Engine ${badge}</h3>${banner}
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
@@ -606,7 +616,7 @@ async function getPanelContent(type) {
         <button class="review-btn edit" onclick="syncSales()">💰 Sync Sales</button>
       </div>
       <div class="toggle-row"><div><div class="label">Auto-Generate</div><div class="desc">Every 6 hours</div></div><div>${s.autoGenerate !== false ? '✅' : '❌'}</div></div>
-      <div class="toggle-row"><div><div class="label">Auto-List</div><div class="desc">Real APIs if keys set, else simulated</div></div><div>${s.autoList ? '✅ On' : '⬜ Off'}</div></div>
+      <div class="toggle-row"><div><div class="label">Auto-List</div><div class="desc">Real APIs only — failures alert you</div></div><div>${s.autoList ? '✅ On' : '⬜ Off'}</div></div>
       <div class="toggle-row"><div><div class="label">Review Gate</div><div class="desc">Every ${s.reviewInterval || 2} days</div></div><div>${s.isReviewDay ? '⏸️ Paused' : '▶️ Active'}</div></div>
       <div class="toggle-row"><div><div class="label">Pending</div></div><div><strong>${s.pendingCount}</strong></div></div>
     </div>
@@ -743,9 +753,16 @@ async function publishProduct(id) {
 }
 async function approveAll() {
   await fetch(`${API}/automation/approve-all`, { method:'POST' });
-  showToast('success','Batch Approved','All pending approved');
+  showToast('success','Batch Approved','All pending approved — automation resuming');
   if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
   refreshStats();
+  updateAutoStatus();
+}
+async function completeReview() {
+  await fetch(`${API}/automation/complete-review`, { method:'POST' });
+  showToast('success','Review Complete','Automation resuming');
+  if (state.currentPanel === 'automation') openPanel('automation');
+  updateAutoStatus();
 }
 async function deployBundles() {
   showToast('info','Building toolkits…','Generating bundle files — this can take a few minutes');

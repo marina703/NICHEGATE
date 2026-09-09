@@ -7,6 +7,7 @@
 const pdfGen = require('./pdfGenerator');
 const xlsxGen = require('./xlsxGenerator');
 const zipGen = require('./zipGenerator');
+const decision = require('./decisionEngine');
 const { db } = require('../database');
 
 // ── WEBSITE TEMPLATE ──
@@ -129,6 +130,8 @@ async function ensureProductFile(product) {
     filePath = xlsxGen.generateXLSX(type === 'pricing' ? 'spreadsheet' : type, prof, `${prof.slug}-${type}-${stamp}.xlsx`);
   } else if (type === 'social') {
     filePath = zipGen.createSocialPack(prof, theme);
+  } else if (Object.keys(decision.DECISION_TYPES).includes(type)) {
+    filePath = await decision.buildFile(prof, type, `${prof.slug}-${type}-${stamp}.${decision.DECISION_TYPES[type].format === 'pdf' ? 'pdf' : 'xlsx'}`);
   }
   if (filePath) {
     db.prepare('UPDATE products SET file_path = ? WHERE id = ?').run(filePath, product.id);
