@@ -431,6 +431,31 @@ function quickPrompt(type) {
 }
 function handlePromptKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generateMockups(); } }
 
+function isStatusUpdateRequest(lowerPrompt) {
+  return lowerPrompt.includes('status') && (
+    lowerPrompt.includes('update') ||
+    lowerPrompt.includes('current') ||
+    lowerPrompt.includes('report') ||
+    lowerPrompt.includes('summary')
+  );
+}
+
+async function buildStatusUpdateText() {
+  const [productsRes, trendsRes, automationRes] = await Promise.all([
+    fetch(`${API}/products`),
+    fetch(`${API}/trends`),
+    fetch(`${API}/automation/status`)
+  ]);
+  const products = await productsRes.json();
+  const trends = await trendsRes.json();
+  const automation = await automationRes.json();
+  const pending = products.filter(p => p.status === 'draft' || p.status === 'pending-review').length;
+  const listed = products.filter(p => p.status === 'listed').length;
+  const activeTrends = (trends.active || []).length;
+  const autoState = automation.isReviewDay ? 'Paused for review' : (automation.running ? 'Running' : 'Idle');
+  return `Current status: ${products.length} total products, ${pending} pending review, ${listed} listed, ${activeTrends} active trends. Automation is ${autoState}.`;
+}
+
 async function generateMockups() {
   const input = document.getElementById('prompt-input');
   const prompt = input.value.trim();
@@ -439,6 +464,20 @@ async function generateMockups() {
   if (!prof) { showToast('warning','No profession','Select a profession first.'); return; }
 
   const lower = prompt.toLowerCase();
+  if (isStatusUpdateRequest(lower)) {
+    const btn = document.getElementById('generate-btn');
+    btn.disabled = true; btn.textContent = 'Checking status…';
+    await fetch(`${API}/chat`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, role:'user', text: prompt }) });
+    const statusText = await buildStatusUpdateText();
+    await fetch(`${API}/chat`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, role:'ai', text: statusText }) });
+    btn.disabled = false; btn.textContent = 'Generate 5 Mockups';
+    input.value = '';
+    await loadChatHistory(prof.id);
+    await refreshStats();
+    await updateAutoStatus();
+    return;
+  }
+
   let type = 'invoice';
   if (lower.includes('website')) type = 'website';
   else if (lower.includes('social')) type = 'social';
