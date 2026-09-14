@@ -154,6 +154,14 @@ function migrateProfessions() {
       '["#christianrecovery","#biblejournaling","#faithrecovery","#soberchristian","#scripturerecovery","#recoverywithgod","#christiansobriety","#bibleverses"]'
     );
   }
+  if (!db.prepare('SELECT id FROM professions WHERE id = 27').get()) {
+    insert.run(27, "🧱", "Drywall Contractor / Finisher", "drywall", "passion",
+      '{"primary":"#292524","secondary":"#a8a29e","accent":"#f59e0b","bg":"#fafaf9"}',
+      '[["Hang & Finish (per sheet)","$45"],["Tape & Mud","$350"],["Texture Match","$400"],["Patch & Repair","$150"],["Soundproofing Upgrade","$650"],["Complete Drywall Toolkit","$29"]]',
+      '["#drywall","#drywallcontractor","#drywallfinisher","#taping","#mudding","#sheetrock","#drywallrepair","#smoothfinish"]'
+    );
+  }
+
 }
 
 function seedProfessions() {

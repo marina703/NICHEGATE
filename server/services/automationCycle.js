@@ -42,6 +42,16 @@ async function taskSalesSync(ctx) {
   return ctx;
 }
 
+function taskRetire(ctx) {
+  try {
+    ctx.retired = discovery.retireColdTrends();
+    if (ctx.retired > 0) console.log('[AUTO] Retired ' + ctx.retired + ' cold trend(s)');
+  } catch (e) {
+    console.error('[AUTO] retire:', e.message);
+  }
+  return ctx;
+}
+
 function taskReviewGate(ctx) {
   if (typeof ctx.checkIsReviewDay === 'function' && ctx.checkIsReviewDay()) {
     const pending = db.prepare("SELECT COUNT(*) as c FROM products WHERE status = 'draft' OR status = 'pending-review'").get();
@@ -175,6 +185,7 @@ async function runFullCycle(deps) {
   await safeTask(ctx, 'scan', () => taskScan(ctx));
   safeTask(ctx, 'freshness', () => taskFreshness(ctx));
   await safeTask(ctx, 'sales-sync', () => taskSalesSync(ctx));
+  safeTask(ctx, 'retire', () => taskRetire(ctx));
   safeTask(ctx, 'review-gate', () => taskReviewGate(ctx));
   await safeTask(ctx, 'notify-review-day', () => notifyReviewDay(ctx));
   if (!ctx.reviewDay) {
@@ -191,6 +202,7 @@ module.exports = {
   taskScan,
   taskFreshness,
   taskSalesSync,
+  taskRetire,
   taskReviewGate,
   taskGenerate,
   taskSeasonal,

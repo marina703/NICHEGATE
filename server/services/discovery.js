@@ -218,6 +218,44 @@ function freshnessPass() {
   }
 }
 
+// ── CORE (EVERGREEN) NICHES — pinned 24/7/365; never auto-archived by rotation ──
+const CORE_SLUGS = new Set([
+  'pyrotechnics',
+  'aa-recovery', 'smart-recovery', 'refuge-recovery', 'womens-recovery', 'secular-recovery', 'faith-recovery',
+  'drywall'
+]);
+
+function isCoreProfession(prof) {
+  return !!(prof && CORE_SLUGS.has(prof.slug));
+}
+
+// Auto-retire cold trend niches whose window has elapsed with zero sales.
+// Core (evergreen) niches are never archived here.
+function retireColdTrends(now = new Date()) {
+  const active = db.prepare('SELECT * FROM trends WHERE activated = 1 AND outcome IS NULL').all();
+  let retired = 0;
+  for (const t of active) {
+    const start = new Date(t.activated_at || t.detected_at || Date.now());
+    const window = Math.max(7, Number(t.window) || 14);
+    const daysSince = (now.getTime() - start.getTime()) / 86400000;
+    if (daysSince <= window) continue;
+
+    const prof = resolveProfessionForTrend(t);
+    if (!prof) continue;
+    if (isCoreProfession(prof)) continue;
+
+    const row = db.prepare('SELECT COALESCE(SUM(sales), 0) AS s FROM metrics WHERE profession_id = ?').get(prof.id);
+    if ((row && row.s) > 0) continue; // it's earning — leave it alone
+
+    db.prepare("UPDATE trends SET outcome = 'cooled' WHERE id = ?").run(t.id);
+    db.prepare("UPDATE professions SET status = 'archived' WHERE id = ?").run(prof.id);
+    db.prepare('INSERT INTO automation_log (action, profession_id, details, status) VALUES (?, ?, ?, ?)')
+      .run('trend_retired', prof.id, `Retired "${t.name}" — ${Math.round(daysSince)}d window, 0 sales`, 'info');
+    retired++;
+  }
+  return retired;
+}
+
 module.exports = {
   sweep,
   productsForTrend,
@@ -225,5 +263,8 @@ module.exports = {
   freshnessPass,
   sampleUniverse,
   resolveProfessionForTrend,
-  insertUniverseTrend
+  insertUniverseTrend,
+  retireColdTrends,
+  isCoreProfession,
+  CORE_SLUGS
 };
