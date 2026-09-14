@@ -9,6 +9,12 @@ const { ensureProductFile } = require('./fileFactory');
 const ETSY_API_BASE = 'https://openapi.etsy.com/v3';
 const GUMROAD_API_BASE = 'https://api.gumroad.com/v2';
 
+// Etsy v3 requires BOTH the keystring and shared secret in x-api-key on every request.
+function etsyApiKey() {
+  return `${process.env.ETSY_CLIENT_ID}:${process.env.ETSY_CLIENT_SECRET}`;
+}
+
+
 // ── KEY VALIDATION ──
 function checkEtsyKeys() {
   const clientId = process.env.ETSY_CLIENT_ID;
@@ -139,7 +145,7 @@ async function listOnEtsy(product, shopId) {
   const resp = await axios.post(`${ETSY_API_BASE}/application/shops/${shopId}/listings`, listing, {
     headers: { 
       Authorization: `Bearer ${token.access_token}`, 
-      'x-api-key': process.env.ETSY_CLIENT_ID 
+      'x-api-key': etsyApiKey() 
     }
   });
   
@@ -193,7 +199,7 @@ async function testEtsyConnection() {
   if (!token) return { ok: false, configured: true, connected: false, message: 'Keys set — OAuth not completed yet. Visit /setup.' };
   try {
     const resp = await axios.get(`${ETSY_API_BASE}/application/users/me`, {
-      headers: { Authorization: `Bearer ${token.access_token}`, 'x-api-key': process.env.ETSY_CLIENT_ID },
+      headers: { Authorization: `Bearer ${token.access_token}`, 'x-api-key': etsyApiKey() },
       timeout: 10000
     });
     return { ok: true, configured: true, connected: true, message: `Connected as user ${resp.data.user_id}` };
@@ -521,12 +527,12 @@ async function publishToGumroadReal(product) {
 
 async function getEtsyShopId(accessToken) {
   const resp = await axios.get(`${ETSY_API_BASE}/application/users/me`, {
-    headers: { Authorization: `Bearer ${accessToken}`, 'x-api-key': process.env.ETSY_CLIENT_ID },
+    headers: { Authorization: `Bearer ${accessToken}`, 'x-api-key': etsyApiKey() },
     timeout: 10000
   });
   const userId = resp.data.user_id;
   const shopsResp = await axios.get(`${ETSY_API_BASE}/application/users/${userId}/shops`, {
-    headers: { Authorization: `Bearer ${accessToken}`, 'x-api-key': process.env.ETSY_CLIENT_ID },
+    headers: { Authorization: `Bearer ${accessToken}`, 'x-api-key': etsyApiKey() },
     timeout: 10000
   });
   const shopId = shopsResp.data?.shops?.[0]?.shop_id;
@@ -536,7 +542,7 @@ async function getEtsyShopId(accessToken) {
 
 // ── STORE BRANDING (logo + banner from the NicheGate designs folder) ──
 function etsyAuthHeaders(token) {
-  return { Authorization: `Bearer ${token}`, 'x-api-key': process.env.ETSY_CLIENT_ID };
+  return { Authorization: `Bearer ${token}`, 'x-api-key': etsyApiKey() };
 }
 
 async function ensureEtsyApiToken() {
