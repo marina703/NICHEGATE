@@ -19,4 +19,17 @@ describe('core niches + trend retirement', () => {
     assert.equal(typeof discovery.retireColdTrends, 'function');
     assert.equal(typeof ac.taskRetire, 'function');
   });
+
+  it('detects consumer-product fads ("burrito blanket" pattern)', () => {
+    const radar = require('../server/services/trendRadar');
+    assert.ok(radar.detectFad({ name: 'burrito blanket', shoppingIntent: 0.9 }) >= 45);
+    assert.equal(radar.detectFad({ name: 'how to fix drywall', shoppingIntent: 0.4 }), 0);
+    assert.equal(radar.detectFad({ name: 'single' }), 0);
+  });
+
+  it('exposes fad auto-activation + winner scaling', () => {
+    assert.equal(typeof discovery.autoActivateHotFads, 'function');
+    assert.equal(typeof discovery.scaleWinners, 'function');
+    assert.equal(typeof ac.taskScale, 'function');
+  });
 });

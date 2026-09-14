@@ -12,6 +12,7 @@ const { UNIVERSE } = require('./nicheUniverse');
 const seasonal = require('./seasonalEngine');
 const vetting = require('./vettingEngine');
 const { draftProduct } = require('./productDraft');
+const trendScanner = require('./trendScanner');
 
 function sampleUniverse(count = 4) {
   const tracked = new Set(db.prepare('SELECT name FROM trends').all().map(t => radar.normalizeNicheKey(t.name)));
@@ -256,6 +257,61 @@ function retireColdTrends(now = new Date()) {
   return retired;
 }
 
+// Fads don't wait for a human review gate — auto-activate ACTIVATE-grade,
+// shopping-intent-driven, high-velocity trends on sight.
+function autoActivateHotFads(limit = 3) {
+  const candidates = db.prepare(
+    "SELECT * FROM trends WHERE activated = 0 AND outcome IS NULL ORDER BY detected_at DESC"
+  ).all();
+  let activated = 0;
+  for (const t of candidates) {
+    if (activated >= limit) break;
+    let vet;
+    try { vet = vetting.vetTrend(t); } catch { continue; }
+    if (!vet || vet.verdict !== 'ACTIVATE') continue;
+    if ((vet.signals.shoppingIntent || 0) < 70) continue; // must be shopping-driven
+    const v = parseInt(String(t.velocity || '').match(/(\d+(?:\.\d+)?)/)?.[1] || '0', 10) || 0;
+    if (v < 120) continue; // needs real momentum
+    try {
+      const prof = trendScanner.activateTrend(t.id);
+      if (!prof) continue;
+      generateProductsForTrend(prof.id, t);
+      db.prepare('INSERT INTO automation_log (action, profession_id, details, status) VALUES (?, ?, ?, ?)')
+        .run('fad_activated', prof.id, `Auto-activated hot fad "${t.name}" (intent ${vet.signals.shoppingIntent}, +${v}%)`, 'warning');
+      activated++;
+    } catch (e) {
+      console.error('[DISCOVERY] auto-activate:', e.message);
+    }
+  }
+  return activated;
+}
+
+// Winners compound: professions with real sales get missing product types filled
+// so a selling niche deepens its catalog (siblings) without re-listing duplicates.
+function scaleWinners() {
+  const winners = db.prepare(
+    'SELECT profession_id, SUM(sales) AS s FROM metrics GROUP BY profession_id HAVING s > 0'
+  ).all();
+  let created = 0;
+  const types = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social', 'brand', 'journal'];
+  for (const w of winners) {
+    const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(w.profession_id);
+    if (!prof) continue;
+    for (const type of types) {
+      try {
+        if (draftProduct(prof, type)) created++;
+      } catch (e) {
+        console.error('[DISCOVERY] scale winner:', e.message);
+      }
+    }
+  }
+  if (created > 0) {
+    db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+      .run('scale_winners', `Generated ${created} sibling product(s) for selling niches`, 'success');
+  }
+  return created;
+}
+
 module.exports = {
   sweep,
   productsForTrend,
@@ -266,5 +322,7 @@ module.exports = {
   insertUniverseTrend,
   retireColdTrends,
   isCoreProfession,
-  CORE_SLUGS
+  CORE_SLUGS,
+  autoActivateHotFads,
+  scaleWinners
 };

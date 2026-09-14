@@ -96,6 +96,24 @@ function phaseForVelocity(pct) {
   return 'emerging';
 }
 
+const PRODUCT_NOUN_RE = /\b(blanket|cup|mug|tumbler|bottle|boots?|shoes|tote|bag|pillow|rug|lamp|candle|case|hoodie|sock|sweater|throw|wrap|torch|pen|journal|planner|kit|bundle|pack|sticker|print|keychain|bracelet|necklace|hat|beanie|scarf|mat|tent|chair|desk|organizer|fixture|shelf|hanger)\b/i;
+const FAD_QUERY_RE = /\b(how to|diy|tutorial|guide|template|planner|service|near me|vs|review|best|cost|price|checklist|for|near|install|repair|clean)\b/i;
+
+// "Burrito blanket", "cowboy boots", "stanley cup" — short, concrete, shopping-driven
+// product fads (not how-to guides or long-tail service queries). Returns 0-100.
+function detectFad(item) {
+  const name = String((item && item.name) || '').trim();
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 3) return 0;
+  if (FAD_QUERY_RE.test(name)) return 0;
+  const intent = Number(item && item.shoppingIntent) || 0;
+  let score = 0;
+  if (intent >= 0.7) score += 45;
+  if (PRODUCT_NOUN_RE.test(name)) score += 35;
+  if (words.length === 2) score += 20;
+  return Math.min(100, score);
+}
+
 // Fuse a source's baseline shopping intent with productizability signals in the name.
 function fuseShoppingIntent(item) {
   const base = Number(item && item.shoppingIntent) || 0.5;
@@ -104,6 +122,7 @@ function fuseShoppingIntent(item) {
   if (/template|planner|checklist|invoice|tracker|journal|printable|calculator|spreadsheet|sheet|kit|bundle/.test(name)) adj += 0.15;
   if (/how to|diy|tutorial|recipe|tips?|guide|step|idea/.test(name)) adj += 0.05;
   if (/celebrity|news|score|election|court|charged|arrest|rumor|gossip|final|championship|award/.test(name)) adj -= 0.3;
+  if (detectFad(item) >= 55) adj += 0.15; // likely a "burrito blanket"-style product fad
   return Math.max(0, Math.min(1, base + adj));
 }
 
@@ -386,6 +405,7 @@ module.exports = {
   trendNameExists,
   phaseForVelocity,
   fuseShoppingIntent,
+  detectFad,
   isProductizableCandidate,
   getSourceHealth,
   markHealth

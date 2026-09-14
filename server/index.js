@@ -1066,9 +1066,10 @@ function startCron() {
     try {
       const found = await discovery.sweep(6);
       const fresh = discovery.freshnessPass();
-      if (found.length || fresh) {
+      const fads = discovery.autoActivateHotFads();
+      if (found.length || fresh || fads) {
         db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
-          .run('discovery_auto', `Sweep: ${found.length} new niche(s), ${fresh} fresh product(s)`, 'success');
+          .run('discovery_auto', `Sweep: ${found.length} new niche(s), ${fresh} fresh product(s), ${fads} auto-activated fad(s)`, 'success');
       }
     } catch (e) {
       console.error('[CRON] discovery error:', e.message);
