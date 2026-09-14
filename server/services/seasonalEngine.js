@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const { db } = require('../database');
+const { draftProduct } = require('./productDraft');
 
 const SEASONAL = {
   0:  { slugs: ['aa-recovery', 'smart-recovery', 'massage-therapy', 'mobile-notary'], note: 'New year: recovery resets, wellness, tax-season notary' },
@@ -35,19 +36,31 @@ function getFocusProfessions() {
 
 // One seasonal product per cycle for a rotating focus profession
 function generateSeasonalProduct() {
+  const focus = getCurrentFocus();
   const profs = getFocusProfessions();
   if (!profs.length) return null;
-  const prof = profs[Math.floor(Math.random() * profs.length)];
   const types = ['checklist', 'spreadsheet', 'booking'];
-  const type = types[Math.floor(Math.random() * types.length)];
-  const ins = db.prepare(`
-    INSERT INTO products (profession_id, name, type, price, status, theme, html_content)
-    VALUES (?, ?, ?, ?, 'draft', 'Onyx Volt', '<!-- auto-generated -->')
-  `).run(prof.id, `${prof.name} ${type.charAt(0).toUpperCase() + type.slice(1)}`, type,
-    { checklist: '$10', spreadsheet: '$17', booking: '$22' }[type]);
+
+  // Only target a focus profession that still LACKS one of the seasonal types,
+  // so the review queue never fills with duplicate clones (same guard the
+  // auto-cycle uses for its daily variety pass).
+  const hasType = (profId, tp) => !!db.prepare(
+    `SELECT id FROM products WHERE profession_id = ? AND type = ? AND status IN ('draft','pending-review') LIMIT 1`
+  ).get(profId, tp);
+  const candidates = profs.filter(p => types.some(t => !hasType(p.id, t)));
+  if (!candidates.length) {
+    db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+      .run('seasonal_generate', `Seasonal push skipped — focus professions ${profs.map(p => p.name).join(', ')} already covered`, 'info');
+    return null;
+  }
+  const prof = candidates[Math.floor(Math.random() * candidates.length)];
+  const missing = types.filter(t => !hasType(prof.id, t));
+  const type = missing[Math.floor(Math.random() * missing.length)];
+  const productId = draftProduct(prof, type);
+  if (!productId) return null;
   db.prepare('INSERT INTO automation_log (action, profession_id, product_id, details, status) VALUES (?, ?, ?, ?, ?)')
-    .run('seasonal_generate', prof.id, ins.lastInsertRowid, `Seasonal push for month ${focus.month}: ${type}`, 'success');
-  return { profession: prof.name, type, productId: ins.lastInsertRowid };
+    .run('seasonal_generate', prof.id, productId, `Seasonal push for month ${focus.month}: ${type}`, 'success');
+  return { profession: prof.name, type, productId };
 }
 
 module.exports = { getCurrentFocus, getFocusProfessions, generateSeasonalProduct };

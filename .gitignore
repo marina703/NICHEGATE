@@ -13,6 +13,10 @@ generated/
 logs/
 uploads/
 *.log
+previews/
+nichegate designs/
+nichegate designs.zip
+runtime/backups/
 
 # ── OS / editor ──
 .DS_Store

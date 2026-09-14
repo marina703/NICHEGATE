@@ -39,14 +39,20 @@ async function scanForTrends() {
     console.error('[TRENDS] Live radar unavailable, using curated pool:', e.message);
   }
 
-  // 2. Curated pool fallback
-  const tracked = db.prepare('SELECT name FROM trends').all();
-  const trackedNames = new Set(tracked.map(a => a.name));
-
-  const available = TREND_POOL.filter(t => !trackedNames.has(t.name));
+  // 2. Curated pool fallback — rank by vetting score instead of a random shuffle
+  const radar = require('./trendRadar');
+  const vetting = require('./vettingEngine');
+  const tracked = new Set(db.prepare('SELECT name FROM trends').all().map(a => radar.normalizeNicheKey(a.name)));
+  const available = TREND_POOL.filter(t => !tracked.has(radar.normalizeNicheKey(t.name)));
   if (available.length === 0) return null;
 
-  const trend = available[Math.floor(Math.random() * available.length)];
+  const ranked = available
+    .map(t => ({
+      t,
+      score: (vetting.vetTrend({ name: t.name, phase: t.phase, velocity: t.velocity, window: t.window, est_revenue: t.estRevenue, why: t.why }) || {}).score || 0
+    }))
+    .sort((a, b) => b.score - a.score);
+  const trend = ranked[0].t;
 
   db.prepare(`
     INSERT INTO trends (name, emoji, phase, velocity, window, est_revenue, why, activated, detected_at)
@@ -73,31 +79,44 @@ function activateTrend(id) {
   const trend = db.prepare('SELECT * FROM trends WHERE id = ?').get(id);
   if (!trend) return null;
 
-  db.prepare('UPDATE trends SET activated = 1, activated_at = ? WHERE id = ?')
-    .run(new Date().toISOString(), id);
-
-  const slug = trend.name.toLowerCase().replace(/\s+/g, '-');
+  const slug = trend.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   const existing = db.prepare('SELECT id FROM professions WHERE slug = ?').get(slug);
-  if (existing) return db.prepare('SELECT * FROM professions WHERE id = ?').get(existing.id);
+  if (existing) {
+    db.prepare('UPDATE trends SET activated = 1, activated_at = ? WHERE id = ?')
+      .run(new Date().toISOString(), id);
+    return db.prepare('SELECT * FROM professions WHERE id = ?').get(existing.id);
+  }
 
-  const profId = 900 + Math.floor(Math.random() * 100);
+  // Allocate next free id (avoid random 900+ collisions)
+  const maxRow = db.prepare('SELECT MAX(id) AS m FROM professions').get();
+  let profId = Math.max(1000, (maxRow?.m || 0) + 1);
+  while (db.prepare('SELECT id FROM professions WHERE id = ?').get(profId)) profId++;
+
   const hashtags = `["${trend.name.toLowerCase().replace(/\s/g, '')}","#trending","#viral","#etsyshop","#digitaldownload","#smallbusiness","#etsyfinds","#printable"]`;
 
-  db.prepare(`
-    INSERT OR IGNORE INTO professions (id, emoji, name, slug, status, tier, colors, services, hashtags)
-    VALUES (?, ?, ?, ?, 'researching', 'trend', ?, ?, ?)
-  `).run(
-    profId,
-    trend.emoji,
-    trend.name,
-    slug,
-    '{"primary":"#1e293b","secondary":"#ec4899","accent":"#f59e0b","bg":"#fafafa"}',
-    '[["Digital Template","$15"],["Complete Kit","$29"],["Trend Guide","$12"],["Social Pack","$19"],["Starter Bundle","$25"],["Pro Bundle","$39"]]',
-    hashtags
-  );
+  // Transaction: activate flag + profession create stay atomic
+  const tx = db.transaction(() => {
+    db.prepare('UPDATE trends SET activated = 1, activated_at = ? WHERE id = ?')
+      .run(new Date().toISOString(), id);
+    db.prepare(`
+      INSERT OR IGNORE INTO professions (id, emoji, name, slug, status, tier, colors, services, hashtags)
+      VALUES (?, ?, ?, ?, 'researching', 'trend', ?, ?, ?)
+    `).run(
+      profId,
+      trend.emoji,
+      trend.name,
+      slug,
+      '{"primary":"#1e293b","secondary":"#ec4899","accent":"#f59e0b","bg":"#fafafa"}',
+      '[["Digital Template","$15"],["Complete Kit","$29"],["Trend Guide","$12"],["Social Pack","$19"],["Starter Bundle","$25"],["Pro Bundle","$39"]]',
+      hashtags
+    );
+  });
+  tx();
 
-  return db.prepare('SELECT * FROM professions WHERE id = ?').get(profId);
+  return db.prepare('SELECT * FROM professions WHERE id = ?').get(profId) ||
+    db.prepare('SELECT * FROM professions WHERE slug = ?').get(slug);
 }
+
 
 function dismissTrend(id) {
   db.prepare("UPDATE trends SET outcome = 'dismissed' WHERE id = ?").run(id);

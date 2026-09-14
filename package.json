@@ -9,7 +9,10 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "nodemon server/index.js",
-    "setup": "node server/setup.js"
+    "setup": "node server/setup.js",
+    "test": "node --test",
+    "backup": "node scripts/backup-database.js",
+    "audit": "npm audit --omit=dev"
   },
   "dependencies": {
     "adm-zip": "^0.6.0",
@@ -24,5 +27,8 @@
     "puppeteer": "^25.9.0",
     "uuid": "^14.0.2",
     "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }

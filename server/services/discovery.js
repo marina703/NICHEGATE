@@ -1,23 +1,21 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// DISCOVERY ENGINE — the autonomous "hunt" loop. Each sweep:
-//   1. Live radar (Google/Reddit/Amazon/eBay) → real-time spikes
-//   2. Niche Universe sampling → broad coverage across industries/hobbies
-//   3. Seasonal focus → what's peaking this month
-// New candidates are scored by the vetting engine before anything activates.
-// Also generates fresh, trend-appropriate products when a niche is activated.
-// ═══════════════════════════════════════════════════════════════════════════
+// ============================================================================
+// DISCOVERY ENGINE — autonomous hunt loop.
+//   1. Live radar → real-time spikes (normalized + health-tracked)
+//   2. Niche Universe sampling → broad coverage
+//   3. Seasonal focus → peaking this month
+// Candidates are vetted; SKIP grades never enter the activation pipeline.
+// ============================================================================
 
 const { db } = require('../database');
 const radar = require('./trendRadar');
 const { UNIVERSE } = require('./nicheUniverse');
 const seasonal = require('./seasonalEngine');
 const vetting = require('./vettingEngine');
+const { draftProduct } = require('./productDraft');
 
-// ── Niche universe sampling ──
 function sampleUniverse(count = 4) {
-  const tracked = new Set(db.prepare('SELECT name FROM trends').all().map(t => t.name));
-  const available = UNIVERSE.filter(u => !tracked.has(u.name));
-  // Shuffle for variety
+  const tracked = new Set(db.prepare('SELECT name FROM trends').all().map(t => radar.normalizeNicheKey(t.name)));
+  const available = UNIVERSE.filter(u => !tracked.has(radar.normalizeNicheKey(u.name)));
   for (let i = available.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [available[i], available[j]] = [available[j], available[i]];
@@ -26,50 +24,93 @@ function sampleUniverse(count = 4) {
 }
 
 function insertUniverseTrend(entry) {
-  const tracked = db.prepare('SELECT id FROM trends WHERE name = ?').get(entry.name);
-  if (tracked) return null;
+  if (radar.trendNameExists(entry.name)) return null;
+
+  const candidate = {
+    name: entry.name,
+    emoji: entry.emoji || '🔎',
+    phase: entry.phase || 'emerging',
+    velocity: entry.velocity || '+80%',
+    window: entry.window || 40,
+    est_revenue: entry.estRevenue || entry.est_revenue || '$2k-6k',
+    why: entry.why || `Discovery · ${entry.category || 'universe'}`
+  };
+
+  // Fail early: do not persist SKIP-grade noise
+  if (!vetting.isProductizable(candidate)) {
+    console.log(`[DISCOVERY] skipped low-vet niche: ${candidate.name}`);
+    return null;
+  }
+
+  const why = entry.category
+    ? `Discovery · ${entry.category} · ${entry.why || ''}`
+    : (entry.why || candidate.why);
+
   db.prepare(`
     INSERT INTO trends (name, emoji, phase, velocity, window, est_revenue, why, activated, detected_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
   `).run(
-    entry.name, entry.emoji || '🔎', entry.phase || 'emerging', entry.velocity || '+80%',
-    entry.window || 40, entry.estRevenue || '$2k-6k',
-    `Discovery · ${entry.category} · ${entry.why}`, new Date().toISOString()
+    candidate.name,
+    candidate.emoji,
+    candidate.phase,
+    candidate.velocity,
+    candidate.window,
+    candidate.est_revenue,
+    why,
+    new Date().toISOString()
   );
-  return db.prepare('SELECT * FROM trends WHERE name = ?').get(entry.name);
+  return db.prepare('SELECT * FROM trends WHERE name = ? ORDER BY id DESC LIMIT 1').get(candidate.name);
 }
 
-// ── Full sweep ──
 async function sweep(maxNew = 8) {
   const inserted = [];
 
-  // 1. Live radar
   try {
     const live = await radar.scanLiveTrends(4);
-    inserted.push(...live);
-  } catch (e) { console.error('[DISCOVERY] live radar:', e.message); }
+    for (const row of live) {
+      if (!vetting.isProductizable(row)) {
+        // Radar already inserted — mark outcome so it won't tempt activation
+        try {
+          db.prepare("UPDATE trends SET outcome = 'skipped-vet' WHERE id = ? AND activated = 0").run(row.id);
+        } catch (e) {
+          console.error('[DISCOVERY] skip-tag failed:', e.message);
+        }
+        continue;
+      }
+      inserted.push(row);
+    }
+  } catch (e) {
+    console.error('[DISCOVERY] live radar:', e.message);
+  }
 
-  // 2. Niche universe sampling (broad, all-industry coverage)
   for (const entry of sampleUniverse(6)) {
     if (inserted.length >= maxNew) break;
     try {
       const row = insertUniverseTrend(entry);
       if (row) inserted.push(row);
-    } catch {}
+    } catch (e) {
+      console.error('[DISCOVERY] universe insert:', e.message);
+    }
   }
 
-  // 3. Seasonal focus professions → ensure they're represented as trends too
   try {
     for (const prof of seasonal.getFocusProfessions()) {
       if (inserted.length >= maxNew) break;
       const row = insertUniverseTrend({
-        name: `${prof.name} (seasonal)`, emoji: prof.emoji, category: 'seasonal',
-        phase: 'rising', velocity: '+90%', window: 30, estRevenue: '$2k-6k',
-        why: `${seasonal.getCurrentFocus().note}`
+        name: `${prof.name} (seasonal)`,
+        emoji: prof.emoji,
+        category: 'seasonal',
+        phase: 'rising',
+        velocity: '+90%',
+        window: 30,
+        estRevenue: '$2k-6k',
+        why: seasonal.getCurrentFocus().note
       });
       if (row) inserted.push(row);
     }
-  } catch {}
+  } catch (e) {
+    console.error('[DISCOVERY] seasonal:', e.message);
+  }
 
   if (inserted.length) {
     db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
@@ -78,12 +119,13 @@ async function sweep(maxNew = 8) {
   return inserted;
 }
 
-// ── Trend → product generation (fresh, relevant products for a new niche) ──
-const TYPE_PRICES = { invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15', brand: '$19', journal: '$15' };
+const TYPE_PRICES = {
+  invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22',
+  social: '$15', brand: '$19', journal: '$15'
+};
 
 function productsForTrend(trend) {
-  const cat = (trend.why || '').toLowerCase();
-  // Category-aware product mix so we offer what the niche actually wants
+  const cat = `${trend.why || ''} ${trend.name || ''}`.toLowerCase();
   if (/fashion|beauty|aesthetic|decor|style|wear|clothing/.test(cat)) {
     return ['social', 'brand', 'checklist', 'spreadsheet'];
   }
@@ -99,47 +141,89 @@ function productsForTrend(trend) {
   if (/recovery|sober|wellness|mental|therapy|counsel/.test(cat)) {
     return ['journal', 'checklist', 'spreadsheet', 'social'];
   }
-  if (/tech|app|digital|ai|software|template|online/.test(cat)) {
+  if (/tech|app|digital|ai|software|template|online|planner|notion/.test(cat)) {
     return ['spreadsheet', 'checklist', 'social', 'brand'];
   }
-  // Default service-business mix
   return ['invoice', 'checklist', 'spreadsheet', 'booking'];
 }
 
-// Generate a batch of products for a newly-activated trend profession
+/** Resolve profession for a trend name (strips seasonal suffix, tries slug). */
+function resolveProfessionForTrend(trend) {
+  if (!trend) return null;
+  const raw = String(trend.name || '');
+  const base = raw.replace(/\s*\(seasonal\)\s*$/i, '').trim();
+  let prof = db.prepare('SELECT * FROM professions WHERE name = ?').get(raw);
+  if (prof) return prof;
+  prof = db.prepare('SELECT * FROM professions WHERE name = ?').get(base);
+  if (prof) return prof;
+  const slug = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return db.prepare('SELECT * FROM professions WHERE slug = ?').get(slug) || null;
+}
+
 function generateProductsForTrend(profId, trend) {
+  // Hard gate: never burn product rows for SKIP niches
+  try {
+    vetting.assertActivatable(trend, { allowWatch: true });
+  } catch (e) {
+    console.error('[DISCOVERY] generate blocked by vet:', e.message);
+    db.prepare('INSERT INTO automation_log (action, profession_id, details, status) VALUES (?, ?, ?, ?)')
+      .run('trend_products_blocked', profId, e.message, 'warning');
+    return 0;
+  }
+
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(profId);
   if (!prof) return 0;
   const types = productsForTrend(trend);
   let made = 0;
   for (const type of types) {
     try {
-      db.prepare(`
-        INSERT INTO products (profession_id, name, type, price, status, theme, html_content)
-        VALUES (?, ?, ?, ?, 'draft', 'Onyx Volt', '<!-- auto-generated -->')
-      `).run(profId, `${prof.name} ${type.charAt(0).toUpperCase() + type.slice(1)}`, type, TYPE_PRICES[type] || '$12');
-      made++;
-    } catch {}
+      if (draftProduct(prof, type)) made++;
+    } catch (e) {
+      console.error('[DISCOVERY] product insert:', e.message);
+    }
   }
   db.prepare('INSERT INTO automation_log (action, profession_id, details, status) VALUES (?, ?, ?, ?)')
     .run('trend_products', profId, `Generated ${made} products for activated trend "${trend.name}"`, 'success');
   return made;
 }
 
-// Freshness pass — one new product variation for active trend professions
 function freshnessPass() {
-  const activeTrends = db.prepare("SELECT * FROM trends WHERE activated = 1 AND outcome IS NULL").all();
+  const activeTrends = db.prepare('SELECT * FROM trends WHERE activated = 1 AND outcome IS NULL').all();
   if (!activeTrends.length) return 0;
-  const trend = activeTrends[Math.floor(Math.random() * activeTrends.length)];
-  const prof = db.prepare("SELECT * FROM professions WHERE name = ?").get(trend.name);
+  const hasType = (profId, tp) => !!db.prepare(
+    `SELECT id FROM products WHERE profession_id = ? AND type = ? AND status IN ('draft','pending-review') LIMIT 1`
+  ).get(profId, tp);
+
+  const trendPool = activeTrends.filter(t => {
+    const prof = resolveProfessionForTrend(t);
+    if (!prof) return false;
+    if (!vetting.shouldActivate(t) && vetting.vetTrend(t)?.verdict === 'SKIP') return false;
+    const types = productsForTrend(t);
+    return types.some(tp => !hasType(prof.id, tp));
+  });
+  if (!trendPool.length) return 0;
+
+  const trend = trendPool[Math.floor(Math.random() * trendPool.length)];
+  const prof = resolveProfessionForTrend(trend);
   if (!prof) return 0;
   const types = productsForTrend(trend);
-  const type = types[Math.floor(Math.random() * types.length)];
-  db.prepare(`
-    INSERT INTO products (profession_id, name, type, price, status, theme, html_content)
-    VALUES (?, ?, ?, ?, 'draft', 'Onyx Volt', '<!-- auto-generated -->')
-  `).run(prof.id, `${prof.name} ${type.charAt(0).toUpperCase() + type.slice(1)}`, type, TYPE_PRICES[type] || '$12');
-  return 1;
+  const missing = types.filter(tp => !hasType(prof.id, tp));
+  if (!missing.length) return 0;
+  const type = missing[Math.floor(Math.random() * missing.length)];
+  try {
+    return draftProduct(prof, type) ? 1 : 0;
+  } catch (e) {
+    console.error('[DISCOVERY] freshness insert:', e.message);
+    return 0;
+  }
 }
 
-module.exports = { sweep, productsForTrend, generateProductsForTrend, freshnessPass, sampleUniverse };
+module.exports = {
+  sweep,
+  productsForTrend,
+  generateProductsForTrend,
+  freshnessPass,
+  sampleUniverse,
+  resolveProfessionForTrend,
+  insertUniverseTrend
+};

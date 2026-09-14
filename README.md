@@ -65,6 +65,19 @@ npm start            # → http://localhost:5000
 
 **Windows:** double-click `start-nichegate.bat` (kills only whatever owns port 5000 — not all node processes).
 
+Useful maintenance commands:
+
+```bash
+npm test               # run the HTTP smoke tests
+npm run backup         # create a timestamped SQLite backup under runtime/backups/
+npm run audit          # check production dependencies for known vulnerabilities
+```
+
+Spreadsheet previews are limited to generated files under `generated/` and 20 MB.
+Treat spreadsheet inputs and generated artifacts as untrusted until reviewed; `xlsx`
+currently reports advisories with no upstream fix, so do not expose arbitrary workbook
+parsing to public uploads.
+
 ### `.env` keys
 
 ```ini
@@ -97,6 +110,7 @@ Etsy keys: etsy.com/developers/register → set the redirect URI shown at `/setu
 | Marketplace | `POST /api/marketplace/publish/:id`, `GET /api/marketplace/test`, `GET /api/setup/status` |
 | Sales | `POST /api/metrics/sync-gumroad`, `GET /api/metrics/summary` |
 | Automation | `GET /api/automation/status`, `POST /api/automation/run`, scheduler start/stop, `GET /api/automation/log` |
+| Health | `GET /api/health/readiness` (redacted launch-readiness report) |
 | Storefront feed | `GET /api/store/products` (real listings + buy URLs + store URL) |
 
 ## Data
@@ -117,7 +131,7 @@ Recovery journals (AA, SMART, Refuge, WFS, Secular, Faith-Based) are 30-day guid
 - [`UPGRADES.md`](UPGRADES.md) — ranked revenue backlog (short + long term)
 - [`covers/`](covers/) — branded product covers + storefront assets
 
-## Known limits
+## Known limit?.';s
 
 - Etsy listing waits on Etsy identity verification + OAuth (flow is built and tested up to token exchange)
 - Gumroad caps product creation at **10/day** — bulk deploys run across days; re-run 🎁 Deploy Bundles until the queue clears

@@ -4,7 +4,7 @@ Ranked by expected revenue impact vs. effort. ✅ = free, 💵 = needs budget.
 
 ## 🔥 SHORT-TERM (this week — mostly free)
 
-1. **Publish the draft backlog as bundles** ✅ **DONE** — 22 × $29 Complete Toolkits built; 9 live on Gumroad, 13 queued behind Gumroad's 10-creations/day limit (click 🎁 Deploy Bundles tomorrow).
+1. **Publish the draft backlog as bundles** ✅ **DONE** — 22 × $29 Complete Toolkits built; 10 live on Gumroad, 4 more synced into the live store, remaining queued behind Gumroad's 10-creations/day limit (click 🎁 Deploy Bundles to keep publishing).
 
 2. **Finish Etsy OAuth** ✅
    Etsy is where template buyers actually SEARCH — it's the biggest channel unlock available right now. The OAuth flow is fixed and tested up to the token exchange; it works the moment identity verification clears.
@@ -15,7 +15,7 @@ Ranked by expected revenue impact vs. effort. ✅ = free, 💵 = needs budget.
 
 5. **Seasonal launch calendar** ✅ **DONE** — 12-month focus map drives an extra seasonal product every auto-cycle (see /api/seasonal).
 
-6. **Free lead magnet + email capture** ✅ **BUILT, deploy tomorrow** — free Starter Pack + banner slot live on /store; hit 🧲 Lead Magnet after Gumroad's daily limit resets.
+6. **Free lead magnet + email capture** ✅ **DONE** — free Starter Pack is live (`https://marinablow.gumroad.com/l/mkmrhb`) with banner slot active on `/store`, plus a Design-Studio showcase that displays the premium templates before purchase.
 
 ## 🚀 LONG-TERM (this quarter)
 

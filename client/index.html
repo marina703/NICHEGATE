@@ -129,7 +129,8 @@ h1,h2,h3,.sidebar-header,.stat-card .value,.section-label,.badge,.grade-badge,.a
 .review-banner h4{font-size:0.88rem;color:#92400e;}
 .review-banner p{font-size:0.75rem;color:#b45309;margin-top:2px;}
 .review-item{display:flex;gap:12px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;}
-.review-item .thumb{width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;background:#f59e0b20;}
+.review-item .thumb{width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;background:#f59e0b20;overflow:hidden;}
+.review-item .thumb img{width:44px;height:44px;border-radius:8px;object-fit:cover;display:block;}
 .review-item .info{flex:1;min-width:0;}
 .review-item .name{font-size:0.8rem;font-weight:600;color:#1e293b;}
 .review-item .meta{font-size:0.7rem;color:#94a3b8;margin-top:2px;}
@@ -203,6 +204,18 @@ h1,h2,h3,.sidebar-header,.stat-card .value,.section-label,.badge,.grade-badge,.a
 .editor-preview{width:100%;max-width:800px;background:white;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;min-height:400px;}
 .editor-preview [contenteditable]:focus{outline:2px solid #2dd4bf;outline-offset:2px;}
 
+/* ═══ PRODUCT PREVIEW MODAL ═══ */
+#preview-modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:220;display:none;align-items:center;justify-content:center;}
+#preview-modal.open{display:flex;}
+.preview-window{width:94%;max-width:1000px;height:92vh;background:white;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
+.preview-toolbar{padding:12px 18px;background:#0f172a;color:white;display:flex;align-items:center;gap:14px;min-height:48px;}
+.preview-toolbar .title{font-size:0.85rem;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.preview-toolbar a{color:#2dd4bf;font-size:0.78rem;font-weight:800;text-decoration:none;white-space:nowrap;}
+.preview-toolbar a:hover{text-decoration:underline;}
+.preview-toolbar .close{background:#334155;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:800;font-size:0.75rem;white-space:nowrap;}
+.preview-toolbar .close:hover{background:#475569;}
+#preview-frame{flex:1;width:100%;border:none;background:white;}
+
 /* ═══ TOASTS ═══ */
 .toast-container{position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:10px;max-width:380px;}
 .toast{background:white;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.15);padding:14px 18px;display:flex;gap:12px;animation:slideIn .3s ease;border-left:4px solid #cbd5e1;}
@@ -227,7 +240,7 @@ h1,h2,h3,.sidebar-header,.stat-card .value,.section-label,.badge,.grade-badge,.a
 <body>
 
 <div id="sidebar">
-  <div class="sidebar-header"><span class="logo">🚪</span> NicheGate <a href="/setup">Setup</a></div>
+  <div class="sidebar-header"><img src="/covers/nichegate_logo_on_black.png" alt="" style="height:22px;width:auto;"> NicheGate <a href="/setup">Setup</a></div>
   <div class="sidebar-search">
     <input type="text" id="search-input" placeholder="Search professions..." oninput="filterProfessions()">
   </div>
@@ -306,6 +319,17 @@ h1,h2,h3,.sidebar-header,.stat-card .value,.section-label,.badge,.grade-badge,.a
       <button class="editor-btn close" onclick="closeEditor()">Close</button>
     </div>
     <div class="editor-body"><div class="editor-preview" id="editor-preview" contenteditable="true"></div></div>
+  </div>
+</div>
+
+<div id="preview-modal" onclick="if(event.target===this)closePreview()">
+  <div class="preview-window">
+    <div class="preview-toolbar">
+      <span class="title" id="preview-title">Preview</span>
+      <a id="preview-download" href="#" target="_blank">⬇ Download file</a>
+      <button class="close" onclick="closePreview()">✕ Close</button>
+    </div>
+    <iframe id="preview-frame" src="about:blank" title="Product preview"></iframe>
   </div>
 </div>
 
@@ -591,7 +615,7 @@ async function getPanelContent(type) {
     const [logRes, statusRes] = await Promise.all([fetch(`${API}/automation/log`), fetch(`${API}/automation/status`)]);
     const logs = await logRes.json();
     const s = await statusRes.json();
-    const banner = s.isReviewDay ? `<div class="review-banner"><div class="icon">⏸️</div><div><h4>Review Day</h4><p>${s.pendingCount} products awaiting approval. Automation paused.</p></div></div>` : '';
+    const banner = s.isReviewDay ? `<div class="review-banner"><div class="icon">⏸️</div><div><h4>Review Day</h4><p>${s.pendingCount} products awaiting approval. New generation paused — approved products still auto-list.</p></div></div>` : '';
     const badge = s.running ? '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">● Running</span>' : '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">○ Idle</span>';
     return `<div class="auto-section"><h3>⚙️ Engine ${badge}</h3>${banner}
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
@@ -615,8 +639,11 @@ async function getPanelContent(type) {
   if (type === 'reviewqueue') {
     const res = await fetch(`${API}/products`);
     const products = (await res.json()).filter(p => p.status === 'draft' || p.status === 'pending-review');
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span><strong>${products.length}</strong> pending</span><button class="review-btn approve" onclick="approveAll()">✅ Approve All</button></div>`;
-    html += products.map(p => `<div class="review-item"><div class="thumb">📦</div><div class="info"><div class="name">${p.name}</div><div class="meta">${p.prof_emoji || ''} ${p.prof_name || ''} · ${p.type} · ${p.price}</div></div><div class="actions"><button class="review-btn approve" onclick="approveProduct(${p.id})">Approve</button><button class="review-btn publish" onclick="publishProduct(${p.id})">🚀 Publish</button><button class="review-btn edit" onclick="showSEO(${p.id})">SEO</button><button class="review-btn reject" onclick="rejectProduct(${p.id})">Reject</button></div></div>`).join('');
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;"><span><strong>${products.length}</strong> pending</span><span style="display:flex;gap:8px;flex-wrap:wrap;"><button class="review-btn approve" onclick="dedupeQueue()">🧹 Dedupe Clones</button><button class="review-btn approve" onclick="generatePreviews()">🖼 Generate PNG Previews</button><button class="review-btn approve" onclick="approveAll()">✅ Approve All</button></span></div>`;
+    html += products.map(p => {
+      const thumb = p.preview_path ? `<img src="/api/products/${p.id}/preview-image" loading="lazy" alt="">` : thumbFor(p.type);
+      return `<div class="review-item"><div class="thumb">${thumb}</div><div class="info"><div class="name">${p.name}</div><div class="meta">${p.prof_emoji || ''} ${p.prof_name || ''} · ${p.type} · ${p.price}</div></div><div class="actions"><button class="review-btn publish" style="background:#6366f1;" onclick="previewProduct(${p.id})">👁 View</button><button class="review-btn approve" onclick="approveProduct(${p.id})">Approve</button><button class="review-btn publish" onclick="publishProduct(${p.id})">🚀 Publish</button><button class="review-btn edit" onclick="showSEO(${p.id})">SEO</button><button class="review-btn reject" onclick="rejectProduct(${p.id})">Reject</button></div></div>`;
+    }).join('');
     if (!products.length) html += '<div style="color:#94a3b8;text-align:center;padding:30px;">✅ All caught up!</div>';
     return html;
   }
@@ -721,6 +748,56 @@ async function autoListToggle() {
   showToast('success','Auto-List', v === 'true' ? 'Enabled — approved products publish automatically' : 'Disabled');
   if (state.currentPanel === 'automation') openPanel('automation');
 }
+const TYPE_ICONS = { invoice:'🧾', checklist:'☑️', spreadsheet:'📊', social:'🖼️', booking:'📅', journal:'📓', brand:'🎨', website:'🌐', bundle:'📦', 'decision-matrix':'🧭', roi:'📈', leadmagnet:'🧲' };
+function thumbFor(type) { return TYPE_ICONS[type] || '📦'; }
+
+async function previewProduct(id) {
+  try {
+    const res = await fetch(`${API}/products/${id}`);
+    if (!res.ok) throw new Error('Could not load product');
+    const p = await res.json();
+    document.getElementById('preview-title').textContent = `👁 ${p.name} (${p.type} · ${p.price || ''})`;
+    const dl = document.getElementById('preview-download');
+    dl.href = `/api/export/product/${id}`;
+    dl.style.display = 'inline-block';
+    document.getElementById('preview-frame').src = `/api/products/${id}/preview`;
+    document.getElementById('preview-modal').classList.add('open');
+  } catch (e) {
+    showToast('error', 'Preview Failed', e.message);
+  }
+}
+
+function closePreview() {
+  document.getElementById('preview-modal').classList.remove('open');
+  document.getElementById('preview-frame').src = 'about:blank';
+}
+
+async function dedupeQueue() {
+  showToast('info', 'Dedupe', 'Collapsing identical clone drafts…');
+  try {
+    const res = await fetch(`${API}/automation/dedupe`, { method: 'POST' });
+    const d = await res.json();
+    showToast(d.removed > 0 ? 'success' : 'info', 'Dedupe Done', `Removed ${d.removed} clone(s) · ${d.remaining} pending now`);
+    if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
+    refreshStats();
+  } catch (e) {
+    showToast('error', 'Dedupe Failed', e.message);
+  }
+}
+
+async function generatePreviews() {
+  showToast('info', 'Previews', 'Generating PNG previews (first batch of 25)…');
+  try {
+    const res = await fetch(`${API}/previews/generate?limit=25`, { method: 'POST' });
+    const d = await res.json();
+    const msg = `${d.generated} generated${d.failed ? `, ${d.failed} failed` : ''}. ${d.remaining} still pending.`;
+    showToast(d.failed ? 'error' : 'success', 'Previews Done', msg);
+    if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
+  } catch (e) {
+    showToast('error', 'Previews Failed', e.message);
+  }
+}
+
 async function approveProduct(id) {
   await fetch(`${API}/products/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status:'approved' }) });
   showToast('success','Approved','Product approved');

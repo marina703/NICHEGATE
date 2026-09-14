@@ -71,6 +71,29 @@ section{padding:90px 48px;}
 .card .price{font-family:'Space Grotesk';font-size:1.15rem;font-weight:700;color:var(--teal);}
 .card .buy{font-size:0.8rem;font-weight:700;color:var(--white);text-decoration:none;border:1px solid var(--border);padding:8px 16px;border-radius:6px;transition:all .2s;}
 .card .buy:hover{background:var(--teal);color:#000;border-color:var(--teal);}
+.card .thumb img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;transition:transform .4s;}
+.card:hover .thumb img{transform:scale(1.05);}
+.card .thumb>span{position:relative;}
+.card .soon{font-size:0.7rem;color:var(--muted);border:1px dashed var(--border);padding:7px 14px;border-radius:6px;}
+
+/* ═══ SHOWCASE ═══ */
+.showcase-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px;}
+.chip{font-size:0.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:30px;cursor:pointer;transition:all .2s;}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#000;font-weight:700;}
+.showcase-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px;}
+.show-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:transform .25s,border-color .25s;position:relative;}
+.show-card:hover{transform:translateY(-6px);border-color:var(--pink);}
+.show-card .thumb{aspect-ratio:4/3.4;position:relative;overflow:hidden;background:linear-gradient(135deg,#0f0f13,#15151a);}
+.show-card .thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s;}
+.show-card:hover .thumb img{transform:scale(1.05);}
+.show-card .stamp{position:absolute;top:14px;left:14px;font-size:0.6rem;letter-spacing:1.2px;text-transform:uppercase;background:rgba(0,0,0,0.65);border:1px solid rgba(236,72,153,0.45);color:var(--pink);padding:4px 10px;border-radius:30px;}
+.show-card .stamp.live{border-color:rgba(45,212,191,0.5);color:var(--teal);}
+.show-card .body{padding:16px 18px;}
+.show-card .body h3{font-size:0.98rem;font-weight:600;margin-bottom:4px;}
+.show-card .body p{font-size:0.78rem;color:var(--muted);font-weight:300;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;margin:0;}
+.show-card .body .price{font-family:'Space Grotesk';color:var(--teal);font-weight:700;}
+.show-card .body .prof{font-size:0.72rem;letter-spacing:0.6px;text-transform:uppercase;color:var(--muted);}
 
 /* ═══ WHY ═══ */
 .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:22px;}
@@ -102,7 +125,7 @@ footer .social a:hover{color:var(--teal);}
 <body>
 
 <nav>
-  <div class="logo"><span class="mark">N</span> NICHEGATE</div>
+  <div class="logo"><img src="/covers/nichegate_logo_on_black.png" alt="NicheGate" style="height:26px;width:auto;display:block;"> <span style="letter-spacing:1px;">NICHEGATE</span></div>
   <div>
     <a href="#products">Products</a>
     <a href="#why">Why Us</a>
@@ -140,6 +163,28 @@ footer .social a:hover{color:var(--teal);}
   </div>
 </section>
 
+<section id="studio">
+  <div class="section-head">
+    <div class="kicker">The Design Studio</div>
+    <h2>See the craft before you buy.</h2>
+    <p>Every product starts as a hand-finished design below. Tap a category — most designs ship to the store continuously.</p>
+  </div>
+  <div class="showcase-filter" id="showcase-filter">
+    <button class="chip on" data-t="all">All</button>
+    <button class="chip" data-t="invoice">Invoice</button>
+    <button class="chip" data-t="checklist">Checklist</button>
+    <button class="chip" data-t="spreadsheet">Spreadsheet</button>
+    <button class="chip" data-t="booking">Booking</button>
+    <button class="chip" data-t="social">Social</button>
+    <button class="chip" data-t="journal">Journal</button>
+    <button class="chip" data-t="brand">Brand Kit</button>
+    <button class="chip" data-t="decision-matrix">Decision Matrix</button>
+    <button class="chip" data-t="roi">ROI</button>
+    <button class="chip" data-t="bundle">Toolkit</button>
+  </div>
+  <div class="showcase-grid" id="showcase-grid"><!-- populated by JS --></div>
+</section>
+
 <section id="why">
   <div class="section-head">
     <div class="kicker">Why NicheGate</div>
@@ -162,7 +207,7 @@ footer .social a:hover{color:var(--teal);}
 </section>
 
 <footer>
-  <div class="logo" style="font-size:0.95rem;"><span class="mark" style="width:24px;height:24px;">N</span> NICHEGATE</div>
+  <div class="logo" style="font-size:0.95rem;"><img src="/covers/nichegate_logo_on_black.png" alt="NicheGate" style="height:20px;width:auto;display:block;"> <span style="letter-spacing:1px;">NICHEGATE</span></div>
   <div>© 2026 NicheGate. All rights reserved.</div>
   <div class="social">
     <a href="#">Instagram</a>
@@ -172,7 +217,7 @@ footer .social a:hover{color:var(--teal);}
 </footer>
 
 <script>
-// Fallback showcase — replaced by live listed products from /api/store/products
+// Storefront — live products (real previews + buy links) + design showcase
 const FALLBACK = [
   {emoji:"🧾",cat:"Invoice",name:"Premium Service Invoice",desc:"Clean, editable invoice template with payment terms.",price:"$12"},
   {emoji:"🌐",cat:"Website",name:"One-Page Business Site",desc:"Sleek single-page website template, fully editable.",price:"$24"},
@@ -184,29 +229,64 @@ const FALLBACK = [
   {emoji:"📅",cat:"Booking",name:"Appointment Booking Form",desc:"Clean booking + scheduling template.",price:"$22"}
 ];
 
-let STORE_URL = 'https://gumroad.com'; // auto-replaced with your real store URL below
+const TYPE_LABEL = {
+  invoice:'Invoice', checklist:'Checklist', spreadsheet:'Spreadsheet', booking:'Booking',
+  social:'Social', journal:'Journal', brand:'Brand Kit', 'decision-matrix':'Decision Matrix',
+  roi:'ROI Calculator', bundle:'Complete Toolkit'
+};
 
-function card(p) {
-  const buy = p.buyUrl
+let STORE_URL = 'https://gumroad.com';
+function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Live product card — real design preview image + buy link when live
+function productCard(p) {
+  const thumb = p.previewUrl
+    ? `<img src="${p.previewUrl}" alt="${esc(p.name)}" loading="lazy">`
+    : `<span>${p.emoji || '📦'}</span>`;
+  const action = p.buyUrl
     ? `<a class="buy" href="${p.buyUrl}" target="_blank" rel="noopener">Buy →</a>`
-    : `<a class="buy" href="${STORE_URL}" target="_blank" rel="noopener">Visit Store →</a>`;
+    : `<span class="soon">Coming soon</span>`;
   return `
   <div class="card">
-    <div class="thumb"><span class="cat">${p.cat || p.type || ''}</span>${p.emoji || '📦'}</div>
+    <div class="thumb"><span class="cat">${esc(p.category || p.type || '')}</span>${thumb}</div>
     <div class="body">
-      <h3>${p.name}</h3>
-      <p>${p.desc || 'Instant digital download.'}</p>
+      <h3>${esc(p.name)}</h3>
+      <p>${TYPE_LABEL[p.type] || p.type || ''} — instant download, fully editable.</p>
       <div class="foot">
-        <span class="price">${p.price}</span>
-        ${buy}
+        <span class="price">${esc(p.price)}</span>
+        ${action}
       </div>
     </div>
   </div>`;
 }
 
+// Showcase card — click to preview the full design in a lightbox
+function showCard(d) {
+  return `
+  <div class="show-card" onclick="openLightbox('${d.id}','${esc(d.name).replace(/'/g,"\\'")}','${d.previewUrl}')">
+    <div class="thumb">
+      <span class="stamp ${d.live ? 'live' : ''}">${d.live ? 'Live' : 'Preview'}</span>
+      <img src="${d.previewUrl}" alt="${esc(d.name)}" loading="lazy">
+    </div>
+    <div class="body">
+      <h3>${esc(d.name)}</h3>
+      <p><span class="prof">${d.emoji ? d.emoji + ' ' : ''}${esc(d.prof || '')}</span><span class="price">${esc(d.price || '')}</span></p>
+    </div>
+  </div>`;
+}
+
+function openLightbox(id, name, src){
+  document.getElementById('lb-img').src = src;
+  document.getElementById('lb-name').textContent = name;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(){ document.getElementById('lightbox').classList.remove('open'); }
+
 const grid = document.getElementById('product-grid');
+const showGrid = document.getElementById('showcase-grid');
 
 (async () => {
+  let designs = [];
   try {
     const res = await fetch('/api/store/products');
     const data = await res.json();
@@ -221,24 +301,52 @@ const grid = document.getElementById('product-grid');
         <div style="max-width:900px;margin:0 auto;background:linear-gradient(135deg,rgba(45,212,191,0.12),rgba(236,72,153,0.10));border:1px solid var(--teal);border-radius:16px;padding:36px 40px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
           <div>
             <div style="font-family:'Space Grotesk';font-size:1.3rem;font-weight:700;margin-bottom:6px;">🎁 Free Starter Pack</div>
-            <div style="color:var(--muted);font-size:0.9rem;max-width:520px;">3 professional templates — invoice, checklist, pricing calculator. Enter \$0 at checkout. See the quality before you buy anything.</div>
+            <div style="color:var(--muted);font-size:0.9rem;max-width:520px;">3 professional templates — invoice, checklist, pricing calculator. Enter $0 at checkout. See the quality before you buy anything.</div>
           </div>
           <a class="btn btn-primary" href="${data.leadmagnetUrl}" target="_blank" rel="noopener">Get it Free →</a>
         </div>`;
     }
 
-    const live = (data.products || []).map(p => ({
-      ...p,
-      desc: `${p.theme || 'Professional'} edition — instant download, fully editable.`
-    }));
-    grid.innerHTML = live.length
-      ? live.map(card).join('')
-      : FALLBACK.map(card).join('');
+    const live = (data.products || []).map(p => ({ ...p, category: p.category || p.type || '' }));
+    grid.innerHTML = live.length ? live.map(productCard).join('') : FALLBACK.map(productCard).join('');
   } catch {
-    grid.innerHTML = FALLBACK.map(card).join('');
+    grid.innerHTML = FALLBACK.map(productCard).join('');
+  }
+
+  try {
+    const res = await fetch('/api/store/showcase');
+    const data = await res.json();
+    designs = [
+      ...(data.designs || []),
+      ...(data.bundles || []).map(b => ({ ...b, live: true, prof: b.prof_name, emoji: b.prof_emoji, previewUrl: `/api/products/${b.id}/preview-image` }))
+    ];
+    renderShowcase('all');
+  } catch { /* showcase is optional */ }
+
+  const chips = document.querySelectorAll('#showcase-filter .chip');
+  chips.forEach(chip => chip.addEventListener('click', () => {
+    chips.forEach(c => c.classList.remove('on'));
+    chip.classList.add('on');
+    renderShowcase(chip.dataset.t);
+  }));
+
+  function renderShowcase(filter) {
+    const list = filter === 'all' ? designs : designs.filter(d => d.type === (filter === 'toolkit' ? 'bundle' : filter));
+    showGrid.innerHTML = list.length
+      ? list.map(showCard).join('')
+      : `<div style="color:var(--muted);text-align:center;padding:40px;">More ${TYPE_LABEL[filter] || filter} designs are on the bench — check back soon.</div>`;
   }
 })();
 </script>
+
+<!-- Lightbox for design previews -->
+<div id="lightbox" onclick="if(event.target===this)closeLightbox()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;flex-direction:column;padding:24px;">
+  <button onclick="closeLightbox()" style="position:absolute;top:20px;right:28px;background:transparent;border:1px solid var(--border);color:#fff;border-radius:50%;width:42px;height:42px;font-size:1.2rem;cursor:pointer;">✕</button>
+  <img id="lb-img" alt="" style="max-width:min(860px,92vw);max-height:78vh;border-radius:16px;border:1px solid var(--border);box-shadow:0 40px 90px -30px rgba(0,0,0,0.9);">
+  <div id="lb-name" style="margin-top:18px;font-family:'Space Grotesk';font-weight:700;font-size:1.05rem;"></div>
+  <div style="font-size:0.78rem;color:var(--muted);margin-top:6px;">Open the design → instant download after purchase on Gumroad</div>
+</div>
+<style>#lightbox.open{display:flex;}</style>
 
 </body>
 </html>

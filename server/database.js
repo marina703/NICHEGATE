@@ -7,6 +7,16 @@ fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new DatabaseSync(DB_PATH);
 
+// Enforce WAL + sensible lock wait so concurrent cron/API writers don't fail fast
+try {
+  db.exec('PRAGMA journal_mode = WAL;');
+  db.exec('PRAGMA busy_timeout = 5000;');
+  db.exec('PRAGMA synchronous = NORMAL;');
+  db.exec('PRAGMA foreign_keys = ON;');
+} catch (e) {
+  console.error('[DB] pragma init:', e.message);
+}
+
 function init() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS professions (
@@ -32,6 +42,7 @@ function init() {
       theme TEXT,
       html_content TEXT,
       file_path TEXT,
+      preview_path TEXT,
       marketplace_id TEXT,
       marketplace TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -120,6 +131,9 @@ function init() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Migration: raster preview thumbnails (older DBs won't have this column)
+  try { db.exec('ALTER TABLE products ADD COLUMN preview_path TEXT'); } catch (e) { /* column already exists */ }
 
   const count = db.prepare('SELECT COUNT(*) as c FROM professions').get();
   if (count.c === 0) seedProfessions();

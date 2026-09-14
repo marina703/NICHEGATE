@@ -16,6 +16,9 @@ function checkEtsyKeys() {
   if (!clientId || !clientSecret) {
     return { ok: false, message: 'ETSY_CLIENT_ID and/or ETSY_CLIENT_SECRET missing in .env' };
   }
+  if (clientId === clientSecret) {
+    return { ok: false, misconfiguredKeys: true, message: 'ETSY_CLIENT_ID and ETSY_CLIENT_SECRET are identical — set the real keystring and secret (two different values).' };
+  }
   return { ok: true };
 }
 
@@ -47,7 +50,7 @@ async function getEtsyAuthUrl(redirectUri) {
   put.run('etsy_redirect_uri', callback);
   
   return {
-    url: `https://www.etsy.com/oauth/connect?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(callback)}&scope=listings_r%20listings_w%20transactions_r%20shops_r&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
+    url: `https://www.etsy.com/oauth/connect?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(callback)}&scope=listings_r%20listings_w%20transactions_r%20shops_r%20shops_w&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`,
     instructions: [
       'Click the link above',
       'Log in to Etsy and authorize the app',
@@ -143,38 +146,6 @@ async function listOnEtsy(product, shopId) {
   return resp.data;
 }
 
-// ── GUMROAD ──
-async function listOnGumroad(product) {
-  const check = checkGumroadKey();
-  if (!check.ok) throw new Error(check.message);
-  
-  const token = process.env.GUMROAD_ACCESS_TOKEN;
-  const form = new URLSearchParams();
-  form.append('name', product.name.substring(0, 200));
-  form.append('url', `${product.slug || product.id}-${Date.now()}`);
-  form.append('price', (parseFloat(product.price.replace('$', '')) || 12) * 100);
-  form.append('description', 'Instant digital download');
-  
-  const resp = await axios.post(`${GUMROAD_API_BASE}/products`, form.toString(), {
-    headers: { 
-      Authorization: `Bearer ${token}`, 
-      'Content-Type': 'application/x-www-form-urlencoded' 
-    }
-  });
-  
-  return resp.data;
-}
-
-async function uploadGumroadFile(productId, filePath) {
-  const check = checkGumroadKey();
-  if (!check.ok) throw new Error(check.message);
-  
-  // In production: use multipart/form-data with fs.createReadStream
-  // This is a stub that would need multer/file upload integration
-  console.log(`[GUMROAD] Would upload ${filePath} to product ${productId}`);
-  return { status: 'stub' };
-}
-
 // ── STATUS ──
 function getMarketplaceStatus() {
   const etsy = checkEtsyKeys();
@@ -231,6 +202,9 @@ async function testEtsyConnection() {
     if (status === 401) {
       try { await refreshEtsyToken(); return { ok: true, configured: true, connected: true, message: 'Token refreshed — connected' }; }
       catch { return { ok: false, configured: true, connected: false, message: 'Token expired, refresh failed — reconnect via /setup' }; }
+    }
+    if (status === 403) {
+      return { ok: false, configured: true, connected: false, message: 'Etsy rejected the request (403) — your stored token is likely stale. Re-authorize at /setup.' };
     }
     return { ok: false, configured: true, connected: false, message: `API error: ${e.message}` };
   }
@@ -307,23 +281,82 @@ async function publishFreeGumroad(product) {
   return { platform: 'gumroad', listingId: created.id, url: created.short_url || null };
 }
 
-// Gumroad product id → public buy URL (for the storefront feed)
+// Normalize a product name for fuzzy matching across the Gumroad API.
+// "Complete Toolkit — Air Duct Cleaning" and "Air Duct Cleaning Complete Toolkit"
+// both collapse to "airductcleaning".
+function normalizeName(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .replace(/complete|toolkit|premium|template|edition|pack/g, '')
+    .replace(/toolkits?/g, '');
+}
+
+// Gumroad product id → public buy URL (for the storefront feed).
+// Includes BOTH exact-id and normalized-name lookup so products survive re-
+// publishes that mint fresh Gumroad ids.
 async function getGumroadProductUrls() {
-  if (!checkGumroadKey().ok) return {};
+  const out = { byId: {}, byName: {}, storeUrl: null, list: [] };
+  if (!checkGumroadKey().ok) return out;
   try {
     const resp = await axios.get(`${GUMROAD_API_BASE}/products`, {
       params: { access_token: process.env.GUMROAD_ACCESS_TOKEN },
       timeout: 10000
     });
-    const map = {};
     for (const g of resp.data?.products || []) {
-      map[g.id] = g.short_url || `https://gumroad.com/l/${g.permalink || ''}`;
+      const url = g.short_url || `https://gumroad.com/l/${g.permalink || ''}`;
+      out.byId[g.id] = url;
+      out.byName[normalizeName(g.name)] = url;
+      out.list.push({ id: g.id, name: g.name, price: g.price_cents != null ? g.price_cents / 100 : null, url, permalink: g.permalink });
+      if (!out.storeUrl) { try { out.storeUrl = new URL(url).origin; } catch {} }
     }
-    return map;
+    return out;
   } catch (e) {
     console.error('[GUMROAD] URL lookup failed:', e.message);
-    return {};
+    return out;
   }
+}
+
+// Reconcile the local catalog against what is actually live on Gumroad.
+//   • matches by normalized name (id changes across republishes)
+//   • fixes marketplace_id + flips genuinely-live rows to 'listed'
+//   • returns { matched, storeUrl, urlFor } ready for the storefront feed
+async function refreshGumroadCatalog() {
+  if (!checkGumroadKey().ok) {
+    return { matched: 0, storeUrl: null, urlFor: {} };
+  }
+  const gum = await getGumroadProductUrls();
+  let matched = 0;
+  const urlFor = {};
+
+  const local = db.prepare(`
+    SELECT id, name, status, marketplace_id, type FROM products
+  `).all();
+  for (const g of gum.list) {
+    const gn = normalizeName(g.name);
+    // 1. Direct id hit
+    const byId = local.find(r => r.marketplace_id === g.id);
+    // 2. Normalized name hit on any product (bundle price/type aware below)
+    const byName = local.find(r => normalizeName(r.name) === gn) || local.find(r => gn.includes(normalizeName(r.name)) && normalizeName(r.name).length >= 8);
+    const row = byId || byName;
+    if (!row) continue;
+    if (!byId) {
+      // Stale or missing id — adopt the real Gumroad id
+      db.prepare(`UPDATE products SET marketplace_id = ?, marketplace = 'gumroad' WHERE id = ?`).run(g.id, row.id);
+    }
+    if (row.status !== 'listed' && row.type === 'bundle') {
+      db.prepare(`UPDATE products SET status = 'listed', marketplace = 'gumroad' WHERE id = ?`).run(row.id);
+    }
+    urlFor[row.id] = g.url;
+    matched++;
+  }
+
+  // Armory: explicit store URL setting wins, else the derived Gumroad origin
+  let storeUrl = gum.storeUrl;
+  const override = db.prepare(`SELECT value FROM settings WHERE key = 'store_url'`).get()?.value;
+  if (override) storeUrl = override;
+
+  return { matched, storeUrl, urlFor, list: gum.list };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -377,10 +410,69 @@ async function uploadGumroadFile(filePath) {
   return fileUrl;
 }
 
+// ── GUMROAD DAILY CREATION QUOTA (local counter; Gumroad hard-caps ~10/day) ──
+const GUMROAD_DAILY_LIMIT = 10;
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function settingGet(key) {
+  return db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value || null;
+}
+
+function settingSet(key, value) {
+  db.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)')
+    .run(key, String(value));
+}
+
+function getGumroadQuota() {
+  const day = todayKey();
+  const storedDay = settingGet('gumroad_creates_day');
+  let used = parseInt(settingGet('gumroad_creates_today') || '0', 10) || 0;
+  if (storedDay !== day) {
+    used = 0;
+    settingSet('gumroad_creates_day', day);
+    settingSet('gumroad_creates_today', '0');
+  }
+  const exhausted = settingGet('gumroad_quota_exhausted_day') === day;
+  if (exhausted) used = Math.max(used, GUMROAD_DAILY_LIMIT);
+  const remaining = Math.max(0, GUMROAD_DAILY_LIMIT - used);
+  return { day, used, limit: GUMROAD_DAILY_LIMIT, remaining, exhausted };
+}
+
+function incrementGumroadCreates() {
+  const q = getGumroadQuota();
+  const next = q.used + 1;
+  settingSet('gumroad_creates_day', q.day);
+  settingSet('gumroad_creates_today', String(next));
+  if (next >= GUMROAD_DAILY_LIMIT) settingSet('gumroad_quota_exhausted_day', q.day);
+  return getGumroadQuota();
+}
+
+function markGumroadQuotaExhausted(reason) {
+  const day = todayKey();
+  settingSet('gumroad_quota_exhausted_day', day);
+  settingSet('gumroad_creates_day', day);
+  settingSet('gumroad_creates_today', String(GUMROAD_DAILY_LIMIT));
+  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+    .run('gumroad_quota', reason || 'Daily creation cap hit', 'warning');
+  return getGumroadQuota();
+}
+
 async function publishToGumroadReal(product) {
+
   // NEVER publish a listing without a deliverable file
   const filePath = await ensureProductFile(product);
   if (!filePath) throw new Error('Could not generate a downloadable file for this product');
+
+  // Soft pre-check against local daily counter (Gumroad hard-caps ~10 creates/day)
+  const quota = getGumroadQuota();
+  if (quota.remaining <= 0) {
+    const err = new Error(`Gumroad daily creation limit reached (${quota.used}/${quota.limit}). Try again tomorrow.`);
+    err.code = 'GUMROAD_DAILY_CAP';
+    throw err;
+  }
 
   const token = process.env.GUMROAD_ACCESS_TOKEN;
   const priceCents = Math.round((parseFloat(product.price.replace('$', '')) || 12) * 100);
@@ -398,21 +490,34 @@ async function publishToGumroadReal(product) {
     description: seoData.description.substring(0, 2000),
     'files[][url]': fileUrl
   });
-  const createResp = await axios.post(`${GUMROAD_API_BASE}/products`, form.toString(), {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    timeout: 30000
-  });
+  let createResp;
+  try {
+    createResp = await axios.post(`${GUMROAD_API_BASE}/products`, form.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 30000
+    });
+  } catch (e) {
+    const msg = e.response?.data?.message || e.message || '';
+    if (/daily|limit|too many|10 per/i.test(msg)) markGumroadQuotaExhausted(msg);
+    throw e;
+  }
   if (createResp.data?.success === false) {
-    throw new Error(createResp.data.message || 'Gumroad rejected the product');
+    const msg = createResp.data.message || 'Gumroad rejected the product';
+    if (/daily|limit|too many|10 per/i.test(msg)) markGumroadQuotaExhausted(msg);
+    throw new Error(msg);
   }
   const gumroadId = createResp.data?.product?.id;
   if (!gumroadId) throw new Error('Gumroad create returned no product id');
+
+  // Count a successful create against the local daily quota
+  incrementGumroadCreates();
 
   // 3. Publish (products are created as unpublished drafts)
   await axios.put(`${GUMROAD_API_BASE}/products/${encodeURIComponent(gumroadId)}/enable?access_token=${token}`, null, { timeout: 20000 });
 
   return { platform: 'gumroad', listingId: gumroadId, url: createResp.data?.product?.short_url || null };
 }
+
 
 async function getEtsyShopId(accessToken) {
   const resp = await axios.get(`${ETSY_API_BASE}/application/users/me`, {
@@ -427,6 +532,68 @@ async function getEtsyShopId(accessToken) {
   const shopId = shopsResp.data?.shops?.[0]?.shop_id;
   if (shopId) process.env.ETSY_SHOP_ID = String(shopId); // cache for session
   return String(shopId);
+}
+
+// ── STORE BRANDING (logo + banner from the NicheGate designs folder) ──
+function etsyAuthHeaders(token) {
+  return { Authorization: `Bearer ${token}`, 'x-api-key': process.env.ETSY_CLIENT_ID };
+}
+
+async function ensureEtsyApiToken() {
+  const token = db.prepare('SELECT * FROM marketplace_tokens WHERE platform = ?').get('etsy');
+  if (!token) throw new Error('Etsy not connected — visit /setup to authorize');
+  if (new Date(token.expires_at) < new Date()) await refreshEtsyToken();
+  return db.prepare('SELECT * FROM marketplace_tokens WHERE platform = ?').get('etsy');
+}
+
+// Shop icon (profile image) — PUT /v3/application/shops/{shop_id}/icon
+async function uploadEtsyShopIcon(imagePath) {
+  if (!imagePath || !fs.existsSync(imagePath)) throw new Error(`Shop icon file missing: ${imagePath}`);
+  const token = await ensureEtsyApiToken();
+  const shopId = process.env.ETSY_SHOP_ID || await getEtsyShopId(token.access_token);
+  const fd = new FormData();
+  fd.append('image', new Blob([fs.readFileSync(imagePath)]), path.basename(imagePath));
+  const resp = await axios.put(`${ETSY_API_BASE}/application/shops/${shopId}/icon`, fd, {
+    headers: { ...etsyAuthHeaders(token.access_token), ...(fd.getHeaders ? fd.getHeaders() : {}) },
+    timeout: 30000
+  });
+  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+    .run('branding_etsy_icon', `Shop icon set to ${path.basename(imagePath)}`, 'success');
+  return { ok: true, platform: 'etsy', asset: path.basename(imagePath), shopId, status: resp.status };
+}
+
+// Shop banner — POST /v3/application/shops/{shop_id}/banner (graceful if unsupported)
+async function uploadEtsyShopBanner(imagePath) {
+  if (!imagePath || !fs.existsSync(imagePath)) throw new Error(`Banner file missing: ${imagePath}`);
+  const token = await ensureEtsyApiToken();
+  const shopId = process.env.ETSY_SHOP_ID || await getEtsyShopId(token.access_token);
+  const fd = new FormData();
+  fd.append('image', new Blob([fs.readFileSync(imagePath)]), path.basename(imagePath));
+  const resp = await axios.post(`${ETSY_API_BASE}/application/shops/${shopId}/banner`, fd, {
+    headers: { ...etsyAuthHeaders(token.access_token), ...(fd.getHeaders ? fd.getHeaders() : {}) },
+    timeout: 30000
+  });
+  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+    .run('branding_etsy_banner', `Shop banner set to ${path.basename(imagePath)}`, 'success');
+  return { ok: true, platform: 'etsy', asset: path.basename(imagePath), shopId, status: resp.status };
+}
+
+// Gumroad product covers — attach the brand artwork to every listed product
+async function attachBrandingToGumroadProducts(coverPath) {
+  if (!coverPath || !fs.existsSync(coverPath)) throw new Error(`Cover file missing: ${coverPath}`);
+  const rows = db.prepare(`SELECT id, name FROM products WHERE status = 'listed' AND marketplace = 'gumroad' AND marketplace_id IS NOT NULL`).all();
+  let attached = 0, failed = 0; const errors = [];
+  for (const p of rows) {
+    try {
+      await attachGumroadCover(p.marketplace_id, coverPath);
+      attached++;
+    } catch (e) {
+      failed++; errors.push(`${p.name}: ${e.message}`);
+    }
+  }
+  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+    .run('branding_gumroad_covers', `Logo attached to ${attached} Gumroad listing(s) (${failed} failed)`, failed ? 'warning' : 'success');
+  return { attached, failed, errors };
 }
 
 async function publishToEtsyReal(product) {
@@ -466,7 +633,6 @@ module.exports = {
   exchangeEtsyToken,
   refreshEtsyToken,
   listOnEtsy,
-  listOnGumroad,
   uploadGumroadFile,
   getMarketplaceStatus,
   checkEtsyKeys,
@@ -474,7 +640,17 @@ module.exports = {
   testEtsyConnection,
   testGumroadConnection,
   getGumroadProductUrls,
+  refreshGumroadCatalog,
   attachGumroadCover,
+  ensureEtsyApiToken,
+  uploadEtsyShopIcon,
+  uploadEtsyShopBanner,
+  attachBrandingToGumroadProducts,
   publishFreeGumroad,
-  publishProduct
+  publishProduct,
+  getGumroadQuota,
+  incrementGumroadCreates,
+  markGumroadQuotaExhausted,
+  GUMROAD_DAILY_LIMIT
 };
+

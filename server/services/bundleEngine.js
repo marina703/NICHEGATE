@@ -113,11 +113,14 @@ async function buildLeadMagnet() {
   return db.prepare("SELECT * FROM products WHERE type = 'leadmagnet' LIMIT 1").get();
 }
 
-// Which branded cover to use per product type
+// Which branded cover to use per product type — bundles & the lead magnet use
+// the actual NicheGate logo (from the nichegate designs folder), singles use
+// their category icon.
 const COVER_BY_TYPE = {
   invoice: 'invoice.png', checklist: 'checklist.png', spreadsheet: 'calculator.png',
   booking: 'booking.png', social: 'social.png', journal: 'journal.png',
-  brand: 'brand.png', website: 'website.png', bundle: 'brand.png', leadmagnet: 'brand.png'
+  brand: 'brand.png', website: 'website.png',
+  bundle: 'nichegate_logo_on_black.png', leadmagnet: 'nichegate_logo_on_black.png'
 };
 function coverForType(type) {
   const file = COVER_BY_TYPE[type] || 'brand.png';

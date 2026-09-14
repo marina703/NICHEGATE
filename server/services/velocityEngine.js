@@ -24,12 +24,22 @@ function parseVelocity(velocityStr) {
 }
 
 // "$5k-12k" → { low: 5000, high: 12000, mid: 8500 } | "$500" → { low: 500, high: 750, mid: 625 }
+// A number only counts as revenue when it is USD-prefixed ($) or 'k'-suffixed,
+// so stray digits inside words/URLs no longer produce false revenue figures.
 function parseRevenue(estRevenue) {
-  const matches = String(estRevenue || '').match(/\$?\d+(?:\.\d+)?\s*k?/gi) || [];
-  const nums = matches.map(m => {
-    const n = parseFloat(m.replace(/[$\s]/g, ''));
-    return /k/i.test(m) ? n * 1000 : n;
-  }).filter(n => !isNaN(n) && n > 0);
+  const source = String(estRevenue || '');
+  const nums = [];
+  const re = /(\$)?(\d+(?:\.\d+)?)(k)?/gi;
+  let m;
+  while ((m = re.exec(source)) !== null) {
+    const hasDollar = !!m[1];
+    const isK = !!m[3];
+    if (!hasDollar && !isK) continue;
+    let n = parseFloat(m[2]);
+    if (isK) n *= 1000;
+    if (!Number.isFinite(n) || n <= 0) continue;
+    nums.push(n);
+  }
 
   if (nums.length === 0) return { low: 0, high: 0, mid: 0 };
   if (nums.length === 1) {

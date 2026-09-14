@@ -7,37 +7,14 @@
 const pdfGen = require('./pdfGenerator');
 const xlsxGen = require('./xlsxGenerator');
 const zipGen = require('./zipGenerator');
+const ds = require('./designStudio');
+const fs = require('fs');
+const path = require('path');
 const { db } = require('../database');
 
-// ── WEBSITE TEMPLATE ──
+// ── WEBSITE TEMPLATE (premium, via Design Studio) ──
 function buildWebsiteHTML(prof, theme) {
-  const services = JSON.parse(prof.services || '[]');
-  const hashtags = JSON.parse(prof.hashtags || '[]');
-  return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${prof.name}</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:${theme.font}}
-body{background:${theme.bg};color:${theme.primary};line-height:1.6}
-.hero{background:${theme.primary};color:white;padding:100px 20px;text-align:center}
-.hero h1{font-size:2.5rem;margin-bottom:16px}
-.hero p{font-size:1.1rem;opacity:0.9;max-width:600px;margin:0 auto}
-.cta{display:inline-block;background:${theme.accent};color:${theme.primary};padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:700;margin-top:24px}
-.services{padding:60px 20px;max-width:1000px;margin:0 auto}
-.services h2{text-align:center;margin-bottom:40px;font-size:1.8rem}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
-.card{background:white;border:1px solid #e2e8f0;border-radius:12px;padding:24px}
-.card h3{margin-bottom:8px;color:${theme.secondary}}
-.card .price{font-size:1.3rem;font-weight:700;color:${theme.accent};margin-top:12px}
-.footer{background:${theme.primary};color:white;text-align:center;padding:40px 20px;margin-top:60px}
-.footer a{color:${theme.accent};text-decoration:none}
-</style></head><body>
-<section class="hero"><h1>${prof.emoji} ${prof.name}</h1><p>Professional services you can trust. Quality work, fair prices, reliable scheduling.</p><a href="#contact" class="cta">Book Now</a></section>
-<section class="services"><h2>Our Services</h2><div class="grid">
-${services.map(s=>`<div class="card"><h3>${s[0]}</h3><p>Starting at</p><div class="price">${s[1]}</div></div>`).join('')}
-</div></section>
-<section class="footer" id="contact"><h2>Get In Touch</h2><p>📧 hello@${prof.slug}.com | 📱 (555) 123-4567</p><p style="margin-top:12px;opacity:0.7;font-size:0.85rem">${hashtags.slice(0,5).join(' ')}</p></section>
-</body></html>`;
+  return ds.buildWebsiteHTML(prof, theme);
 }
 
 // ── RECOVERY PROMPTS (30-day journals; Serenity Prayer every 5th day = 20%) ──
@@ -89,12 +66,27 @@ function getRecoveryPrompts(prof) {
 
 // ── THEME FALLBACK ──
 function fallbackTheme(product) {
-  // Try the profession's seeded colors so exports still look on-brand
+  // Prefer explicit product theme from the design engine library
+  try {
+    const design = require('./themes');
+    if (product.theme && product.theme !== 'Auto Theme') {
+      const named = design.getTheme(product.theme);
+      if (named && named.name === product.theme) return named;
+    }
+    const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+    if (prof) {
+      const recommended = design.recommendTheme(prof);
+      const t = design.getTheme(recommended);
+      if (t) return t;
+      return design.paletteForNiche(prof);
+    }
+  } catch (e) { /* fall through to colors */ }
+
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
   let colors = {};
   try { colors = JSON.parse(prof?.colors || '{}'); } catch {}
   return {
-    name: product.theme || 'Auto Theme',
+    name: product.theme || 'Onyx Volt',
     font: "'Space Grotesk','Inter',system-ui,sans-serif",
     primary: colors.primary || '#0f172a',
     secondary: colors.secondary || '#2dd4bf',
@@ -102,6 +94,7 @@ function fallbackTheme(product) {
     bg: colors.bg || '#ffffff'
   };
 }
+
 
 // ── ENSURE FILE — generates the product's file if missing, returns path or null ──
 async function ensureProductFile(product) {
@@ -123,12 +116,16 @@ async function ensureProductFile(product) {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildJournalHTML(prof, theme, getRecoveryPrompts(prof)), `${prof.slug}-journal-${stamp}.pdf`);
   } else if (type === 'brand') {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildBrandKitHTML(prof, theme), `${prof.slug}-brand-kit-${stamp}.pdf`);
+  } else if (type === 'decision-matrix') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : ds.buildDecisionMatrixHTML(product, prof, theme), `${prof.slug}-decision-matrix-${stamp}.pdf`);
+  } else if (type === 'roi') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : ds.buildROIHTML(product, prof, theme), `${prof.slug}-roi-${stamp}.pdf`);
   } else if (type === 'website') {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : buildWebsiteHTML(prof, theme), `${prof.slug}-website-${stamp}.pdf`);
   } else if (['spreadsheet', 'booking', 'pricing', 'inventory', 'shot-chart'].includes(type)) {
     filePath = xlsxGen.generateXLSX(type === 'pricing' ? 'spreadsheet' : type, prof, `${prof.slug}-${type}-${stamp}.xlsx`);
   } else if (type === 'social') {
-    filePath = zipGen.createSocialPack(prof, theme);
+    filePath = await zipGen.createSocialPack(prof, theme);
   }
   if (filePath) {
     db.prepare('UPDATE products SET file_path = ? WHERE id = ?').run(filePath, product.id);
@@ -137,9 +134,117 @@ async function ensureProductFile(product) {
   return filePath;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// THUMBNAIL FACTORY — renders any product as a crisp raster preview (JPEG)
+// so review queues and preview pages show real visual mockups, not just names.
+// Reuses the same cached Chrome instance as the PDF generator.
+// ═══════════════════════════════════════════════════════════════════════════
+const PREVIEW_DIR = path.join(__dirname, '..', '..', 'previews');
+fs.mkdirSync(PREVIEW_DIR, { recursive: true });
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function buildFallbackCardHTML(product, prof) {
+  const theme = fallbackTheme(product);
+  return `<!DOCTYPE html><html><head><style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:${theme.font || "'Space Grotesk','Inter',system-ui,sans-serif"};display:flex;align-items:center;justify-content:center;min-height:100vh;background:${theme.bg || '#0f172a'};}
+    .card{width:900px;background:${theme.primary || '#0f172a'};border-radius:24px;padding:60px;color:white;text-align:center}
+    .emoji{font-size:5rem;margin-bottom:16px}
+    h1{font-size:2rem;margin-bottom:10px}
+    .type{display:inline-block;background:${theme.accent || '#2dd4bf'};color:${theme.primary || '#0f172a'};padding:8px 18px;border-radius:50px;font-weight:800;text-transform:uppercase;font-size:0.8rem;letter-spacing:1px}
+    .price{font-size:1.4rem;margin-top:24px;font-weight:800}
+  </style></head><body>
+    <div class="card"><div class="emoji">${escHtml(prof.emoji)}</div><h1>${escHtml(product.name)}</h1><div class="type">${escHtml(product.type)}</div><div class="price">${escHtml(product.price || '')}</div></div>
+  </body></html>`;
+}
+
+// Pick the most representative HTML source for this product
+function buildPreviewHTML(product, prof) {
+  const theme = fallbackTheme(product);
+  const raw = String(product.html_content || '').trim();
+  const hasRealHtml = raw && !['<!-- auto-generated -->', '<!-- bundle -->', '<!-- leadmagnet -->'].includes(raw) && raw.length > 40;
+  if (hasRealHtml) return product.html_content;
+  const t = product.type;
+  if (t === 'invoice') return pdfGen.buildInvoiceHTML(prof, theme);
+  if (t === 'checklist') return pdfGen.buildChecklistHTML(prof, theme);
+  if (t === 'journal') return pdfGen.buildJournalHTML(prof, theme, getRecoveryPrompts(prof));
+  if (t === 'brand') return pdfGen.buildBrandKitHTML(prof, theme);
+  if (t === 'website') return buildWebsiteHTML(prof, theme);
+  if (t === 'social') return zipGen.buildSocialPostHTML(prof, theme);
+  if (t === 'decision-matrix') return ds.buildDecisionMatrixHTML(product, prof, theme);
+  if (t === 'roi') return ds.buildROIHTML(product, prof, theme);
+  if (t === 'bundle' || t === 'leadmagnet') return ds.buildCoverHTML(product, prof, theme, t === 'leadmagnet' ? 'leadmagnet' : 'bundle');
+  if (['spreadsheet', 'pricing', 'booking', 'inventory', 'shot-chart'].includes(t)) {
+    return ds.buildTablePreviewHTML(product, prof, theme, t === 'booking' ? 'booking' : 'spreadsheet');
+  }
+  return buildFallbackCardHTML(product, prof);
+}
+
+// Screenshot the HTML → JPEG thumbnail
+async function renderPreviewImage(html, outPath) {
+  const browser = await pdfGen.getBrowser();
+  if (!browser) return null;
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: 1080, height: 1440, deviceScaleFactor: 1 });
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    await new Promise(r => setTimeout(r, 350)); // let fonts paint
+    const h = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0));
+    if (h <= 1500) {
+      await page.screenshot({ path: outPath, type: 'jpeg', quality: 88, fullPage: true });
+    } else {
+      // Very long documents (30-day journals) — capture the top as the mockup
+      await page.screenshot({ path: outPath, type: 'jpeg', quality: 88, clip: { x: 0, y: 0, width: 1080, height: 1400 } });
+    }
+    return fs.existsSync(outPath) ? outPath : null;
+  } catch (e) {
+    console.error('[THUMB] render error:', e.message);
+    return null;
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+// Ensure a product has a raster preview — cached on disk + in DB; returns path or null
+async function ensureProductThumbnail(product) {
+  if (product.preview_path && fs.existsSync(product.preview_path)) return product.preview_path;
+  const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+  if (!prof) return null;
+  let html = buildPreviewHTML(product, prof);
+  if (!html) return null;
+  // Marketplace-style device frame for stronger listing mockups
+  try {
+    if (typeof ds.wrapMarketplaceMockup === 'function') {
+      html = ds.wrapMarketplaceMockup(html, {
+        title: product.name || `${prof.name} ${product.type}`,
+        price: product.price || '$12',
+        badge: 'NicheGate · Instant download'
+      });
+    }
+  } catch (e) {
+    console.error('[THUMB] mockup wrap:', e.message);
+  }
+  const outPath = path.join(PREVIEW_DIR, `${prof.slug}-${product.type}-${product.id}-${Date.now()}.jpg`);
+  const result = await renderPreviewImage(html, outPath);
+  if (!result) return null;
+  try {
+    db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(result, product.id);
+    product.preview_path = result;
+  } catch (e) {
+    console.error('[THUMB] db update:', e.message);
+  }
+  return result;
+}
+
+
 module.exports = {
   ensureProductFile,
+  ensureProductThumbnail,
   buildWebsiteHTML,
+  buildPreviewHTML,
   getRecoveryPrompts,
   SERENITY_PRAYER_PROMPT
 };

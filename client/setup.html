@@ -132,6 +132,25 @@ a:hover{text-decoration:underline;}
     <div class="status-pill pending" id="discord-status">⏳ Optional</div>
   </div>
 
+  <div class="step" id="step-branding">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <div>
+        <h2>Store Branding (Logo + Banner)</h2>
+        <p>Push the artwork from the <code>nichegate designs</code> folder to your storefronts</p>
+      </div>
+    </div>
+    <div id="branding-content">
+      <div id="branding-assets" style="font-size:0.82rem;color:#94a3b8;margin-bottom:12px;">Loading assets…</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <button class="btn btn-secondary" onclick="applyBranding('gumroad')">🖼 Logo → Gumroad covers</button>
+        <button class="btn btn-secondary" onclick="applyBranding('etsy')">🎨 Logo + banner → Etsy</button>
+      </div>
+      <div id="branding-log" style="margin-top:10px;font-size:0.78rem;color:#2dd4bf;white-space:pre-wrap;min-height:18px;"></div>
+      <div class="status-pill pending" id="branding-status">⏳ —</div>
+    </div>
+  </div>
+
   <div class="bottom-cta">
     <a href="/">← Back to App</a>
   </div>
@@ -162,6 +181,53 @@ async function connectEtsy() {
   } catch (e) {
     showToast('error', 'Failed', e.message);
   }
+}
+
+async function applyBranding(target) {
+  const logEl = document.getElementById('branding-log');
+  const statusEl = document.getElementById('branding-status');
+  logEl.textContent = '';
+  statusEl.textContent = '⏳ Working…';
+  statusEl.className = 'status-pill pending';
+  try {
+    const res = await fetch(`${API}/branding/apply-${target}`, { method: 'POST' });
+    const d = await res.json();
+    if (target === 'gumroad') {
+      const lines = [`Attached logo covers: ${d.attached ?? 0} ✓ / ${d.failed ?? 0} ✗`];
+      if (d.errors && d.errors.length) lines.push('Errors:\n' + d.errors.join('\n'));
+      logEl.textContent = lines.join('\n');
+      statusEl.textContent = d.success ? '✅ Logo applied to Gumroad' : '⚠️ Partial — see log';
+      statusEl.className = 'status-pill ' + (d.success ? 'done' : 'error');
+      showToast(d.success ? 'success' : 'error', 'Gumroad Branding', `${d.attached} attached / ${d.failed} failed`);
+    } else {
+      const lines = (d.steps || [])
+        .filter(s => s.step !== 'assets')
+        .map(s => `${s.ok ? '✅' : '❌'} ${s.step}: ${s.ok ? 'ok' : (s.message || ('HTTP ' + s.status) || 'failed')}`);
+      logEl.textContent = lines.join('\n') || (d.error || 'No steps ran');
+      statusEl.textContent = d.success ? '✅ Etsy branding applied' : '⚠️ Blocked — see log (usually .env Etsy API keys)';
+      statusEl.className = 'status-pill ' + (d.success ? 'done' : 'error');
+      showToast(d.success ? 'success' : 'error', 'Etsy Branding', d.success ? 'Icon + banner applied!' : 'Blocked — check .env keys');
+    }
+  } catch (e) {
+    statusEl.textContent = '❌ ' + e.message;
+    statusEl.className = 'status-pill error';
+  }
+}
+
+async function loadBrandingStatus() {
+  try {
+    const res = await fetch(`${API}/branding/status`);
+    const d = await res.json();
+    const assets = (d.assets?.assets ? Object.values(d.assets.assets).filter(Boolean) : []);
+    const names = assets.map(a => a.file).join(', ');
+    const el = document.getElementById('branding-assets');
+    el.innerHTML = assets.length
+      ? `✅ <strong>${assets.length} brand assets</strong> synced from <code>nichegate designs</code> → <code>covers/</code><br>${names}`
+      : `⚠️ No assets found in covers/. Put the PNGs from the "nichegate designs" folder into covers/.`;
+    if (d.etsy && d.etsy.tokenPresent && d.etsyKeyOk === false) {
+      el.innerHTML += '<br><span style="color:#f59e0b;">⚠️ ETSY_CLIENT_ID and ETSY_CLIENT_SECRET are identical — replace with your real Etsy keystring + secret, then reconnect via “Connect Etsy”.</span>';
+    }
+  } catch (e) { /* non-fatal */ }
 }
 
 async function checkStatus() {
@@ -230,6 +296,7 @@ if (params.get('etsy') === 'connected') {
 }
 
 checkStatus();
+loadBrandingStatus();
 </script>
 
 </body>
