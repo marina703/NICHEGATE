@@ -32,4 +32,13 @@ describe('core niches + trend retirement', () => {
     assert.equal(typeof discovery.scaleWinners, 'function');
     assert.equal(typeof ac.taskScale, 'function');
   });
+
+  it('renders the 5 outcome tools with theme colors (no leaky tokens)', () => {
+    const ts = require('../server/services/toolStudio');
+    const design = require('../server/services/themes');
+    assert.equal(ts.TOOLS.length, 5);
+    const html = ts.buildToolHTML(ts.TOOLS[0], design.getTheme('Onyx Volt'));
+    assert.match(html, /The F-U Quote/);
+    assert.ok(!html.includes('${' + 'accent}'));
+  });
 });

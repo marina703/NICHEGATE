@@ -122,6 +122,8 @@ async function ensureProductFile(product) {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : ds.buildROIHTML(product, prof, theme), `${prof.slug}-roi-${stamp}.pdf`);
   } else if (type === 'website') {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : buildWebsiteHTML(prof, theme), `${prof.slug}-website-${stamp}.pdf`);
+  } else if (type === 'tool') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : buildFallbackCardHTML(product, prof), `${prof.slug}-tool-${stamp}.pdf`);
   } else if (['spreadsheet', 'booking', 'pricing', 'inventory', 'shot-chart'].includes(type)) {
     filePath = xlsxGen.generateXLSX(type === 'pricing' ? 'spreadsheet' : type, prof, `${prof.slug}-${type}-${stamp}.xlsx`);
   } else if (type === 'social') {

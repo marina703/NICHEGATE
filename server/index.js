@@ -1268,6 +1268,12 @@ function startServer() {
   // Surface launch-readiness issues in the console on boot
   readiness.logReadinessIssues();
 
+  // Seed the flagship "outcome tool" products (idempotent)
+  try {
+    const toolStudio = require('./services/toolStudio');
+    toolStudio.createToolProducts(toolStudio.ensureToolProfession());
+  } catch (e) { console.error('[BOOT] tool seed:', e.message); }
+
   // Auto-start automation on boot
   autoStart();
   });

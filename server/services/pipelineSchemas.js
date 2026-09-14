@@ -52,7 +52,7 @@ function validateVetResult(input) {
 const PRODUCT_TYPES = new Set([
   'invoice', 'checklist', 'spreadsheet', 'booking', 'social', 'journal',
   'brand', 'website', 'decision-matrix', 'roi', 'bundle', 'leadmagnet',
-  'pricing', 'inventory', 'shot-chart', 'pyro'
+  'pricing', 'inventory', 'shot-chart', 'pyro', 'tool'
 ]);
 
 function validatePrice(price) {
