@@ -8,6 +8,7 @@
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+const { getContentFor } = require('./contentLibrary');
 
 function priceNum(str) {
   const m = String(str || '').replace(/,/g, '').match(/\d+(?:\.\d+)?/);
@@ -46,7 +47,8 @@ function shell(title, extraCss, body, theme) {
 }
 // ── INVOICE ──────────────────────────────────────────────────────────────
 function buildInvoiceHTML(prof, theme, opts) {
-  const safe = parseServices(prof).length ? parseServices(prof) : [["Professional Consultation", "$50"]];
+  const cat = getContentFor(prof);
+  const safe = cat.invoice.length ? cat.invoice : parseServices(prof).length ? parseServices(prof) : [["Professional Consultation", "$50"]];
   const total = safe.reduce((a, s) => a + (priceNum(s[1]) || 0), 0);
   const opts2 = opts || {};
   const today = opts2.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
