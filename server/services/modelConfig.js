@@ -14,10 +14,10 @@ module.exports = {
   openrouter: {
     baseUrl: 'https://openrouter.ai/api/v1',
     // cheap, fast, reliable → routine scanning/summarizing
-    defaultModel: process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini',
+    defaultModel: process.env.OPENROUTER_MODEL || 'google/gemini-flash-1.5',
     // cheap + low temperature → scoring/ranking ideas
-    judgeModel: process.env.JUDGE_MODEL || 'openai/gpt-4o-mini',
-    // stronger value reasoning → product concept generation
+    judgeModel: process.env.JUDGE_MODEL || 'anthropic/claude-3.5-haiku',
+    // stronger value reasoning → product concept generation (still cheap)
     ideationModel: process.env.IDEATION_MODEL || 'deepseek/deepseek-chat',
     siteUrl: process.env.OPENROUTER_SITE_URL || 'https://nichegate.app',
     siteName: process.env.OPENROUTER_SITE_NAME || 'NicheGate'
