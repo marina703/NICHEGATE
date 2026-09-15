@@ -60,7 +60,7 @@ function buildToolHTML(spec, theme) {
     <div class="steps">${spec.steps.map((s, i) => `<div class="step"><span class="n">${i + 1}</span>${esc(s)}</div>`).join('')}</div>
     ${spec.core}
     <div class="cta">${esc(spec.cta)}</div>
-    <div class="foot">Commercial license · fully editable · use on unlimited client projects</div>
+    <div class="foot">Part of the <strong>Freelancer's Survival Kit</strong> — all 5 tools in one bundle · Commercial license · Instant download</div>
   </div>`;
   return ds.shell(spec.title, toolCss(theme), body, theme);
 }
