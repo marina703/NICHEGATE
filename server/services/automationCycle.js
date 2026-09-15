@@ -137,7 +137,7 @@ async function taskPublishQueue(ctx) {
     const q = mp.getGumroadQuota();
     if (q && q.remaining <= 0) {
       db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
-        .run('publish_quota', null, 'Gumroad daily cap reached (' + q.used + '/' + q.limit + ') - skipping publish cycle', 'warning');
+        .run('publish_quota', 'Gumroad daily cap reached (' + q.used + '/' + q.limit + ') - skipping publish cycle', 'warning');
       ctx.listed = 0;
       return ctx;
     }

@@ -13,7 +13,8 @@ const PRODUCT_TERMS = {
   checklist:  ['Checklist Template', 'Service Checklist', 'Quality Checklist', 'Checklist'],
   journal:    ['Journal Template', 'Recovery Journal', 'Guided Journal', 'Journal'],
   bundle:     ['Complete Toolkit', 'Template Bundle', 'Business Toolkit', 'Bundle'],
-  leadmagnet: ['Free Template Pack', 'Starter Pack', 'Free Templates', 'Freebie']
+  leadmagnet: ['Free Template Pack', 'Starter Pack', 'Free Templates', 'Freebie'],
+  tool:       ['Business Tool', 'Decision Framework', 'Outcome Tool', 'Business Framework']
 };
 
 const TIER_TERMS = {
