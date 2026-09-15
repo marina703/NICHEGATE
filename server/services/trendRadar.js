@@ -166,38 +166,45 @@ async function fetchGoogleTrends(limit = 10) {
 async function fetchRedditRising() {
   const items = [];
   let ok = 0, fail = 0;
+  // NOTE: www.reddit.com 403s datacenter IPs (Railway ams). old.reddit.com still serves public JSON.
+  const bases = ['https://old.reddit.com', 'https://www.reddit.com'];
   for (const src of REDDIT_SOURCES) {
-    try {
-      const resp = await axios.get(`https://www.reddit.com/r/${src.sub}/rising.json?limit=4`, {
-        timeout: 8000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Referer': 'https://www.reddit.com/',
-          'Sec-Fetch-Dest': 'empty',
-          'Sec-Fetch-Mode': 'cors',
-          'Sec-Fetch-Site': 'same-origin'
-        }
-      });
+    let done = false;
+    for (const base of bases) {
+      try {
+        const resp = await axios.get(`${base}/r/${src.sub}/rising.json?limit=4`, {
+          timeout: 8000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://old.reddit.com/',
+          }
+        });
       for (const child of resp.data?.data?.children || []) {
-        const d = child.data || {};
-        if (d.title) {
-          items.push({
-            name: d.title.slice(0, 120),
-            traffic: `${d.ups || 0} upvotes`,
-            source: `reddit r/${src.sub}`,
-            nicheHint: src.niche,
-            shoppingIntent: 0.4
-          });
+          const d = child.data || {};
+          if (d.title) {
+            items.push({
+              name: d.title.slice(0, 120),
+              traffic: `${d.ups || 0} upvotes`,
+              source: `reddit r/${src.sub}`,
+              nicheHint: src.niche,
+              shoppingIntent: 0.4
+            });
+          }
+        }
+        ok++;
+        done = true;
+        break; // success on this base — don't try next base
+      } catch (e) {
+        // try next base; only log after last base fails
+        if (base === bases[bases.length - 1]) {
+          fail++;
+          console.error(`[RADAR] reddit r/${src.sub}:`, e.message);
         }
       }
-      ok++;
-    } catch (e) {
-      fail++;
-      console.error(`[RADAR] reddit r/${src.sub}:`, e.message);
-    }
+      }
+    if (!done) continue;
   }
   markHealth('reddit', ok > 0, fail ? `${fail} subs failed` : null);
   return items;
