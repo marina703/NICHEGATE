@@ -132,25 +132,43 @@ async function taskPublishQueue(ctx) {
   const approved = db.prepare("SELECT * FROM products WHERE status = 'approved' AND marketplace_id IS NULL").all();
   let listed = 0;
 
+  // Check Gumroad quota BEFORE attempting any publishes
+  if (typeof mp.getGumroadQuota === 'function') {
+    const q = mp.getGumroadQuota();
+    if (q && q.remaining <= 0) {
+      db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+        .run('publish_quota', null, 'Gumroad daily cap reached (' + q.used + '/' + q.limit + ') - skipping publish cycle', 'warning');
+      ctx.listed = 0;
+      return ctx;
+    }
+  }
+
   for (const p of approved) {
+    // Re-check quota before each publish (in case we hit the limit mid-cycle)
     if (typeof mp.getGumroadQuota === 'function') {
       const q = mp.getGumroadQuota();
       if (q && q.remaining <= 0) {
         db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
-          .run('publish_quota', p.id, 'Gumroad daily cap reached (' + q.used + '/' + q.limit + ')', 'warning');
+          .run('publish_quota', p.id, 'Gumroad daily cap reached mid-cycle (' + q.used + '/' + q.limit + ')', 'warning');
         break;
       }
     }
+    
     try {
       const result = await mp.publishProduct(p);
       const pub = validatePublishResult(result);
       db.prepare('UPDATE products SET status = ?, marketplace = ?, marketplace_id = ? WHERE id = ?')
         .run('listed', pub.platform, pub.listingId, p.id);
       listed++;
+      
+      // Add delay between publishes to avoid rate limits (2 seconds)
+      if (listed < approved.length) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     } catch (e) {
       db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
         .run('publish_error', p.id, e.message, 'error');
-      if (/daily|limit|10 per|creation/i.test(e.message || '')) {
+      if (/daily|limit|10 per|creation|429/i.test(e.message || '')) {
         if (typeof mp.markGumroadQuotaExhausted === 'function') mp.markGumroadQuotaExhausted(e.message);
         break;
       }

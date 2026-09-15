@@ -94,24 +94,21 @@ function activateTrend(id) {
 
   const hashtags = `["${trend.name.toLowerCase().replace(/\s/g, '')}","#trending","#viral","#etsyshop","#digitaldownload","#smallbusiness","#etsyfinds","#printable"]`;
 
-  // Transaction: activate flag + profession create stay atomic
-  const tx = db.transaction(() => {
-    db.prepare('UPDATE trends SET activated = 1, activated_at = ? WHERE id = ?')
-      .run(new Date().toISOString(), id);
-    db.prepare(`
-      INSERT OR IGNORE INTO professions (id, emoji, name, slug, status, tier, colors, services, hashtags)
-      VALUES (?, ?, ?, ?, 'researching', 'trend', ?, ?, ?)
-    `).run(
-      profId,
-      trend.emoji,
-      trend.name,
-      slug,
-      '{"primary":"#1e293b","secondary":"#ec4899","accent":"#f59e0b","bg":"#fafafa"}',
-      '[["Digital Template","$15"],["Complete Kit","$29"],["Trend Guide","$12"],["Social Pack","$19"],["Starter Bundle","$25"],["Pro Bundle","$39"]]',
-      hashtags
-    );
-  });
-  tx();
+  // Activate flag + profession create (INSERT OR IGNORE is already safe)
+  db.prepare('UPDATE trends SET activated = 1, activated_at = ? WHERE id = ?')
+    .run(new Date().toISOString(), id);
+  db.prepare(`
+    INSERT OR IGNORE INTO professions (id, emoji, name, slug, status, tier, colors, services, hashtags)
+    VALUES (?, ?, ?, ?, 'researching', 'trend', ?, ?, ?)
+  `).run(
+    profId,
+    trend.emoji,
+    trend.name,
+    slug,
+    '{"primary":"#1e293b","secondary":"#ec4899","accent":"#f59e0b","bg":"#fafafa"}',
+    '[["Digital Template","$15"],["Complete Kit","$29"],["Trend Guide","$12"],["Social Pack","$19"],["Starter Bundle","$25"],["Pro Bundle","$39"]]',
+    hashtags
+  );
 
   return db.prepare('SELECT * FROM professions WHERE id = ?').get(profId) ||
     db.prepare('SELECT * FROM professions WHERE slug = ?').get(slug);

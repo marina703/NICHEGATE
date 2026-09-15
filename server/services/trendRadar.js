@@ -9,7 +9,17 @@ const cheerio = require('cheerio');
 const { db } = require('../database');
 
 const RADAR_URL = 'https://trends.google.com/trending/rss?geo=US';
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const BROWSER_HEADERS = {
+  'User-Agent': UA,
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1'
+};
 
 const REDDIT_SOURCES = [
   { sub: 'beekeeping', niche: 'beekeeping' },
@@ -160,7 +170,16 @@ async function fetchRedditRising() {
     try {
       const resp = await axios.get(`https://www.reddit.com/r/${src.sub}/rising.json?limit=4`, {
         timeout: 8000,
-        headers: { 'User-Agent': 'NicheTrendRadar/1.1 (market-research; localhost dev)' }
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': 'https://www.reddit.com/',
+          'Sec-Fetch-Dest': 'empty',
+          'Sec-Fetch-Mode': 'cors',
+          'Sec-Fetch-Site': 'same-origin'
+        }
       });
       for (const child of resp.data?.data?.children || []) {
         const d = child.data || {};
@@ -188,7 +207,7 @@ async function fetchAmazonMovers(limit = 8) {
   try {
     const resp = await axios.get('https://www.amazon.com/gp/movers-and-shakers', {
       timeout: 15000,
-      headers: { 'User-Agent': UA, 'Accept-Language': 'en-US,en;q=0.9' }
+      headers: BROWSER_HEADERS
     });
     const $ = cheerio.load(resp.data);
     const out = [];
@@ -212,7 +231,7 @@ async function fetchEbayTrending(limit = 8) {
   try {
     const resp = await axios.get('https://www.ebay.com/trending', {
       timeout: 15000,
-      headers: { 'User-Agent': UA }
+      headers: BROWSER_HEADERS
     });
     const $ = cheerio.load(resp.data);
     const out = [];

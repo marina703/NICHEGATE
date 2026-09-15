@@ -12,7 +12,7 @@ const { ensureProductFile } = require('./fileFactory');
 
 const OUTPUT_DIR = path.join(__dirname, '..', '..', 'generated');
 
-const MEMBER_TYPES = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social'];
+const MEMBER_TYPES = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social', 'tool'];
 const RECOVERY_SLUGS = ['aa-recovery', 'smart-recovery', 'refuge-recovery', 'womens-recovery', 'secular-recovery', 'faith-recovery'];
 const TYPE_PRICES = { invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15', journal: '$15' };
 

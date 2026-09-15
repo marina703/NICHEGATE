@@ -131,14 +131,13 @@ async function listOnEtsy(product, shopId) {
     title: seoData.title.substring(0, 140),
     description: seoData.description.substring(0, 4999),
     price: parseFloat(product.price.replace('$', '')) || 12,
-    taxonomy_id: 1,
+    taxonomy_id: 6000, // Digital Downloads category
     who_made: 'i_did',
     when_made: 'made_to_order',
     is_supply: false,
-    type: 'download',
-    shipping_template_id: 0,
+    is_digital: true,
     tags: seoData.tags.slice(0, 13),
-    materials: ['digital', 'template'],
+    materials: ['digital', 'template', 'download', 'printable'],
     image_ids: []
   };
   
