@@ -607,20 +607,71 @@ h1{font-size:3.2rem;font-weight:900;letter-spacing:-1px;margin-bottom:40px}
 </div></body></html>`;
 }
 
-/** Photorealistic marketplace mockup frame for thumbnail/cover previews. */
+/** Thumb-stopper marketplace cover (v2). Light paper, giant title, hero visual,
+ *  3 benefits, price + format badges. 1200x1500 (4:5). Dark device-frames banned. */
+function thumbCoverCopy(product, prof) {
+  const t = String(product.type || '').toLowerCase();
+  const noun = prof.name || 'Business';
+  const lib = {
+    invoice: ['Professional Invoice Template', 'Get paid faster, look legit', ['Editable in Word / Google Docs', 'Auto-totals + tax line', 'Pro payment terms built in'], 'PDF + DOCX'],
+    checklist: ['Service Quality Checklist', 'Never miss a step on the job', ['Step-by-step sign-off', 'Client-ready finish check', 'Printable + reusable'], 'PDF · Printable'],
+    spreadsheet: ['Pricing Calculator', 'Quote jobs in 60 seconds', ['Live Excel formulas', 'Profit margin built in', 'No more undercharging'], 'XLSX · Formulas'],
+    booking: ['Booking Tracker', 'Fill your calendar, stay organized', ['Client + date tracking', 'Deposit + balance columns', 'At-a-glance schedule'], 'XLSX · Tracker'],
+    social: ['Social Media Pack', '30 days of posts, done', ['Post + story + carousel', 'Captions + hashtags', 'On-brand colors'], 'PNG + HTML'],
+    brand: ['Brand Identity Kit', 'Look like a $10k brand', ['Logo lockups + palette', 'Fonts + usage rules', 'Business card layout'], 'PDF + PNG'],
+    journal: ['30-Day Guided Journal', 'Build the habit that pays', ['Daily prompts that work', 'Weekly review pages', 'Print or fill digitally'], 'PDF · 30 days'],
+    bundle: ['Complete Toolkit', 'The whole business in a box', ['6 pro templates inside', 'Quote, track, get booked', 'Lifetime updates'], 'ZIP · 6 files'],
+    leadmagnet: ['Free Starter Pack', 'Try the quality free', ['Invoice + checklist', 'Pricing calculator', 'Zero cost, instant'], 'FREE · ZIP'],
+    website: ['One-Page Website', 'Get booked while you sleep', ['Services + rates section', 'Book-now call to action', 'Mobile-ready layout'], 'HTML · Editable']
+  };
+  return lib[t] || [`${noun} ${product.type}`, 'Done-for-you pro template', ['Fully editable', 'Instant download', 'Commercial license'], 'Instant download'];
+}
+
+function accentForCover(prof, theme) {
+  const blob = `${prof.name || ''} ${prof.slug || ''} ${(theme && theme.sentiment) || ''}`.toLowerCase();
+  if (/beauty|fashion|salon|spa/.test(blob)) return '#ec4899';
+  if (/fitness|outdoor|garden|food|trade|plumb|hvac/.test(blob)) return '#16a34a';
+  if (/finance|notary|tax|coach|consult/.test(blob)) return '#d97706';
+  if (/recovery|therapy|wellness|spirit/.test(blob)) return '#7c3aed';
+  if (/tech|software|ai |data|drone/.test(blob)) return '#0284c7';
+  return '#e11d48';
+}
+
+function heroSnippetForCover(product, prof, theme) {
+  const t = String(product.type || '').toLowerCase();
+  const ink = (theme && theme.primary) || '#14110f';
+  const acc = (theme && theme.accent) || '#2dd4bf';
+  const row = (a, b, hl) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:20px 6px;border-bottom:2px solid #f1efe9;font-size:30px;${hl ? 'font-weight:900;' : ''}"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`;
+  if (t === 'invoice') return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-size:26px;font-weight:800;letter-spacing:2px;color:${ink}">INVOICE #1042</span><span style="background:${ink};color:#fff;font-size:22px;font-weight:800;padding:8px 20px;border-radius:999px">DUE NET 30</span></div>${row('Deep clean — 3 bed', '$189.00')}${row('Move-in detail', '$129.00')}${row('Total due', '$318.00', true)}`;
+  if (t === 'checklist') return ['Confirm scope + price with client', 'Arrive with tools + supplies', 'Walk the finish, collect 5-star review'].map((s, i) => `<div style="display:flex;gap:20px;align-items:center;padding:20px 6px;border-bottom:2px solid #f1efe9;font-size:30px;font-weight:600"><span style="width:52px;height:52px;border-radius:14px;background:${i === 2 ? acc : '#fff'};border:3px solid ${acc};display:flex;align-items:center;justify-content:center;font-weight:900;flex-shrink:0">${i === 2 ? '✓' : (i + 1)}</span>${esc(s)}</div>`).join('');
+
+  if (['spreadsheet', 'booking'].includes(t)) return `<div style="font-size:24px;font-weight:800;letter-spacing:2px;color:${ink};margin-bottom:8px">QUOTE IT IN 60 SECONDS</div>${row('Job price', '$450')}${row('Costs', '$180')}${row('Your profit (60%)', '$270', true)}`;
+  if (t === 'journal') return `<div style="font-size:28px;font-weight:800;letter-spacing:2px;color:${ink}">DAY 07 — SMALL WINS</div><div style="font-size:34px;margin:14px 0">What did I handle well today?</div><div style="height:26px;background:#f1efe9;border-radius:13px;margin:12px 0"></div><div style="height:26px;background:#f1efe9;border-radius:13px;width:82%;margin:12px 0"></div>`;
+  if (t === 'social') return `<div style="background:${ink};color:#fff;border-radius:20px;padding:40px"><div style="font-size:52px;font-weight:900;line-height:1.05">Booked out.<br>Every week.</div><div style="display:inline-block;margin-top:24px;background:${acc};color:${ink};font-size:26px;font-weight:900;padding:16px 34px;border-radius:999px">Book your date</div></div>`;
+  return `<div style="font-size:44px;font-weight:900">${esc(prof.emoji || '')} ${esc(prof.name || '')}</div>`;
+}
+
+function buildThumbStopperCover(product, prof, theme) {
+  const th = theme || {};
+  const [title, sub, benefits, format] = thumbCoverCopy(product, prof);
+  const kc = accentForCover(prof, th);
+  const hero = heroSnippetForCover(product, prof, th);
+  const price = product.price || '$12';
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(title)} cover</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#e7e5e1;display:flex;justify-content:center;font-family:'Space Grotesk','Inter',system-ui,sans-serif}.thumbcover{width:1200px;min-height:1500px;background:#f8f7f4;color:#14110f;display:flex;flex-direction:column;overflow:hidden}</style></head><body><div class="thumbcover"><div style="display:flex;justify-content:space-between;align-items:center;padding:44px 64px 0;font-size:22px;font-weight:800;letter-spacing:3px"><span>NICHEGATE</span><span style="background:#14110f;color:#fff;font-size:20px;padding:10px 22px;border-radius:999px">${esc(format)}</span></div><div style="margin:36px 64px 0;align-self:flex-start;font-size:24px;font-weight:800;letter-spacing:3px;color:#fff;background:${kc};padding:12px 26px;border-radius:999px">${esc(prof.emoji || '')} ${esc(prof.name || '').toUpperCase()}</div><h1 style="margin:30px 64px 0;font-size:100px;font-weight:900;line-height:.98;letter-spacing:-3px">${esc(title)}</h1><div style="margin:24px 64px 0;font-size:32px;color:#57534e;max-width:920px">${esc(sub)}</div><div style="margin:44px 64px 0;background:#fff;border-radius:32px;box-shadow:0 30px 60px -30px rgba(20,17,15,.25);padding:48px">${hero}</div><div style="margin:40px 64px 0;display:flex;flex-direction:column;gap:18px">${benefits.slice(0, 3).map((b) => `<div style="display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700"><span style="width:52px;height:52px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900">✓</span>${esc(b)}</div>`).join('')}</div><div style="margin-top:auto;padding:44px 64px 54px;display:flex;justify-content:space-between;align-items:flex-end"><div><div style="font-size:76px;font-weight:900">${esc(price)}</div><div style="font-size:22px;color:#78716c;font-weight:600">Instant download · Lifetime updates</div></div><div style="text-align:right"><div style="font-size:30px;letter-spacing:4px">★★★★★</div><div style="font-size:22px;color:#78716c">Editable · Commercial use</div></div></div></div></body></html>`;
+}
+
+/** Legacy device-frame kept for the in-app visual editor only. NOT used for covers. */
 function wrapMarketplaceMockup(innerHtml, opts) {
   const o = opts || {};
   const title = esc(o.title || 'Digital download');
   const price = esc(o.price || '$12');
   const badge = esc(o.badge || 'Instant download');
   let body = String(innerHtml || '');
-  const bodyMatch = body.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-  if (bodyMatch) body = bodyMatch[1];
+  const m = body.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (m) body = m[1];
   body = body.replace(/<\/?html[^>]*>/gi, '').replace(/<head[\s\S]*?<\/head>/gi, '');
-
   return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>${title} mockup</title>
+<html lang="en"><head><meta charset="UTF-8"><title>${title} mockup</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{min-height:100vh;display:flex;align-items:center;justify-content:center;
@@ -673,6 +724,7 @@ module.exports = {
   buildTablePreviewHTML, buildDecisionMatrixHTML, buildROIHTML,
   buildCoverHTML, buildWebsiteHTML,
   buildSocialPostHTML, buildSocialStoryHTML, buildSocialCarouselHTML,
+  thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover,
   wrapMarketplaceMockup
 };
 

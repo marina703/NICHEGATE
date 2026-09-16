@@ -185,6 +185,25 @@ function buildPreviewHTML(product, prof) {
   return buildFallbackCardHTML(product, prof);
 }
 
+// Screenshot a 1200x1500 thumb-stopper cover → JPEG
+async function renderCoverImage(html, outPath) {
+  const browser = await pdfGen.getBrowser();
+  if (!browser) return null;
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: 1200, height: 1500, deviceScaleFactor: 1 });
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    await new Promise(r => setTimeout(r, 400));
+    await page.screenshot({ path: outPath, type: 'jpeg', quality: 90, clip: { x: 0, y: 0, width: 1200, height: 1500 } });
+    return fs.existsSync(outPath) ? outPath : null;
+  } catch (e) {
+    console.error('[THUMB] cover render error:', e.message);
+    return null;
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
 // Screenshot the HTML → JPEG thumbnail
 async function renderPreviewImage(html, outPath) {
   const browser = await pdfGen.getBrowser();
@@ -217,20 +236,20 @@ async function ensureProductThumbnail(product) {
   if (!prof) return null;
   let html = buildPreviewHTML(product, prof);
   if (!html) return null;
-  // Marketplace-style device frame for stronger listing mockups
+  // v2: the preview IS the thumb-stopper cover — no device-frame wrap.
   try {
-    if (typeof ds.wrapMarketplaceMockup === 'function') {
-      html = ds.wrapMarketplaceMockup(html, {
-        title: product.name || `${prof.name} ${product.type}`,
-        price: product.price || '$12',
-        badge: 'NicheGate · Instant download'
-      });
+    if (typeof ds.buildThumbStopperCover === 'function') {
+      html = ds.buildThumbStopperCover(product, prof, fallbackTheme(product));
     }
   } catch (e) {
-    console.error('[THUMB] mockup wrap:', e.message);
+    console.error('[THUMB] cover build:', e.message);
   }
   const outPath = path.join(PREVIEW_DIR, `${prof.slug}-${product.type}-${product.id}-${Date.now()}.jpg`);
-  const result = await renderPreviewImage(html, outPath);
+  // Thumb-stopper cover (v2) renders at 1200x1500 — screenshot exact size, no wrap.
+  const isCover = typeof ds.buildThumbStopperCover === 'function';
+  const result = isCover
+    ? await renderCoverImage(html, outPath)
+    : await renderPreviewImage(html, outPath);
   if (!result) return null;
   try {
     db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(result, product.id);

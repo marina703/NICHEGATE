@@ -100,6 +100,36 @@ h1,h2,h3,.sidebar-header,.stat-card .value,.section-label,.badge,.grade-badge,.a
 .chat-msg.user .bubble{background:#2dd4bf;color:#000;border-bottom-right-radius:4px;}
 .chat-msg.ai .bubble{background:white;border:1px solid #e2e8f0;border-bottom-left-radius:4px;}
 
+/* ═══ THUMB-STOPPER COVER SYSTEM (v2) ═══
+   Covers are rendered at 1200x1500 (4:5 — optimal for Etsy/Gumroad/Pinterest).
+   Rules: light paper background, giant title, single hero visual, 3 benefit
+   bullets max, price + format badges. Dark device-frames are banned — they
+   shrink the product and scream "screenshot". */
+.thumbcover{width:1200px;min-height:1500px;background:#f8f7f4;font-family:'Space Grotesk','Inter',system-ui,sans-serif;color:#14110f;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.thumbcover .tc-topbar{display:flex;justify-content:space-between;align-items:center;padding:44px 64px 0;font-size:22px;font-weight:800;letter-spacing:3px;text-transform:uppercase}
+.tc-brand{display:flex;align-items:center;gap:14px}
+.tc-brand .dot{width:26px;height:26px;border-radius:50%;background:#14110f}
+.tc-format{background:#14110f;color:#fff;font-size:20px;font-weight:800;letter-spacing:2px;padding:10px 22px;border-radius:999px;text-transform:uppercase}
+.thumbcover .tc-kicker{margin:36px 64px 0;display:inline-block;align-self:flex-start;font-size:24px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#fff;background:#e11d48;padding:12px 26px;border-radius:999px}
+.thumbcover h1.tc-title{margin:30px 64px 0;font-size:104px;font-weight:900;line-height:0.98;letter-spacing:-3px;max-width:1000px}
+.thumbcover .tc-sub{margin:24px 64px 0;font-size:32px;line-height:1.35;color:#57534e;max-width:920px}
+.thumbcover .tc-hero{margin:44px 64px 0;background:#fff;border-radius:32px;box-shadow:0 30px 60px -30px rgba(20,17,15,.25);padding:48px;position:relative;overflow:hidden}
+.thumbcover .tc-benefits{margin:40px 64px 0;display:flex;flex-direction:column;gap:18px}
+.tc-benefit{display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700}
+.tc-benefit .check{width:52px;height:52px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;flex-shrink:0}
+.thumbcover .tc-footer{margin-top:auto;padding:44px 64px 54px;display:flex;justify-content:space-between;align-items:flex-end}
+.tc-pricebox .tc-price{font-size:76px;font-weight:900;letter-spacing:-2px}
+.tc-pricebox .tc-note{font-size:22px;color:#78716c;font-weight:600;margin-top:4px}
+.tc-stars{font-size:30px;letter-spacing:4px}
+.tc-reviews{font-size:22px;color:#78716c;font-weight:600;margin-top:6px}
+/* accent variants per niche sentiment */
+.tc-accent-pink .tc-kicker{background:#ec4899}
+.tc-accent-green .tc-kicker{background:#16a34a}
+.tc-accent-amber .tc-kicker{background:#d97706}
+.tc-accent-violet .tc-kicker{background:#7c3aed}
+.tc-accent-sky .tc-kicker{background:#0284c7}
+.tc-accent-red .tc-kicker{background:#dc2626}
+
 /* ═══ MOCKUP GRID (upgrade: real iframe previews) ═══ */
 .mockup-section{margin-top:12px;}
 .mockup-section .label{font-size:0.78rem;color:#64748b;margin-bottom:10px;font-weight:600;}
