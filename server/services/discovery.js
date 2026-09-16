@@ -178,7 +178,16 @@ function generateProductsForTrend(profId, trend) {
   let made = 0;
   for (const type of types) {
     try {
-      if (draftProduct(prof, type)) made++;
+      const id = draftProduct(prof, type);
+      if (id) {
+        made++;
+        // Best-effort AI concept pass — differentiates the product from the
+        // generic "{niche} {type}" default. No-op (zero cost) when AI is off.
+        setImmediate(() => {
+          const { enrichProduct } = require('./conceptEngine');
+          enrichProduct(id).catch(() => {});
+        });
+      }
     } catch (e) {
       console.error('[DISCOVERY] product insert:', e.message);
     }

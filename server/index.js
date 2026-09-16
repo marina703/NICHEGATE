@@ -142,6 +142,25 @@ app.delete('/api/products/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// Generate/refresh the AI-differentiated concept for a product.
+// No-op (returns {concept: null}) when the model layer is disabled.
+app.post('/api/products/:id/regenerate-idea', async (req, res) => {
+  try {
+    const { enrichProduct } = require('./services/conceptEngine');
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    const concept = await enrichProduct(product.id);
+    if (!concept) {
+      return res.json({ regenerated: false, concept: null,
+        message: 'AI layer off or concept below novelty bar — keeping current product' });
+    }
+    res.json({ regenerated: true, concept,
+      name: db.prepare('SELECT name FROM products WHERE id = ?').get(product.id).name });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ════════════════════════════════════════════════════════════════════════
 // API: TEMPLATES (Mockup generation) — Returns 5 theme variations
 // ════════════════════════════════════════════════════════════════════════

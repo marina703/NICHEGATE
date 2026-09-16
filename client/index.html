@@ -62,8 +62,9 @@ input:focus,select:focus{border-color:var(--teal)}
 .kpi .sb{font-size:0.72rem;color:#7c8aa0;margin-top:2px}
 .kpi.tc .num{color:var(--teal)}.kpi.gn .num{color:var(--green)}.kpi.am .num{color:var(--amber)}.kpi.rd .num{color:var(--red)}.kpi.bl .num{color:var(--blue)}
 .funnel{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:13px 17px;overflow-x:auto}
-.funnel .st{display:flex;flex-direction:column;align-items:center;min-width:80px;gap:4px}
-.funnel .st .ring{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:var(--mono);font-size:0.95rem;border:2px solid var(--border);color:#7c8aa0;background:#0d1420}
+.funnel .st{display:flex;flex-direction:column;align-items:center;min-width:80px;gap:4px;background:none;border:none;padding:4px;cursor:pointer;color:inherit;font-family:inherit}
+.funnel .st:hover .ring{border-color:var(--teal);color:var(--teal)}
+.funnel .st .ring{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:var(--mono);font-size:0.95rem;border:2px solid var(--border);color:#7c8aa0;background:#0d1420;transition:all .15s}
 .funnel .st.on .ring{border-color:var(--teal);color:var(--teal)}
 .funnel .st .l{font-size:0.6rem;text-transform:uppercase;color:#7c8aa0;letter-spacing:.4px}
 .funnel .ar{color:#2a3a4f;font-size:1rem}
@@ -94,6 +95,8 @@ input:focus,select:focus{border-color:var(--teal)}
 .rrow .mt{color:#7c8aa0;font-size:0.73rem;margin-top:3px}
 .rrow .tags,.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .rrow .acts{display:flex;gap:6px;flex-wrap:wrap}
+.concept{margin-top:6px;font-size:0.72rem;color:#9fb3c8;background:rgba(45,212,191,.06);border-left:2px solid var(--teal);padding:4px 8px;border-radius:0 6px 6px 0;line-height:1.4}
+.concept .ci{color:var(--teal);margin-right:4px}
 /* log */
 .logs{display:flex;flex-direction:column;gap:6px;max-height:380px;overflow:auto}
 .logrow{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;background:#0d1420;font-size:0.74rem}
@@ -211,7 +214,11 @@ function prodImg(p){return p&&p.preview_path?`<img src="/api/products/${p.id}/pr
 function renderHome(){
   const c=counts();
   const rq=state.professions.filter(x=>x.status==='researching'||x.status==='generating'||x.status==='reviewing').length;
-  const funnel=[['Research',rq],['Draft',c.draft],['Review',c.review],['Approved',c.approved],['Listed',c.listed]].map(([l,n])=>`<div class="st ${n>0?'on':''}"><div class="ring">${n}</div><div class="l">${l}</div></div>`).join('<div class="ar">→</div>');
+  const funnel=[['Research','research'],['Draft','draft'],['Review','review'],['Approved','approved'],['Listed','listed']]
+    .map(([l,key])=>{
+      const n=key==='research'?rq:key==='draft'?c.draft:key==='review'?c.review:key==='approved'?c.approved:c.listed;
+      return `<button class="st ${n>0?'on':''}" title="Filter catalog: ${l}" onclick="funnelGo('${key}')"><div class="ring">${n}</div><div class="l">${l}</div></button>`;
+    }).join('<div class="ar">→</div>');
   const k=`<div class="kpi"><div class="lb">Products</div><div class="num tc">${c.total}</div></div>`
      +`<div class="kpi"><div class="lb">Review</div><div class="num am">${c.review}</div></div>`
      +`<div class="kpi"><div class="lb">Approved</div><div class="num bl">${c.approved}</div></div>`
@@ -236,10 +243,10 @@ function renderCatalog(){
   if(f.status!=='all')list=list.filter(p=>p.status===f.status);
   if(f.type!=='all')list=list.filter(p=>p.type===f.type);
   if(f.q)list=list.filter(p=>p.name&&p.name.toLowerCase().includes(f.q.toLowerCase()));
-  const card=p=>{const sel=state.selected.has(p.id);const img=prodImg(p);
+  const card=p=>{const sel=state.selected.has(p.id);const img=prodImg(p);const shortC=conceptShort(p);
     return `<div class="card ${sel?'sel':''}" onclick="toggleSel(${p.id})">
       <div style="position:relative"><span class="ck"></span><div class="thumb">${img||`<span class="ph">${thumbFor(p)}</span>`}</div></div>
-      <div class="bd"><div class="nm" title="${esc(p.name)}">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)}</div>
+      <div class="bd"><div class="nm" title="${esc(p.name)}">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)}</div>${shortC}
       <div style="display:flex;justify-content:space-between"><span>${pillFor(p)}</span><span class="pr">${esc(p.price||'')}</span></div></div></div>`;};
   const sel=state.selected.size;
   return `<div class="sh"><div><h2>Catalog</h2><div class="desc">Generated products across every niche.</div></div><button class="btn ghost" onclick="go('home')">← Overview</button></div>
@@ -300,12 +307,16 @@ async function deployBundles(){showToast('info','Building toolkits…','Generati
 async function deployLeadMagnet(){showToast('info','Deploying…','Creating free starter pack');const d=await (await fetch(`${API}/leadmagnet/deploy`,{method:'POST'})).json();if(d.error)return showToast('error','Failed',d.error);showToast('success','Lead Magnet','Free pack is live');}
 async function syncSales(){const d=await (await fetch(`${API}/metrics/sync-gumroad`,{method:'POST'})).json();if(d.error)return showToast('error','Sync Failed',d.error);showToast(d.newSales>0?'success':'info','Sales Synced',`${d.newSales} new · $${(d.revenue||0).toFixed(2)}`);await refresh();}
 function closeModal(id){document.getElementById(id).className='modal';}
+function funnelGo(key){state.filters.status=key;go('catalog');}
+async function regenerateIdea(id){showToast('info','Thinking…','Asking the concept engine for a differentiated angle');try{const r=await fetch(`${API}/products/${id}/regenerate-idea`,{method:'POST'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Failed');if(d.regenerated)showToast('success','Better Idea','Product retitled — check the new angle');else showToast('warning','No Upgrade',d.message||'Idea did not clear the novelty bar');await refresh();}catch(e){showToast('error','Failed',e.message);}}
+function conceptLine(p){if(!p)return '';let c=null;try{c=p.concept?JSON.parse(p.concept):null;}catch{c=null;}if(!c||!c.pitch)return '';return `<div class="concept" title="AI concept · ${esc(c.differentiator||'')}"><span class="ci">◆</span>${esc(c.pitch)}</div>`;}
+function conceptShort(p){if(!p)return '';let c=null;try{c=p.concept?JSON.parse(p.concept):null;}catch{c=null;}if(!c||!c.pitch)return '';const s=c.pitch.length>90?c.pitch.slice(0,87)+'…':c.pitch;return `<div class="mt" title="${esc(c.pitch)}">◆ ${esc(s)}</div>`;}
 function renderReview(){
   const items=state.products.filter(p=>p.status==='draft'||p.status==='pending-review'||p.status==='pending_review');
   const row=p=>{const img=prodImg(p);
     return `<div class="rrow"><div class="rt">${img||thumbFor(p)}</div>
-      <div><div class="nm">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)} · ${esc(p.price||'')}</div><div class="tags">${pillFor(p)}</div></div>
-      <div class="acts"><button class="btn ghost" onclick="openProduct(${p.id})">👁 Open</button><button class="btn green" onclick="approveProduct(${p.id})">Approve</button><button class="btn primary" onclick="publishProduct(${p.id})">🚀 Publish</button><button class="btn red" onclick="rejectProduct(${p.id})">Reject</button></div></div>`;};
+      <div><div class="nm">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)} · ${esc(p.price||'')}</div>${conceptLine(p)}<div class="tags">${pillFor(p)}</div></div>
+      <div class="acts"><button class="btn ghost" onclick="openProduct(${p.id})">👁 Open</button><button class="btn amber" title="Ask AI for a more differentiated angle" onclick="regenerateIdea(${p.id})">🔮 Better Idea</button><button class="btn green" onclick="approveProduct(${p.id})">Approve</button><button class="btn primary" onclick="publishProduct(${p.id})">🚀 Publish</button><button class="btn red" onclick="rejectProduct(${p.id})">Reject</button></div></div>`;};
   return `<div class="sh"><div><h2>Review Queue</h2><div class="desc">${items.length} awaiting a decision.</div></div><button class="btn ghost" onclick="go('catalog')">All Products →</button></div>
   <div class="frow"><button class="btn" onclick="dedupeQueue()">🧹 Dedupe Clones</button><button class="btn primary" onclick="rebuildAll()">✨ Rebuild ALL Covers</button><button class="btn red" onclick="rejectTrash()">🗑 Reject All Trash</button><button class="btn green" onclick="approveAll()">✅ Approve All</button></div>
   <div class="rows">${items.length?items.map(row).join(''):'<div class="panel" style="padding:30px;text-align:center;color:#7c8aa0">✅ Review queue is clear.</div>'}</div>`;

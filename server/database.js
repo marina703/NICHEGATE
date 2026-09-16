@@ -135,6 +135,9 @@ function init() {
   // Migration: raster preview thumbnails (older DBs won't have this column)
   try { db.exec('ALTER TABLE products ADD COLUMN preview_path TEXT'); } catch (e) { /* column already exists */ }
 
+  // Migration: AI product concept (differentiated name + pitch + why-not-generic)
+  try { db.exec('ALTER TABLE products ADD COLUMN concept TEXT'); } catch (e) { /* column already exists */ }
+
   const count = db.prepare('SELECT COUNT(*) as c FROM professions').get();
   if (count.c === 0) seedProfessions();
   migrateProfessions();
