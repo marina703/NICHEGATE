@@ -125,18 +125,19 @@ async function listOnEtsy(product, shopId) {
   
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
   const seoData = seo.generateSEO(prof, product.type, product.theme);
+  const copy = listingCopyFor(product, prof, seoData);
 
   const listing = {
     quantity: 999,
-    title: seoData.title.substring(0, 140),
-    description: seoData.description.substring(0, 4999),
+    title: copy.title.substring(0, 140),
+    description: copy.description.substring(0, 4999),
     price: parseFloat(product.price.replace('$', '')) || 12,
     taxonomy_id: 6000, // Digital Downloads category
     who_made: 'i_did',
     when_made: 'made_to_order',
     is_supply: false,
     is_digital: true,
-    tags: seoData.tags.slice(0, 13),
+    tags: copy.tags.slice(0, 13),
     materials: ['digital', 'template', 'download', 'printable'],
     image_ids: []
   };
@@ -149,6 +150,79 @@ async function listOnEtsy(product, shopId) {
   });
   
   return resp.data;
+}
+
+// Best-effort gallery upload: composite cover + AI lifestyle shot, in order.
+// Runs AFTER listing creation so nothing here can ever block a successful publish.
+// Etsy rejects files >10MB / non-JPEG/PNG; we upload JPEG ≤ ~3MB max 8 tries.
+async function attachEtsyListingImages(product, listingId, shopId) {
+  const token = await ensureEtsyApiToken();
+  const paths = [];
+  try {
+    const { ensureProductThumbnail } = require('./fileFactory');
+    const cover = await ensureProductThumbnail(product);
+    if (cover && fs.existsSync(cover)) paths.push(cover);
+  } catch { /* cover optional */ }
+  try {
+    const coverArt = require('./coverArt');
+    const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+    if (prof) {
+      const life = await coverArt.ensureCoverArt(product, prof);
+      if (life && fs.existsSync(life)) paths.push(life);
+    }
+  } catch { /* lifestyle optional */ }
+  if (!paths.length) return { ok: false, attached: 0, error: 'no gallery images available' };
+
+  let attached = 0;
+  for (let i = 0; i < paths.length && attached < 8; i++) {
+    try {
+      const fd = new FormData();
+      fd.append('image', new Blob([fs.readFileSync(paths[i])], { type: 'image/jpeg' }), `img${i+1}.jpg`);
+      fd.append('rank', String(attached));
+      const r = await axios.post(
+        `${ETSY_API_BASE}/application/shops/${shopId}/listings/${listingId}/images`,
+        fd,
+        { headers: { ...etsyAuthHeaders(token.access_token), ...(fd.getHeaders ? fd.getHeaders() : {}) }, timeout: 45000 }
+      );
+      if (r.data && r.data.listing_image_id) attached++;
+    } catch (e) {
+      console.error(`[ETSYSLOGAUTO] image ${i} attach skipped:`, e.response?.status || e.message);
+    }
+  }
+  return { ok: attached > 0, attached };
+}
+
+// ── CONCEPT-AWARE LISTING COPY ──
+// If a product has an AI concept, the marketplace title + description must
+// reflect it — otherwise buyers see the generic "{niche} {type}" title while
+// the internal dashboard shows the differentiated name. SEO tags stay (they
+// drive search); only the human-facing title/copy upgrades.
+function conceptFor(product) {
+  if (!product || !product.concept) return null;
+  try {
+    const c = JSON.parse(product.concept);
+    return (c && c.name) ? c : null;
+  } catch { return null; }
+}
+
+function listingCopyFor(product, prof, seoData) {
+  const c = conceptFor(product);
+  const title = (c ? c.name : prof.name + ' ' + (seoData.shortTitle || seoData.title))
+    .replace(/\s+/g, ' ').trim().substring(0, 140);
+  let description = seoData.description;
+  if (c) {
+    const pitch = c.pitch || '';
+    const benefits = Array.isArray(c.benefits) ? c.benefits.filter(Boolean) : [];
+    const diff = c.differentiator ? `\n\nWHY IT'S DIFFERENT:\n${c.differentiator}` : '';
+    description = [
+      String(pitch || '').trim(),
+      diff,
+      `\nWHAT'S INCLUDED:`,
+      ...benefits.map(b => `• ${b}`),
+      `\n${seoData.description}`
+    ].filter(Boolean).join('\n').substring(0, 4999);
+  }
+  return { title, description, tags: seoData.tags.slice(0, 13) };
 }
 
 // ── STATUS ──
@@ -483,16 +557,17 @@ async function publishToGumroadReal(product) {
   const priceCents = Math.round((parseFloat(product.price.replace('$', '')) || 12) * 100);
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
   const seoData = seo.generateSEO(prof, product.type, product.theme);
+  const copy = listingCopyFor(product, prof, seoData);
 
   // 1. Upload the deliverable → canonical file_url
   const fileUrl = await uploadGumroadFile(filePath);
 
-  // 2. Create the product WITH the file attached, SEO-optimized copy
+  // 2. Create the product WITH the file attached, concept-aware copy
   const form = new URLSearchParams({
     access_token: token,
-    name: seoData.shortTitle.substring(0, 200),
+    name: copy.title.substring(0, 200),
     price: String(priceCents),
-    description: seoData.description.substring(0, 2000),
+    description: copy.description.substring(0, 2000),
     'files[][url]': fileUrl
   });
   let createResp;
@@ -519,6 +594,15 @@ async function publishToGumroadReal(product) {
 
   // 3. Publish (products are created as unpublished drafts)
   await axios.put(`${GUMROAD_API_BASE}/products/${encodeURIComponent(gumroadId)}/enable?access_token=${token}`, null, { timeout: 20000 });
+
+  // 4. Attach the v3 composite cover (best-effort — never blocks the listing)
+  try {
+    const { ensureProductThumbnail } = require('./fileFactory');
+    const coverPath = await ensureProductThumbnail(product);
+    if (coverPath) await attachGumroadCover(gumroadId, coverPath);
+  } catch (e) {
+    console.error('[PUBLISH] Gumroad cover attach skipped:', e.message);
+  }
 
   return { platform: 'gumroad', listingId: gumroadId, url: createResp.data?.product?.short_url || null };
 }
@@ -609,7 +693,15 @@ async function publishToEtsyReal(product) {
 
   const shopId = process.env.ETSY_SHOP_ID || await getEtsyShopId(token.access_token);
   const result = await listOnEtsy(product, shopId);
-  return { platform: 'etsy', listingId: String(result.listing_id || '') };
+  const listingId = String(result.listing_id || '');
+  // Best-effort gallery: never blocks a successful listing creation.
+  try {
+    if (listingId) await attachEtsyListingImages(product, listingId, shopId);
+    else console.error('[ETSYSLOGAUTO] no listing id for gallery');
+  } catch (e) {
+    console.error('[ETSYSLOGAUTO] gallery skipped:', e.message);
+  }
+  return { platform: 'etsy', listingId };
 }
 
 // Priority: Gumroad (simplest auth) → Etsy. NO simulated fallback — a failed
@@ -656,6 +748,9 @@ module.exports = {
   getGumroadQuota,
   incrementGumroadCreates,
   markGumroadQuotaExhausted,
-  GUMROAD_DAILY_LIMIT
+  GUMROAD_DAILY_LIMIT,
+  conceptFor,
+  listingCopyFor,
+  attachEtsyListingImages
 };
 
