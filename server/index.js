@@ -987,6 +987,65 @@ app.get('/api/products/:id/preview-image', async (req, res) => {
   }
 });
 
+// Lifestyle background (AI photo, images 2-3 in the gallery) — free tier.
+app.get('/api/products/:id/lifestyle-image', async (req, res) => {
+  try {
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+    if (!prof) return res.status(404).json({ error: 'Profession not found' });
+    const coverArt = require('./services/coverArt');
+    const artPath = await coverArt.ensureCoverArt(product, prof);
+    if (!artPath || !fs.existsSync(artPath)) return res.status(404).json({ error: 'Lifestyle image unavailable — try again later' });
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(artPath)}"`);
+    return fs.createReadStream(artPath).pipe(res);
+  } catch (e) {
+    console.error('[LIFESTYLE-IMAGE] error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Batch-generate AI lifestyle backgrounds (slow on free tier — background job)
+app.post('/api/covers/generate', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit || '10', 10) || 10, 100);
+  const status = String(req.query.status || 'approved');
+  const rows = db.prepare(`SELECT * FROM products WHERE status = ? ORDER BY id LIMIT ?`).all(status, limit);
+  const coverArt = require('./services/coverArt');
+  let generated = 0, failed = 0;
+  const items = [];
+  for (const p of rows) {
+    try {
+      const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(p.profession_id);
+      if (!prof) { failed++; continue; }
+      const art = await coverArt.ensureCoverArt(p, prof);
+      if (art) { generated++; items.push({ id: p.id, art: `/api/products/${p.id}/lifestyle-image` }); }
+      else failed++;
+    } catch (e) { failed++; console.error('[COVERS] #' + p.id + ':', e.message); }
+  }
+  res.json({ total: rows.length, generated, failed, items });
+});
+
+// Bulk-reject trash drafts (keeps approved/listed/sold). Pass ?q= to filter by name.
+app.post('/api/review/reject-trash', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const rows = q
+      ? db.prepare(`SELECT id, name FROM products WHERE (status = 'draft' OR status = 'pending-review') AND lower(name) LIKE ?`).all(`%${q.toLowerCase()}%`)
+      : db.prepare(`SELECT id, name FROM products WHERE status = 'draft' OR status = 'pending-review'`).all();
+    let rejected = 0;
+    for (const r of rows) {
+      db.prepare(`UPDATE products SET status = 'rejected' WHERE id = ?`).run(r.id);
+      rejected++;
+    }
+    db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+      .run('bulk_reject', `Rejected ${rejected} trash draft(s)${q ? ` matching "${q}"` : ''}`, 'warning');
+    res.json({ rejected });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Batch-generate raster previews for pending products (warm the cache)
 app.post('/api/previews/generate', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '25', 10) || 25, 200);

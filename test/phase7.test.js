@@ -42,3 +42,27 @@ describe('core niches + trend retirement', () => {
     assert.ok(!html.includes('${' + 'accent}'));
   });
 });
+
+describe('coverArt prompt + cache (no network)', () => {
+  it('builds photo-only prompts with no text requests', () => {
+    const coverArt = require('../server/services/coverArt');
+    const p = coverArt.promptFor({ name: 'House Cleaning' }, { type: 'invoice' });
+    assert.ok(p.length > 20);
+    assert.match(p.toLowerCase(), /no text/);
+  });
+  it('produces stable cache paths per product', () => {
+    const coverArt = require('../server/services/coverArt');
+    const prof = { name: 'House Cleaning', slug: 'house-cleaning' };
+    const a = coverArt.cachePath(prof, { type: 'invoice' });
+    const b = coverArt.cachePath(prof, { type: 'invoice' });
+    const c = coverArt.cachePath(prof, { type: 'checklist' });
+    assert.equal(a, b);
+    assert.notEqual(a, c);
+  });
+  it('rejects news/sports/politics noise (trash filter)', () => {
+    const radar = require('../server/services/trendRadar');
+    for (const j of ['mike lafleur', 'disney+', 'discord downdetector', 'teoscar hernandez', 'jon ossoff']) {
+      assert.equal(radar.normalizeNicheName(j), null, j + ' should be rejected');
+    }
+  });
+});

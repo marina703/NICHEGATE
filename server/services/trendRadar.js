@@ -56,8 +56,9 @@ function markHealth(source, ok, detail) {
 }
 function getSourceHealth() { return { ...sourceHealth }; }
 
-// Reject celebrity/news/meme noise that cannot become a digital template niche
-const REJECT_RE = /\b(?:vs\.?|score|election|congress|senate|president|trump|biden|obama|nfl|nba|mlb|nhl|ufc|world cup|playoffs?|touchdown|died|dies|death|killed|shooting|war|bomb|onlyfans|porn|xxx|crypto crash|bitcoin price|stock market today)\b/i;
+// Reject celebrity/news/sports/politics/outage noise that cannot become a digital template niche.
+// Updated 2026-09: kills the daily leaks (players, candidates, outages, streamers).
+const REJECT_RE = /\b(?:vs\.?|score|election|congress|senate|president|trump|biden|obama|harris|walz|vance|democrat|republican|gop|ballot|polls?|senator|governor|mayor|white house|capitol|nfl|nba|mlb|nhl|ufc|fifa|world cup|playoffs?|touchdown|home ?run|grand slam|hat trick|knockout|championship|mvp|super bowl|died|dies|death|killed|shooting|war|bomb|missile|strike|outage|downdetector|down for everyone|disney\+?|netflix|hulu|taylor swift|celebrity|box office|emmy|oscar|grammy|onlyfans|porn|xxx|crypto crash|bitcoin price|stock market today|dow jones|nasdaq|lottery|powerball|wrestlemania|lafleur|rodgers|mahomes|kelce|lebron|curry|ohtani|judge|soto|harper|trout|ossoff|warnock|hern[aá]ndez|altuve|betts|freeman|acuna|tatis|wembanyama|doncic|jokic|giannis|burrow|allen|jackson|hurts|purdy|stray kids|bts|blackpink|mrbeast|kai cenat|pokimane|ninja|pewdiepie|logan paul|tate|nelk)\b/i;
 
 const STOP_WORDS = new Set(['the','a','an','and','or','of','for','to','in','on','with','my','your','our','is','are','this','that','from','how','what','why','when']);
 

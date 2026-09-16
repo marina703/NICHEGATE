@@ -658,6 +658,7 @@ async function getPanelContent(type) {
         <button class="review-btn publish" onclick="deployBundles()">🎁 Deploy Bundles</button>
         <button class="review-btn edit" onclick="deployLeadMagnet()">🧲 Lead Magnet</button>
         <button class="review-btn edit" onclick="syncSales()">💰 Sync Sales</button>
+        <button class="review-btn approve" onclick="generateCovers()">✨ AI Covers</button>
       </div>
       <div class="toggle-row"><div><div class="label">Auto-Generate</div><div class="desc">Every 6 hours</div></div><div>${s.autoGenerate !== false ? '✅' : '❌'}</div></div>
       <div class="toggle-row"><div><div class="label">Auto-List</div><div class="desc">Real APIs if keys set, else simulated</div></div><div>${s.autoList ? '✅ On' : '⬜ Off'}</div></div>
@@ -669,9 +670,9 @@ async function getPanelContent(type) {
   if (type === 'reviewqueue') {
     const res = await fetch(`${API}/products`);
     const products = (await res.json()).filter(p => p.status === 'draft' || p.status === 'pending-review');
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;"><span><strong>${products.length}</strong> pending</span><span style="display:flex;gap:8px;flex-wrap:wrap;"><button class="review-btn approve" onclick="dedupeQueue()">🧹 Dedupe Clones</button><button class="review-btn approve" onclick="generatePreviews()">🖼 Generate PNG Previews</button><button class="review-btn approve" onclick="approveAll()">✅ Approve All</button></span></div>`;
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;"><span><strong>${products.length}</strong> pending</span><span style="display:flex;gap:8px;flex-wrap:wrap;"><button class="review-btn approve" onclick="dedupeQueue()">🧹 Dedupe Clones</button><button class="review-btn approve" onclick="generatePreviews()">🖼 Generate PNG Previews</button><button class="review-btn reject" onclick="rejectTrash()">🗑 Reject All Trash</button><button class="review-btn approve" onclick="approveAll()">✅ Approve All</button></span></div>`;
     html += products.map(p => {
-      const thumb = p.preview_path ? `<img src="/api/products/${p.id}/preview-image" loading="lazy" alt="">` : thumbFor(p.type);
+      const thumb = p.preview_path ? `<img src="/api/products/${p.id}/preview-image" loading="lazy" alt=""><img src="/api/products/${p.id}/lifestyle-image" loading="lazy" alt="" onerror="this.remove()" style="margin-top:4px;border-top:1px solid #f1f5f9;">` : thumbFor(p.type);
       return `<div class="review-item"><div class="thumb">${thumb}</div><div class="info"><div class="name">${p.name}</div><div class="meta">${p.prof_emoji || ''} ${p.prof_name || ''} · ${p.type} · ${p.price}</div></div><div class="actions"><button class="review-btn publish" style="background:#6366f1;" onclick="previewProduct(${p.id})">👁 View</button><button class="review-btn approve" onclick="approveProduct(${p.id})">Approve</button><button class="review-btn publish" onclick="publishProduct(${p.id})">🚀 Publish</button><button class="review-btn edit" onclick="showSEO(${p.id})">SEO</button><button class="review-btn reject" onclick="rejectProduct(${p.id})">Reject</button></div></div>`;
     }).join('');
     if (!products.length) html += '<div style="color:#94a3b8;text-align:center;padding:30px;">✅ All caught up!</div>';
@@ -847,6 +848,26 @@ async function publishProduct(id) {
   else showToast('error','Publish Failed', data.error || 'Unknown error');
   if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
   refreshStats();
+}
+async function rejectTrash() {
+  if (!confirm('Reject ALL pending drafts? Approved/listed are safe.')) return;
+  showToast('info', 'Rejecting…', 'Clearing trash drafts');
+  const res = await fetch(`${API}/review/reject-trash`, { method: 'POST' });
+  const d = await res.json();
+  showToast('success', 'Queue Cleared', `${d.rejected} trash draft(s) rejected`);
+  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
+  refreshStats();
+}
+async function generateCovers() {
+  showToast('info', 'AI Covers', 'Generating lifestyle backgrounds (free tier, slow — 10 at a time)…');
+  try {
+    const res = await fetch(`${API}/covers/generate?limit=10&status=approved`, { method: 'POST' });
+    const d = await res.json();
+    showToast(d.failed ? 'error' : 'success', 'Covers Done', `${d.generated} generated${d.failed ? `, ${d.failed} failed` : ''}`);
+    if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
+  } catch (e) {
+    showToast('error', 'Covers Failed', e.message);
+  }
 }
 async function approveAll() {
   await fetch(`${API}/automation/approve-all`, { method:'POST' });
