@@ -651,7 +651,56 @@ function heroSnippetForCover(product, prof, theme) {
   return `<div style="font-size:44px;font-weight:900">${esc(prof.emoji || '')} ${esc(prof.name || '')}</div>`;
 }
 
-function buildThumbStopperCover(product, prof, theme) {
+function buildThumbStopperCover(product, prof, theme, artDataUri) {
+  const th = theme || {};
+  const [title, sub, benefits, format] = thumbCoverCopy(product, prof);
+  const kc = accentForCover(prof, th);
+  const price = product.price || '$12';
+  const hasArt = !!artDataUri;
+  // v3 composite: AI lifestyle photo full-bleed + scrim + typography on top.
+  // Watermark hiding: photo shifted up 46px + solid footer band — the free-tier
+  // pollinations mark never appears in frame.
+  const bg = hasArt
+    ? `<div class="ts-photo" style="background-image:url('${artDataUri}')"></div><div class="ts-scrim"></div>`
+    : `<div class="ts-fallback"></div>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(title)}</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e7e5e1;font-family:'Space Grotesk','Inter',system-ui,sans-serif;-webkit-print-color-adjust:exact}
+.ts{position:relative;width:1200px;height:1500px;overflow:hidden;color:#fff}
+.ts-photo{position:absolute;left:0;top:-46px;right:0;bottom:0;background-size:cover;background-position:center 12%}
+.ts-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,10,.62) 0%,rgba(8,8,10,.30) 34%,rgba(8,8,10,.78) 68%,rgba(8,8,10,.97) 100%)}
+.ts-fallback{position:absolute;inset:0;background:linear-gradient(140deg,${kc} 0%,#14110f 78%)}
+.ts-inner{position:relative;z-index:2;height:1400px;display:flex;flex-direction:column;padding:56px 64px 0}
+.ts-top{display:flex;justify-content:space-between;align-items:center}
+.ts-brand{font-size:22px;font-weight:800;letter-spacing:4px}
+.ts-kicker{font-size:22px;font-weight:800;letter-spacing:2px;background:${kc};padding:12px 24px;border-radius:999px}
+.ts-mid{margin-top:auto;padding-bottom:30px}
+.ts-title{font-size:108px;font-weight:900;line-height:.97;letter-spacing:-3.5px;text-shadow:0 8px 34px rgba(0,0,0,.65)}
+.ts-sub{font-size:34px;font-weight:600;margin-top:22px;color:#f4f4f5;text-shadow:0 4px 18px rgba(0,0,0,.7)}
+.ts-bens{margin-top:34px;display:flex;flex-direction:column;gap:14px}
+.ts-ben{display:flex;align-items:center;gap:16px;font-size:28px;font-weight:700;text-shadow:0 3px 14px rgba(0,0,0,.75)}
+.ts-ben .ck{width:46px;height:46px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;flex-shrink:0}
+.ts-foot{position:relative;z-index:3;background:#0b0b0d;height:100px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:3px solid ${kc}}
+.ts-price{font-size:54px;font-weight:900;letter-spacing:-1.5px}
+.ts-note{font-size:21px;color:#a1a1aa;font-weight:600;margin-left:18px}
+.ts-format{font-size:21px;font-weight:800;letter-spacing:2px;color:#e4e4e7}
+</style></head><body>
+<div class="ts">
+  ${bg}
+  <div class="ts-inner">
+    <div class="ts-top"><div class="ts-brand">NICHEGATE</div><div class="ts-kicker">${esc(prof.emoji || '')} ${esc(prof.name || '').toUpperCase()}</div></div>
+    <div class="ts-mid">
+      <div class="ts-title">${esc(title)}</div>
+      <div class="ts-sub">${esc(sub)}</div>
+      <div class="ts-bens">${benefits.slice(0, 3).map((b) => `<div class="ts-ben"><span class="ck">✓</span>${esc(b)}</div>`).join('')}</div>
+    </div>
+  </div>
+  <div class="ts-foot"><div style="display:flex;align-items:baseline"><span class="ts-price">${esc(price)}</span><span class="ts-note">Instant download</span></div><div class="ts-format">${esc(format)}</div></div>
+</div></body></html>`;
+}
+
+/** HTML-only cover (used when no AI art is available — never blocks a listing). */
+function buildPlainCover(product, prof, theme) {
   const th = theme || {};
   const [title, sub, benefits, format] = thumbCoverCopy(product, prof);
   const kc = accentForCover(prof, th);
@@ -724,7 +773,7 @@ module.exports = {
   buildTablePreviewHTML, buildDecisionMatrixHTML, buildROIHTML,
   buildCoverHTML, buildWebsiteHTML,
   buildSocialPostHTML, buildSocialStoryHTML, buildSocialCarouselHTML,
-  thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover,
+  thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover,
   wrapMarketplaceMockup
 };
 

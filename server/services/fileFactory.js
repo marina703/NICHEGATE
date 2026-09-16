@@ -236,10 +236,24 @@ async function ensureProductThumbnail(product) {
   if (!prof) return null;
   let html = buildPreviewHTML(product, prof);
   if (!html) return null;
-  // v2: the preview IS the thumb-stopper cover — no device-frame wrap.
+  // v3: AI lifestyle photo + typography composite (falls back to the plain
+  // HTML cover when the free image tier is unavailable — never blocks).
   try {
-    if (typeof ds.buildThumbStopperCover === 'function') {
-      html = ds.buildThumbStopperCover(product, prof, fallbackTheme(product));
+    let artDataUri = null;
+    try {
+      const coverArt = require('./coverArt');
+      const artPath = await coverArt.ensureCoverArt(product, prof);
+      if (artPath && fs.existsSync(artPath)) {
+        const b64 = fs.readFileSync(artPath).toString('base64');
+        artDataUri = `data:image/jpeg;base64,${b64}`;
+      }
+    } catch (e) {
+      console.error('[THUMB] cover art fetch:', e.message);
+    }
+    if (artDataUri && typeof ds.buildThumbStopperCover === 'function') {
+      html = ds.buildThumbStopperCover(product, prof, fallbackTheme(product), artDataUri);
+    } else if (typeof ds.buildPlainCover === 'function') {
+      html = ds.buildPlainCover(product, prof, fallbackTheme(product));
     }
   } catch (e) {
     console.error('[THUMB] cover build:', e.message);
