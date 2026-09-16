@@ -1046,18 +1046,24 @@ app.post('/api/review/reject-trash', async (req, res) => {
   }
 });
 
-// Batch-generate raster previews for pending products (warm the cache)
+// Batch-generate raster previews for pending products (warm the cache).
+// ?force=1 re-renders existing previews too (used after cover-style upgrades).
 app.post('/api/previews/generate', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '25', 10) || 25, 200);
-  const rows = db.prepare(`SELECT * FROM products WHERE status IN ('draft','pending-review') AND (preview_path IS NULL OR length(preview_path) = 0) ORDER BY id LIMIT ?`).all(limit);
+  const force = req.query.force === '1';
+  const rows = force
+    ? db.prepare(`SELECT * FROM products WHERE status IN ('draft','pending-review','approved') ORDER BY id LIMIT ?`).all(limit)
+    : db.prepare(`SELECT * FROM products WHERE status IN ('draft','pending-review') AND (preview_path IS NULL OR length(preview_path) = 0) ORDER BY id LIMIT ?`).all(limit);
   let generated = 0, failed = 0;
   for (const p of rows) {
     try {
+      if (force) db.prepare('UPDATE products SET preview_path = NULL WHERE id = ?').run(p.id);
+      p.preview_path = null;
       if (await fileFactory.ensureProductThumbnail(p)) generated++; else failed++;
     } catch (e) { failed++; console.error('[THUMBS] #' + p.id + ':', e.message); }
   }
   const remaining = db.prepare(`SELECT COUNT(*) c FROM products WHERE status IN ('draft','pending-review') AND (preview_path IS NULL OR length(preview_path) = 0)`).get().c;
-  res.json({ total: rows.length, generated, failed, remaining });
+  res.json({ total: rows.length, generated, failed, remaining, forced: force });
 });
 
 // Render arbitrary edited HTML to a downloadable file (used by the visual editor)

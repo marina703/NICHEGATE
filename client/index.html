@@ -670,7 +670,7 @@ async function getPanelContent(type) {
   if (type === 'reviewqueue') {
     const res = await fetch(`${API}/products`);
     const products = (await res.json()).filter(p => p.status === 'draft' || p.status === 'pending-review');
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;"><span><strong>${products.length}</strong> pending</span><span style="display:flex;gap:8px;flex-wrap:wrap;"><button class="review-btn approve" onclick="dedupeQueue()">🧹 Dedupe Clones</button><button class="review-btn approve" onclick="generatePreviews()">🖼 Generate PNG Previews</button><button class="review-btn reject" onclick="rejectTrash()">🗑 Reject All Trash</button><button class="review-btn approve" onclick="approveAll()">✅ Approve All</button></span></div>`;
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;"><span><strong>${products.length}</strong> pending</span><span style="display:flex;gap:8px;flex-wrap:wrap;"><button class="review-btn approve" onclick="dedupeQueue()">🧹 Dedupe Clones</button><button class="review-btn approve" onclick="generatePreviews()">🖼 Generate Previews</button><button class="review-btn publish" onclick="regenerateAll()">✨ Rebuild ALL Covers</button><button class="review-btn reject" onclick="rejectTrash()">🗑 Reject All Trash</button><button class="review-btn approve" onclick="approveAll()">✅ Approve All</button></span></div>`;
     html += products.map(p => {
       const thumb = p.preview_path ? `<img src="/api/products/${p.id}/preview-image" loading="lazy" alt=""><img src="/api/products/${p.id}/lifestyle-image" loading="lazy" alt="" onerror="this.remove()" style="margin-top:4px;border-top:1px solid #f1f5f9;">` : thumbFor(p.type);
       return `<div class="review-item"><div class="thumb">${thumb}</div><div class="info"><div class="name">${p.name}</div><div class="meta">${p.prof_emoji || ''} ${p.prof_name || ''} · ${p.type} · ${p.price}</div></div><div class="actions"><button class="review-btn publish" style="background:#6366f1;" onclick="previewProduct(${p.id})">👁 View</button><button class="review-btn approve" onclick="approveProduct(${p.id})">Approve</button><button class="review-btn publish" onclick="publishProduct(${p.id})">🚀 Publish</button><button class="review-btn edit" onclick="showSEO(${p.id})">SEO</button><button class="review-btn reject" onclick="rejectProduct(${p.id})">Reject</button></div></div>`;
@@ -817,7 +817,7 @@ async function dedupeQueue() {
 }
 
 async function generatePreviews() {
-  showToast('info', 'Previews', 'Generating PNG previews (first batch of 25)…');
+  showToast('info', 'Previews', 'Generating previews (first batch of 25)…');
   try {
     const res = await fetch(`${API}/previews/generate?limit=25`, { method: 'POST' });
     const d = await res.json();
@@ -827,6 +827,22 @@ async function generatePreviews() {
   } catch (e) {
     showToast('error', 'Previews Failed', e.message);
   }
+}
+async function regenerateAll() {
+  if (!confirm('Rebuild ALL covers (drafts + approved) with AI lifestyle composites? Takes ~30-45 min in background batches. Keep this tab open.')) return;
+  let done = 0;
+  for (let i = 0; i < 40; i++) {
+    try {
+      const res = await fetch(`${API}/previews/generate?limit=15&force=1`, { method: 'POST' });
+      const d = await res.json();
+      done += d.generated;
+      showToast('info', 'Rebuilding…', `${done} covers rebuilt so far (batch ${i + 1})`);
+      if (d.total === 0 || d.generated === 0) break;
+    } catch (e) { showToast('error', 'Rebuild Failed', e.message); break; }
+  }
+  showToast('success', 'All Covers Rebuilt', `${done} products now have v3 AI composite covers`);
+  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
+  refreshStats();
 }
 
 async function approveProduct(id) {
