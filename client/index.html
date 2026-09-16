@@ -828,21 +828,38 @@ async function generatePreviews() {
     showToast('error', 'Previews Failed', e.message);
   }
 }
+let coverRebuildRunning = false;
 async function regenerateAll() {
-  if (!confirm('Rebuild ALL covers (drafts + approved) with AI lifestyle composites? Takes ~30-45 min in background batches. Keep this tab open.')) return;
-  let done = 0;
-  for (let i = 0; i < 40; i++) {
-    try {
-      const res = await fetch(`${API}/previews/generate?limit=15&force=1`, { method: 'POST' });
+  if (coverRebuildRunning) return;
+  if (!confirm('Rebuild covers for drafts and approved products? Keep this tab open. Existing previews stay available if a rebuild fails.')) return;
+  coverRebuildRunning = true;
+  let done = 0, failed = 0, afterId = 0, maxId;
+  try {
+    while (true) {
+      const query = new URLSearchParams({ limit: '5', force: '1', afterId: String(afterId) });
+      if (maxId !== undefined) query.set('maxId', String(maxId));
+      const res = await fetch(`${API}/previews/generate?${query}`, { method: 'POST' });
       const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Preview request failed');
       done += d.generated;
-      showToast('info', 'Rebuilding…', `${done} covers rebuilt so far (batch ${i + 1})`);
-      if (d.total === 0 || d.generated === 0) break;
-    } catch (e) { showToast('error', 'Rebuild Failed', e.message); break; }
+      failed += d.failed;
+      showToast('info', 'Rebuilding…', `${done} rebuilt · ${failed} failed · ${d.remaining} remaining`);
+      if (!d.hasMore) break;
+      if (!Number.isSafeInteger(d.nextAfterId) || d.nextAfterId <= afterId) {
+        throw new Error('Batch did not advance; stopped to avoid duplicate generation');
+      }
+      afterId = d.nextAfterId;
+      maxId = d.maxId;
+    }
+    showToast(failed ? 'error' : 'success', failed ? 'Rebuild Finished with Failures' : 'Rebuild Complete',
+      `${done} covers rebuilt; ${failed} failed. Listed products were not changed.`);
+  } catch (e) {
+    showToast('error', 'Rebuild Stopped', `${done} rebuilt; ${failed} failed. ${e.message}`);
+  } finally {
+    coverRebuildRunning = false;
+    if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
+    refreshStats();
   }
-  showToast('success', 'All Covers Rebuilt', `${done} products now have v3 AI composite covers`);
-  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
-  refreshStats();
 }
 
 async function approveProduct(id) {

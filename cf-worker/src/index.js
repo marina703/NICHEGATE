@@ -1,7 +1,7 @@
 // NicheGate cover worker — FLUX.schnell via the Workers AI binding.
 // POST { prompt, width?, height? } -> { image: "<base64 jpeg>" }
 // GET /health -> { ok: true }
-// Optional shared-secret: send header x-ng-key matching SHARED_KEY secret.
+// Required shared-secret: send header x-ng-key matching SHARED_KEY secret.
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -11,7 +11,10 @@ export default {
     if (request.method !== 'POST') {
       return new Response('POST {prompt, width?, height?} required', { status: 405 });
     }
-    if (env.SHARED_KEY && request.headers.get('x-ng-key') !== env.SHARED_KEY) {
+    if (!env.SHARED_KEY) {
+      return Response.json({ error: 'generation unavailable' }, { status: 503 });
+    }
+    if (request.headers.get('x-ng-key') !== env.SHARED_KEY) {
       return new Response('unauthorized', { status: 401 });
     }
     let body;
