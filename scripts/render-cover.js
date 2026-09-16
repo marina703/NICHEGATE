@@ -1,9 +1,12 @@
 // Render a single product's thumb-stopper cover for inspection.
 // Usage: node scripts/render-cover.js [productId] [--type bundle]
+require('dotenv').config();
 const { db } = require('../server/database');
 const fileFactory = require('../server/services/fileFactory');
 
 (async () => {
+  const coverArt = require('../server/services/coverArt');
+  console.log('provider:', coverArt.provider());
   const args = process.argv.slice(2);
   const id = parseInt(args[0], 10);
   const typeIdx = args.indexOf('--type');

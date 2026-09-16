@@ -43,7 +43,7 @@ function promptFor(prof, product) {
 
 function cachePath(prof, product) {
   const h = crypto.createHash('sha1')
-    .update(`${prof.slug || prof.name}|${product.type}|${promptFor(prof, product)}`)
+    .update(`${provider()}|${prof.slug || prof.name}|${product.type}|${promptFor(prof, product)}`)
     .digest('hex').slice(0, 16);
   return path.join(OUT_DIR, `${prof.slug || 'cover'}-${product.type || 'art'}-${h}.jpg`);
 }
@@ -54,6 +54,21 @@ async function viaPollinations(prompt, outPath) {
   const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 120000, maxBodyLength: Infinity });
   if (!res.data || !res.data.length) throw new Error('empty image response');
   fs.writeFileSync(outPath, Buffer.from(res.data));
+  return outPath;
+}
+
+// Cloudflare Workers AI (FLUX.schnell) via the nichegate-covers worker.
+// Free tier: 10k neurons/day. 1024x1024 output — cover-crops into 4:5.
+async function viaCloudflare(prompt, outPath) {
+  const url = process.env.COVER_WORKER_URL;
+  if (!url) throw new Error('COVER_WORKER_URL missing');
+  const res = await axios.post(url, { prompt }, {
+    timeout: 180000,
+    headers: process.env.COVER_WORKER_KEY ? { 'x-ng-key': process.env.COVER_WORKER_KEY } : {}
+  });
+  const b64 = res.data && res.data.image;
+  if (!b64) throw new Error(`worker returned no image: ${JSON.stringify(res.data).slice(0, 200)}`);
+  fs.writeFileSync(outPath, Buffer.from(b64, 'base64'));
   return outPath;
 }
 
@@ -89,7 +104,9 @@ async function ensureCoverArt(product, prof) {
     const out = cachePath(prof, product);
     if (fs.existsSync(out) && fs.statSync(out).size > 20000) return out;
     const prompt = promptFor(prof, product);
-    if (provider() === 'fal') return await viaFal(prompt, out);
+    const prov = provider();
+    if (prov === 'cloudflare') return await viaCloudflare(prompt, out);
+    if (prov === 'fal') return await viaFal(prompt, out);
     return await viaPollinations(prompt, out);
   } catch (e) {
     console.error('[COVERART] failed:', e.message);

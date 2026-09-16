@@ -1,0 +1,8 @@
+name = "nichegate-covers"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+account_id = "74d42a6784c765ed7c4276ab8d1f1c72"
+workers_dev = true
+
+[ai]
+binding = "AI"
