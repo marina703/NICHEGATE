@@ -3,996 +3,378 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NicheGate — Dashboard</title>
+<title>NicheGate — Operations Console</title>
+<meta name="robots" content="noindex,nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:#1e293b;height:100vh;overflow:hidden;display:flex;}
-h1,h2,h3,.sidebar-header,.stat-card .value,.section-label,.badge,.grade-badge,.auto-status-pill{font-family:'Space Grotesk','Inter',system-ui,sans-serif;}
-
-/* ═══ SIDEBAR ═══ */
-#sidebar{width:300px;background:#000000;color:#e2e8f0;display:flex;flex-direction:column;height:100vh;flex-shrink:0;border-right:1px solid #1a1a1a;}
-.sidebar-header{padding:18px;font-size:1.05rem;font-weight:700;color:#fff;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:8px;letter-spacing:0.5px;}
-.sidebar-header .logo{font-size:1.4rem;}
-.sidebar-header a{margin-left:auto;font-size:0.7rem;color:#2dd4bf;text-decoration:none;border:1px solid #2dd4bf;border-radius:6px;padding:2px 8px;}
-.sidebar-search{padding:10px 14px;}
-.sidebar-search input{width:100%;padding:8px 12px;background:#0a0a0a;border:1px solid #222;border-radius:8px;color:#e2e8f0;font-size:0.85rem;outline:none;}
-.sidebar-search input:focus{border-color:#2dd4bf;}
-.sidebar-section{flex:1;overflow-y:auto;padding:8px 0;}
-.sidebar-section::-webkit-scrollbar{width:4px;}
-.sidebar-section::-webkit-scrollbar-thumb{background:#222;border-radius:4px;}
-.section-label{padding:8px 16px;font-size:0.68rem;text-transform:uppercase;letter-spacing:1.8px;color:#64748b;font-weight:700;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;transition:color 0.15s;}
-.section-label:hover{color:#94a3b8;}
-.section-label .count{background:#222;padding:1px 8px;border-radius:10px;font-size:0.65rem;}
-.section-label .chevron{margin-left:auto;padding-left:8px;font-size:0.7rem;transition:transform 0.2s;color:#475569;}
-.section-label .chevron.collapsed{transform:rotate(-90deg);}
-.section-content{overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:2400px;opacity:1;}
-.section-content.collapsed{max-height:0;opacity:0;}
-.profession-item{padding:9px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .15s;border-left:3px solid transparent;}
-.profession-item:hover{background:#0a0a0a;}
-.profession-item.active{background:#0a0a0a;border-left-color:#2dd4bf;}
-.profession-item .emoji{font-size:1.1rem;flex-shrink:0;}
-.profession-item .info{flex:1;min-width:0;}
-.profession-item .name{font-size:0.82rem;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.profession-item .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.status-dot.researching{background:#f59e0b;}
-.status-dot.generating{background:#3b82f6;animation:pulse 1.5s infinite;}
-.status-dot.reviewing{background:#a855f7;}
-.status-dot.listed{background:#22c55e;}
-.status-dot.draft{background:#64748b;}
-.status-dot.approved{background:#2dd4bf;}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
-
-/* ═══ MAIN ═══ */
-#main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
-#topbar{background:white;border-bottom:1px solid #e2e8f0;padding:14px 22px;flex-shrink:0;}
-.profession-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.profession-header h1{font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px;letter-spacing:-0.5px;}
-.badge{font-size:0.68rem;padding:3px 10px;border-radius:4px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
-.badge.researching{background:#fef3c7;color:#92400e;}
-.badge.listed{background:#dcfce7;color:#166534;}
-.badge.draft{background:#f1f5f9;color:#475569;}
-.topbar-right{display:flex;align-items:center;gap:14px;}
-.auto-status-pill{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:0.72rem;font-weight:600;cursor:pointer;}
-.auto-status-pill.idle{background:#f1f5f9;color:#64748b;}
-.auto-status-pill.processing{background:#dbeafe;color:#2563eb;}
-.auto-status-pill.paused{background:#fef3c7;color:#92400e;}
-.pulse-dot{width:8px;height:8px;border-radius:50%;}
-.auto-status-pill.idle .pulse-dot{background:#94a3b8;}
-.auto-status-pill.processing .pulse-dot{background:#3b82f6;animation:pulse 1.5s infinite;}
-.auto-status-pill.paused .pulse-dot{background:#f59e0b;animation:pulse 1.5s infinite;}
-
-/* ═══ STATS BAR (upgrade) ═══ */
-#stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 22px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0;}
-.stat-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;border-top:3px solid #2dd4bf;}
-.stat-card .label{font-size:0.66rem;color:#94a3b8;text-transform:uppercase;letter-spacing:1.2px;font-weight:700;}
-.stat-card .value{font-size:1.5rem;font-weight:800;margin-top:2px;}
-.stat-card .sub{font-size:0.68rem;color:#94a3b8;margin-top:2px;}
-
-/* ═══ PROMPT ═══ */
-.prompt-bar{display:flex;gap:10px;align-items:flex-end;}
-.prompt-bar textarea{flex:1;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;resize:none;outline:none;font-family:inherit;min-height:44px;max-height:120px;transition:border-color .15s,box-shadow .15s;}
-.prompt-bar textarea:focus{border-color:#2dd4bf;box-shadow:0 0 0 3px rgba(45,212,191,0.15);}
-.prompt-bar textarea:focus{border-color:#2dd4bf;}
-.prompt-bar button{padding:12px 24px;background:#2dd4bf;color:#000;border:none;border-radius:8px;font-size:0.82rem;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:1px;font-family:'Space Grotesk','Inter',sans-serif;transition:background .15s,transform .1s;}
-.prompt-bar button:hover{background:#14b8a6;transform:translateY(-1px);}
-.prompt-bar button:disabled{background:#cbd5e1;cursor:not-allowed;}
-
-#action-bar{display:flex;gap:8px;padding:10px 22px;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0;overflow-x:auto;}
-.action-btn{padding:8px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;font-weight:600;color:#475569;cursor:pointer;white-space:nowrap;}
-.action-btn:hover{background:#f1f5f9;}
-
-#chat-area{flex:1;overflow-y:auto;padding:22px;}
-#chat-area::-webkit-scrollbar{width:6px;}
-#chat-area::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px;}
-.empty-state{text-align:center;padding:50px 20px;color:#94a3b8;}
-.empty-state .icon{font-size:3rem;margin-bottom:12px;}
-.empty-state h3{font-size:1.1rem;color:#64748b;margin-bottom:6px;}
-.empty-state p{font-size:0.85rem;max-width:420px;margin:0 auto;line-height:1.6;}
-
-.chat-msg{margin-bottom:16px;max-width:90%;}
-.chat-msg.user{margin-left:auto;max-width:70%;}
-.chat-msg .role{font-size:0.7rem;color:#94a3b8;margin-bottom:3px;text-transform:uppercase;}
-.chat-msg.user .role{text-align:right;}
-.chat-msg .bubble{padding:12px 16px;border-radius:16px;font-size:0.9rem;line-height:1.6;}
-.chat-msg.user .bubble{background:#2dd4bf;color:#000;border-bottom-right-radius:4px;}
-.chat-msg.ai .bubble{background:white;border:1px solid #e2e8f0;border-bottom-left-radius:4px;}
-
-/* ═══ THUMB-STOPPER COVER SYSTEM (v2) ═══
-   Covers are rendered at 1200x1500 (4:5 — optimal for Etsy/Gumroad/Pinterest).
-   Rules: light paper background, giant title, single hero visual, 3 benefit
-   bullets max, price + format badges. Dark device-frames are banned — they
-   shrink the product and scream "screenshot". */
-.thumbcover{width:1200px;min-height:1500px;background:#f8f7f4;font-family:'Space Grotesk','Inter',system-ui,sans-serif;color:#14110f;position:relative;overflow:hidden;display:flex;flex-direction:column}
-.thumbcover .tc-topbar{display:flex;justify-content:space-between;align-items:center;padding:44px 64px 0;font-size:22px;font-weight:800;letter-spacing:3px;text-transform:uppercase}
-.tc-brand{display:flex;align-items:center;gap:14px}
-.tc-brand .dot{width:26px;height:26px;border-radius:50%;background:#14110f}
-.tc-format{background:#14110f;color:#fff;font-size:20px;font-weight:800;letter-spacing:2px;padding:10px 22px;border-radius:999px;text-transform:uppercase}
-.thumbcover .tc-kicker{margin:36px 64px 0;display:inline-block;align-self:flex-start;font-size:24px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#fff;background:#e11d48;padding:12px 26px;border-radius:999px}
-.thumbcover h1.tc-title{margin:30px 64px 0;font-size:104px;font-weight:900;line-height:0.98;letter-spacing:-3px;max-width:1000px}
-.thumbcover .tc-sub{margin:24px 64px 0;font-size:32px;line-height:1.35;color:#57534e;max-width:920px}
-.thumbcover .tc-hero{margin:44px 64px 0;background:#fff;border-radius:32px;box-shadow:0 30px 60px -30px rgba(20,17,15,.25);padding:48px;position:relative;overflow:hidden}
-.thumbcover .tc-benefits{margin:40px 64px 0;display:flex;flex-direction:column;gap:18px}
-.tc-benefit{display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700}
-.tc-benefit .check{width:52px;height:52px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;flex-shrink:0}
-.thumbcover .tc-footer{margin-top:auto;padding:44px 64px 54px;display:flex;justify-content:space-between;align-items:flex-end}
-.tc-pricebox .tc-price{font-size:76px;font-weight:900;letter-spacing:-2px}
-.tc-pricebox .tc-note{font-size:22px;color:#78716c;font-weight:600;margin-top:4px}
-.tc-stars{font-size:30px;letter-spacing:4px}
-.tc-reviews{font-size:22px;color:#78716c;font-weight:600;margin-top:6px}
-/* accent variants per niche sentiment */
-.tc-accent-pink .tc-kicker{background:#ec4899}
-.tc-accent-green .tc-kicker{background:#16a34a}
-.tc-accent-amber .tc-kicker{background:#d97706}
-.tc-accent-violet .tc-kicker{background:#7c3aed}
-.tc-accent-sky .tc-kicker{background:#0284c7}
-.tc-accent-red .tc-kicker{background:#dc2626}
-
-/* ═══ MOCKUP GRID (upgrade: real iframe previews) ═══ */
-.mockup-section{margin-top:12px;}
-.mockup-section .label{font-size:0.78rem;color:#64748b;margin-bottom:10px;font-weight:600;}
-.mockup-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
-@media(max-width:1200px){.mockup-grid{grid-template-columns:repeat(3,1fr);}}
-.mockup-card{background:white;border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;}
-.mockup-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,0.08);border-color:#2dd4bf;}
-.mockup-card .preview{height:170px;overflow:hidden;position:relative;background:#f8fafc;}
-.mockup-card .preview iframe{width:100%;height:100%;border:none;pointer-events:none;}
-.mockup-card .meta{padding:9px 12px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;}
-.mockup-card .meta .title{font-size:0.74rem;font-weight:600;color:#1e293b;}
-.mockup-card .meta .theme{font-size:0.66rem;color:#94a3b8;}
-.mockup-card .price-tag{font-size:0.7rem;font-weight:700;color:#2dd4bf;background:#f0fdfa;padding:2px 8px;border-radius:8px;}
-.edit-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);color:white;font-size:0.8rem;font-weight:700;opacity:0;transition:opacity .15s;}
-.mockup-card:hover .edit-hint{opacity:1;}
-
-/* ═══ PANEL ═══ */
-#panel-overlay{position:fixed;top:0;right:0;width:440px;height:100vh;background:white;box-shadow:-4px 0 24px rgba(0,0,0,0.12);z-index:100;transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column;}
-#panel-overlay.open{transform:translateX(0);}
-.panel-header{padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:white;z-index:1;}
-.panel-header h2{font-size:1.05rem;font-weight:700;}
-.panel-close{background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;}
-.panel-body{padding:18px;flex:1;overflow-y:auto;}
-
-.review-banner{background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:12px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;}
-.review-banner .icon{font-size:1.5rem;}
-.review-banner h4{font-size:0.88rem;color:#92400e;}
-.review-banner p{font-size:0.75rem;color:#b45309;margin-top:2px;}
-.review-item{display:flex;gap:12px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;}
-.review-item .thumb{width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;background:#f59e0b20;overflow:hidden;}
-.review-item .thumb img{width:44px;height:44px;border-radius:8px;object-fit:cover;display:block;}
-.review-item .info{flex:1;min-width:0;}
-.review-item .name{font-size:0.8rem;font-weight:600;color:#1e293b;}
-.review-item .meta{font-size:0.7rem;color:#94a3b8;margin-top:2px;}
-.review-item .actions{display:flex;flex-direction:column;gap:6px;}
-.review-btn{padding:6px 12px;border:none;border-radius:4px;font-size:0.72rem;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;}
-.review-btn.approve{background:#22c55e;color:white;}
-.review-btn.reject{background:#fee2e2;color:#dc2626;}
-.review-btn.edit{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;}
-.review-btn.publish{background:#2dd4bf;color:#000;}
-.review-btn:hover{opacity:0.85;}
-
-.auto-section{margin-bottom:18px;}
-.auto-section h3{font-size:0.82rem;font-weight:600;margin-bottom:8px;}
-.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f1f5f9;}
-.toggle-row .label{font-size:0.82rem;}
-.toggle-row .desc{font-size:0.7rem;color:#94a3b8;margin-top:2px;}
-.auto-log-entry{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:0.75rem;}
-.auto-log-entry .time{color:#94a3b8;flex-shrink:0;width:55px;}
-.auto-log-entry .text{flex:1;color:#475569;}
-.auto-log-entry.error .text{color:#dc2626;}
-.auto-log-entry.success .text{color:#16a34a;}
-.auto-log-entry.warning .text{color:#d97706;}
-
-/* ═══ TRENDS (upgrade: scores + grades) ═══ */
-.trend-card{border-left:3px solid;padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:10px;font-size:0.82rem;}
-.trend-card.hot{border-left-color:#ef4444;}
-.trend-card.peaking{border-left-color:#ec4899;}
-.trend-card.rising{border-left-color:#f59e0b;}
-.trend-card .emoji{font-size:1.4rem;margin-bottom:6px;}
-.trend-card .name{font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;}
-.grade-badge{font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:3px;color:white;letter-spacing:0.5px;}
-.grade-badge.A{background:#16a34a;}
-.grade-badge.B{background:#2dd4bf;}
-.grade-badge.C{background:#f59e0b;}
-.grade-badge.D{background:#94a3b8;}
-.trend-card .meta{font-size:0.72rem;color:#64748b;margin-top:4px;}
-.trend-card .actions{display:flex;gap:8px;margin-top:10px;}
-
-.metric-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;}
-.metric-card .label{font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;}
-.metric-card .value{font-size:1.6rem;font-weight:800;margin-top:2px;}
-.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-
-.drop-zone{border:2px dashed #cbd5e1;border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;}
-.drop-zone:hover{border-color:#f59e0b;}
-.drop-zone .icon{font-size:2rem;margin-bottom:8px;}
-.drop-zone p{color:#94a3b8;font-size:0.85rem;}
-
-.pipeline-bar{display:flex;gap:4px;margin:16px 0;}
-.pipeline-stage{flex:1;height:8px;border-radius:4px;background:#e2e8f0;}
-.pipeline-stage.done{background:#22c55e;}
-.pipeline-stage.active{background:#f59e0b;}
-.pipeline-labels{display:flex;gap:4px;font-size:0.62rem;color:#94a3b8;}
-.pipeline-labels span{flex:1;text-align:center;}
-
-/* ═══ EDITOR ═══ */
-#editor-modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;}
-#editor-modal.open{display:flex;}
-.editor-window{width:92%;max-width:1100px;height:90vh;background:white;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
-.editor-toolbar{padding:12px 18px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.editor-toolbar .title{font-size:0.88rem;font-weight:600;margin-right:auto;}
-.toolbar-group{display:flex;align-items:center;gap:6px;}
-.toolbar-group label{font-size:0.72rem;color:#64748b;}
-.color-input{width:30px;height:30px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;padding:2px;}
-.font-select{padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.78rem;outline:none;background:white;}
-.editor-btn{padding:8px 16px;border:none;border-radius:6px;font-size:0.78rem;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;}
-.editor-btn.save{background:#22c55e;color:white;}
-.editor-btn.export{background:#2dd4bf;color:#000;}
-.editor-btn.close{background:#f1f5f9;color:#475569;}
-.editor-body{flex:1;overflow:auto;padding:28px;background:#f8fafc;display:flex;justify-content:center;}
-.editor-preview{width:100%;max-width:800px;background:white;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;min-height:400px;}
-.editor-preview [contenteditable]:focus{outline:2px solid #2dd4bf;outline-offset:2px;}
-
-/* ═══ PRODUCT PREVIEW MODAL ═══ */
-#preview-modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:220;display:none;align-items:center;justify-content:center;}
-#preview-modal.open{display:flex;}
-.preview-window{width:94%;max-width:1000px;height:92vh;background:white;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
-.preview-toolbar{padding:12px 18px;background:#0f172a;color:white;display:flex;align-items:center;gap:14px;min-height:48px;}
-.preview-toolbar .title{font-size:0.85rem;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.preview-toolbar a{color:#2dd4bf;font-size:0.78rem;font-weight:800;text-decoration:none;white-space:nowrap;}
-.preview-toolbar a:hover{text-decoration:underline;}
-.preview-toolbar .close{background:#334155;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:800;font-size:0.75rem;white-space:nowrap;}
-.preview-toolbar .close:hover{background:#475569;}
-#preview-frame{flex:1;width:100%;border:none;background:white;}
-
-/* ═══ TOASTS ═══ */
-.toast-container{position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:10px;max-width:380px;}
-.toast{background:white;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.15);padding:14px 18px;display:flex;gap:12px;animation:slideIn .3s ease;border-left:4px solid #cbd5e1;}
-.toast.info{border-left-color:#3b82f6;}
-.toast.success{border-left-color:#22c55e;}
-.toast.warning{border-left-color:#f59e0b;}
-.toast.error{border-left-color:#ef4444;}
-.toast .toast-icon{font-size:1.2rem;}
-.toast .toast-title{font-size:0.82rem;font-weight:700;}
-.toast .toast-msg{font-size:0.75rem;color:#64748b;line-height:1.4;}
-.toast .toast-close{background:none;border:none;font-size:1rem;color:#cbd5e1;cursor:pointer;margin-left:8px;}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
-
-.loading-mockups{display:flex;align-items:center;justify-content:center;padding:40px;gap:12px;color:#94a3b8;font-size:0.85rem;}
-.spinner{width:20px;height:20px;border:3px solid #e2e8f0;border-top-color:#f59e0b;border-radius:50%;animation:spin .8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-
-@media(max-width:900px){#sidebar{width:240px;}.mockup-grid{grid-template-columns:repeat(2,1fr);}#panel-overlay{width:100%;}#stats-bar{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:600px){body{flex-direction:column;height:auto;overflow:auto;}#sidebar{width:100%;max-height:45vh;}.mockup-grid{grid-template-columns:1fr;}}
+:root{
+  --bg:#0a0f17;--bg2:#0d1420;--panel:#111827;--panel2:#151d2c;
+  --border:#1e293b;--muted:#7c8aa0;
+  --teal:#2dd4bf;--green:#10b981;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;
+  --mono:'Space Grotesk','Consolas',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:#e2e8f0;font-family:'Inter',system-ui,sans-serif;font-size:14px;overflow:hidden;display:flex}
+h1,h2,h3,.kpi .num,.rail-link,.tag{font-family:var(--mono)}
+::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:#2b3a52;border-radius:6px}
+/* Layout */
+#rail{width:66px;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0}
+.rail-mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--teal),#0a0f17);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;color:#0a0f17}
+.rail-link{width:48px;height:44px;display:flex;align-items:center;justify-content:center;font-size:1.15rem;border-radius:10px;color:#7c8aa0;cursor:pointer}
+.rail-link:hover{background:var(--panel)}
+.rail-link.active{background:var(--panel);color:var(--teal)}
+.rail-div{width:30px;height:1px;background:var(--border);margin:4px}
+#main{flex:1;display:flex;flex-direction:column;min-width:0;background:linear-gradient(180deg,#0d1420,#0a0f17)}
+#topbar{display:flex;align-items:center;gap:14px;padding:11px 20px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+#topbar .crumb{color:#7c8aa0;font-size:0.8rem}
+#topbar .sp{flex:1}
+.auto-status{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:0.72rem;font-weight:700;cursor:pointer;background:#151d2c;border:1px solid var(--border);cursor:pointer}
+.auto-status.live{color:var(--teal);border-color:rgba(45,212,191,.4)}
+.auto-status .pl{width:8px;height:8px;border-radius:50%;background:#7c8aa0}
+.auto-status.live .pl{background:var(--teal);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.35}}
+#content{flex:1;overflow:auto;padding:20px 24px}
+/* Common */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px}
+.panel-title{font-size:0.78rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#7c8aa0;padding:11px 15px;border-bottom:1px solid var(--border)}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sh h2{font-size:1.15rem;font-weight:700;letter-spacing:-.2px}
+.sh .desc{font-size:0.78rem;color:#7c8aa0;margin-top:2px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;border:none;background:#151d2c;color:#e2e8f0;font-size:0.76rem;font-weight:700;cursor:pointer;border:1px solid var(--border)}
+.btn:hover{filter:brightness(1.15)}
+.btn.primary{background:var(--teal);color:#06231f}
+.btn.green{background:var(--green);color:#04150d}
+.btn.amber{background:var(--amber);color:#1a1202}
+.btn.red{background:var(--red);color:#1a0607}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+input,select,textarea{background:#0d1420;border:1px solid var(--border);color:#e2e8f0;border-radius:8px;padding:7px 11px;font-family:'Inter',sans-serif;font-size:0.85rem;outline:none}
+input:focus,select:focus{border-color:var(--teal)}
+.search{display:flex;align-items:center;gap:8px;background:#0d1420;border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+.search input{border:none;background:transparent;flex:1}
+/* KPI + funnel */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:13px 15px}
+.kpi .lb{font-size:0.66rem;letter-spacing:1px;text-transform:uppercase;color:#7c8aa0}
+.kpi .num{font-size:1.7rem;font-weight:800;letter-spacing:-.5px}
+.kpi .sb{font-size:0.72rem;color:#7c8aa0;margin-top:2px}
+.kpi.tc .num{color:var(--teal)}.kpi.gn .num{color:var(--green)}.kpi.am .num{color:var(--amber)}.kpi.rd .num{color:var(--red)}.kpi.bl .num{color:var(--blue)}
+.funnel{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:13px 17px;overflow-x:auto}
+.funnel .st{display:flex;flex-direction:column;align-items:center;min-width:80px;gap:4px}
+.funnel .st .ring{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:var(--mono);font-size:0.95rem;border:2px solid var(--border);color:#7c8aa0;background:#0d1420}
+.funnel .st.on .ring{border-color:var(--teal);color:var(--teal)}
+.funnel .st .l{font-size:0.6rem;text-transform:uppercase;color:#7c8aa0;letter-spacing:.4px}
+.funnel .ar{color:#2a3a4f;font-size:1rem}
+/* tags + status */
+.tpill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:0.66rem;font-weight:700;background:#151d2c;color:#7c8aa0;border:1px solid var(--border)}
+.tpill::before{content:'';width:7px;height:7px;border-radius:50%;background:inherit;margin-right:4px}
+.st-draft{background:#4b8bd4}.st-pending-review{background:var(--amber)}.st-approved{background:var(--teal)}.st-listed{background:var(--green)}.st-published{background:var(--green)}.st-rejected{background:var(--red)}.st-archived{background:#64748b}.st-researching{background:#64748b}.st-generating{background:#4b8bd4}
+/* catalog */
+.frow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s}
+.card:hover{transform:translateY(-3px);border-color:var(--teal)}
+.card .thumb{aspect-ratio:4/5;background:#0d1420;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.card .thumb img{width:100%;height:100%;object-fit:cover}
+.card .thumb .ph{font-size:2.4rem}
+.card .ck{position:absolute;top:8px;left:8px;width:20px;height:20px;border-radius:6px;border:2px solid #2a3a4f;background:transparent}
+.card.sel .ck{background:var(--teal);border-color:var(--teal)}
+.card.sel{outline:1px solid var(--teal)}
+.card .bd{padding:9px 12px}
+.card .nm{font-size:0.76rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .mt{font-size:0.66rem;color:#7c8aa0;margin-top:2px}
+.card .pr{font-size:0.85rem;font-weight:700;color:var(--teal);font-family:var(--mono)}
+/* review */
+.rows{display:flex;flex-direction:column;gap:10px}
+.rrow{display:grid;grid-template-columns:62px 1fr auto;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:11px 15px}
+.rrow .rt{width:58px;height:72px;object-fit:cover;border-radius:8px;background:#0d1420}
+.rrow .nm{font-weight:700;font-size:0.84rem}
+.rrow .mt{color:#7c8aa0;font-size:0.73rem;margin-top:3px}
+.rrow .tags,.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.rrow .acts{display:flex;gap:6px;flex-wrap:wrap}
+/* log */
+.logs{display:flex;flex-direction:column;gap:6px;max-height:380px;overflow:auto}
+.logrow{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;background:#0d1420;font-size:0.74rem}
+.logrow .t{color:#7c8aa0;width:56px;font-family:var(--mono)}
+.logrow .act{font-weight:700;color:var(--teal);min-width:96px}
+.logrow .tx{flex:1;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.logrow.warning .tx{color:var(--amber)}.logrow.error .tx{color:var(--red)}.logrow.success .tx{color:var(--green)}
+/* trends */
+.trend{display:flex;align-items:center;gap:12px;padding:11px 15px;background:var(--panel);border:1px solid var(--border);border-radius:12px;margin-bottom:10px}
+.trend .nm{font-weight:700}.trend .mt{color:#7c8aa0;font-size:0.73rem}
+.grade{min-width:64px;padding:3px 10px;border-radius:999px;font-size:0.7rem;font-weight:800;border:1px solid var(--border)}
+.grade.ACTIVATE{color:var(--green);border-color:rgba(16,185,129,.4)}
+.grade.WATCH{color:var(--amber);border-color:rgba(245,158,11,.4)}
+.grade.SKIP{color:var(--red);border-color:rgba(239,68,68,.4)}
+/* marketplace connections */
+.conn{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:#151d2c;margin-bottom:10px}
+.conn .dv{width:10px;height:10px;border-radius:50%}
+.conn.ok .dv{background:var(--green)}.conn.bad .dv{background:var(--red)}
+.conn .cx{flex:1;font-size:0.82rem;font-weight:600}
+/* modals */
+.modal{position:fixed;inset:0;background:rgba(6,10,16,.78);z-index:200;display:none;align-items:center;justify-content:center}
+.modal.open{display:flex}
+.edwin{background:var(--bg);border:1px solid var(--border);border-radius:14px;width:min(1260px,94vw);height:92vh;display:flex;flex-direction:column;overflow:hidden}
+.edbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border)}
+.edbar .title{flex:1;font-weight:700;font-size:0.85rem}
+.edbar input[type=color]{width:34px;height:30px;border:none;background:none;cursor:pointer}
+.edbody{flex:1;overflow:auto;background:#fff}
+.edbody .pv{min-height:100%}
+.pwin{background:var(--bg);border:1px solid var(--border);border-radius:14px;width:min(1160px,92vw);height:90vh;display:flex;flex-direction:column}
+.pbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border)}
+.pframe{flex:1;border:none;background:#fff}
+/* toast */
+#toasts{position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:10px;max-width:400px}
+.toast{background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.5);padding:11px 15px;border-left:3px solid var(--blue)}
+.toast.info{border-left-color:var(--blue)}.toast.success{border-left-color:var(--green)}.toast.warning{border-left-color:var(--amber)}.toast.error{border-left-color:var(--red)}
+.toast .tt{font-size:0.8rem;font-weight:700}.toast .tm{font-size:0.73rem;color:#7c8aa0;line-height:1.35}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
 </style>
 </head>
 <body>
-
-<div id="sidebar">
-  <div class="sidebar-header"><img src="/covers/nichegate_logo_on_black.png" alt="" style="height:22px;width:auto;"> NicheGate <a href="/setup">Setup</a></div>
-  <div class="sidebar-search">
-    <input type="text" id="search-input" placeholder="Search professions..." oninput="filterProfessions()">
-  </div>
-  <div class="sidebar-section">
-    <div class="section-label" onclick="toggleSection('active')">Active Professions <span class="count" id="active-count">0</span><span class="chevron" id="chevron-active">▼</span></div>
-    <div id="active-list" class="section-content"></div>
-    <div class="section-label" style="margin-top:10px;" onclick="toggleSection('passion')">❤️ Passion Picked <span class="count" id="passion-count">0</span><span class="chevron" id="chevron-passion">▼</span></div>
-    <div id="passion-list" class="section-content"></div>
-    <div class="section-label" style="margin-top:10px;" onclick="toggleSection('trends')">🔥 Trends <span class="count" id="trend-count">0</span><span class="chevron" id="chevron-trends">▼</span></div>
-    <div id="trend-list" class="section-content"></div>
-    <div class="section-label" style="margin-top:10px;" onclick="toggleSection('archive')">Archive & Seasonal <span class="count" id="archive-count">0</span><span class="chevron" id="chevron-archive">▼</span></div>
-    <div id="archive-list" class="section-content"></div>
-  </div>
+<div id="rail">
+  <div class="rail-mark">NG</div>
+  <div class="rail-div"></div>
+  <div class="rail-link active" id="rv-home" title="Overview" onclick="go('home')">🏠</div>
+  <div class="rail-link" id="rv-catalog" title="Catalog" onclick="go('catalog')">🗂️</div>
+  <div class="rail-link" id="rv-review" title="Review" onclick="go('review')">✅</div>
+  <div class="rail-link" id="rv-auto" title="Automation" onclick="go('automation')">⚙️</div>
+  <div class="rail-link" id="rv-market" title="Marketplace" onclick="go('marketplace')">💳</div>
+  <div class="rail-link" id="rv-trends" title="Trends" onclick="go('trends')">🔥</div>
+  <div class="rail-div"></div>
+  <div class="rail-link" title="Setup" onclick="location.href='/setup'">🔧</div>
 </div>
-
 <div id="main">
   <div id="topbar">
-    <div class="profession-header">
-      <h1><span id="prof-emoji">🚁</span> <span id="prof-name">Loading…</span></h1>
-      <div class="topbar-right">
-        <div class="auto-status-pill idle" id="auto-status-pill" onclick="openPanel('automation')">
-          <span class="pulse-dot"></span>
-          <span id="auto-status-text">Automation: Idle</span>
-        </div>
-        <span class="badge researching" id="prof-badge">Researching</span>
-      </div>
-    </div>
-    <div class="prompt-bar">
-      <textarea id="prompt-input" placeholder="Describe what to create… e.g. 'Modern invoice with bold colors'" rows="1" onkeydown="handlePromptKey(event)"></textarea>
-      <button onclick="generateMockups()" id="generate-btn">Generate 5 Mockups</button>
-    </div>
+    <div class="crumb" id="crumb">Overview</div>
+    <div class="sp"></div>
+    <div class="auto-status" id="auto-status" onclick="go('automation')"><span class="pl"></span><span id="auto-word">Checking…</span></div>
   </div>
-
-  <div id="stats-bar">
-    <div class="stat-card"><div class="label">Total Products</div><div class="value" id="stat-products">—</div><div class="sub">across all professions</div></div>
-    <div class="stat-card"><div class="label">Pending Review</div><div class="value" id="stat-pending">—</div><div class="sub">awaiting your approval</div></div>
-    <div class="stat-card"><div class="label">Active Trends</div><div class="value" id="stat-trends">—</div><div class="sub">windows still open</div></div>
-    <div class="stat-card"><div class="label">Listed</div><div class="value" id="stat-listed">—</div><div class="sub">live on marketplaces</div></div>
-  </div>
-
-  <div id="action-bar">
-    <button class="action-btn" onclick="openPanel('reviewqueue')">✅ Review Queue</button>
-    <button class="action-btn" onclick="openPanel('upload')">📸 Upload Inspiration</button>
-    <button class="action-btn" onclick="openPanel('status')">📊 Status</button>
-    <button class="action-btn" onclick="openPanel('metrics')">📈 Metrics</button>
-    <button class="action-btn" onclick="openPanel('automation')">🤖 Automation</button>
-    <button class="action-btn" onclick="openPanel('trends')" style="border-color:#f59e0b;color:#92400e;">🔥 Trends</button>
-    <button class="action-btn" onclick="openPanel('notifications')">🔔 Notifications</button>
-  </div>
-
-  <div id="chat-area"></div>
+  <div id="content"></div>
 </div>
-
-<div id="panel-overlay">
-  <div class="panel-header">
-    <h2 id="panel-title">Panel</h2>
-    <button class="panel-close" onclick="closePanel()">&times;</button>
+<div class="modal" id="editor-modal"><div class="edwin">
+  <div class="edbar">
+    <span class="title" id="ed-title">Visual Editor</span>
+    <div class="cgroup"><label>Primary</label><input type="color" id="ed-primary" value="#0f172a"></div>
+    <div class="cgroup"><label>Accent</label><input type="color" id="ed-accent" value="#2dd4bf"></div>
+    <select id="ed-font">
+      <option value="'Space Grotesk','Inter',system-ui,sans-serif">Space Grotesk</option>
+      <option value="'Inter',system-ui,sans-serif">Inter</option>
+      <option value="Georgia,serif">Georgia</option>
+      <option value="'Courier New',monospace">Courier</option>
+    </select>
+    <button class="btn" onclick="exportEditor()">⬇ Export PDF</button>
+    <button class="btn green" onclick="saveEditor()">Save</button>
+    <button class="btn ghost" onclick="closeModal('editor-modal')">Close</button>
   </div>
-  <div class="panel-body" id="panel-body"></div>
-</div>
+  <div class="edbody"><div class="pv" id="ed-preview" contenteditable="true"></div></div>
+</div></div>
 
-<div id="editor-modal">
-  <div class="editor-window">
-    <div class="editor-toolbar">
-      <div class="title" id="editor-title">Visual Editor</div>
-      <div class="toolbar-group"><label>Primary</label><input type="color" class="color-input" id="ed-primary" value="#0f172a" onchange="updateEditorColor('primary',this.value)"></div>
-      <div class="toolbar-group"><label>Accent</label><input type="color" class="color-input" id="ed-accent" value="#2dd4bf" onchange="updateEditorColor('accent',this.value)"></div>
-      <div class="toolbar-group"><label>Font</label><select class="font-select" id="ed-font" onchange="updateEditorFont(this.value)">
-        <option value="'Space Grotesk','Inter',system-ui,sans-serif">Space Grotesk</option>
-        <option value="'Inter',system-ui,sans-serif">Inter</option>
-        <option value="Georgia,serif">Georgia</option>
-        <option value="'Courier New',monospace">Courier</option>
-      </select></div>
-      <button class="editor-btn export" onclick="exportEditor()">📥 Export PDF</button>
-      <button class="editor-btn save" onclick="saveEditor()">💾 Save</button>
-      <button class="editor-btn close" onclick="closeEditor()">Close</button>
-    </div>
-    <div class="editor-body"><div class="editor-preview" id="editor-preview" contenteditable="true"></div></div>
+<div class="modal" id="preview-modal"><div class="pwin">
+  <div class="pbar">
+    <span class="title" id="pv-title">Preview</span>
+    <a class="btn primary" id="pv-download" href="#" target="_blank" rel="noopener">⬇ Download</a>
+    <button class="btn ghost" onclick="closeModal('preview-modal')">Close</button>
   </div>
-</div>
+  <iframe class="pframe" id="pv-frame" title="Product preview"></iframe>
+</div></div>
 
-<div id="preview-modal" onclick="if(event.target===this)closePreview()">
-  <div class="preview-window">
-    <div class="preview-toolbar">
-      <span class="title" id="preview-title">Preview</span>
-      <a id="preview-download" href="#" target="_blank">⬇ Download file</a>
-      <button class="close" onclick="closePreview()">✕ Close</button>
-    </div>
-    <iframe id="preview-frame" src="about:blank" title="Product preview"></iframe>
-  </div>
-</div>
-
-<div class="toast-container" id="toast-container"></div>
-
+<div id="toasts"></div>
 <script>
-const API = '/api';
-let state = { activeId: null, collapsedSections: {}, currentPanel: null, professions: [], trends: [], reviewNotified: false };
-
-/* ── DATA ── */
-async function fetchProfessions() {
-  const res = await fetch(`${API}/professions`);
-  state.professions = await res.json();
-  renderSidebar();
-  if (!state.activeId && state.professions.length) selectProfession(state.professions[0].id);
+const API='/api';
+let state={view:'home',professions:[],products:[],trends:[],selected:new Set(),filters:{status:'all',type:'all',q:''},coverRebuildRunning:false};
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function showToast(kind,tt,tm){const c=document.getElementById('toasts');const t=document.createElement('div');t.className='toast '+kind;t.innerHTML='<div style="flex:1"><div class="tt"></div><div class="tm"></div></div><button class="btn ghost" style="padding:2px 8px">✕</button>';t.querySelector('.tt').textContent=tt;t.querySelector('.tm').textContent=tm;t.querySelector('button').onclick=()=>t.remove();c.appendChild(t);if(c.children.length>4)c.firstChild.remove();setTimeout(()=>t.remove(),kind==='success'?3800:5200);}
+const VIEWS=['home','catalog','review','automation','marketplace','trends'];
+function go(v){state.view=v;VIEWS.forEach(x=>{const el=document.getElementById('rv-'+x);if(el)el.className='rail-link'+(x===v?' active':'');});document.getElementById('crumb').textContent={home:'Overview',catalog:'Catalog',review:'Review Queue',automation:'Automation',marketplace:'Marketplace',trends:'Trends'}[v]||v;render();}
+const statusClass=s=>'st-'+(String(s||'draft').replace('_','-'));
+async function loadAll(){const run=async(u,cb)=>{try{cb(await (await fetch(u)).json());}catch(e){console.error(u,e);}};
+  await run(`${API}/professions`,d=>state.professions=Array.isArray(d)?d:[]);
+  await run(`${API}/products`,d=>state.products=Array.isArray(d)?d:[]);
+  await run(`${API}/trends`,d=>state.trends=(d&&d.all)||[]);
+  await updateAutoStatus();}
+function counts(){const p=state.products;return{total:p.length,draft:p.filter(x=>x.status==='draft').length,review:p.filter(x=>x.status==='pending-review'||x.status==='pending_review').length,approved:p.filter(x=>x.status==='approved').length,listed:p.filter(x=>x.status==='listed'||x.status==='published').length};}
+async function updateAutoStatus(){try{const s=await (await fetch(`${API}/automation/status`)).json();const live=!!s.running;const el=document.getElementById('auto-status');el.className='auto-status'+(live?' live':'');const w=document.getElementById('auto-word');w.textContent=live?'Engine Live':'Engine Idle';}catch(e){document.getElementById('auto-word').textContent='Offline';}}
+function render(){const c=document.getElementById('content');
+  if(state.view==='home')c.innerHTML=renderHome();
+  else if(state.view==='catalog')c.innerHTML=renderCatalog();
+  else if(state.view==='review')c.innerHTML=renderReview();
+  else if(state.view==='automation')renderAutomation(c);
+  else if(state.view==='marketplace')renderMarketplace(c);
+  else if(state.view==='trends')renderTrends(c);}
+let coverRebuildRunning=false;
+async function refresh(){await loadAll();render();}
+function thumbFor(p){const t=p&&p.type;return t==='invoice'?'🧾':t==='checklist'?'✅':t==='spreadsheet'?'📊':t==='social'?'📱':t==='brand'?'🎨':t==='journal'?'📓':t==='bundle'?'📦':t==='booking'?'📅':'🗂️';}
+function prodImg(p){return p&&p.preview_path?`<img src="/api/products/${p.id}/preview-image" loading="lazy" alt="">`:null;}
+function renderHome(){
+  const c=counts();
+  const rq=state.professions.filter(x=>x.status==='researching'||x.status==='generating'||x.status==='reviewing').length;
+  const funnel=[['Research',rq],['Draft',c.draft],['Review',c.review],['Approved',c.approved],['Listed',c.listed]].map(([l,n])=>`<div class="st ${n>0?'on':''}"><div class="ring">${n}</div><div class="l">${l}</div></div>`).join('<div class="ar">→</div>');
+  const k=`<div class="kpi"><div class="lb">Products</div><div class="num tc">${c.total}</div></div>`
+     +`<div class="kpi"><div class="lb">Review</div><div class="num am">${c.review}</div></div>`
+     +`<div class="kpi"><div class="lb">Approved</div><div class="num bl">${c.approved}</div></div>`
+     +`<div class="kpi"><div class="lb">Listed</div><div class="num gn">${c.listed}</div></div>`;
+  const acts=`<button class="btn primary" onclick="runSweep()" style="justify-content:flex-start">🛰️ Run Discovery Sweep</button>`
+    +`<button class="btn primary" onclick="runAutoCycle()" style="justify-content:flex-start">▶ Run Full Cycle Now</button>`
+    +`<button class="btn green" onclick="deployBundles()" style="justify-content:flex-start">📦 Deploy Bundles → Gumroad</button>`
+    +`<button class="btn green" onclick="deployLeadMagnet()" style="justify-content:flex-start">🧲 Deploy Lead Magnet</button>`
+    +`<button class="btn" onclick="syncSales()" style="justify-content:flex-start">💰 Sync Sales</button>`
+    +`<button class="btn" onclick="go('review');rebuildAll()" style="justify-content:flex-start">✨ Rebuild All Covers</button>`;
+  return `<div class="sh"><div><h2>Command Center</h2><div class="desc">Sweep → generate → review → publish. The engine runs while you watch the funnel.</div></div></div>
+  <div class="kpis" style="margin-bottom:14px">${k}</div>
+  <div class="panel" style="margin-bottom:16px"><div class="panel-title">Pipeline</div><div style="padding:14px 18px"><div class="funnel" style="border:none;box-shadow:none">${funnel}</div></div></div>
+  <div style="width:calc(50% - 8px);display:inline-block;vertical-align:top"><div class="panel"><div class="panel-title">Quick Actions</div><div style="display:flex;flex-direction:column;gap:8px;padding:14px 16px;align-items:stretch">${acts}</div></div></div>
+  <div style="width:calc(50% - 8px);display:inline-block;vertical-align:top"><div class="panel"><div class="panel-title">Recent Activity</div><div class="logs" id="home-log" style="max-height:320px"><div style="color:#7c8aa0;padding:12px">Loading…</div></div></div></div>`;
 }
-async function fetchTrends() {
-  const res = await fetch(`${API}/trends`);
-  const data = await res.json();
-  state.trends = data.all || [];
-  renderSidebar();
+async function loadHomeLog(){try{const logs=await (await fetch(`${API}/automation/log`)).json();const el=document.getElementById('home-log');if(!el)return;const rows=(Array.isArray(logs)?logs:[]).slice(0,14).map(l=>`<div class="logrow ${l.status}"><div class="t">${new Date(l.created_at).toLocaleTimeString().slice(0,5)}</div><div class="act">${l.action}</div><div class="tx">${esc(l.details)}</div></div>`).join('');el.innerHTML=rows||'<div style="color:#7c8aa0;padding:12px">No activity yet.</div>';}catch(e){}}
+function renderCatalog(){
+  const types=[...new Set(state.products.map(p=>p.type))];
+  const f=state.filters;
+  let list=state.products;
+  if(f.status!=='all')list=list.filter(p=>p.status===f.status);
+  if(f.type!=='all')list=list.filter(p=>p.type===f.type);
+  if(f.q)list=list.filter(p=>p.name&&p.name.toLowerCase().includes(f.q.toLowerCase()));
+  const card=p=>{const sel=state.selected.has(p.id);const img=prodImg(p);
+    return `<div class="card ${sel?'sel':''}" onclick="toggleSel(${p.id})">
+      <div style="position:relative"><span class="ck"></span><div class="thumb">${img||`<span class="ph">${thumbFor(p)}</span>`}</div></div>
+      <div class="bd"><div class="nm" title="${esc(p.name)}">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)}</div>
+      <div style="display:flex;justify-content:space-between"><span>${pillFor(p)}</span><span class="pr">${esc(p.price||'')}</span></div></div></div>`;};
+  const sel=state.selected.size;
+  return `<div class="sh"><div><h2>Catalog</h2><div class="desc">Generated products across every niche.</div></div><button class="btn ghost" onclick="go('home')">← Overview</button></div>
+  <div class="frow">
+    <div class="search"><span>🔍</span><input placeholder="Search products…" value="${esc(f.q)}" oninput="setQ(this.value)"></div>
+    <select onchange="setStatus(this.value)"><option value="all">All status</option><option value="draft">Draft</option><option value="pending-review">Review</option><option value="approved">Approved</option><option value="listed">Listed</option><option value="rejected">Rejected</option></select>
+    <select onchange="setType(this.value)"><option value="all">All types</option>${types.map(t=>`<option value="${esc(t)}" ${t===f.type?'selected':''}>${esc(t)}</option>`).join('')}</select>
+    <button class="btn" onclick="toggleSel(null)" ${sel?'':'disabled'}>Clear (${sel})</button>
+    <button class="btn green" onclick="batchSet('approved')" ${sel?'':'disabled'}>Approve</button>
+    <button class="btn" onclick="batchSet('listed')" ${sel?'':'disabled'}>List</button>
+    <button class="btn red" onclick="batchReject()" ${sel?'':'disabled'}>Reject</button>
+    <span style="color:#7c8aa0;font-size:0.78rem">${list.length} shown</span>
+  </div>
+  ${list.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px">${list.map(card).join('')}</div>`:`<div class="panel" style="padding:30px;text-align:center;color:#7c8aa0">No products match these filters.</div>`}`;
 }
-
-/* ── SIDEBAR ── */
-function renderSidebar() {
-  const search = (document.getElementById('search-input')?.value || '').toLowerCase();
-  const active = state.professions.filter(p => p.tier !== 'passion' && p.tier !== 'trend' && p.name.toLowerCase().includes(search));
-  const passion = state.professions.filter(p => p.tier === 'passion' && p.name.toLowerCase().includes(search));
-  const trendProfs = state.professions.filter(p => p.tier === 'trend' && p.name.toLowerCase().includes(search));
-  const activeTrends = state.trends.filter(t => t.activated && !t.outcome);
-
-  const item = (p, border) => `
-    <div class="profession-item ${p.id === state.activeId ? 'active' : ''}" ${border ? `style="border-left-color:${border};"` : ''} onclick="selectProfession(${p.id})">
-      <span class="emoji">${p.emoji}</span><div class="info"><div class="name">${p.name}</div></div>
-      <span class="status-dot ${p.status}"></span>
-    </div>`;
-
-  document.getElementById('active-list').innerHTML = active.map(p => item(p)).join('');
-  document.getElementById('passion-list').innerHTML = passion.map(p => item(p, '#ec4899')).join('');
-  document.getElementById('trend-list').innerHTML = trendProfs.map(p => item(p, '#f59e0b')).join('');
-  document.getElementById('archive-list').innerHTML = state.professions.filter(p => p.status === 'archived').map(p => item(p)).join('');
-  document.getElementById('active-count').textContent = active.length;
-  document.getElementById('passion-count').textContent = passion.length;
-  document.getElementById('trend-count').textContent = activeTrends.length;
-  document.getElementById('archive-count').textContent = state.professions.filter(p => p.status === 'archived').length;
-  applyCollapsedState();
-}
-function toggleSection(name) {
-  state.collapsedSections[name] = !state.collapsedSections[name];
-  applyCollapsedState();
-}
-function applyCollapsedState() {
-  ['active','archive','passion','trends'].forEach(n => {
-    const c = document.getElementById(n + '-list');
-    const ch = document.getElementById('chevron-' + n);
-    if (c) c.classList.toggle('collapsed', !!state.collapsedSections[n]);
-    if (ch) ch.classList.toggle('collapsed', !!state.collapsedSections[n]);
-  });
-}
-
-/* ── SELECT / CHAT ── */
-async function selectProfession(id) {
-  state.activeId = id;
-  const p = state.professions.find(x => x.id === id);
-  if (!p) return;
-  document.getElementById('prof-emoji').textContent = p.emoji;
-  document.getElementById('prof-name').textContent = p.name;
-  const badge = document.getElementById('prof-badge');
-  badge.textContent = (p.status || 'researching').charAt(0).toUpperCase() + (p.status || 'researching').slice(1);
-  badge.className = 'badge ' + (p.status || 'researching');
-  renderSidebar();
-  await loadChatHistory(id);
-  closePanel();
-}
-async function loadChatHistory(profId) {
-  const res = await fetch(`${API}/chat/${profId}`);
-  const history = await res.json();
-  renderChatArea(history);
-}
-function renderEmptyState() {
-  document.getElementById('chat-area').innerHTML = `
-    <div class="empty-state">
-      <div class="icon">🎨</div>
-      <h3>Describe what you need</h3>
-      <p>Generate 5 themed mockup variations. Click any mockup to open the visual editor, customize it, and save it as a product.</p>
-      <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-        <button class="action-btn" onclick="quickPrompt('invoice')">🧾 Invoice</button>
-        <button class="action-btn" onclick="quickPrompt('website')">🌐 Website</button>
-        <button class="action-btn" onclick="quickPrompt('social')">📱 Social</button>
-        <button class="action-btn" onclick="quickPrompt('brand')">🎨 Brand</button>
-        <button class="action-btn" onclick="quickPrompt('checklist')">✅ Checklist</button>
-        <button class="action-btn" onclick="quickPrompt('journal')">📓 Journal</button>
-      </div>
-    </div>`;
-}
-function escapeHtml(t) { return (t || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function renderChatArea(history) {
-  const area = document.getElementById('chat-area');
-  if (!history.length) { renderEmptyState(); return; }
-  area.innerHTML = history.map(h => {
-    if (h.role === 'user') return `<div class="chat-msg user"><div class="role">You</div><div class="bubble">${escapeHtml(h.text)}</div></div>`;
-    let html = `<div class="chat-msg ai"><div class="role">NicheGate Engine</div><div class="bubble">${escapeHtml(h.text)}</div>`;
-    if (h.mockups) {
-      let mockups; try { mockups = JSON.parse(h.mockups); } catch { mockups = []; }
-      if (mockups.length) {
-        html += `<div class="mockup-section"><div class="label">${mockups.length} Mockup Variations — click to edit</div><div class="mockup-grid">` +
-          mockups.map((m, i) => `<div class="mockup-card" onclick="openEditor(${state.activeId}, ${i})">
-            <div class="preview"><iframe srcdoc="${escapeHtml(m.html).replace(/"/g,'&quot;')}" sandbox="allow-same-origin" loading="lazy"></iframe><div class="edit-hint">✏️ Edit in Visual Editor</div></div>
-            <div class="meta"><div><div class="title">${m.themeName}</div><div class="theme">${m.type || 'Template'}</div></div>${m.price ? `<span class="price-tag">${m.price}</span>` : ''}</div>
-          </div>`).join('') + `</div></div>`;
-      }
+function toggleSel(id){if(id===null){state.selected.clear();}else{if(state.selected.has(id))state.selected.delete(id);else state.selected.add(id);}render();}
+function setQ(v){state.filters.q=v;render();}
+function setStatus(v){state.filters.status=v;render();}
+function setType(v){state.filters.type=v;render();}
+/* Rebuild all covers via cursor-based batches (safe: advances, preserves old previews). */
+async function regenerateAll(){
+  if(coverRebuildRunning)return;
+  if(!confirm('Rebuild covers in background batches? Keep this tab open. Existing previews are kept if a rebuild fails.'))return;
+  coverRebuildRunning=true;
+  let done=0,failed=0,afterId=0,maxId;
+  try{
+    while(true){
+      const q=new URLSearchParams({limit:'5',force:'1',afterId:String(afterId)});
+      if(maxId!==undefined)q.set('maxId',String(maxId));
+      const res=await fetch(`${API}/previews/generate?${q}`,{method:'POST'});
+      const d=await res.json();
+      if(!res.ok)throw new Error(d.error||'Preview request failed');
+      done+=d.generated;failed+=d.failed;
+      showToast('info','Rebuilding…',`${done} rebuilt · ${failed} failed · ${d.remaining} remaining`);
+      if(!d.hasMore)break;
+      if(!Number.isSafeInteger(d.nextAfterId)||d.nextAfterId<=afterId)throw new Error('Batch did not advance; stopped to avoid duplicates');
+      afterId=d.nextAfterId;maxId=d.maxId;
     }
-    return html + `</div>`;
-  }).join('');
-  area.scrollTop = area.scrollHeight;
-}
-
-/* ── GENERATION ── */
-function quickPrompt(type) {
-  const prompts = { invoice:'Create a professional invoice template', website:'Design a one-page service website', social:'Generate a social media content pack', brand:'Build a complete brand identity kit', checklist:'Make a service quality checklist', journal:'Design a daily reflection journal' };
-  document.getElementById('prompt-input').value = prompts[type] || '';
-  generateMockups();
-}
-function handlePromptKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generateMockups(); } }
-
-async function generateMockups() {
-  const input = document.getElementById('prompt-input');
-  const prompt = input.value.trim();
-  if (!prompt) return;
-  const prof = state.professions.find(p => p.id === state.activeId);
-  if (!prof) { showToast('warning','No profession','Select a profession first.'); return; }
-
-  const lower = prompt.toLowerCase();
-  let type = 'invoice';
-  if (lower.includes('website')) type = 'website';
-  else if (lower.includes('social')) type = 'social';
-  else if (lower.includes('brand')) type = 'brand';
-  else if (lower.includes('checklist')) type = 'checklist';
-  else if (lower.includes('journal') || lower.includes('recovery')) type = 'journal';
-
-  const btn = document.getElementById('generate-btn');
-  btn.disabled = true; btn.textContent = 'Generating 5 mockups…';
-
-  await fetch(`${API}/chat`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, role:'user', text: prompt }) });
-
-  const res = await fetch(`${API}/templates/generate`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, type }) });
-  const data = await res.json();
-  const mockups = data.mockups || [];
-
-  const created = [];
-  for (const m of mockups) {
-    const price = { invoice:'$12', website:'$24', social:'$15', brand:'$19', spreadsheet:'$17', booking:'$22', checklist:'$10', journal:'$15' }[type] || '$12';
-    const prodRes = await fetch(`${API}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, name: `${prof.name} ${type} — ${m.themeName}`, type, price, theme: m.themeName, html_content: m.html }) });
-    const pd = await prodRes.json();
-    created.push({ ...m, productId: pd.id, type, price });
-  }
-
-  await fetch(`${API}/chat`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ profession_id: prof.id, role:'ai', text: `Generated 5 ${type} templates across 5 themes. Click any to edit and save.`, mockups: created }) });
-
-  btn.disabled = false; btn.textContent = 'Generate 5 Mockups';
-  input.value = '';
-  await loadChatHistory(prof.id);
-  await refreshStats();
-}
-
-/* ── EDITOR ── */
-let editorData = { productId: null, originalHtml: '', colors: {}, type: 'invoice', profName: '' };
-
-async function openEditor(profId, mockupIdx) {
-  const chatRes = await fetch(`${API}/chat/${profId}`);
-  const history = await chatRes.json();
-  const lastAi = history.filter(h => h.role === 'ai').pop();
-  if (!lastAi?.mockups) return;
-  let mockups; try { mockups = JSON.parse(lastAi.mockups); } catch { return; }
-  const m = mockups[mockupIdx];
-  if (!m) return;
-  const prof = state.professions.find(p => p.id === profId);
-  editorData = {
-    productId: m.productId,
-    originalHtml: m.html,
-    colors: m.colors || {},
-    type: m.type || 'invoice',
-    profName: prof?.name || ''
-  };
-  document.getElementById('editor-title').textContent = `Editing: ${editorData.profName} — ${m.themeName}`;
-  document.getElementById('editor-preview').innerHTML = m.html;
-  if (m.colors?.primary) document.getElementById('ed-primary').value = m.colors.primary;
-  if (m.colors?.accent) document.getElementById('ed-accent').value = m.colors.accent;
-  if (m.colors?.font) document.getElementById('ed-font').value = m.colors.font;
-  document.getElementById('editor-modal').classList.add('open');
-}
-
-function closeEditor() { document.getElementById('editor-modal').classList.remove('open'); }
-
-// Replace a theme color hex across the preview HTML and re-render
-function updateEditorColor(key, newColor) {
-  const oldColor = editorData.colors[key];
-  if (!oldColor || oldColor.toLowerCase() === newColor.toLowerCase()) return;
-  const preview = document.getElementById('editor-preview');
-  let html = preview.innerHTML;
-  // Replace all occurrences of the old hex (case-insensitive)
-  html = html.replace(new RegExp(oldColor.replace('#', '#'), 'gi'), newColor);
-  editorData.colors[key] = newColor;
-  preview.innerHTML = html;
-}
-
-// Swap the font-family across the preview
-function updateEditorFont(font) {
-  const preview = document.getElementById('editor-preview');
-  let html = preview.innerHTML;
-  // Replace font-family declarations (from the theme's font or generic)
-  html = html.replace(/font-family:[^;]+;/gi, `font-family:${font};`);
-  preview.innerHTML = html;
-  editorData.colors.font = font;
-}
-
-async function saveEditor() {
-  if (!editorData.productId) return;
-  const html = document.getElementById('editor-preview').innerHTML;
-  await fetch(`${API}/products/${editorData.productId}/html`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ html_content: html }) });
-  showToast('success','Saved','Template updated in database.');
-}
-
-async function exportEditor() {
-  if (!editorData.productId) return;
-  const html = document.getElementById('editor-preview').innerHTML;
-  const name = (editorData.profName || 'design').toLowerCase().replace(/[^a-z0-9]+/g,'-') + '-' + editorData.type;
-  showToast('info','Exporting…','Generating your PDF');
-  try {
-    const res = await fetch(`${API}/export/render`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ html, type: editorData.type, filename: name })
-    });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Export failed'); }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = name + '.pdf'; a.click();
-    URL.revokeObjectURL(url);
-    showToast('success','Exported','PDF downloaded.');
-  } catch (e) {
-    showToast('error','Export Failed', e.message);
+    showToast(failed?'error':'success',failed?'Rebuild Finished with Failures':'Rebuild Complete',`${done} covers rebuilt; ${failed} failed.`);
+  }catch(e){
+    showToast('error','Rebuild Stopped',`${done} rebuilt; ${failed} failed. ${e.message}`);
+  }finally{
+    coverRebuildRunning=false;
   }
 }
-
-/* ── PANELS ── */
-function openPanel(type) {
-  state.currentPanel = type;
-  document.getElementById('panel-overlay').classList.add('open');
-  const titles = { reviewqueue:'✅ Review Queue', upload:'📸 Upload Inspiration', status:'📊 Status', metrics:'📈 Metrics', automation:'🤖 Automation Engine', trends:'🔥 Trend Monitor', notifications:'🔔 Notifications' };
-  document.getElementById('panel-title').textContent = titles[type] || 'Panel';
-  getPanelContent(type).then(html => { document.getElementById('panel-body').innerHTML = html; });
+async function approveProduct(id){await fetch(`${API}/products/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'approved'})});showToast('success','Approved','Product approved');await refresh();}
+async function rejectProduct(id){await fetch(`${API}/products/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'rejected'})});showToast('info','Rejected','Product rejected');await refresh();}
+async function publishProduct(id){showToast('info','Publishing…','Contacting marketplaces');const r=await fetch(`${API}/marketplace/publish/${id}`,{method:'POST'});const d=await r.json();if(r.ok)showToast('success','🚀 Published',`Live on ${d.platform}`);else showToast('error','Publish Failed',d.error||'Unknown');await refresh();}
+async function batchSet(status){const ids=[...state.selected];let ok=0,fail=0;for(const id of ids){const r=await fetch(`${API}/products/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});(r&&r.ok)?ok++:fail++;}showToast(fail?'warning':'success','Batch Update',`${ok} set to ${status}${fail?`, ${fail} failed`:''}`);state.selected.clear();await refresh();}
+async function batchReject(){if(!confirm('Reject the selected products?'))return;const ids=[...state.selected];for(const id of ids){await fetch(`${API}/products/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'rejected'})});}showToast('info','Rejected',`${ids.length} rejected`);state.selected.clear();await refresh();}
+async function rejectTrash(){if(!confirm('Reject ALL pending drafts? Approved/listed are safe.'))return;const r=await fetch(`${API}/review/reject-trash`,{method:'POST'});const d=await r.json();showToast('success','Queue Cleared',`${d.rejected} trash draft(s) rejected`);await refresh();}
+async function approveAll(){await fetch(`${API}/automation/approve-all`,{method:'POST'});showToast('success','Batch Approved','All pending approved');await refresh();}
+async function dedupeQueue(){showToast('info','Dedupe','Collapsing identical clone drafts…');const r=await fetch(`${API}/automation/dedupe`,{method:'POST'});const d=await r.json();showToast(d.removed>0?'success':'info','Dedupe Done',`Removed ${d.removed} clone(s) · ${d.remaining} pending`);await refresh();}
+async function rebuildAll(){await regenerateAll();await refresh();await updateAutoStatus();}
+async function runSweep(){showToast('info','Sweep','Scanning live sources…');await fetch(`${API}/discovery/sweep`,{method:'POST'});showToast('success','Sweep Done','Discovery sweep complete');await refresh();}
+async function runAutoCycle(){showToast('info','Cycle','Running full automation cycle…');const d=await (await fetch(`${API}/automation/run`,{method:'POST'})).json();showToast(d.error?'warning':'success','Cycle Done',d.error||'Auto-cycle completed');await refresh();}
+async function deployBundles(){showToast('info','Building toolkits…','Generating bundle files');const g=await (await fetch(`${API}/bundles/generate`,{method:'POST'})).json();if(g.error)return showToast('error','Bundle Failed',g.error);const p=await (await fetch(`${API}/bundles/publish`,{method:'POST'})).json();if(p.error)return showToast('error','Publish Failed',p.error);showToast(p.failed?'warning':'success','🚀 Bundles Live',`${p.published} published${p.failed?`, ${p.failed} failed (10/day cap)`:` — re-run tomorrow if any remain`}`);await refresh();}
+async function deployLeadMagnet(){showToast('info','Deploying…','Creating free starter pack');const d=await (await fetch(`${API}/leadmagnet/deploy`,{method:'POST'})).json();if(d.error)return showToast('error','Failed',d.error);showToast('success','Lead Magnet','Free pack is live');}
+async function syncSales(){const d=await (await fetch(`${API}/metrics/sync-gumroad`,{method:'POST'})).json();if(d.error)return showToast('error','Sync Failed',d.error);showToast(d.newSales>0?'success':'info','Sales Synced',`${d.newSales} new · $${(d.revenue||0).toFixed(2)}`);await refresh();}
+function closeModal(id){document.getElementById(id).className='modal';}
+function renderReview(){
+  const items=state.products.filter(p=>p.status==='draft'||p.status==='pending-review'||p.status==='pending_review');
+  const row=p=>{const img=prodImg(p);
+    return `<div class="rrow"><div class="rt">${img||thumbFor(p)}</div>
+      <div><div class="nm">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)} · ${esc(p.price||'')}</div><div class="tags">${pillFor(p)}</div></div>
+      <div class="acts"><button class="btn ghost" onclick="openProduct(${p.id})">👁 Open</button><button class="btn green" onclick="approveProduct(${p.id})">Approve</button><button class="btn primary" onclick="publishProduct(${p.id})">🚀 Publish</button><button class="btn red" onclick="rejectProduct(${p.id})">Reject</button></div></div>`;};
+  return `<div class="sh"><div><h2>Review Queue</h2><div class="desc">${items.length} awaiting a decision.</div></div><button class="btn ghost" onclick="go('catalog')">All Products →</button></div>
+  <div class="frow"><button class="btn" onclick="dedupeQueue()">🧹 Dedupe Clones</button><button class="btn primary" onclick="rebuildAll()">✨ Rebuild ALL Covers</button><button class="btn red" onclick="rejectTrash()">🗑 Reject All Trash</button><button class="btn green" onclick="approveAll()">✅ Approve All</button></div>
+  <div class="rows">${items.length?items.map(row).join(''):'<div class="panel" style="padding:30px;text-align:center;color:#7c8aa0">✅ Review queue is clear.</div>'}</div>`;
 }
-function closePanel() { document.getElementById('panel-overlay').classList.remove('open'); state.currentPanel = null; }
-
-async function getPanelContent(type) {
-  if (type === 'trends') {
-    const res = await fetch(`${API}/trends`);
-    const data = await res.json();
-    const active = data.active || [];
-    let html = `<div style="margin-bottom:14px;padding:14px;background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(236,72,153,0.08));border:1px solid #cbd5e1;border-radius:12px;">
-      <div style="font-weight:700;">🔥 Trend Monitor</div>
-      <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">Velocity-scored viral opportunities. Grade A = act now.</div>
-      <div style="display:flex;gap:8px;margin-top:10px;">
-        <button class="review-btn approve" style="flex:1;padding:10px;" onclick="scanTrends()">🔍 Scan Now</button>
-        <button class="review-btn publish" style="flex:1;padding:10px;" onclick="runDiscoverySweep()">🔭 Discovery Sweep</button>
-      </div>
-      <div style="font-size:0.7rem;color:#94a3b8;margin-top:8px;">Discovery hunts across 150+ industries/hobbies + live Google/Reddit/Amazon/eBay signals every 2h automatically.</div>
-    </div>`;
-    html += active.sort((a,b) => b.score - a.score).map(t => `
-      <div class="trend-card ${t.phase}">
-        <div class="emoji">${t.emoji}</div>
-        <div class="name">${t.name} ${sourceBadge(t)} <span class="grade-badge ${t.grade}">${t.grade} · ${t.score}</span></div>
-        <div class="meta">${t.phase} · ${t.velocity} · ${t.window}d window · Est ${t.est_revenue}</div>
-        <div class="meta" style="font-size:0.7rem;margin-top:2px;">${t.why}</div>
-        <div class="meta" style="font-size:0.72rem;margin-top:4px;color:#16a34a;">🛡️ Vetting: <strong>${t.vet?.verdict || '—'}</strong> · ${t.vet?.score ?? '—'} pts</div>
-        <div class="actions"><button class="review-btn approve" onclick="activateTrendNow(${t.id})">Activate</button><button class="review-btn edit" onclick="showVetting(${t.id})">Vet</button><button class="review-btn reject" onclick="dismissTrendNow(${t.id})">Dismiss</button></div>
-      </div>`).join('');
-    if (!active.length) html += '<div style="color:#94a3b8;text-align:center;padding:20px;">No active trends. Hit Scan.</div>';
-    return html;
-  }
-  if (type === 'automation') {
-    const [logRes, statusRes] = await Promise.all([fetch(`${API}/automation/log`), fetch(`${API}/automation/status`)]);
-    const logs = await logRes.json();
-    const s = await statusRes.json();
-    const banner = s.isReviewDay ? `<div class="review-banner"><div class="icon">⏸️</div><div><h4>Review Day</h4><p>${s.pendingCount} products awaiting approval. New generation paused — approved products still auto-list.</p></div></div>` : '';
-    const badge = s.running ? '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">● Running</span>' : '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">○ Idle</span>';
-    return `<div class="auto-section"><h3>⚙️ Engine ${badge}</h3>${banner}
-      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-        <button class="review-btn approve" onclick="runAutomation()">▶ Run Now</button>
-        <button class="review-btn approve" onclick="startScheduler()">⏱ Scheduler</button>
-        <button class="review-btn reject" onclick="stopScheduler()">⏹ Stop</button>
-        <button class="review-btn publish" onclick="autoListToggle()">${s.autoList ? '✅' : '⬜'} Auto-List</button>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-        <button class="review-btn publish" onclick="deployBundles()">🎁 Deploy Bundles</button>
-        <button class="review-btn edit" onclick="deployLeadMagnet()">🧲 Lead Magnet</button>
-        <button class="review-btn edit" onclick="syncSales()">💰 Sync Sales</button>
-        <button class="review-btn approve" onclick="generateCovers()">✨ AI Covers</button>
-      </div>
-      <div class="toggle-row"><div><div class="label">Auto-Generate</div><div class="desc">Every 6 hours</div></div><div>${s.autoGenerate !== false ? '✅' : '❌'}</div></div>
-      <div class="toggle-row"><div><div class="label">Auto-List</div><div class="desc">Real APIs if keys set, else simulated</div></div><div>${s.autoList ? '✅ On' : '⬜ Off'}</div></div>
-      <div class="toggle-row"><div><div class="label">Review Gate</div><div class="desc">Every ${s.reviewInterval || 2} days</div></div><div>${s.isReviewDay ? '⏸️ Paused' : '▶️ Active'}</div></div>
-      <div class="toggle-row"><div><div class="label">Pending</div></div><div><strong>${s.pendingCount}</strong></div></div>
-    </div>
-    <div class="auto-section"><h3>📋 Log</h3>${logs.slice(0,15).map(l => `<div class="auto-log-entry ${l.status}"><span class="time">${new Date(l.created_at).toLocaleTimeString()}</span><span class="text">${l.action}${l.details ? ': ' + l.details : ''}</span></div>`).join('')}</div>`;
-  }
-  if (type === 'reviewqueue') {
-    const res = await fetch(`${API}/products`);
-    const products = (await res.json()).filter(p => p.status === 'draft' || p.status === 'pending-review');
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;"><span><strong>${products.length}</strong> pending</span><span style="display:flex;gap:8px;flex-wrap:wrap;"><button class="review-btn approve" onclick="dedupeQueue()">🧹 Dedupe Clones</button><button class="review-btn approve" onclick="generatePreviews()">🖼 Generate Previews</button><button class="review-btn publish" onclick="regenerateAll()">✨ Rebuild ALL Covers</button><button class="review-btn reject" onclick="rejectTrash()">🗑 Reject All Trash</button><button class="review-btn approve" onclick="approveAll()">✅ Approve All</button></span></div>`;
-    html += products.map(p => {
-      const thumb = p.preview_path ? `<img src="/api/products/${p.id}/preview-image" loading="lazy" alt=""><img src="/api/products/${p.id}/lifestyle-image" loading="lazy" alt="" onerror="this.remove()" style="margin-top:4px;border-top:1px solid #f1f5f9;">` : thumbFor(p.type);
-      return `<div class="review-item"><div class="thumb">${thumb}</div><div class="info"><div class="name">${p.name}</div><div class="meta">${p.prof_emoji || ''} ${p.prof_name || ''} · ${p.type} · ${p.price}</div></div><div class="actions"><button class="review-btn publish" style="background:#6366f1;" onclick="previewProduct(${p.id})">👁 View</button><button class="review-btn approve" onclick="approveProduct(${p.id})">Approve</button><button class="review-btn publish" onclick="publishProduct(${p.id})">🚀 Publish</button><button class="review-btn edit" onclick="showSEO(${p.id})">SEO</button><button class="review-btn reject" onclick="rejectProduct(${p.id})">Reject</button></div></div>`;
-    }).join('');
-    if (!products.length) html += '<div style="color:#94a3b8;text-align:center;padding:30px;">✅ All caught up!</div>';
-    return html;
-  }
-  if (type === 'metrics') {
-    const res = await fetch(`${API}/metrics/summary`);
-    const d = await res.json();
-    const o = d.overall || {};
-    const rows = (d.byProfession || []).map(p =>
-      `<div class="review-item"><div class="thumb">${p.prof_emoji || '📦'}</div><div class="info"><div class="name">${p.prof_name}</div><div class="meta">${p.products} products · ${p.listed} listed · ${p.pending} pending</div></div></div>`
-    ).join('');
-    return `<div class="metric-grid">
-      <div class="metric-card" style="border-top:3px solid #22c55e;"><div class="label">Real Sales</div><div class="value">${o.realSales || 0}</div><div class="sub">from marketplaces (Sync Sales)</div></div>
-      <div class="metric-card" style="border-top:3px solid #22c55e;"><div class="label">Real Revenue</div><div class="value">$${(o.realRevenue || 0).toFixed(2)}</div></div>
-      <div class="metric-card"><div class="label">Est. Catalog Value</div><div class="value">$${(o.revenue || 0).toFixed(0)}</div></div>
-      <div class="metric-card"><div class="label">Listed</div><div class="value">${o.listed || 0}</div></div>
-      <div class="metric-card"><div class="label">Approved</div><div class="value">${o.approved || 0}</div></div>
-      <div class="metric-card"><div class="label">Products</div><div class="value">${o.products || 0}</div></div>
-    </div>
-    <div style="margin-top:14px;display:flex;gap:8px;"><button class="review-btn approve" onclick="syncSales()">🔄 Sync Gumroad Sales</button></div>
-    <div style="margin-top:16px;"><h3 style="font-size:0.85rem;font-weight:700;margin-bottom:10px;">By Profession</h3>${rows || '<div style="color:#94a3b8;text-align:center;padding:20px;">No products yet.</div>'}</div>`;
-  }
-  if (type === 'upload') return `<div class="drop-zone" onclick="document.getElementById('upload-input').click()"><div class="icon">📸</div><p>Click to upload inspiration photos</p></div><input type="file" id="upload-input" style="display:none;" onchange="handleUpload(this)">`;
-  if (type === 'status') {
-    const prof = state.professions.find(p => p.id === state.activeId);
-    const stages = ['Researching','Generating','Reviewing','Approved','Listed'];
-    const cur = stages.indexOf((prof?.status || 'researching').replace(/\b\w/g, c => c.toUpperCase()));
-    return `<div class="pipeline-bar">${stages.map((s,i) => `<div class="pipeline-stage ${i <= cur ? 'done' : ''} ${i === cur ? 'active' : ''}"></div>`).join('')}</div><div class="pipeline-labels">${stages.map(s => `<span>${s}</span>`).join('')}</div>`;
-  }
-  if (type === 'notifications') {
-    const res = await fetch(`${API}/automation/log`);
-    const logs = (await res.json()).filter(l => l.status !== 'info').slice(0, 20);
-    return logs.length ? logs.map(l => `<div class="auto-log-entry ${l.status}"><span class="time">${new Date(l.created_at).toLocaleTimeString()}</span><span class="text">${l.action}: ${l.details || ''}</span></div>`).join('') : '<div style="color:#94a3b8;text-align:center;padding:30px;">No notifications</div>';
-  }
-  return `<div style="padding:40px;text-align:center;color:#94a3b8;">${type}</div>`;
+function openProduct(id){const p=state.products.find(x=>x.id===id);if(!p)return;document.getElementById('pv-title').textContent=p.name||'Preview';document.getElementById('pv-frame').src=`/api/products/${id}/preview`;document.getElementById('preview-modal').className='modal open';const dl=document.getElementById('pv-download');dl.href=p.file_path?`/generated/${encodeURIComponent(p.file_path.split(/[\\\\/]/).pop())}`:'#';}
+function renderAutomation(c){
+  c.innerHTML=`<div class="sh"><div><h2>Automation</h2><div class="desc">Discovery sweep (2h) · Full cycle (6h) · Review gate (2d). Run the engine, watch it compound.</div></div></div>
+  <div class="kpis" style="margin-bottom:14px"><div class="kpi bl"><div class="lb">Engine</div><div class="num">—</div></div><div class="kpi tc"><div class="lb">Sweep</div><div class="num">2h</div></div><div class="kpi tc"><div class="lb">Cycle</div><div class="num">6h</div></div><div class="kpi am"><div class="lb">Review Gate</div><div class="num">2d</div></div></div>
+  <div class="frow">
+    <button class="btn primary" onclick="runAutoCycle()">▶ Run Full Cycle Now</button>
+    <button class="btn primary" onclick="runSweep()">🛰️ Run Discovery Sweep</button>
+    <button class="btn" onclick="autoList()">Auto-List</button>
+    <button class="btn" onclick="sched('start')">▶ Start Scheduler</button>
+    <button class="btn red" onclick="sched('stop')">⏹ Stop Scheduler</button>
+  </div>
+  <div class="panel" style="margin-top:14px"><div class="panel-title">Activity Log</div><div class="logs" id="auto-log"><div style="color:#7c8aa0;padding:12px">Loading…</div></div></div>`;
+  loadAutoLog();
 }
-
-/* ── ACTIONS ── */
-function sourceBadge(t) {
-  const why = (t.why || '').toLowerCase();
-  if (why.includes('radar') || why.includes('google') || why.includes('reddit') || why.includes('amazon') || why.includes('ebay')) {
-    return '<span style="font-size:0.6rem;background:rgba(45,212,191,0.15);color:#2dd4bf;padding:1px 6px;border-radius:8px;letter-spacing:1px;">🛰 LIVE</span>';
-  }
-  if (why.includes('discovery') || why.includes('seasonal')) {
-    return '<span style="font-size:0.6rem;background:rgba(236,72,153,0.15);color:#ec4899;padding:1px 6px;border-radius:8px;letter-spacing:1px;">🔎 DISCOVERY</span>';
-  }
-  return '';
+async function loadAutoLog(){try{const logs=await (await fetch(`${API}/automation/log`)).json();const el=document.getElementById('auto-log');if(!el)return;const rows=(Array.isArray(logs)?logs:[]).slice(0,40).map(l=>`<div class="logrow ${l.status}"><div class="t">${new Date(l.created_at).toLocaleTimeString().slice(0,5)}</div><div class="act">${l.action}</div><div class="tx">${esc(l.details)}</div></div>`).join('');el.innerHTML=rows||'<div style="color:#7c8aa0;padding:12px">No activity yet.</div>';}catch(e){}}
+async function sched(m){if(m==='start'){await fetch(`${API}/automation/scheduler/start`,{method:'POST'});showToast('success','Scheduler','Cron started (every 6h)');}else{await fetch(`${API}/automation/scheduler/stop`,{method:'POST'});showToast('info','Scheduler','Stopped');}await updateAutoStatus();}
+async function autoList(){const s=await (await fetch(`${API}/settings`)).json();const v=s.auto_list!=='true'?'true':'false';await fetch(`${API}/settings`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({auto_list:v})});showToast('success','Auto-List',v==='true'?'ON':'OFF');await refresh();}
+function pillFor(p){const s=p.status||'draft';const label=String(s).replace('pending-review','REVIEW').replace('pending_review','REVIEW').replace('-',' ');const color=String(s).replace('_','-');return `<span class="tpill"><span style="width:7px;height:7px;border-radius:50%;background:var(--${color==='pending-review'?'amber':color==='approved'?'teal':color==='listed'||color==='published'?'green':color==='rejected'?'red':'blue'})"></span>${esc(label)}</span>`;}
+async function renderMarketplace(c){
+  const mps=await (await fetch(`${API}/setup/status`)).json();
+  const etsy=mps&&mps.etsy, gum=mps&&mps.gumroad;
+  const good=x=>x&&x.connected||x&&x.configured;
+  const ets=state.products.filter(p=>p.marketplace==='etsy'&&(p.status==='listed'||p.status==='published')).length;
+  const gumx=state.products.filter(p=>p.marketplace==='gumroad'&&(p.status==='listed'||p.status==='published')).length;
+  c.innerHTML=`<div class="sh"><div><h2>Marketplace</h2><div class="desc">Publish to Etsy + Gumroad. Sales sync back automatically.</div></div></div>
+  <div class="conn ${good(etsy)?'ok':'bad'}"><span class="dv"></span><div class="cx">Etsy ${etsy&&etsy.connected?'Connected':etsy&&etsy.configured?'Keys set, needs auth':'Not configured'}</div><a class="btn ghost" href="/setup" target="_blank" rel="noopener">Setup</a></div>
+  <div class="conn ${good(gum)?'ok':'bad'}"><span class="dv"></span><div class="cx">Gumroad ${gum&&gum.connected?'Ready':'Not configured'}</div><a class="btn ghost" href="/setup" target="_blank" rel="noopener">Setup</a></div>
+  <div class="frow"><button class="btn green" onclick="deployBundles()">📦 Deploy Bundles</button><button class="btn primary" onclick="deployLeadMagnet()">🧲 Lead Magnet</button><button class="btn" onclick="syncSales()">💰 Sync Sales</button></div>
+  <div class="kpis" style="margin-top:12px"><div class="kpi gn"><div class="lb">Listed (Etsy)</div><div class="num">${ets}</div></div><div class="kpi gn"><div class="lb">Listed (Gumroad)</div><div class="num">${gumx}</div></div></div>`;
 }
-async function scanTrends() {
-  const res = await fetch(`${API}/trends/scan`, { method:'POST' });
-  const data = await res.json();
-  if (data.trend) showToast('warning','🔥 Trend Detected', `${data.trend.name} — ${data.trend.velocity}`);
-  else showToast('info','Scan Complete','No new niches this sweep.');
-  await fetchTrends();
-  if (state.currentPanel === 'trends') openPanel('trends');
+function renderTrends(c){
+  const rows=state.trends.slice(0,40);
+  const row=t=>{
+    const grade=(t.grade||t.verdict||'WATCH');
+    return `<div class="trend" style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:1.4rem">${esc(t.emoji||'🔥')}</span>
+      <div style="flex:1"><div class="nm">${esc(t.name)}</div><div class="mt">${esc(t.source||t.why||'')} · ${esc(t.velocity||'')} · win ${esc(t.window||'?')}d · ${esc(t.est_revenue||'')}</div></div>
+      <span class="grade ${grade}">${grade}</span>
+      <button class="btn green" ${t.activated?'disabled':''} onclick="activateTrend(${t.id})">Activate</button>
+    </div>`;};
+  c.innerHTML=`<div class="sh"><div><h2>Trend Radar</h2><div class="desc">Live discovery + vetting. Activate a niche to lock the window.</div></div>
+    <div class="frow"><button class="btn primary" onclick="trendScan()">🛰️ Scan Now</button><button class="btn" onclick="trendSweep()">Sweep</button></div></div>
+  <div class="trend" style="display:flex;align-items:center;gap:12px">
+    <div style="flex:1"><div class="nm" style="font-size:0.9rem">${state.trends.filter(t=>t.grade==='ACTIVATE').length} ACTIVATE · ${state.trends.filter(t=>t.grade==='WATCH').length} WATCH · ${state.trends.filter(t=>t.verdict==='ACTIVATE').length} vetted-ready</div><div class="mt">Vetting grade per trend</div></div>
+  </div>
+  <div class="trend" style="display:flex;align-items:center;gap:12px">${rows.length?rows.map(row).join(''):'<div style="color:#7c8aa0">No trends yet — scan now.</div>'}</div>`;
 }
-async function runDiscoverySweep() {
-  showToast('info','🔭 Discovery Sweep…','Hunting across all industries/hobbies');
-  const res = await fetch(`${API}/discovery/sweep`, { method:'POST' });
-  const data = await res.json();
-  if (data.count > 0) showToast('success','Discovery Complete', `${data.count} new niche(s) surfaced: ${data.names.slice(0,3).join(', ')}`);
-  else showToast('info','Discovery Complete','Nothing new this sweep — checking again automatically.');
-  await fetchTrends();
-  if (state.currentPanel === 'trends') openPanel('trends');
-}
-async function activateTrendNow(id) {
-  await fetch(`${API}/trends/${id}/activate`, { method:'POST' });
-  showToast('success','Trend Activated','Profession created — generate products for it!');
-  await Promise.all([fetchTrends(), fetchProfessions()]);
-}
-async function dismissTrendNow(id) {
-  await fetch(`${API}/trends/${id}/dismiss`, { method:'POST' });
-  await fetchTrends();
-  if (state.currentPanel === 'trends') openPanel('trends');
-}
-async function showSEO(productId) {
-  const res = await fetch(`${API}/seo/${productId}`);
-  const s = await res.json();
-  if (!s || !s.title) return showToast('error','SEO','Could not load SEO data');
-  const tags = (s.tags || []).map(t => `<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:2px 8px;font-size:0.7rem;margin:2px;">${t}</span>`).join('');
-  showToast('info', '🔍 SEO Preview', `<div style="font-size:0.78rem;"><strong>Title:</strong><br>${s.title}<br><br><strong>Gumroad:</strong> ${s.shortTitle}<br><br><strong>Tags (${(s.tags||[]).length}):</strong><br>${tags}</div>`);
-}
-async function showVetting(id) {
-  const res = await fetch(`${API}/trends/vet/${id}`);
-  const v = await res.json();
-  if (!v || v.score === undefined) return showToast('error','Vetting','Could not load vetting data');
-  const s = v.signals || {};
-  const bar = (label, val) => `<div style="margin:6px 0;"><div style="display:flex;justify-content:space-between;font-size:0.78rem;"><span>${label}</span><strong>${Math.round(val)}</strong></div><div style="background:#e2e8f0;border-radius:4px;height:8px;margin-top:3px;"><div style="width:${Math.min(100,val)}%;background:${val>=70?'#22c55e':val>=45?'#f59e0b':'#ef4444'};height:8px;border-radius:4px;"></div></div></div>`;
-  showToast('info', `🛡️ Vetting: ${v.verdict} (${v.score})`, `Demand ${bar('Demand',s.demand)}${bar('Competition edge',s.competition)}${bar('Margin',s.margin)}${bar('Seasonality',s.seasonality)}${bar('Longevity',s.longevity)}`);
-}
-async function runAutomation() {
-  const res = await fetch(`${API}/automation/run`, { method:'POST' });
-  const data = await res.json();
-  showToast('success','🤖 Engine Run', `Generated ${data.generated} products`);
-  await refreshStats();
-}
-async function startScheduler() { await fetch(`${API}/automation/scheduler/start`, { method:'POST' }); showToast('success','Scheduler','Cron started (every 6 hours)'); updateAutoStatus(); }
-async function stopScheduler() { await fetch(`${API}/automation/scheduler/stop`, { method:'POST' }); showToast('info','Scheduler','Stopped'); updateAutoStatus(); }
-async function autoListToggle() {
-  const s = await (await fetch(`${API}/settings`)).json();
-  const v = s.auto_list !== 'true' ? 'true' : 'false';
-  await fetch(`${API}/settings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key:'auto_list', value: v }) });
-  showToast('success','Auto-List', v === 'true' ? 'Enabled — approved products publish automatically' : 'Disabled');
-  if (state.currentPanel === 'automation') openPanel('automation');
-}
-const TYPE_ICONS = { invoice:'🧾', checklist:'☑️', spreadsheet:'📊', social:'🖼️', booking:'📅', journal:'📓', brand:'🎨', website:'🌐', bundle:'📦', 'decision-matrix':'🧭', roi:'📈', leadmagnet:'🧲' };
-function thumbFor(type) { return TYPE_ICONS[type] || '📦'; }
-
-async function previewProduct(id) {
-  try {
-    const res = await fetch(`${API}/products/${id}`);
-    if (!res.ok) throw new Error('Could not load product');
-    const p = await res.json();
-    document.getElementById('preview-title').textContent = `👁 ${p.name} (${p.type} · ${p.price || ''})`;
-    const dl = document.getElementById('preview-download');
-    dl.href = `/api/export/product/${id}`;
-    dl.style.display = 'inline-block';
-    document.getElementById('preview-frame').src = `/api/products/${id}/preview`;
-    document.getElementById('preview-modal').classList.add('open');
-  } catch (e) {
-    showToast('error', 'Preview Failed', e.message);
-  }
-}
-
-function closePreview() {
-  document.getElementById('preview-modal').classList.remove('open');
-  document.getElementById('preview-frame').src = 'about:blank';
-}
-
-async function dedupeQueue() {
-  showToast('info', 'Dedupe', 'Collapsing identical clone drafts…');
-  try {
-    const res = await fetch(`${API}/automation/dedupe`, { method: 'POST' });
-    const d = await res.json();
-    showToast(d.removed > 0 ? 'success' : 'info', 'Dedupe Done', `Removed ${d.removed} clone(s) · ${d.remaining} pending now`);
-    if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
-    refreshStats();
-  } catch (e) {
-    showToast('error', 'Dedupe Failed', e.message);
-  }
-}
-
-async function generatePreviews() {
-  showToast('info', 'Previews', 'Generating previews (first batch of 25)…');
-  try {
-    const res = await fetch(`${API}/previews/generate?limit=25`, { method: 'POST' });
-    const d = await res.json();
-    const msg = `${d.generated} generated${d.failed ? `, ${d.failed} failed` : ''}. ${d.remaining} still pending.`;
-    showToast(d.failed ? 'error' : 'success', 'Previews Done', msg);
-    if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
-  } catch (e) {
-    showToast('error', 'Previews Failed', e.message);
-  }
-}
-let coverRebuildRunning = false;
-async function regenerateAll() {
-  if (coverRebuildRunning) return;
-  if (!confirm('Rebuild covers for drafts and approved products? Keep this tab open. Existing previews stay available if a rebuild fails.')) return;
-  coverRebuildRunning = true;
-  let done = 0, failed = 0, afterId = 0, maxId;
-  try {
-    while (true) {
-      const query = new URLSearchParams({ limit: '5', force: '1', afterId: String(afterId) });
-      if (maxId !== undefined) query.set('maxId', String(maxId));
-      const res = await fetch(`${API}/previews/generate?${query}`, { method: 'POST' });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || 'Preview request failed');
-      done += d.generated;
-      failed += d.failed;
-      showToast('info', 'Rebuilding…', `${done} rebuilt · ${failed} failed · ${d.remaining} remaining`);
-      if (!d.hasMore) break;
-      if (!Number.isSafeInteger(d.nextAfterId) || d.nextAfterId <= afterId) {
-        throw new Error('Batch did not advance; stopped to avoid duplicate generation');
-      }
-      afterId = d.nextAfterId;
-      maxId = d.maxId;
-    }
-    showToast(failed ? 'error' : 'success', failed ? 'Rebuild Finished with Failures' : 'Rebuild Complete',
-      `${done} covers rebuilt; ${failed} failed. Listed products were not changed.`);
-  } catch (e) {
-    showToast('error', 'Rebuild Stopped', `${done} rebuilt; ${failed} failed. ${e.message}`);
-  } finally {
-    coverRebuildRunning = false;
-    if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
-    refreshStats();
-  }
-}
-
-async function approveProduct(id) {
-  await fetch(`${API}/products/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status:'approved' }) });
-  showToast('success','Approved','Product approved');
-  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
-  refreshStats();
-}
-async function rejectProduct(id) {
-  await fetch(`${API}/products/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status:'rejected' }) });
-  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
-  refreshStats();
-}
-async function publishProduct(id) {
-  showToast('info','Publishing…','Contacting marketplaces');
-  const res = await fetch(`${API}/marketplace/publish/${id}`, { method:'POST' });
-  const data = await res.json();
-  if (res.ok) showToast('success','🚀 Published', `Live on ${data.platform}`);
-  else showToast('error','Publish Failed', data.error || 'Unknown error');
-  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
-  refreshStats();
-}
-async function rejectTrash() {
-  if (!confirm('Reject ALL pending drafts? Approved/listed are safe.')) return;
-  showToast('info', 'Rejecting…', 'Clearing trash drafts');
-  const res = await fetch(`${API}/review/reject-trash`, { method: 'POST' });
-  const d = await res.json();
-  showToast('success', 'Queue Cleared', `${d.rejected} trash draft(s) rejected`);
-  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
-  refreshStats();
-}
-async function generateCovers() {
-  showToast('info', 'AI Covers', 'Generating lifestyle backgrounds (free tier, slow — 10 at a time)…');
-  try {
-    const res = await fetch(`${API}/covers/generate?limit=10&status=approved`, { method: 'POST' });
-    const d = await res.json();
-    showToast(d.failed ? 'error' : 'success', 'Covers Done', `${d.generated} generated${d.failed ? `, ${d.failed} failed` : ''}`);
-    if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
-  } catch (e) {
-    showToast('error', 'Covers Failed', e.message);
-  }
-}
-async function approveAll() {
-  await fetch(`${API}/automation/approve-all`, { method:'POST' });
-  showToast('success','Batch Approved','All pending approved');
-  if (state.currentPanel === 'reviewqueue') openPanel('reviewqueue');
-  refreshStats();
-}
-async function deployBundles() {
-  showToast('info','Building toolkits…','Generating bundle files — this can take a few minutes');
-  try {
-    const g = await (await fetch(`${API}/bundles/generate`, { method:'POST' })).json();
-    if (g.error) throw new Error(g.error);
-    showToast('success','Toolkits Ready', `${g.created} new bundles built (${g.skipped} already existed)`);
-    showToast('info','Publishing…','Uploading toolkits to Gumroad');
-    const p = await (await fetch(`${API}/bundles/publish`, { method:'POST' })).json();
-    if (p.error) throw new Error(p.error);
-    showToast('success','🚀 Live on Gumroad', `${p.published} toolkits published${p.failed ? ', ' + p.failed + ' failed' : ''}`);
-  } catch (e) { showToast('error','Bundle Deploy Failed', e.message); }
-  refreshStats();
-}
-async function deployLeadMagnet() {
-  showToast('info','Deploying…','Creating free starter pack on Gumroad');
-  try {
-    const d = await (await fetch(`${API}/leadmagnet/deploy`, { method:'POST' })).json();
-    if (d.error) throw new Error(d.error);
-    if (d.alreadyLive) showToast('info','Already Live', d.url);
-    else showToast('success','🧲 Lead Magnet Live', d.url || 'Free pack is up — email capture enabled');
-  } catch (e) { showToast('error','Lead Magnet Failed', e.message); }
-}
-async function syncSales() {
-  try {
-    const d = await (await fetch(`${API}/metrics/sync-gumroad`, { method:'POST' })).json();
-    if (d.error) throw new Error(d.error);
-    if (d.newSales > 0) showToast('success','💰 New Sales!', `${d.newSales} sale(s) — $${d.revenue.toFixed(2)}`);
-    else showToast('info','Synced','No new sales yet — keep publishing!');
-    if (state.currentPanel === 'metrics') openPanel('metrics');
-  } catch (e) { showToast('error','Sync Failed', e.message); }
-}
-async function handleUpload(input) {
-  if (!input.files.length) return;
-  const fd = new FormData();
-  fd.append('photo', input.files[0]);
-  await fetch(`${API}/inspiration/${state.activeId}`, { method:'POST', body: fd });
-  showToast('success','Uploaded','Inspiration photo saved');
-}
-function filterProfessions() { renderSidebar(); }
-
-/* ── STATS + STATUS ── */
-async function refreshStats() {
-  const res = await fetch(`${API}/products`);
-  const products = await res.json();
-  document.getElementById('stat-products').textContent = products.length;
-  document.getElementById('stat-pending').textContent = products.filter(p => p.status === 'draft' || p.status === 'pending-review').length;
-  document.getElementById('stat-listed').textContent = products.filter(p => p.status === 'listed').length;
-  const t = await (await fetch(`${API}/trends`)).json();
-  document.getElementById('stat-trends').textContent = (t.active || []).length;
-}
-async function updateAutoStatus() {
-  try {
-    const s = await (await fetch(`${API}/automation/status`)).json();
-    const pill = document.getElementById('auto-status-pill');
-    const text = document.getElementById('auto-status-text');
-    if (s.isReviewDay) { pill.className = 'auto-status-pill paused'; text.textContent = 'Automation: Paused for Review'; }
-    else if (s.running) { pill.className = 'auto-status-pill processing'; text.textContent = 'Automation: Running'; }
-    else { pill.className = 'auto-status-pill idle'; text.textContent = 'Automation: Idle'; }
-    if (s.isReviewDay && !state.reviewNotified) {
-      state.reviewNotified = true;
-      showToast('warning','⏸️ Review Day', `${s.pendingCount} products awaiting approval.`);
-    }
-    if (!s.isReviewDay) state.reviewNotified = false;
-  } catch {}
-}
-
-/* ── TOASTS ── */
-function showToast(type, title, msg) {
-  const icons = { info:'ℹ️', success:'✅', warning:'⚠️', error:'❌' };
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.innerHTML = `<span class="toast-icon">${icons[type]}</span><div><div class="toast-title">${title}</div><div class="toast-msg">${msg}</div></div><button class="toast-close" onclick="this.parentElement.remove()">&times;</button>`;
-  document.getElementById('toast-container').appendChild(el);
-  setTimeout(() => el.remove(), 6000);
-}
-
+async function trendScan(){showToast('info','Scan','Running live radar…');const d=await (await fetch(`${API}/trends/scan`,{method:'POST'})).json();showToast('success','Scan Done','Trends refreshed');await refresh();}
+async function trendSweep(){showToast('info','Sweep','Discovery sweep…');await fetch(`${API}/discovery/sweep`,{method:'POST'});showToast('success','Sweep','Discovery complete');await refresh();}
+async function activateTrend(id){const r=await fetch(`${API}/trends/${id}/activate`,{method:'POST'});const d=await r.json();showToast(d.error?'warning':'success',d.error?'Activation blocked':'Activated',d.error||'Niche active — products generating');await refresh();}
+async function generatePreviewsSingle(id){const r=await fetch(`${API}/previews/generate?limit=10&force=1&afterId=`+(id-1)+`&maxId=`+id,{method:'POST'});const d=await r.json();showToast('success','Preview','Cover generated');await refresh();}
+/* ── Visual editor (product HTML recolor + export) ── */
+let ed={id:null,html:'',colors:{primary:'#0f172a',accent:'#2dd4bf',font:"'Space Grotesk','Inter',system-ui,sans-serif"},type:'invoice',name:''};
+function editProduct(id){const p=state.products.find(x=>x.id===id);if(!p)return;const m=p.html_content&&p.html_content.length>40?p.html_content:fallbackHtml(p);ed={id:p.id,html:m,colors:{primary:'#0f172a',accent:'#2dd4bf',font:"'Space Grotesk','Inter',system-ui,sans-serif"},type:p.type,name:p.name||p.type};_edOpen();}
+function _edOpen(){document.getElementById('ed-title').textContent='Editing: '+(ed.name||ed.type);document.getElementById('ed-preview').innerHTML=ed.html;document.getElementById('ed-primary').value='#0f172a';document.getElementById('ed-accent').value='#2dd4bf';document.getElementById('editor-modal').className='modal open';}
+function _clr(key,v){const pre=document.getElementById('ed-preview');const old=ed.colors[key];if(old&&old.toLowerCase()!==v.toLowerCase())pre.innerHTML=pre.innerHTML.replace(new RegExp(old.replace('#','#'),'gi'),v);ed.colors[key]=v;}
+function _font(v){document.getElementById('ed-preview').innerHTML=document.getElementById('ed-preview').innerHTML.replace(/font-family:[^;]+;/gi,'font-family:'+v+';');ed.colors.font=v;}
+async function saveEditor(){if(!ed.id)return;const html=document.getElementById('ed-preview').innerHTML;await fetch(`${API}/products/${ed.id}/html`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({html_content:html})});showToast('success','Saved','Template updated');}
+async function exportEditor(){if(!ed.id)return;const html=document.getElementById('ed-preview').innerHTML;const name=(ed.name||ed.type).toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+ed.type;showToast('info','Exporting…','Generating PDF');try{const r=await fetch(`${API}/export/render`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({html,type:ed.type,filename:name})});if(!r.ok){const e=await r.json();throw new Error(e.error||'Export failed');}const b=await r.blob();const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name+'.pdf';a.click();showToast('success','Exported','PDF ready');}catch(e){showToast('error','Export Failed',e.message);}}
+function fallbackHtml(p){return `<div style="font-family:'Space Grotesk','Inter',system-ui,sans-serif;padding:60px;background:#f8f7f4;color:#14110f"><h1 style="font-size:40px">${esc(p.name||'Product')}</h1><p style="font-size:18px;color:#57534e">${esc(p.prof_name||'')} · ${esc(p.type)} · ${esc(p.price||'')}</p><div style="margin-top:24px;color:#78716c">Premium digital template — edit to customize.</div></div>`;}
+document.getElementById('ed-primary').onchange=e=>_clr('primary',e.target.value);
+document.getElementById('ed-accent').onchange=e=>_clr('accent',e.target.value);
+document.getElementById('ed-font').onchange=e=>_font(e.target.value);
 /* ── INIT ── */
-(async function init() {
-  await fetchProfessions();
-  await fetchTrends();
-  await refreshStats();
-  await updateAutoStatus();
-  renderEmptyState();
-  setInterval(updateAutoStatus, 30000);
-})();
+(async function init(){await loadAll();render();if(state.view==='home')loadHomeLog();})();
 </script>
 </body>
 </html>
