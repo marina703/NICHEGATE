@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NicheGate — Sign In</title>
+<meta name="robots" content="noindex,nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0f17;color:#e2e8f0;font-family:'Inter',system-ui,sans-serif}
+.card{width:min(380px,90vw);background:#111827;border:1px solid #1e293b;border-radius:16px;padding:36px 34px;box-shadow:0 30px 80px -30px rgba(0,0,0,.8)}
+.mark{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#2dd4bf,#0a0f17);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.2rem;color:#0a0f17;font-family:'Space Grotesk'}
+h1{font-family:'Space Grotesk';font-size:1.4rem;font-weight:700;margin:18px 0 4px;letter-spacing:.2px}
+p{font-size:.82rem;color:#7c8aa0;line-height:1.5}
+form{margin-top:22px;display:flex;flex-direction:column;gap:14px}
+label{font-size:.7rem;letter-spacing:1.2px;text-transform:uppercase;color:#7c8aa0;font-weight:600}
+input{background:#0d1420;border:1px solid #1e293b;color:#e2e8f0;border-radius:10px;padding:12px 14px;font-size:.9rem;outline:none}
+input:focus{border-color:#2dd4bf;box-shadow:0 0 0 3px rgba(45,212,191,.15)}
+button{margin-top:6px;background:#2dd4bf;color:#06231f;border:none;border-radius:10px;padding:13px;font-weight:800;font-size:.85rem;cursor:pointer;font-family:'Space Grotesk'}
+button:hover{filter:brightness(1.1)}
+.err{display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#fca5a5;border-radius:8px;padding:9px 12px;font-size:.78rem}
+.err.show{display:block}
+.hint{margin-top:18px;font-size:.68rem;color:#56708c;text-align:center;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="mark">NG</div>
+  <h1>NicheGate Console</h1>
+  <p>Sign in to manage the product factory.</p>
+  <div class="err" id="err"></div>
+  <form id="login-form">
+    <div><label>Admin password</label><input type="password" id="pass" autocomplete="current-password" placeholder="••••••••" required></div>
+    <button type="submit" id="btn">Sign In</button>
+  </form>
+  <div class="hint">Autonomous sweeps, generation &amp; publishing keep running server-side — login only guards this control surface.</div>
+</div>
+<script>
+const form = document.getElementById('login-form');
+const err = document.getElementById('err');
+const btn = document.getElementById('btn');
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  err.classList.remove('show');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: document.getElementById('pass').value }) });
+    const d = await r.json();
+    if (r.ok && d.ok) { location.href = '/'; return; }
+    err.textContent = d.error || 'Sign-in failed'; err.classList.add('show');
+  } catch (ex) {
+    err.textContent = 'Network error'; err.classList.add('show');
+  }
+  btn.disabled = false; btn.textContent = 'Sign In';
+});
+</script>
+</body>
+</html>

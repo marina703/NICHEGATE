@@ -46,6 +46,25 @@ app.use('/generated', express.static(path.join(__dirname, '..', 'generated')));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use(express.static(path.join(__dirname, '..', 'client'), { extensions: ['html'] }));
 
+// ── AUTH (optional single-admin dashboard protection) ──
+// Enabled only when ADMIN_PASSWORD is set. API is gated JSON; health + auth
+// routes stay open so Railway's healthcheck and login keep working. Autonomous
+// jobs run server-side (DB/services), so they are never blocked by login.
+const auth = require('./services/auth');
+app.post('/api/auth/login', async (req, res) => {
+  try { await auth.login(req, res); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/auth/logout', (req, res) => auth.logout(req, res));
+app.get('/api/auth/status', (req, res) => {
+  res.json({ enabled: auth.enabled(), authed: auth.isValidToken(auth.tokenFrom(req)) });
+});
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/auth') || req.path.startsWith('/health')) return next();
+  return auth.requireAuth({ json: true })(req, res, next);
+});
+app.use(['/'], auth.requireAuth());
+app.use(['/setup'], auth.requireAuth());
+
 // ── INIT DB ──
 init();
 initDefaultSettings();

@@ -130,6 +130,12 @@ function init() {
       shop_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      token TEXT PRIMARY KEY,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME
+    );
   `);
 
   // Migration: raster preview thumbnails (older DBs won't have this column)
