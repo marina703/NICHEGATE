@@ -12,9 +12,9 @@ const { ensureProductFile } = require('./fileFactory');
 
 const OUTPUT_DIR = path.join(__dirname, '..', '..', 'generated');
 
-const MEMBER_TYPES = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social', 'tool'];
+const MEMBER_TYPES = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social', 'brand', 'website', 'tool', 'planner', 'wall-art'];
 const RECOVERY_SLUGS = ['aa-recovery', 'smart-recovery', 'refuge-recovery', 'womens-recovery', 'secular-recovery', 'faith-recovery'];
-const TYPE_PRICES = { invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15', journal: '$15' };
+const TYPE_PRICES = { invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15', journal: '$15', brand: '$19', website: '$24', tool: '$15', planner: '$12', 'wall-art': '$9', worksheet: '$8', 'party-printable': '$10' };
 
 async function getOrCreateMemberFile(prof, type) {
   let row = db.prepare(`
@@ -119,7 +119,8 @@ async function buildLeadMagnet() {
 const COVER_BY_TYPE = {
   invoice: 'invoice.png', checklist: 'checklist.png', spreadsheet: 'calculator.png',
   booking: 'booking.png', social: 'social.png', journal: 'journal.png',
-  brand: 'brand.png', website: 'website.png',
+  brand: 'brand.png', website: 'website.png', tool: 'tool.png',
+  planner: 'journal.png', 'wall-art': 'website.png', worksheet: 'checklist.png', 'party-printable': 'social.png',
   bundle: 'nichegate_logo_on_black.png', leadmagnet: 'nichegate_logo_on_black.png'
 };
 function coverForType(type) {
