@@ -703,6 +703,140 @@ function buildPartyPrintableHTML(prof, theme) {
   </div>`, theme);
 }
 
+// ── PYRO BATCH MIXING WORKSHEET (manual method) ────────────────────────────
+function buildPyroBatchHTML(prof, theme) {
+  return shell(`${esc(prof.name)} — Batch Mixing Worksheet`, `
+    body{background:#f7f5f1;display:flex;align-items:center;justify-content:center;min-height:1120px;margin:0}
+    .ws{width:840px;background:#fff;border-radius:14px;padding:52px 50px;font-family:${SYSTEM_FONT};border:2px solid ${theme.accent}}
+    .ws .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${theme.primary};padding-bottom:12px}
+    .ws .hd h1{font-size:1.5rem;font-weight:900;color:${theme.primary}}
+    .ws .hd .lbl{font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:${theme.accent};font-weight:800}
+    .rule{margin-top:18px;font-size:0.9rem;color:#4c4438;background:rgba(0,0,0,.04);border-left:3px solid ${theme.accent};padding:12px 14px;border-radius:0 8px 8px 0}
+    .rule b{color:${theme.primary}}
+    .grid{margin-top:24px}
+    .row{display:grid;grid-template-columns:1fr 140px 140px;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px dashed #cbd5e1}
+    .row .pct{font-weight:700;color:#334155}
+    .row .pct em{font-size:0.68rem;color:#8a7a5e;font-style:normal;font-weight:600;display:block}
+    .row .blank{height:32px;border-bottom:1.5px solid #cbd5e1}
+    .total{display:flex;justify-content:space-between;align-items:center;margin-top:22px;padding-top:14px;border-top:2px solid ${theme.primary}}
+    .total .l{font-weight:800;color:${theme.primary}}
+    .total .v{font-weight:900;color:${theme.accent};font-size:1.2rem}
+    .note{margin-top:26px;font-size:0.78rem;color:#7c8aa0;line-height:1.6}
+  `, `
+  <div class="ws">
+    <div class="hd"><h1>Batch Mixing Worksheet</h1><div class="lbl">Manual Method · ${esc(prof.name)}</div></div>
+    <div class="rule"><b>The Golden Rule:</b> the total of all parts must equal <b>100%</b>, and the batch weight equals the sum of every ingredient weight. Work one line at a time — never scale two chemicals from the same measurement.</div>
+    <div class="grid">
+      <div class="row"><div class="pct">Oxidizer <em>______ %</em></div><div class="blank"></div><div class="blank"></div></div>
+      <div class="row"><div class="pct">Fuel <em>______ %</em></div><div class="blank"></div><div class="blank"></div></div>
+      <div class="row"><div class="pct">Binder <em>______ %</em></div><div class="blank"></div><div class="blank"></div></div>
+      <div class="row"><div class="pct">Color / Additive <em>______ %</em></div><div class="blank"></div><div class="blank"></div></div>
+      <div class="row"><div class="pct">Other <em>______ %</em></div><div class="blank"></div><div class="blank"></div></div>
+    </div>
+    <div class="total"><div class="l">Total batch weight</div><div class="v">_________ g</div></div>
+    <div class="note">Tips: measure dry ingredients first, then binder. Batch by weight (grams), not volume — density varies. Keep a written record of every batch: date, formula, batch size, and result. Always complete the batch worksheet <b>before</b> mastering. Educational reference only — observe all local regulations.</div>
+  </div>`, theme);
+}
+
+// ── PYRO LIFT & FUSE WORKSHEET (manual method) ─────────────────────────────
+function buildPyroLiftFuseHTML(prof, theme) {
+  return shell(`${esc(prof.name)} — Lift & Fuse Worksheet`, `
+    body{background:#f7f5f1;display:flex;align-items:center;justify-content:center;min-height:1120px;margin:0}
+    .ws{width:840px;background:#fff;border-radius:14px;padding:46px 48px;font-family:${SYSTEM_FONT};border:2px solid ${theme.accent}}
+    .ws .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${theme.primary};padding-bottom:12px}
+    .ws .hd h1{font-size:1.45rem;font-weight:900;color:${theme.primary}}
+    .ws .hd .lbl{font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:${theme.accent};font-weight:800}
+    .rule{margin-top:16px;font-size:0.86rem;color:#4c4438;background:rgba(0,0,0,.04);border-left:3px solid ${theme.accent};padding:10px 14px;border-radius:0 8px 8px 0}
+    .rule b{color:${theme.primary}}
+    .sec{margin-top:22px}
+    .sec h3{font-size:0.8rem;letter-spacing:1.6px;text-transform:uppercase;color:${theme.primary};font-weight:800;margin-bottom:8px}
+    .row{display:grid;grid-template-columns:1fr 150px 150px;gap:12px;align-items:center;padding:9px 4px;border-bottom:1px dashed #cbd5e1}
+    .row .k{font-weight:600;color:#334155;font-size:0.88rem}
+    .row .blank{height:30px;border-bottom:1.5px solid #cbd5e1}
+    .ref{margin-top:20px;padding:16px 18px;background:#fbf7ef;border:1px solid rgba(0,0,0,.06);border-radius:12px}
+    .ref .tt{font-size:0.72rem;letter-spacing:1.4px;text-transform:uppercase;color:#8a7a5e;font-weight:800;margin-bottom:8px}
+    .ref .row{grid-template-columns:1fr 1fr 1fr 1fr;border-bottom:none;padding:6px 0}
+    .ref .row .cell{text-align:center;font-size:0.8rem}
+    .ref .row .cell b{display:block;font-size:1rem;color:${theme.primary}}
+    .note{margin-top:24px;font-size:0.76rem;color:#7c8aa0;line-height:1.6}
+  `, `
+  <div class="ws">
+    <div class="hd"><h1>Lift &amp; Fuse Worksheet</h1><div class="lbl">Manual Method · ${esc(prof.name)}</div></div>
+    <div class="rule"><b>Lift rule of thumb:</b> more shell weight = more lift powder. <b>Fuse rule:</b> delay in seconds ÷ burn rate (sec/inch) = inches to cut. Always cut a little long and trim — never short.</div>
+    <div class="sec">
+      <h3>Lift Charge</h3>
+      <div class="row"><div class="k">Shell weight (g)</div><div class="blank"></div><div class="blank"></div></div>
+      <div class="row"><div class="k">Lift powder (g)</div><div class="blank"></div><div class="blank"></div></div>
+    </div>
+    <div class="sec">
+      <h3>Fuse Cut / Delay</h3>
+      <div class="row"><div class="k">Target delay (seconds)</div><div class="blank"></div><div class="blank"></div></div>
+      <div class="row"><div class="k">Burn rate (sec/inch)</div><div class="blank"></div><div class="blank"></div></div>
+      <div class="row"><div class="k">Inches to cut</div><div class="blank"></div><div class="blank"></div></div>
+    </div>
+    <div class="ref">
+      <div class="tt">Quick Reference</div>
+      <div class="row">
+        <div class="cell">Shell 2"<b>~30g</b></div>
+        <div class="cell">Shell 3"<b>~60g</b></div>
+        <div class="cell">Shell 4"<b>~110g</b></div>
+        <div class="cell">Shell 5"<b>~200g</b></div>
+      </div>
+    </div>
+    <div class="note">Do not exceed the lift for your shell size. Test fuse burn rate on a scrap length before cutting the real run. Write down every value. Educational reference only — observe all local regulations and never work alone.</div>
+  </div>`, theme);
+}
+
+// ── PYRO PRE-SHOOT CHECKLIST & LAUNCH LOG (manual method) ──────────────────
+function buildPyroShootLogHTML(prof, theme) {
+  const checks = [
+    'Verify minimum spectator separation distance (NFPA 1123)',
+    'Secure and stabilize all mortar racks (sandbags/stakes)',
+    'Confirm wind speeds are below 20 mph',
+    'Place minimum two 2.5-gal pressurized water extinguishers at ready',
+    'Cover all loaded mortars with foil/plastic to prevent cross-ignition',
+    'Conduct final continuity test on electronic firing system'
+  ];
+  const rows = checks.map((c, i) => `<div class="chk"><span class="box">${i + 1}</span><span class="t">${c}</span><span class="tick"></span></div>`).join('');
+  return shell(`${esc(prof.name)} — Pre-Shoot Checklist & Log`, `
+    body{background:#f7f5f1;display:flex;align-items:center;justify-content:center;min-height:1120px;margin:0}
+    .ws{width:840px;background:#fff;border-radius:14px;padding:44px 46px;font-family:${SYSTEM_FONT};border:2px solid ${theme.accent}}
+    .ws .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${theme.primary};padding-bottom:12px}
+    .ws .hd h1{font-size:1.4rem;font-weight:900;color:${theme.primary}}
+    .ws .hd .lbl{font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:${theme.accent};font-weight:800}
+    .meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:18px}
+    .meta .f .lab{font-size:0.64rem;letter-spacing:1.4px;text-transform:uppercase;color:#8a7a5e;font-weight:700}
+    .meta .f .blank{height:26px;border-bottom:1.5px solid #cbd5e1;margin-top:4px}
+    .chk{display:grid;grid-template-columns:26px 1fr 34px;gap:12px;align-items:center;padding:11px 4px;border-bottom:1px solid #eef0f2}
+    .chk .box{width:22px;height:22px;border-radius:6px;background:${theme.accent};color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800}
+    .chk .t{font-size:0.88rem;color:#334155;font-weight:600}
+    .chk .tick{width:30px;height:30px;border:2px solid #cbd5e1;border-radius:6px}
+    .loghead{margin-top:22px;font-size:0.78rem;letter-spacing:1.6px;text-transform:uppercase;color:${theme.primary};font-weight:800}
+    .lg{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 1fr;gap:6px;margin-top:10px}
+    .lg .h{font-size:0.68rem;text-transform:uppercase;letter-spacing:1px;color:#8a7a5e;font-weight:700;padding:6px 4px}
+    .lg .bl{border-bottom:1.5px solid #cbd5e1;height:30px}
+    .note{margin-top:22px;font-size:0.76rem;color:#7c8aa0;line-height:1.6}
+  `, `
+  <div class="ws">
+    <div class="hd"><h1>Pre-Shoot Checklist &amp; Launch Log</h1><div class="lbl">Manual Method · ${esc(prof.name)}</div></div>
+    <div class="meta">
+      <div class="f"><div class="lab">Date</div><div class="blank"></div></div>
+      <div class="f"><div class="lab">Site / Location</div><div class="blank"></div></div>
+      <div class="f"><div class="lab">Wind Speed</div><div class="blank"></div></div>
+    </div>
+    <div class="chkbox" style="margin-top:18px">${rows}</div>
+    <div class="loghead">Launch Log</div>
+    <div class="lg">
+      <div class="h">Shell</div><div class="h">Size</div><div class="h">Lift</div><div class="h">Fuse</div><div class="h">Result</div>
+      <div class="bl"></div><div class="bl"></div><div class="bl"></div><div class="bl"></div><div class="bl"></div>
+      <div class="bl"></div><div class="bl"></div><div class="bl"></div><div class="bl"></div><div class="bl"></div>
+      <div class="bl"></div><div class="bl"></div><div class="bl"></div><div class="bl"></div><div class="bl"></div>
+      <div class="bl"></div><div class="bl"></div><div class="bl"></div><div class="bl"></div><div class="bl"></div>
+    </div>
+    <div class="note">Complete every checklist item before the first launch. Log each shell as you go. Never launch into crowds, near structures, or in dry/static-risk conditions. Educational reference only — observe all local regulations.</div>
+  </div>`, theme);
+}
+
 /** Thumb-stopper marketplace cover (v2). Light paper, giant title, hero visual,
  *  3 benefits, price + format badges. 1200x1500 (4:5). Dark device-frames banned. */
 function thumbCoverCopy(product, prof) {
@@ -870,6 +1004,7 @@ module.exports = {
   buildCoverHTML, buildWebsiteHTML,
   buildSocialPostHTML, buildSocialStoryHTML, buildSocialCarouselHTML,
   buildPlannerHTML, buildWallArtHTML, buildWorksheetHTML, buildPartyPrintableHTML,
+  buildPyroBatchHTML, buildPyroLiftFuseHTML, buildPyroShootLogHTML,
   thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover,
   wrapMarketplaceMockup
 };

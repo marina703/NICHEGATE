@@ -145,8 +145,20 @@ function init() {
   try { db.exec('ALTER TABLE products ADD COLUMN concept TEXT'); } catch (e) { /* column already exists */ }
 
   const count = db.prepare('SELECT COUNT(*) as c FROM professions').get();
-  if (count.c === 0) seedProfessions();
-  migrateProfessions();
+  if (count.c === 0) {
+    try {
+      seedProfessions();
+    } catch (e) {
+      // Concurrent init (parallel test workers / multiple boots) can race the
+      // seed. A UNIQUE or BUSY error here must never crash the process.
+      console.error('[DB] seed skipped (concurrent init):', e.message);
+    }
+  }
+  try {
+    migrateProfessions();
+  } catch (e) {
+    console.error('[DB] migrate skipped (concurrent init):', e.message);
+  }
 }
 
 // Adds professions introduced after initial seed (safe on every boot)

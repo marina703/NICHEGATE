@@ -148,6 +148,9 @@ function productsForTrend(trend) {
   if (/school|kid|learn|educat|homeschool|teacher|preschool|activity/.test(cat)) {
     return ['worksheet', 'checklist', 'journal', 'wall-art'];
   }
+  if (/pyro|firework|firework|pyrotechnic|shell|mortar|fuse|lift|breach|burst|rocket|novelty|class c|display shell|bottle rocket/.test(cat)) {
+    return ['pyro-batch', 'pyro-lift-fuse', 'pyro-shoot-log', 'checklist'];
+  }
   const personalHints = ['wall-art', 'checklist', 'journal'];
   if (/home|organiz|declutter|interior|decor|minimal|party|wedding|celebrat|invitation|birthday|shower|occasion/.test(cat)) {
     const extra = /party|wedding|celebrat|invitation|birthday|shower/.test(cat) ? ['social'] : [];

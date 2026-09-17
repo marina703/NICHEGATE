@@ -112,6 +112,9 @@ function buildPlannerHTML(prof, theme) { return ds.buildPlannerHTML(prof, theme)
 function buildWallArtHTML(prof, theme) { return ds.buildWallArtHTML(prof, theme); }
 function buildWorksheetHTML(prof, theme) { return ds.buildWorksheetHTML(prof, theme); }
 function buildPartyPrintableHTML(prof, theme) { return ds.buildPartyPrintableHTML(prof, theme); }
+function buildPyroBatchHTML(prof, theme) { return ds.buildPyroBatchHTML(prof, theme); }
+function buildPyroLiftFuseHTML(prof, theme) { return ds.buildPyroLiftFuseHTML(prof, theme); }
+function buildPyroShootLogHTML(prof, theme) { return ds.buildPyroShootLogHTML(prof, theme); }
 
 module.exports = {
   generatePDF,
@@ -125,5 +128,8 @@ module.exports = {
   buildWallArtHTML,
   buildWorksheetHTML,
   buildPartyPrintableHTML,
+  buildPyroBatchHTML,
+  buildPyroLiftFuseHTML,
+  buildPyroShootLogHTML,
   OUTPUT_DIR
 };

@@ -29,7 +29,13 @@ const TYPES = [
   { key: 'wall-art', label: 'Wall Art Print', emoji: '🖼️', price: 9, format: 'pdf', buyer: 'personal', cats: ['personal', 'home'] },
   { key: 'worksheet', label: 'Learning Worksheet', emoji: '✏️', price: 8, format: 'pdf', buyer: 'personal', cats: ['personal', 'education'] },
   { key: 'planner', label: 'Printable Planner', emoji: '🗓️', price: 12, format: 'pdf', buyer: 'personal', cats: ['personal', 'home', 'wellness'] },
-  { key: 'party-printable', label: 'Party Printable', emoji: '🎉', price: 10, format: 'pdf', buyer: 'personal', cats: ['personal', 'events'] }
+  { key: 'party-printable', label: 'Party Printable', emoji: '🎉', price: 10, format: 'pdf', buyer: 'personal', cats: ['personal', 'events'] },
+
+  // ── PYRO MANUAL-METHOD WORKSHEETS (old-school, fill-in-by-hand) ──
+  // Educational reference worksheets for pyrotechnics hobbies/enthusiasts.
+  { key: 'pyro-batch', label: 'Batch Mixing Worksheet', emoji: '⚗️', price: 8, format: 'pdf', buyer: 'hobby', cats: ['pyro'] },
+  { key: 'pyro-lift-fuse', label: 'Lift & Fuse Worksheet', emoji: '🎆', price: 8, format: 'pdf', buyer: 'hobby', cats: ['pyro'] },
+  { key: 'pyro-shoot-log', label: 'Pre-Shoot Checklist & Log', emoji: '🧨', price: 9, format: 'pdf', buyer: 'hobby', cats: ['pyro'] }
 ];
 
 const byKey = new Map(TYPES.map(t => [t.key, t]));
@@ -55,6 +61,7 @@ const CATEGORY_MIX = {
   fitness: ['booking', 'checklist', 'spreadsheet', 'social'],
   education: ['worksheet', 'checklist', 'journal'],
   events: ['party-printable', 'social', 'checklist'],
+  pyro: ['pyro-batch', 'pyro-lift-fuse', 'pyro-shoot-log', 'checklist'],
   fashion: ['social', 'brand', 'checklist'],
   default: ['checklist', 'invoice', 'spreadsheet']
 };

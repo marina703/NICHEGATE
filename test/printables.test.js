@@ -10,7 +10,10 @@ for (const [fnName, expected] of [
   ['buildPlannerHTML', 'Weekly Planner'],
   ['buildWallArtHTML', 'Wall Art'],
   ['buildWorksheetHTML', 'Worksheet'],
-  ['buildPartyPrintableHTML', 'Party Printables']
+  ['buildPartyPrintableHTML', 'Party Printables'],
+  ['buildPyroBatchHTML', 'Batch Mixing Worksheet'],
+  ['buildPyroLiftFuseHTML', 'Lift &amp; Fuse Worksheet'],
+  ['buildPyroShootLogHTML', 'Pre-Shoot Checklist']
 ]) {
   test(`printable builder ${fnName} emits a full HTML document`, () => {
     const html = design[fnName](prof, theme);

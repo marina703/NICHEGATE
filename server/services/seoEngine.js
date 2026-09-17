@@ -18,7 +18,10 @@ const PRODUCT_TERMS = {
   'wall-art': ['Wall Art Print', 'Printable Wall Art', 'Quote Print', 'Art Printable'],
   worksheet:  ['Worksheet Printable', 'Learning Worksheet', 'Practice Sheet', 'Worksheet'],
   planner:    ['Printable Planner', 'Weekly Planner', 'Digital Planner', 'Planner'],
-  'party-printable': ['Party Printable', 'Invitation Template', 'Party Printables', 'Printable Invitation']
+  'party-printable': ['Party Printable', 'Invitation Template', 'Party Printables', 'Printable Invitation'],
+  'pyro-batch': ['Batch Mixing Worksheet', 'Pyro Batch Sheet', 'Mixing Worksheet', 'Pyro Worksheet'],
+  'pyro-lift-fuse': ['Lift & Fuse Worksheet', 'Pyro Lift Charge', 'Fuse Cut Sheet', 'Pyro Worksheet'],
+  'pyro-shoot-log': ['Pre-Shoot Checklist', 'Launch Log', 'Pyro Safety Checklist', 'Pyro Log']
 };
 
 const TIER_TERMS = {

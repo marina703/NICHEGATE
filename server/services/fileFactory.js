@@ -132,6 +132,12 @@ async function ensureProductFile(product) {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildWorksheetHTML(prof, theme), `${prof.slug}-worksheet-${stamp}.pdf`);
   } else if (type === 'party-printable') {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildPartyPrintableHTML(prof, theme), `${prof.slug}-party-printable-${stamp}.pdf`);
+  } else if (type === 'pyro-batch') {
+    filePath = await pdfGen.generatePDF(pdfGen.buildPyroBatchHTML(prof, theme), `${prof.slug}-pyro-batch-${stamp}.pdf`);
+  } else if (type === 'pyro-lift-fuse') {
+    filePath = await pdfGen.generatePDF(pdfGen.buildPyroLiftFuseHTML(prof, theme), `${prof.slug}-pyro-lift-fuse-${stamp}.pdf`);
+  } else if (type === 'pyro-shoot-log') {
+    filePath = await pdfGen.generatePDF(pdfGen.buildPyroShootLogHTML(prof, theme), `${prof.slug}-pyro-shoot-log-${stamp}.pdf`);
   } else if (['spreadsheet', 'booking', 'pricing', 'inventory', 'shot-chart'].includes(type)) {
     filePath = xlsxGen.generateXLSX(type === 'pricing' ? 'spreadsheet' : type, prof, `${prof.slug}-${type}-${stamp}.xlsx`);
   } else if (type === 'social') {
@@ -191,6 +197,9 @@ function buildPreviewHTML(product, prof) {
   if (t === 'wall-art') return pdfGen.buildWallArtHTML(prof, theme);
   if (t === 'worksheet') return pdfGen.buildWorksheetHTML(prof, theme);
   if (t === 'party-printable') return pdfGen.buildPartyPrintableHTML(prof, theme);
+  if (t === 'pyro-batch') return pdfGen.buildPyroBatchHTML(prof, theme);
+  if (t === 'pyro-lift-fuse') return pdfGen.buildPyroLiftFuseHTML(prof, theme);
+  if (t === 'pyro-shoot-log') return pdfGen.buildPyroShootLogHTML(prof, theme);
   if (['spreadsheet', 'pricing', 'booking', 'inventory', 'shot-chart'].includes(t)) {
     return ds.buildTablePreviewHTML(product, prof, theme, t === 'booking' ? 'booking' : 'spreadsheet');
   }
