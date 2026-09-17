@@ -24,10 +24,12 @@ const TYPES = [
   { key: 'tool', label: 'Outcome Tool', emoji: '🧰', price: 15, format: 'pdf', buyer: 'business', cats: ['business'] },
 
   // ── FAR & WIDE TRANCH 1 — high-demand printables/planning (personal buyers) ──
-  // This tranche ships in reviewable 50/50 chunks. CURRENT SHIP: wall-art + worksheet.
-  // Deferred (next chunk): planner, party-printable, cut-file (SVG), budget-tracker.
+  // This tranche ships in 50/50 chunks. CHUNK 1 (live): wall-art + worksheet.
+  // CHUNK 2 (this): planner + party-printable. Deferred: cut-file (SVG), budget-tracker.
   { key: 'wall-art', label: 'Wall Art Print', emoji: '🖼️', price: 9, format: 'pdf', buyer: 'personal', cats: ['personal', 'home'] },
-  { key: 'worksheet', label: 'Learning Worksheet', emoji: '✏️', price: 8, format: 'pdf', buyer: 'personal', cats: ['personal', 'education'] }
+  { key: 'worksheet', label: 'Learning Worksheet', emoji: '✏️', price: 8, format: 'pdf', buyer: 'personal', cats: ['personal', 'education'] },
+  { key: 'planner', label: 'Printable Planner', emoji: '🗓️', price: 12, format: 'pdf', buyer: 'personal', cats: ['personal', 'home', 'wellness'] },
+  { key: 'party-printable', label: 'Party Printable', emoji: '🎉', price: 10, format: 'pdf', buyer: 'personal', cats: ['personal', 'events'] }
 ];
 
 const byKey = new Map(TYPES.map(t => [t.key, t]));
@@ -44,15 +46,15 @@ function isFormat(key, fmt) { return formatFor(key) === fmt; }
 const CATEGORY_MIX = {
   business: ['invoice', 'checklist', 'spreadsheet', 'booking', 'roi'],
   finance: ['spreadsheet', 'roi'],
-  home: ['wall-art', 'checklist'],
-  personal: ['journal', 'wall-art'],
-  wellness: ['journal', 'wall-art'],
+  home: ['wall-art', 'planner', 'checklist'],
+  personal: ['journal', 'planner', 'wall-art'],
+  wellness: ['journal', 'planner', 'wall-art'],
   craft: ['brand', 'social', 'checklist'],
   tech: ['website', 'spreadsheet', 'social'],
   food: ['checklist', 'spreadsheet', 'booking', 'social'],
   fitness: ['booking', 'checklist', 'spreadsheet', 'social'],
   education: ['worksheet', 'checklist', 'journal'],
-  events: ['social', 'checklist', 'wall-art'],
+  events: ['party-printable', 'social', 'checklist'],
   fashion: ['social', 'brand', 'checklist'],
   default: ['checklist', 'invoice', 'spreadsheet']
 };

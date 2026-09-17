@@ -607,6 +607,36 @@ h1{font-size:3.2rem;font-weight:900;letter-spacing:-1px;margin-bottom:40px}
 </div></body></html>`;
 }
 
+// ── PRINTABLE PLANNER (personal planning / organizers) ─────────────────────
+function buildPlannerHTML(prof, theme) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const cells = days.map((d) => `<div class="pc"><div class="pd">${d}</div><div class="pb"></div><div class="pb"></div><div class="pb"></div></div>`).join('');
+  return shell(`${esc(prof.name)} — Planner`, `
+    .pp{background:${theme.bg};padding:38px 42px;font-family:${SYSTEM_FONT}}
+    .pp .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+    .pp .head h1{font-size:1.6rem;font-weight:900;letter-spacing:-.4px;color:${theme.primary}}
+    .pp .head .slot{font-size:0.78rem;color:${theme.secondary};letter-spacing:1px;text-transform:uppercase}
+    .week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .pc{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:12px;padding:10px;min-height:180px}
+    .pd{font-size:0.72rem;font-weight:800;letter-spacing:1px;color:${theme.primary};margin-bottom:8px}
+    .pb{height:16px;border-bottom:1px dashed rgba(15,23,42,.15);margin-top:12px}
+    .goals{margin-top:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+    .goal{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:12px;padding:14px 16px}
+    .goal .gl{font-size:0.66rem;letter-spacing:1.6px;text-transform:uppercase;color:${theme.accent};font-weight:800}
+    .goal .gline{height:14px;border-bottom:1px dashed rgba(15,23,42,.15);margin-top:10px}
+    .goal .gline + .gline{margin-top:10px}
+  `, `
+  <div class="pp">
+    <div class="head"><h1>${esc('Weekly Planner')}</h1><div class="slot">${esc(prof.name)} · Pocket edition</div></div>
+    <div class="week">${cells}</div>
+    <div class="goals">
+      <div class="goal"><div class="gl">Top 3 this week</div><div class="gline"></div><div class="gline"></div><div class="gline"></div></div>
+      <div class="goal"><div class="gl">Notes</div><div class="gline"></div><div class="gline"></div><div class="gline"></div></div>
+      <div class="goal"><div class="gl">Reflection</div><div class="gline"></div><div class="gline"></div><div class="gline"></div></div>
+    </div>
+  </div>`, theme);
+}
+
 // ── WALL ART PRINT (aesthetic typography printable) ─────────────────────────
 function buildWallArtHTML(prof, theme) {
   return shell(`${esc(prof.name)} — Wall Art`, `
@@ -652,6 +682,24 @@ function buildWorksheetHTML(prof, theme) {
     <div class="grid"><div class="cell">1.</div><div class="cell">2.</div><div class="cell">3.</div><div class="cell">4.</div><div class="cell">5.</div><div class="cell">6.</div></div>
     <div class="line"></div><div class="line"></div>
     <div class="score">Completed ___ / 8 · Signed ________________</div>
+  </div>`, theme);
+}
+
+// ── PARTY PRINTABLE (invitation + décor set) ───────────────────────────────
+function buildPartyPrintableHTML(prof, theme) {
+  return shell(`${esc(prof.name)} — Party Printables`, `
+    .pv{width:860px;display:grid;grid-template-columns:1fr 1fr;gap:18px;font-family:${SYSTEM_FONT}}
+    .card{background:${theme.bg};border:2px dashed ${theme.accent};border-radius:16px;overflow:hidden;text-align:center}
+    .card .c-top{background:${theme.primary};color:#fff;padding:18px;font-size:0.72rem;letter-spacing:3px;text-transform:uppercase;font-weight:800}
+    .card .c-body{padding:30px 24px}
+    .card h3{font-size:2rem;font-weight:900;color:${theme.primary};line-height:1.05}
+    .card .when{margin-top:16px;font-size:0.95rem;color:#57534e}
+    .card .when b{display:block;font-size:1.1rem;color:${theme.primary};margin-top:4px}
+    .card .rsvp{margin-top:18px;display:inline-block;background:${theme.accent};color:${theme.primary};padding:8px 18px;border-radius:999px;font-size:0.72rem;font-weight:900;letter-spacing:1px}
+  `, `
+  <div class="pv">
+    <div class="card"><div class="c-top">You're invited</div><div class="c-body"><h3>Celebrate with us!</h3><div class="when">Saturday<b>____ / ____ / ______</b></div><div class="when">Time<b>__:__ ____</b></div><div class="rsvp">RSVP · ____</div></div></div>
+    <div class="card"><div class="c-top">Thank you</div><div class="c-body"><h3>Grateful for you</h3><div class="when">Your presence is the gift</div><div class="rsvp">★ ★ ★ ★ ★</div></div></div>
   </div>`, theme);
 }
 
@@ -821,7 +869,7 @@ module.exports = {
   buildTablePreviewHTML, buildDecisionMatrixHTML, buildROIHTML,
   buildCoverHTML, buildWebsiteHTML,
   buildSocialPostHTML, buildSocialStoryHTML, buildSocialCarouselHTML,
-  buildWallArtHTML, buildWorksheetHTML,
+  buildPlannerHTML, buildWallArtHTML, buildWorksheetHTML, buildPartyPrintableHTML,
   thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover,
   wrapMarketplaceMockup
 };

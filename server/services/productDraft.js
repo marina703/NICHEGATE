@@ -12,7 +12,7 @@ const TYPE_PRICES = {
   invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15',
   journal: '$15', brand: '$19', website: '$24', 'decision-matrix': '$14', roi: '$19',
   bundle: '$29', leadmagnet: '$0', pricing: '$17', inventory: '$14', 'shot-chart': '$15', pyro: '$15',
-  'wall-art': '$9', worksheet: '$8'
+  'wall-art': '$9', worksheet: '$8', planner: '$12', 'party-printable': '$10'
 };
 
 function priceFor(type) {

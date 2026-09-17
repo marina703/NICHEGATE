@@ -16,7 +16,9 @@ const PRODUCT_TERMS = {
   leadmagnet: ['Free Template Pack', 'Starter Pack', 'Free Templates', 'Freebie'],
   tool:       ['Business Tool', 'Decision Framework', 'Outcome Tool', 'Business Framework'],
   'wall-art': ['Wall Art Print', 'Printable Wall Art', 'Quote Print', 'Art Printable'],
-  worksheet:  ['Worksheet Printable', 'Learning Worksheet', 'Practice Sheet', 'Worksheet']
+  worksheet:  ['Worksheet Printable', 'Learning Worksheet', 'Practice Sheet', 'Worksheet'],
+  planner:    ['Printable Planner', 'Weekly Planner', 'Digital Planner', 'Planner'],
+  'party-printable': ['Party Printable', 'Invitation Template', 'Party Printables', 'Printable Invitation']
 };
 
 const TIER_TERMS = {
