@@ -124,6 +124,10 @@ async function ensureProductFile(product) {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : buildWebsiteHTML(prof, theme), `${prof.slug}-website-${stamp}.pdf`);
   } else if (type === 'tool') {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : buildFallbackCardHTML(product, prof), `${prof.slug}-tool-${stamp}.pdf`);
+  } else if (type === 'wall-art') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildWallArtHTML(prof, theme), `${prof.slug}-wall-art-${stamp}.pdf`);
+  } else if (type === 'worksheet') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildWorksheetHTML(prof, theme), `${prof.slug}-worksheet-${stamp}.pdf`);
   } else if (['spreadsheet', 'booking', 'pricing', 'inventory', 'shot-chart'].includes(type)) {
     filePath = xlsxGen.generateXLSX(type === 'pricing' ? 'spreadsheet' : type, prof, `${prof.slug}-${type}-${stamp}.xlsx`);
   } else if (type === 'social') {
@@ -179,6 +183,8 @@ function buildPreviewHTML(product, prof) {
   if (t === 'decision-matrix') return ds.buildDecisionMatrixHTML(product, prof, theme);
   if (t === 'roi') return ds.buildROIHTML(product, prof, theme);
   if (t === 'bundle' || t === 'leadmagnet') return ds.buildCoverHTML(product, prof, theme, t === 'leadmagnet' ? 'leadmagnet' : 'bundle');
+  if (t === 'wall-art') return pdfGen.buildWallArtHTML(prof, theme);
+  if (t === 'worksheet') return pdfGen.buildWorksheetHTML(prof, theme);
   if (['spreadsheet', 'pricing', 'booking', 'inventory', 'shot-chart'].includes(t)) {
     return ds.buildTablePreviewHTML(product, prof, theme, t === 'booking' ? 'booking' : 'spreadsheet');
   }

@@ -130,8 +130,8 @@ function productsForTrend(trend) {
   if (/fashion|beauty|aesthetic|decor|style|wear|clothing/.test(cat)) {
     return ['social', 'brand', 'checklist', 'spreadsheet'];
   }
-  if (/craft|art|diy|maker|handmade|pottery|candle|soap|resin/.test(cat)) {
-    return ['checklist', 'spreadsheet', 'brand', 'social'];
+  if (/craft|art|diy|maker|handmade|pottery|candle|soap|resin|svg|cricut|vinyl|decal|sticker|cut.?file/.test(cat)) {
+    return ['wall-art', 'checklist', 'brand', 'social'];
   }
   if (/food|bake|brew|cook|chef|kitchen/.test(cat)) {
     return ['checklist', 'spreadsheet', 'booking', 'social'];
@@ -144,6 +144,14 @@ function productsForTrend(trend) {
   }
   if (/tech|app|digital|ai|software|template|online|planner|notion/.test(cat)) {
     return ['spreadsheet', 'checklist', 'social', 'brand'];
+  }
+  if (/school|kid|learn|educat|homeschool|teacher|preschool|activity/.test(cat)) {
+    return ['worksheet', 'checklist', 'journal', 'wall-art'];
+  }
+  const personalHints = ['wall-art', 'checklist', 'journal'];
+  if (/home|organiz|declutter|interior|decor|minimal|party|wedding|celebrat|invitation|birthday|shower|occasion/.test(cat)) {
+    const extra = /party|wedding|celebrat|invitation|birthday|shower/.test(cat) ? ['social'] : [];
+    return [...extra, ...personalHints];
   }
   return ['invoice', 'checklist', 'spreadsheet', 'booking'];
 }

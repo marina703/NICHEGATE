@@ -108,6 +108,8 @@ function buildInvoiceHTML(prof, theme, opts) { return ds.buildInvoiceHTML(prof, 
 function buildChecklistHTML(prof, theme) { return ds.buildChecklistHTML(prof, theme); }
 function buildJournalHTML(prof, theme, prompts) { return ds.buildJournalHTML(prof, theme, prompts); }
 function buildBrandKitHTML(prof, theme) { return ds.buildBrandKitHTML(prof, theme); }
+function buildWallArtHTML(prof, theme) { return ds.buildWallArtHTML(prof, theme); }
+function buildWorksheetHTML(prof, theme) { return ds.buildWorksheetHTML(prof, theme); }
 
 module.exports = {
   generatePDF,
@@ -117,5 +119,7 @@ module.exports = {
   buildChecklistHTML,
   buildJournalHTML,
   buildBrandKitHTML,
+  buildWallArtHTML,
+  buildWorksheetHTML,
   OUTPUT_DIR
 };

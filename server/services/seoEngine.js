@@ -14,7 +14,9 @@ const PRODUCT_TERMS = {
   journal:    ['Journal Template', 'Recovery Journal', 'Guided Journal', 'Journal'],
   bundle:     ['Complete Toolkit', 'Template Bundle', 'Business Toolkit', 'Bundle'],
   leadmagnet: ['Free Template Pack', 'Starter Pack', 'Free Templates', 'Freebie'],
-  tool:       ['Business Tool', 'Decision Framework', 'Outcome Tool', 'Business Framework']
+  tool:       ['Business Tool', 'Decision Framework', 'Outcome Tool', 'Business Framework'],
+  'wall-art': ['Wall Art Print', 'Printable Wall Art', 'Quote Print', 'Art Printable'],
+  worksheet:  ['Worksheet Printable', 'Learning Worksheet', 'Practice Sheet', 'Worksheet']
 };
 
 const TIER_TERMS = {

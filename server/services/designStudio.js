@@ -607,6 +607,54 @@ h1{font-size:3.2rem;font-weight:900;letter-spacing:-1px;margin-bottom:40px}
 </div></body></html>`;
 }
 
+// ── WALL ART PRINT (aesthetic typography printable) ─────────────────────────
+function buildWallArtHTML(prof, theme) {
+  return shell(`${esc(prof.name)} — Wall Art`, `
+    body{background:#f7f5f1;display:flex;align-items:center;justify-content:center;min-height:1120px;margin:0}
+    .art{width:840px;background:${theme.bg};border-radius:18px;box-shadow:0 30px 60px -30px rgba(15,23,42,.5);overflow:hidden}
+    .art .top{height:14px;background:linear-gradient(90deg,${theme.primary},${theme.accent})}
+    .art .inner{padding:64px 58px;text-align:center;font-family:${SYSTEM_FONT}}
+    .art .em{font-size:3.6rem;margin-bottom:22px}
+    .art h1{font-size:3rem;font-weight:900;line-height:1.05;letter-spacing:-1px;color:${theme.primary}}
+    .art .sub{margin-top:18px;font-size:1.1rem;color:#7c6f5e;line-height:1.6;max-width:600px;margin-left:auto;margin-right:auto}
+    .art .foot{margin-top:42px;font-size:0.72rem;letter-spacing:3px;text-transform:uppercase;color:${theme.accent};font-weight:800}
+    .art .quote{padding:34px;background:rgba(0,0,0,.03);border-radius:12px;margin-top:26px}
+    .art .quote p{font-size:1.05rem;color:#4c4438;font-style:italic;line-height:1.7}
+  `, `
+  <div class="art">
+    <div class="top"></div>
+    <div class="inner">
+      <div class="em">${esc(prof.emoji || '✦')}</div>
+      <h1>Small business. Big standards.</h1>
+      <div class="sub">Every ${esc(prof.name.toLowerCase())} job begins with a promise — and ends with a job done properly.</div>
+      <div class="quote"><p>"Do it right the first time — because your reputation is the only product you sell twice."</p></div>
+      <div class="foot">${esc(prof.name)} · Simple · Honest · Reliable</div>
+    </div>
+  </div>`, theme);
+}
+
+// ── LEARNING WORKSHEET (education / kids) ──────────────────────────────────
+function buildWorksheetHTML(prof, theme) {
+  return shell(`${esc(prof.name)} — Worksheet`, `
+    .ws{width:820px;background:#fff;border-radius:14px;padding:52px 50px;font-family:${SYSTEM_FONT};border:2px solid ${theme.accent}}
+    .ws .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${theme.primary};padding-bottom:12px}
+    .ws .hd h1{font-size:1.5rem;font-weight:900;color:${theme.primary}}
+    .ws .hd .lbl{font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:${theme.accent};font-weight:800}
+    .line{height:34px;border-bottom:1.5px dashed #cbd5e1;margin-top:16px}
+    .task{margin-top:26px;font-size:1rem;font-weight:700;color:#334155}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+    .cell{border-bottom:1.5px dashed #cbd5e1;height:46px;display:flex;align-items:center;font-size:1rem}
+    .score{margin-top:30px;display:flex;gap:18px;justify-content:flex-end;font-size:0.8rem;color:#64748b}
+  `, `
+  <div class="ws">
+    <div class="hd"><h1>Name: ______________</h1><div class="lbl">Practice Sheet</div></div>
+    <div class="task">● ${esc(prof.name)} — write each item, then check it off:</div>
+    <div class="grid"><div class="cell">1.</div><div class="cell">2.</div><div class="cell">3.</div><div class="cell">4.</div><div class="cell">5.</div><div class="cell">6.</div></div>
+    <div class="line"></div><div class="line"></div>
+    <div class="score">Completed ___ / 8 · Signed ________________</div>
+  </div>`, theme);
+}
+
 /** Thumb-stopper marketplace cover (v2). Light paper, giant title, hero visual,
  *  3 benefits, price + format badges. 1200x1500 (4:5). Dark device-frames banned. */
 function thumbCoverCopy(product, prof) {
@@ -773,6 +821,7 @@ module.exports = {
   buildTablePreviewHTML, buildDecisionMatrixHTML, buildROIHTML,
   buildCoverHTML, buildWebsiteHTML,
   buildSocialPostHTML, buildSocialStoryHTML, buildSocialCarouselHTML,
+  buildWallArtHTML, buildWorksheetHTML,
   thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover,
   wrapMarketplaceMockup
 };

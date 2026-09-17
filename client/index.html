@@ -209,7 +209,7 @@ function render(){const c=document.getElementById('content');
   else if(state.view==='trends')renderTrends(c);}
 let coverRebuildRunning=false;
 async function refresh(){await loadAll();render();}
-function thumbFor(p){const t=p&&p.type;return t==='invoice'?'🧾':t==='checklist'?'✅':t==='spreadsheet'?'📊':t==='social'?'📱':t==='brand'?'🎨':t==='journal'?'📓':t==='bundle'?'📦':t==='booking'?'📅':'🗂️';}
+function thumbFor(p){const t=p&&p.type;return t==='invoice'?'🧾':t==='checklist'?'✅':t==='spreadsheet'?'📊':t==='social'?'📱':t==='brand'?'🎨':t==='journal'?'📓':t==='bundle'?'📦':t==='booking'?'📅':t==='wall-art'?'🖼️':t==='worksheet'?'✏️':'🗂️';}
 function prodImg(p){return p&&p.preview_path?`<img src="/api/products/${p.id}/preview-image" loading="lazy" alt="">`:null;}
 function renderHome(){
   const c=counts();
