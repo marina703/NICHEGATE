@@ -87,6 +87,265 @@ app.get('/api/health', (req, res) => {
     products: db.prepare('SELECT COUNT(*) as c FROM products').get().c,
     professions: db.prepare('SELECT COUNT(*) as c FROM professions').get().c
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // REVENUE DASHBOARD — aggregated sales data
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/revenue/summary', (req, res) => {
+    try {
+      const products = db.prepare('SELECT type, price, status, prof_name FROM products').all();
+      const total = products.length;
+      const listed = products.filter(p => p.status === 'listed').length;
+      const draft = products.filter(p => p.status === 'draft').length;
+      const review = products.filter(p => p.status === 'pending-review' || p.status === 'reviewing').length;
+      const approved = products.filter(p => p.status === 'approved').length;
+      
+      // Revenue by type
+      const byType = {};
+      products.forEach(p => {
+        const t = p.type || 'unknown';
+        if (!byType[t]) byType[t] = { count: 0, listed: 0, revenue: 0 };
+        byType[t].count++;
+        if (p.status === 'listed') {
+          byType[t].listed++;
+          byType[t].revenue += parseFloat(String(p.price || '0').replace(/[^0-9.]/g, '')) || 0;
+        }
+      });
+      
+      // Revenue by niche (top 10)
+      const byNiche = {};
+      products.forEach(p => {
+        const n = p.prof_name || 'Unknown';
+        if (!byNiche[n]) byNiche[n] = { count: 0, listed: 0, revenue: 0 };
+        byNiche[n].count++;
+        if (p.status === 'listed') {
+          byNiche[n].listed++;
+          byNiche[n].revenue += parseFloat(String(p.price || '0').replace(/[^0-9.]/g, '')) || 0;
+        }
+      });
+      const topNiches = Object.entries(byNiche)
+        .sort((a, b) => b[1].listed - a[1].listed)
+        .slice(0, 10)
+        .map(([name, data]) => ({ name, ...data }));
+      
+      // Revenue by type (top 10)
+      const topTypes = Object.entries(byType)
+        .sort((a, b) => b[1].listed - a[1].listed)
+        .slice(0, 10)
+        .map(([type, data]) => ({ type, ...data }));
+      
+      // Product type distribution for catalog
+      const types = [...new Set(products.map(p => p.type))];
+      
+      res.json({
+        total, listed, draft, review, approved,
+        estimatedRevenue: products.filter(p => p.status === 'listed')
+          .reduce((sum, p) => sum + (parseFloat(String(p.price || '0').replace(/[^0-9.]/g, '')) || 0), 0),
+        topNiches,
+        topTypes,
+        types,
+        productTypes: byType
+      });
+    } catch (e) {
+      console.error('[REVENUE]', e.message);
+      res.json({ total: 0, listed: 0, draft: 0, review: 0, approved: 0, estimatedRevenue: 0, topNiches: [], topTypes: [], types: [], productTypes: {} });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ETSY DAILY CAP — prevent account suspension
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/etsy/cap', (req, res) => {
+    try {
+      const cap = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
+      const published = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
+      const lastReset = db.prepare("SELECT value FROM settings WHERE key = 'etsy_cap_last_reset'").get();
+      const capNum = cap ? parseInt(cap.value) || 10 : 10;
+      const pubNum = published ? parseInt(published.value) || 0 : 0;
+      
+      // Auto-reset if new day
+      const today = new Date().toISOString().slice(0, 10);
+      if (!lastReset || lastReset.value !== today) {
+        db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_published_today', '0')").run();
+        db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_cap_last_reset', ?)").run(today);
+      }
+      
+      res.json({
+        cap: capNum,
+        published: pubNum,
+        remaining: Math.max(0, capNum - pubNum),
+        lastReset: today,
+        canPublish: pubNum < capNum
+      });
+    } catch (e) {
+      res.json({ cap: 10, published: 0, remaining: 10, canPublish: true });
+    }
+  });
+
+  app.post('/api/etsy/cap', (req, res) => {
+    try {
+      const cap = Math.max(10, parseInt(req.body.cap) || 10); // minimum 10
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_daily_cap', ?)").run(String(cap));
+      res.json({ ok: true, cap });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PASSION NICHES — custom niche management
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/niches/passion', (req, res) => {
+    try {
+      const niches = db.prepare("SELECT value FROM settings WHERE key = 'passion_niches'").get();
+      const list = niches ? JSON.parse(niches.value || '[]') : [];
+      res.json({ niches: list });
+    } catch (e) {
+      res.json({ niches: [] });
+    }
+  });
+
+  app.post('/api/niches/passion', (req, res) => {
+    try {
+      const { action, niche } = req.body;
+      const current = db.prepare("SELECT value FROM settings WHERE key = 'passion_niches'").get();
+      let list = current ? JSON.parse(current.value || '[]') : [];
+      
+      if (action === 'add' && niche && !list.includes(niche)) {
+        list.push(niche);
+      } else if (action === 'remove') {
+        list = list.filter(n => n !== niche);
+      } else if (action === 'set') {
+        list = req.body.niches || [];
+      }
+      
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('passion_niches', ?)").run(JSON.stringify(list));
+      res.json({ ok: true, niches: list });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DIRECT ETSY PUSH — publish a single product directly to Etsy
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.post('/api/etsy/push/:id', async (req, res) => {
+    try {
+      // Check daily cap
+      const cap = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
+      const published = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
+      const capNum = cap ? parseInt(cap.value) || 10 : 10;
+      const pubNum = published ? parseInt(published.value) || 0 : 0;
+      
+      if (pubNum >= capNum) {
+        return res.status(429).json({ error: 'Daily Etsy limit reached (' + pubNum + '/' + capNum + '). Resets tomorrow.' });
+      }
+      
+      // Get the product
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+      
+      // Publish to Etsy
+      const marketplace = require('./services/marketplace');
+      const result = await marketplace.publishToEtsy(product);
+      
+      if (result && result.listing_id) {
+        db.prepare("UPDATE products SET status = 'listed' WHERE id = ?").run(product.id);
+        db.prepare("UPDATE settings SET value = ? WHERE key = 'etsy_published_today'").run(String(pubNum + 1));
+        res.json({ ok: true, listing_id: result.listing_id, remaining: capNum - pubNum - 1 });
+      } else {
+        res.status(500).json({ error: 'Failed to publish to Etsy', details: result });
+      }
+    } catch (e) {
+      console.error('[ETSY PUSH]', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/etsy/push-batch', async (req, res) => {
+    try {
+      const { ids } = req.body; // array of product IDs
+      if (!ids || !ids.length) return res.status(400).json({ error: 'No product IDs provided' });
+      
+      const cap = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
+      const published = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
+      const capNum = cap ? parseInt(cap.value) || 10 : 10;
+      let pubNum = published ? parseInt(published.value) || 0 : 0;
+      
+      const marketplace = require('./services/marketplace');
+      const results = [];
+      
+      for (const id of ids) {
+        if (pubNum >= capNum) {
+          results.push({ id, status: 'skipped', reason: 'Daily cap reached' });
+          continue;
+        }
+        
+        const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+        if (!product) {
+          results.push({ id, status: 'error', reason: 'Not found' });
+          continue;
+        }
+        
+        try {
+          const result = await marketplace.publishToEtsy(product);
+          if (result && result.listing_id) {
+            db.prepare("UPDATE products SET status = 'listed' WHERE id = ?").run(id);
+            pubNum++;
+            results.push({ id, status: 'published', listing_id: result.listing_id });
+          } else {
+            results.push({ id, status: 'error', reason: 'Publish failed' });
+          }
+        } catch (e) {
+          results.push({ id, status: 'error', reason: e.message });
+        }
+      }
+      
+      // Update cap counter
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_published_today', ?)").run(String(pubNum));
+      
+      res.json({
+        ok: true,
+        published: results.filter(r => r.status === 'published').length,
+        errors: results.filter(r => r.status === 'error').length,
+        remaining: Math.max(0, capNum - pubNum),
+        results
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SOCIAL POST GENERATOR — one-click social content
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.post('/api/social/generate', async (req, res) => {
+    try {
+      const { productId, platform } = req.body;
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+      
+      const conceptEngine = require('./services/conceptEngine');
+      const niche = product.prof_name || 'Small Business';
+      const type = product.type || 'product';
+      
+      const prompts = {
+        pinterest: 'Generate a Pinterest pin title (max 100 chars) and description (max 500 chars) for a ' + type + ' product called "' + (product.name || 'Product') + '" in the ' + niche + ' niche. Include 5 relevant hashtags.',
+        instagram: 'Generate an Instagram caption (max 2200 chars) for a ' + type + ' product called "' + (product.name || 'Product') + '" in the ' + niche + ' niche. Include a hook, value proposition, and CTA. Include 10 relevant hashtags.',
+        twitter: 'Generate 3 tweet variations (max 280 chars each) promoting a ' + type + ' product called "' + (product.name || 'Product') + '" in the ' + niche + ' niche. Each should have a different angle.',
+        facebook: 'Generate a Facebook post (max 63206 chars) promoting a ' + type + ' product called "' + (product.name || 'Product') + '" in the ' + niche + ' niche. Include storytelling, benefits, and a CTA.'
+      };
+      
+      const prompt = prompts[platform] || prompts.instagram;
+      const content = await conceptEngine.generateSocialPost(prompt, niche);
+      
+      res.json({ ok: true, content, platform, productId });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+
 });
 
 // -- APPLY RATE LIMITING TO API --
@@ -163,7 +422,7 @@ app.post('/api/products', async (req, res) => {
     VALUES (?, ?, ?, ?, 'draft', ?, ?)
   `).run(profession_id, name, type, price, theme, html_content);
   
-  // Generate the real deliverable file � never create a product that can't be delivered
+  // Generate the real deliverable file � never create a product that can't be delivered
   const newProduct = db.prepare('SELECT * FROM products WHERE id = ?').get(result.lastInsertRowid);
   try {
     await fileFactory.ensureProductFile(newProduct);
@@ -205,7 +464,7 @@ app.post('/api/products/:id/regenerate-idea', async (req, res) => {
     const concept = await enrichProduct(product.id);
     if (!concept) {
       return res.json({ regenerated: false, concept: null,
-        message: 'AI layer off or concept below novelty bar � keeping current product' });
+        message: 'AI layer off or concept below novelty bar � keeping current product' });
     }
     res.json({ regenerated: true, concept,
       name: db.prepare('SELECT name FROM products WHERE id = ?').get(product.id).name });
@@ -215,7 +474,7 @@ app.post('/api/products/:id/regenerate-idea', async (req, res) => {
 });
 
 // ------------------------------------------------------------------------
-// API: TEMPLATES (Mockup generation) � Returns 5 theme variations
+// API: TEMPLATES (Mockup generation) � Returns 5 theme variations
 // ------------------------------------------------------------------------
 app.post('/api/templates/generate', async (req, res) => {
   try {
@@ -321,7 +580,7 @@ app.get('/api/trends/vet/:id', (req, res) => {
   res.json(vetting.vetTrend(trend));
 });
 
-// Live radar source health (ok/fail/lastSuccess) � additive observability
+// Live radar source health (ok/fail/lastSuccess) � additive observability
 app.get('/api/trends/radar-health', (req, res) => {
   try {
     const radar = require('./services/trendRadar');
@@ -441,7 +700,7 @@ async function syncGumroadSales() {
     revenue += (s.price || 0) / 100;
   }
   if (newSales > 0) {
-    await notifier.sendDiscord(getWebhookUrl(), `?? **Sale!** ${newSales} new sale${newSales > 1 ? 's' : ''} � +$${revenue.toFixed(2)}. Total so far: see Metrics.`);
+    await notifier.sendDiscord(getWebhookUrl(), `?? **Sale!** ${newSales} new sale${newSales > 1 ? 's' : ''} � +$${revenue.toFixed(2)}. Total so far: see Metrics.`);
     db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
       .run('sales_sync', `${newSales} new sale(s), $${revenue.toFixed(2)}`, 'success');
   }
@@ -477,7 +736,7 @@ app.post('/api/bundles/publish', async (req, res) => {
       const result = await mp.publishProduct(p);
       db.prepare('UPDATE products SET status = ?, marketplace = ?, marketplace_id = ? WHERE id = ?')
         .run('listed', result.platform, result.listingId || null, p.id);
-      // Branded cover � best effort, never blocks the listing
+      // Branded cover � best effort, never blocks the listing
       try { await mp.attachGumroadCover(result.listingId, bundles.coverForType('bundle')); }
       catch (e) { console.error('[BUNDLES] cover skipped:', e.message); }
       db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
@@ -601,7 +860,7 @@ app.post('/api/automation/approve-all', (req, res) => {
   res.json({ approved: result.changes });
 });
 
-// Deduplicate the review queue � collapse identical draft clones (same
+// Deduplicate the review queue � collapse identical draft clones (same
 // profession + type + name) down to ONE keeper each. Never touches approved,
 // listed, published, or sold products. Prefer keeping the row with a real
 // generated file; otherwise the newest one.
@@ -632,7 +891,7 @@ app.post('/api/automation/dedupe', (req, res) => {
   }
   const remaining = db.prepare(`SELECT COUNT(*) c FROM products WHERE status IN ('draft','pending-review')`).get().c;
   db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
-    .run('dedupe', `Removed ${removed.length} duplicate drafts � kept ${keep.length} (${remaining} pending now)`, 'success');
+    .run('dedupe', `Removed ${removed.length} duplicate drafts � kept ${keep.length} (${remaining} pending now)`, 'success');
   res.json({ groups: groups.length, removed: removed.length, kept: keep.length, remaining });
 });
 
@@ -666,7 +925,7 @@ app.post('/api/marketplace/publish/:productId', async (req, res) => {
   }
 });
 
-// Storefront feed � live products with real Gumroad buy links (cached 5 min)
+// Storefront feed � live products with real Gumroad buy links (cached 5 min)
 let storeFeedCache = { at: 0, data: null };
 app.get('/api/store/products', async (req, res) => {
   if (storeFeedCache.data && Date.now() - storeFeedCache.at < 300000) {
@@ -712,7 +971,7 @@ app.get('/api/store/products', async (req, res) => {
   }
 });
 
-// Design showcase � the premium template designs currently in the catalog
+// Design showcase � the premium template designs currently in the catalog
 // (pending drafts that haven't shipped yet) plus the live bundles. Used by the
 // storefront to show what buyers get before they buy.
 let showcaseCache = { at: 0, data: null };
@@ -762,7 +1021,7 @@ app.get('/api/store/showcase', async (req, res) => {
 });
 
 // ------------------------------------------------------------------------
-// STORE BRANDING � deploy the nichegate-designs logo/banner to marketplaces
+// STORE BRANDING � deploy the nichegate-designs logo/banner to marketplaces
 // ------------------------------------------------------------------------
 app.get('/api/branding/status', (req, res) => {
   try {
@@ -895,12 +1154,12 @@ function initDefaultSettings() {
 // ------------------------------------------------------------------------
 // API: EXPORT
 // ------------------------------------------------------------------------
-// Export a product � generates the file on demand from its saved HTML if none exists
+// Export a product � generates the file on demand from its saved HTML if none exists
 app.get('/api/export/product/:id', async (req, res) => {
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.status(404).json({ error: 'Product not found' });
 
-  // If a file already exists, serve it (stream manually � Windows sendFile bug)
+  // If a file already exists, serve it (stream manually � Windows sendFile bug)
   if (product.file_path && fs.existsSync(product.file_path)) {
     const abs = path.resolve(product.file_path);
     res.setHeader('Content-Type', 'application/octet-stream');
@@ -923,7 +1182,7 @@ app.get('/api/export/product/:id', async (req, res) => {
 });
 
 // ------------------------------------------------------------------------
-// PRODUCT PREVIEW � actually SEE the deliverable before approving:
+// PRODUCT PREVIEW � actually SEE the deliverable before approving:
 // PDFs render inline, spreadsheets become readable HTML tables, and ZIP
 // archives get a contents list with inline previews of text/HTML files.
 // ------------------------------------------------------------------------
@@ -956,7 +1215,7 @@ pre{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:8px;font-size:0.
 }
 
 function previewHeader(product, prof, fileInfo) {
-  return `<div class="header"><div><h1>${escHtml(product.name)}</h1><div class="meta">${prof ? prof.emoji + ' ' : ''}${escHtml(prof ? prof.name : '')} � ${escHtml(product.type)} � ${escHtml(product.price || '')}${fileInfo ? ' � ' + fileInfo : ''}</div></div><a class="btn" href="/api/export/product/${product.id}" download>? Download file</a></div>`;
+  return `<div class="header"><div><h1>${escHtml(product.name)}</h1><div class="meta">${prof ? prof.emoji + ' ' : ''}${escHtml(prof ? prof.name : '')} � ${escHtml(product.type)} � ${escHtml(product.price || '')}${fileInfo ? ' � ' + fileInfo : ''}</div></div><a class="btn" href="/api/export/product/${product.id}" download>? Download file</a></div>`;
 }
 
 app.get('/api/products/:id/preview', async (req, res) => {
@@ -1000,21 +1259,21 @@ app.get('/api/products/:id/preview', async (req, res) => {
         html = html.replace(/<td[^>]*>/g, '<td>').replace(/<th[^>]*>/g, '<th>');
         return `<div class="card"><h3>?? ${escHtml(name)}</h3>${html}</div>`;
       }).join('');
-      const body = previewHeader(product, prof, `Excel � ${sizeKB} KB`) + `<img class="preview-img" src="/api/products/${product.id}/preview-image">` + tables;
-      return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', body));
+      const body = previewHeader(product, prof, `Excel � ${sizeKB} KB`) + `<img class="preview-img" src="/api/products/${product.id}/preview-image">` + tables;
+      return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', body));
     }
 
     // ZIP archive ? contents list + inline previews of text/HTML entries
     if (filePath && ext === '.zip') {
       const zip = new AdmZip(filePath);
       const entries = zip.getEntries();
-      let html = previewHeader(product, prof, `ZIP archive � ${sizeKB} KB � ${entries.length} files`);
+      let html = previewHeader(product, prof, `ZIP archive � ${sizeKB} KB � ${entries.length} files`);
       html += `<img class="preview-img" src="/api/products/${product.id}/preview-image">`;
       html += `<div class="card"><h3>?? Archive contents</h3>` + entries.map(e =>
         `<div class="entry"><span>${escHtml(e.entryName)}</span><span>${(e.header.size / 1024).toFixed(1)} KB</span></div>`).join('') + '</div>';
       html += entries.filter(e => /\.(html?|txt|css|json|csv|xml)$/i.test(e.entryName)).map(e =>
         `<div class="card"><h3>?? ${escHtml(e.entryName)} (preview)</h3><pre>${escHtml(e.getData().toString('utf8').slice(0, 5000))}</pre></div>`).join('');
-      return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', html));
+      return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', html));
     }
 
     // No file (or only HTML saved) ? HTML preview + product metadata
@@ -1022,27 +1281,27 @@ app.get('/api/products/:id/preview', async (req, res) => {
     let body = previewHeader(product, prof, filePath ? `${sizeKB} KB file` : null);
     body += `<img class="preview-img" src="/api/products/${product.id}/preview-image">`;
     if (ensureError) body += `<div class="note">? ${escHtml(ensureError)}</div>`;
-    else if (!filePath) body += '<div class="note">? No generated file yet � use "Download file" to build it on demand.</div>';
+    else if (!filePath) body += '<div class="note">? No generated file yet � use "Download file" to build it on demand.</div>';
     if (!filePath) {
       body += `<div class="card"><h3>Details</h3>
         <div class="entry"><span>Status</span><span>${escHtml(product.status)}</span></div>
         <div class="entry"><span>Type</span><span>${escHtml(product.type)}</span></div>
-        <div class="entry"><span>Price</span><span>${escHtml(product.price || '�')}</span></div>
-        <div class="entry"><span>Theme</span><span>${escHtml(product.theme || '�')}</span></div>
-        <div class="entry"><span>Profession</span><span>${escHtml(prof ? prof.name : '�')}</span></div>
+        <div class="entry"><span>Price</span><span>${escHtml(product.price || '�')}</span></div>
+        <div class="entry"><span>Theme</span><span>${escHtml(product.theme || '�')}</span></div>
+        <div class="entry"><span>Profession</span><span>${escHtml(prof ? prof.name : '�')}</span></div>
         <div class="entry"><span>File path</span><span>${escHtml(product.file_path || 'none')}</span></div></div>`;
     }
     if (realHtml) {
       body += `<div class="card" style="padding:0"><h3 style="padding:14px 18px;border-bottom:1px solid #e2e8f0;">?? Saved HTML</h3><iframe sandbox="allow-same-origin" srcdoc="${escHtml(product.html_content).replace(/"/g, '&quot;')}" style="width:100%;height:460px;border:none;background:white;"></iframe></div>`;
     }
-    return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', body));
+    return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', body));
   } catch (e) {
     console.error('[PREVIEW] error:', e.message);
     return res.status(500).send(previewShell('Preview Error', `<div class="note">? Could not preview this product: ${escHtml(e.message)}</div>`));
   }
 });
 
-// Raster preview image (JPEG mockup) � generated on demand, cached in DB
+// Raster preview image (JPEG mockup) � generated on demand, cached in DB
 app.get('/api/products/:id/preview-image', async (req, res) => {
   try {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
@@ -1059,7 +1318,7 @@ app.get('/api/products/:id/preview-image', async (req, res) => {
   }
 });
 
-// Lifestyle background (AI photo, images 2-3 in the gallery) � free tier.
+// Lifestyle background (AI photo, images 2-3 in the gallery) � free tier.
 app.get('/api/products/:id/lifestyle-image', async (req, res) => {
   try {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
@@ -1068,7 +1327,7 @@ app.get('/api/products/:id/lifestyle-image', async (req, res) => {
     if (!prof) return res.status(404).json({ error: 'Profession not found' });
     const coverArt = require('./services/coverArt');
     const artPath = await coverArt.ensureCoverArt(product, prof);
-    if (!artPath || !fs.existsSync(artPath)) return res.status(404).json({ error: 'Lifestyle image unavailable � try again later' });
+    if (!artPath || !fs.existsSync(artPath)) return res.status(404).json({ error: 'Lifestyle image unavailable � try again later' });
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Content-Disposition', `inline; filename="${path.basename(artPath)}"`);
     return fs.createReadStream(artPath).pipe(res);
@@ -1078,7 +1337,7 @@ app.get('/api/products/:id/lifestyle-image', async (req, res) => {
   }
 });
 
-// Batch-generate AI lifestyle backgrounds (slow on free tier � background job)
+// Batch-generate AI lifestyle backgrounds (slow on free tier � background job)
 app.post('/api/covers/generate', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '10', 10) || 10, 100);
   const status = String(req.query.status || 'approved');
@@ -1143,7 +1402,7 @@ app.post('/api/export/render', async (req, res) => {
     filePath = await pdfGen.generatePDF(html, `${safeName}.pdf`);
     const abs = path.resolve(filePath);
     if (!fs.existsSync(abs)) return res.status(404).json({ error: 'File not generated' });
-    // Stream manually � res.sendFile/res.download have a Windows path bug
+    // Stream manually � res.sendFile/res.download have a Windows path bug
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pdf"`);
     return fs.createReadStream(abs).pipe(res);
@@ -1186,7 +1445,7 @@ function startCron() {
   // so trend-hunting never pauses) + freshness pass for active niches
   discoveryCron = cron.schedule('17 */2 * * *', async () => {
     if (discoveryLock || cycleLock) {
-      console.log('[CRON] Discovery sweep skipped � lock held');
+      console.log('[CRON] Discovery sweep skipped � lock held');
       return;
     }
     discoveryLock = true;
@@ -1275,7 +1534,7 @@ function autoStart() {
   console.log('[AUTO] Automation engine auto-started on server boot');
   
   // Run immediate first cycle (trend scan + review gate + publish of approved).
-  // runFullCycle still honors the review gate � it skips NEW generation on a
+  // runFullCycle still honors the review gate � it skips NEW generation on a
   // review day while continuing to publish already-approved products.
   setTimeout(() => {
     runAutoCycle();
@@ -1289,7 +1548,7 @@ function getWebhookUrl() {
 
 async function runAutoCycle() {
   if (cycleLock) {
-    console.log('[AUTO] Cycle already running � skipped');
+    console.log('[AUTO] Cycle already running � skipped');
     return { skipped: true, reason: 'lock' };
   }
   cycleLock = true;
@@ -1385,10 +1644,10 @@ const BIND_HOST = process.env.BIND_HOST || (process.env.NODE_ENV === 'production
 function startServer() {
   const server = app.listen(PORT, BIND_HOST, () => {
   console.log(`+------------------------------------------------------------+`);
-  console.log(`�  NicheGate  |  Full Stack Server                  �`);
-  console.log(`�  Port: ${PORT}  Host: ${BIND_HOST}                              �`);
-  console.log(`�  DB: SQLite (WAL mode)                                      �`);
-  console.log(`�  Professions: ${db.prepare('SELECT COUNT(*) as c FROM professions').get().c} seeded                                �`);
+  console.log(`�  NicheGate  |  Full Stack Server                  �`);
+  console.log(`�  Port: ${PORT}  Host: ${BIND_HOST}                              �`);
+  console.log(`�  DB: SQLite (WAL mode)                                      �`);
+  console.log(`�  Professions: ${db.prepare('SELECT COUNT(*) as c FROM professions').get().c} seeded                                �`);
   console.log(`+------------------------------------------------------------+`);
   console.log(`\nOpen: http://localhost:${PORT}/`);
   console.log(`API docs available at endpoints under /api/*\n`);

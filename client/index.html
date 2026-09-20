@@ -248,10 +248,7 @@ function renderHome(){
       const n=key==='research'?rq:key==='draft'?c.draft:key==='review'?c.review:key==='approved'?c.approved:c.listed;
       return `<button class="st ${n>0?'on':''}" title="Filter catalog: ${l}" onclick="funnelGo('${key}')"><div class="ring">${n}</div><div class="l">${l}</div></button>`;
     }).join('<div class="ar">→</div>');
-  const k=`<div class="kpi"><div class="lb">Products</div><div class="num tc">${c.total}</div></div>`
-     +`<div class="kpi"><div class="lb">Review</div><div class="num am">${c.review}</div></div>`
-     +`<div class="kpi"><div class="lb">Approved</div><div class="num bl">${c.approved}</div></div>`
-     +`<div class="kpi"><div class="lb">Listed</div><div class="num gn">${c.listed}</div></div>`;
+  const k=`<div class="kpi"><div class="lb">Total Products</div><div class="num tc">${c.total}</div></div>`+`<div class="kpi"><div class="lb">Active (Listed)</div><div class="num gn">${c.listed}</div></div>`+`<div class="kpi"><div class="lb">In Review</div><div class="num am">${c.review}</div></div>`+`<div class="kpi"><div class="lb">Ready (Approved)</div><div class="num bl">${c.approved}</div></div>`+`<div class="kpi" id="etsy-cap-kpi"><div class="lb">Etsy Today</div><div class="num" style="color:var(--amber)">--</div></div>`+`<div class="kpi" id="revenue-kpi"><div class="lb">Est. Revenue</div><div class="num gn">$--</div></div>`;
   const acts=`<button class="btn primary" onclick="runSweep()" style="justify-content:flex-start">🛰️ 🛰️ Discover New Niches</button>`
     +`<button class="btn primary" onclick="runAutoCycle()" style="justify-content:flex-start">▶ ▶ Generate Products Now</button>`
     +`<button class="btn green" onclick="deployBundles()" style="justify-content:flex-start">📦 📦 Publish Bundles → Gumroad</button>`
@@ -380,7 +377,27 @@ async function loadAutoLog(){try{const logs=await (await fetch(`${API}/automatio
 async function sched(m){if(m==='start'){await fetch(`${API}/automation/scheduler/start`,{method:'POST'});showToast('success','Scheduler','Cron started (every 6h)');}else{await fetch(`${API}/automation/scheduler/stop`,{method:'POST'});showToast('info','Scheduler','Stopped');}await updateAutoStatus();}
 async function autoList(){const s=await (await fetch(`${API}/settings`)).json();const v=s.auto_list!=='true'?'true':'false';await fetch(`${API}/settings`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({auto_list:v})});showToast('success','Auto-List',v==='true'?'ON':'OFF');await refresh();}
 function pillFor(p){const s=p.status||'draft';const label=String(s).replace('pending-review','REVIEW').replace('pending_review','REVIEW').replace('-',' ');const color=String(s).replace('_','-');return `<span class="tpill"><span style="width:7px;height:7px;border-radius:50%;background:var(--${color==='pending-review'?'amber':color==='approved'?'teal':color==='listed'||color==='published'?'green':color==='rejected'?'red':'blue'})"></span>${esc(label)}</span>`;}
-async function renderMarketplace(c){
+async f
+// Load Etsy cap on marketplace view
+setTimeout(function(){
+  var el = document.getElementById('etsy-cap-display');
+  if(!el) return;
+  fetch(API+'/etsy/cap').then(function(r){return r.json()}).then(function(d){
+    var pct = Math.min(100, (d.published/d.cap)*100);
+    var color = d.published>=d.cap ? 'var(--red)' : 'var(--amber)';
+    el.innerHTML = '<div style="padding:16px;background:var(--panel);border:1px solid var(--border);border-radius:10px;margin-bottom:14px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+      + '<div style="font-size:0.72rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--amber)">Etsy Daily Publishing Cap</div>'
+      + '<div style="font-weight:800;font-size:1.1rem;color:'+color+'">'+d.published+' / '+d.cap+'</div>'
+      + '</div>'
+      + '<div style="height:8px;background:#1e293b;border-radius:4px;overflow:hidden">'
+      + '<div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:4px;transition:width 0.3s"></div>'
+      + '</div>'
+      + '<div style="font-size:0.76rem;color:#7c8aa0;margin-top:8px">'+d.remaining+' remaining today. Minimum cap: 10/day.</div>'
+      + '</div>';
+  }).catch(function(){ el.innerHTML=''; });
+}, 100);
+unction renderMarketplace(c){
   const mps=await (await fetch(`${API}/setup/status`)).json();
   const etsy=mps&&mps.etsy, gum=mps&&mps.gumroad;
   const good=x=>x&&x.connected||x&&x.configured;
@@ -426,7 +443,23 @@ document.getElementById('ed-primary').onchange=e=>_clr('primary',e.target.value)
 document.getElementById('ed-accent').onchange=e=>_clr('accent',e.target.value);
 document.getElementById('ed-font').onchange=e=>_font(e.target.value);
 /* ── INIT ── */
-(async function init(){await loadAll();render();if(state.view==='home')loadHomeLog();})();
+(
+async function loadRevenueKPIs(){
+  try {
+    var res = await fetch(API+'/revenue/summary');
+    var data = await res.json();
+    var el = document.getElementById('revenue-kpi');
+    if(el) el.innerHTML = '<div class="lb">Est. Revenue</div><div class="num gn">$' + (data.estimatedRevenue||0).toLocaleString() + '</div><div class="sb">' + data.listed + ' products listed</div>';
+    var capEl = document.getElementById('etsy-cap-kpi');
+    if(capEl) {
+      var capRes = await fetch(API+'/etsy/cap');
+      var capData = await capRes.json();
+      capEl.innerHTML = '<div class="lb">Etsy Today</div><div class="num" style="color:' + (capData.published>=capData.cap?'var(--red)':'var(--amber)') + '">' + capData.published + '/' + capData.cap + '</div><div class="sb">' + capData.remaining + ' remaining</div>';
+    }
+  } catch(e) {}
+}
+
+async function init(){await loadAll();render();if(state.view==='home')loadHomeLog(); loadRevenueKPIs();})();
 </script>
 </body>
 </html>
