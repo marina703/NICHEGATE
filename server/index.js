@@ -319,7 +319,257 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // SOCIAL POST GENERATOR — one-click social content
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post('/api/social/generate', async (req, res) => {
+  a
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SOCIAL SCHEDULER — schedule posts for specific times
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/social/calendar', (req, res) => {
+    try {
+      const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
+      const posts = scheduled ? JSON.parse(scheduled.value || '[]') : [];
+      // Filter to upcoming posts only
+      const now = Date.now();
+      const upcoming = posts.filter(p => p.scheduledAt && new Date(p.scheduledAt).getTime() > now);
+      res.json({ posts: upcoming, total: posts.length });
+    } catch (e) {
+      res.json({ posts: [], total: 0 });
+    }
+  });
+
+  app.post('/api/social/schedule', (req, res) => {
+    try {
+      const { productId, platform, content, scheduledAt } = req.body;
+      const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
+      const posts = scheduled ? JSON.parse(scheduled.value || '[]') : [];
+      
+      posts.push({
+        id: Date.now(),
+        productId,
+        platform,
+        content,
+        scheduledAt: scheduledAt || new Date().toISOString(),
+        status: 'scheduled',
+        createdAt: new Date().toISOString()
+      });
+      
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('social_scheduled', ?)").run(JSON.stringify(posts));
+      res.json({ ok: true, id: posts[posts.length - 1].id });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/social/cancel', (req, res) => {
+    try {
+      const { id } = req.body;
+      const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
+      let posts = scheduled ? JSON.parse(scheduled.value || '[]') : [];
+      posts = posts.filter(p => p.id !== id);
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('social_scheduled', ?)").run(JSON.stringify(posts));
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/social/post-now', async (req, res) => {
+    try {
+      const { productId, platform } = req.body;
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+      
+      // Generate content
+      const conceptEngine = require('./services/conceptEngine');
+      const niche = product.prof_name || 'Small Business';
+      const prompt = 'Generate a ' + platform + ' post for "' + (product.name || 'Product') + '" in the ' + niche + ' niche.';
+      const content = await conceptEngine.generateSocialPost(prompt, niche);
+      
+      // Log it as posted
+      const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
+      const posts = scheduled ? JSON.parse(scheduled.value || '[]') : [];
+      posts.push({
+        id: Date.now(),
+        productId,
+        platform,
+        content,
+        scheduledAt: new Date().toISOString(),
+        status: 'posted',
+        postedAt: new Date().toISOString()
+      });
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('social_scheduled', ?)").run(JSON.stringify(posts));
+      
+      res.json({ ok: true, content, platform });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AD SPEND DASHBOARD — budget tracking
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/ads/summary', (req, res) => {
+    try {
+      const budget = db.prepare("SELECT value FROM settings WHERE key = 'ad_monthly_budget'").get();
+      const spend = db.prepare("SELECT value FROM settings WHERE key = 'ad_spend_this_month'").get();
+      const runs = db.prepare("SELECT value FROM settings WHERE key = 'ad_runs'").get();
+      
+      const now = new Date();
+      const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      
+      // Auto-reset monthly spend
+      const lastReset = db.prepare("SELECT value FROM settings WHERE key = 'ad_spend_month_key'").get();
+      let spendNum = spend ? parseFloat(spend.value) || 0 : 0;
+      if (!lastReset || lastReset.value !== monthKey) {
+        spendNum = 0;
+        db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('ad_spend_this_month', '0')").run();
+        db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('ad_spend_month_key', ?)").run(monthKey);
+      }
+      
+      const budgetNum = budget ? parseFloat(budget.value) || 0 : 0;
+      const runsList = runs ? JSON.parse(runs.value || '[]') : [];
+      const activeRuns = runsList.filter(r => r.status === 'active');
+      
+      res.json({
+        budget: budgetNum,
+        spent: spendNum,
+        remaining: Math.max(0, budgetNum - spendNum),
+        percentUsed: budgetNum > 0 ? Math.round((spendNum / budgetNum) * 100) : 0,
+        activeRuns: activeRuns.length,
+        recentRuns: runsList.slice(-10).reverse()
+      });
+    } catch (e) {
+      res.json({ budget: 0, spent: 0, remaining: 0, percentUsed: 0, activeRuns: 0, recentRuns: [] });
+    }
+  });
+
+  app.post('/api/ads/budget', (req, res) => {
+    try {
+      const { budget } = req.body;
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('ad_monthly_budget', ?)").run(String(budget || 0));
+      res.json({ ok: true, budget: budget || 0 });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/ads/commit', (req, res) => {
+    try {
+      const { platform, amount, name } = req.body;
+      const spend = db.prepare("SELECT value FROM settings WHERE key = 'ad_spend_this_month'").get();
+      const spendNum = spend ? parseFloat(spend.value) || 0 : 0;
+      const budget = db.prepare("SELECT value FROM settings WHERE key = 'ad_monthly_budget'").get();
+      const budgetNum = budget ? parseFloat(budget.value) || 0 : 0;
+      
+      if (spendNum + (amount || 0) > budgetNum) {
+        return res.status(429).json({ error: 'This would exceed your monthly budget. Current: $' + spendNum + ' of $' + budgetNum });
+      }
+      
+      const runs = db.prepare("SELECT value FROM settings WHERE key = 'ad_runs'").get();
+      const runsList = runs ? JSON.parse(runs.value || '[]') : [];
+      
+      const run = {
+        id: Date.now(),
+        platform: platform || 'unknown',
+        name: name || 'Untitled Campaign',
+        amount: amount || 0,
+        status: 'active',
+        committedAt: new Date().toISOString()
+      };
+      
+      runsList.push(run);
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('ad_runs', ?)").run(JSON.stringify(runsList));
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('ad_spend_this_month', ?)").run(String(spendNum + (amount || 0)));
+      
+      res.json({ ok: true, run, remaining: budgetNum - spendNum - (amount || 0) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/ads/cancel', (req, res) => {
+    try {
+      const { id } = req.body;
+      const runs = db.prepare("SELECT value FROM settings WHERE key = 'ad_runs'").get();
+      let runsList = runs ? JSON.parse(runs.value || '[]') : [];
+      const run = runsList.find(r => r.id === id);
+      if (run && run.status === 'active') {
+        run.status = 'cancelled';
+        run.cancelledAt = new Date().toISOString();
+        // Refund the spend
+        const spend = db.prepare("SELECT value FROM settings WHERE key = 'ad_spend_this_month'").get();
+        const spendNum = spend ? parseFloat(spend.value) || 0 : 0;
+        db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('ad_spend_this_month', ?)").run(String(Math.max(0, spendNum - run.amount)));
+      }
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('ad_runs', ?)").run(JSON.stringify(runsList));
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TREND → PRODUCT PIPELINE
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.post('/api/trends/:id/generate', async (req, res) => {
+    try {
+      const trend = db.prepare('SELECT * FROM trends WHERE id = ?').get(req.params.id);
+      if (!trend) return res.status(404).json({ error: 'Trend not found' });
+      
+      const conceptEngine = require('./services/conceptEngine');
+      const productDraft = require('./services/productDraft');
+      const productTypes = require('./services/productTypes');
+      
+      // Generate 3-5 products for this trend
+      const types = ['playbook', 'checklist', 'spreadsheet', 'email-scripts', 'sop-package'];
+      const generated = [];
+      
+      for (const type of types.slice(0, 3)) {
+        const concept = await conceptEngine.generateConcept(trend.niche || trend.name, type);
+        if (concept) {
+          const draft = productDraft.createDraft(trend.niche || trend.name, type, concept);
+          if (draft) generated.push(draft);
+        }
+      }
+      
+      res.json({ ok: true, generated: generated.length, products: generated });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PRODUCT PREVIEW — serve PDF for inline preview
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/products/:id/preview-html', (req, res) => {
+    try {
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+      
+      const designStudio = require('./services/designStudio');
+      const designStyles = require('./services/designStyles');
+      
+      const prof = { name: product.prof_name, slug: product.prof_slug, colors: product.colors, services: product.services, emoji: product.emoji || '' };
+      const theme = designStyles.resolveDesign(prof, product.type);
+      
+      // Generate HTML preview
+      let html = '';
+      if (product.type === 'playbook') html = designStudio.buildPlaybookHTML(prof, theme, {});
+      else if (product.type === 'pricing-bible') html = designStudio.buildPricingBibleHTML(prof, theme, {});
+      else if (product.type === 'email-scripts') html = designStudio.buildEmailScriptsHTML(prof, theme, {});
+      else if (product.type === 'sop-package') html = designStudio.buildSOPPackageHTML(prof, theme, {});
+      else if (product.type === 'invoice') html = designStudio.buildInvoiceHTML(prof, theme, {});
+      else if (product.type === 'checklist') html = designStudio.buildChecklistHTML(prof, theme, {});
+      else if (product.type === 'journal') html = designStudio.buildJournalHTML(prof, theme, {});
+      else html = '<div style="padding:40px;text-align:center;color:#7c8aa0">Preview not available for this type</div>';
+      
+      res.setHeader('Content-Type', 'text/html');
+      res.send(html);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+pp.post('/api/social/generate', async (req, res) => {
     try {
       const { productId, platform } = req.body;
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);

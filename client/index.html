@@ -278,7 +278,7 @@ function renderCatalog(){
   if(f.type!=='all')list=list.filter(p=>p.type===f.type);
   if(f.q)list=list.filter(p=>p.name&&p.name.toLowerCase().includes(f.q.toLowerCase()));
   const card=p=>{const sel=state.selected.has(p.id);const img=prodImg(p);const shortC=conceptShort(p);const _dna=detectDNA(p.prof_name||'',p.type);
-    return `<div class="card ${sel?'sel':''}" onclick="toggleSel(${p.id})">
+    return `<div class="card ${sel?'sel':''}" onclick="toggleSel(${p.id})" ondblclick="previewProduct(${p.id})">
       <div style="position:relative"><span class="ck"></span><div class="thumb">${img||`<span class="ph">${thumbFor(p)}</span>`}<div class="dna-strip ${_dna.style}"></div></div></div>
       <div class="bd"><div class="nm" title="${esc(p.name)}">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)}<div style="display:flex;gap:4px;align-items:center;margin-top:3px"><span class="dna-badge ${_dna.style}">${_dna.style}</span><span class="dna-niche">${_dna.niche}</span></div></div>${shortC}
       <div style="display:flex;justify-content:space-between"><span>${pillFor(p)}</span><span class="pr">${esc(p.price||'')}</span></div></div></div>`;};
@@ -425,7 +425,7 @@ function renderTrends(c){
       <span style="font-size:1.4rem">${esc(t.emoji||'🔥')}</span>
       <div style="flex:1"><div class="nm">${esc(t.name)}</div><div class="mt">${esc(t.source||t.why||'')} · ${esc(t.velocity||'')} · win ${esc(t.window||'?')}d · ${esc(t.est_revenue||'')}</div></div>
       <span class="grade ${grade}">${grade}</span>
-      <button class="btn green" ${t.activated?'disabled':''} onclick="activateTrend(${t.id})">Activate</button>
+      <button class="btn green" ${t.activated?'disabled':''} onclick="activateTrend(${t.id})" title="Activate Trend">Activate</button><button class="btn primary" onclick="generateFromTrend(${t.id})" style="font-size:0.72rem">Generate Products</button>
     </div>`;};
   c.innerHTML=`<div class="sh"><div><h2>Trend Radar</h2><div class="desc">Live discovery + vetting. Activate a niche to lock the window.</div></div>
     <div class="frow"><button class="btn primary" onclick="trendScan()">🛰️ Scan Now</button><button class="btn" onclick="trendSweep()">Sweep</button></div></div>
@@ -436,6 +436,23 @@ function renderTrends(c){
 }
 async function trendScan(){showToast('info','Scan','Running live radar…');const d=await (await fetch(`${API}/trends/scan`,{method:'POST'})).json();showToast('success','Scan Done','Trends refreshed');await refresh();}
 async function trendSweep(){showToast('info','Sweep','Discovery sweep…');await fetch(`${API}/discovery/sweep`,{method:'POST'});showToast('success','Sweep','Discovery complete');await refresh();}
+
+async function generateFromTrend(id){
+  try {
+    showToast('Generating products from trend...', 'info');
+    var res = await fetch(API+'/trends/'+id+'/generate', {method:'POST'});
+    var data = await res.json();
+    if(data.ok) {
+      showToast('Generated ' + data.generated + ' products!', 'success');
+      refresh();
+    } else {
+      showToast(data.error || 'Error generating products', 'warning');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'warning');
+  }
+}
+
 async function activateTrend(id){const r=await fetch(`${API}/trends/${id}/activate`,{method:'POST'});const d=await r.json();showToast(d.error?'warning':'success',d.error?'Activation blocked':'Activated',d.error||'Niche active — products generating');await refresh();}
 async function generatePreviewsSingle(id){const r=await fetch(`${API}/previews/generate?limit=10&force=1&afterId=`+(id-1)+`&maxId=`+id,{method:'POST'});const d=await r.json();showToast('success','Preview','Cover generated');await refresh();}
 /* ── Visual editor (product HTML recolor + export) ── */
@@ -467,7 +484,229 @@ async function loadRevenueKPIs(){
   } catch(e) {}
 }
 
-async function init(){await loadAll();render();if(state.view==='home')loadHomeLog(); loadRevenueKPIs();})();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SOCIAL SCHEDULER VIEW
+// ═══════════════════════════════════════════════════════════════════════════
+function renderSocial(){
+  var posts = state.socialPosts || [];
+  var products = state.products || [];
+  var listed = products.filter(function(p){ return p.status === 'listed'; });
+  
+  var calendar = posts.map(function(p){
+    var d = new Date(p.scheduledAt);
+    var dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    var statusColor = p.status === 'posted' ? 'var(--green)' : p.status === 'cancelled' ? 'var(--red)' : 'var(--amber)';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px">'
+      + '<div style="width:10px;height:10px;border-radius:50%;background:' + statusColor + ';flex-shrink:0"></div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (p.content || '').slice(0, 60) + '...</div>'
+      + '<div style="font-size:0.72rem;color:var(--muted)">' + p.platform + ' · ' + dateStr + ' · ' + p.status + '</div>'
+      + '</div>'
+      + (p.status === 'scheduled' ? '<button class="btn red" onclick="cancelSocialPost(' + p.id + ')" style="font-size:0.72rem;padding:4px 10px">Cancel</button>' : '')
+      + '</div>';
+  }).join('');
+
+  return '<div class="sh"><div><h2>📱 Social Scheduler</h2><div class="desc">Generate and schedule posts for Pinterest, Instagram, Twitter, and Facebook.</div></div><button class="btn ghost" onclick="go(\'home\')">← Overview</button></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 320px;gap:16px">'
+    + '<div>'
+    + '<div class="panel" style="margin-bottom:14px"><div class="panel-title">Scheduled Posts</div><div style="padding:12px;max-height:500px;overflow:auto">'
+    + (posts.length ? calendar : '<div style="text-align:center;color:var(--muted);padding:20px">No scheduled posts yet. Generate one below!</div>')
+    + '</div></div>'
+    + '</div>'
+    + '<div>'
+    + '<div class="panel" style="margin-bottom:14px"><div class="panel-title">Generate Post</div><div style="padding:14px">'
+    + '<select id="social-product" style="width:100%;margin-bottom:8px"><option value="">Select a product...</option>'
+    + listed.map(function(p){ return '<option value="' + p.id + '">' + (p.name || '').slice(0,40) + ' (' + p.type + ')</option>'; }).join('')
+    + '</select>'
+    + '<select id="social-platform" style="width:100%;margin-bottom:8px">'
+    + '<option value="pinterest">📌 Pinterest</option><option value="instagram">📸 Instagram</option><option value="twitter">🐦 Twitter</option><option value="facebook">📘 Facebook</option>'
+    + '</select>'
+    + '<button class="btn primary" onclick="generateSocialPost()" style="width:100%">✨ Generate & Schedule</button>'
+    + '<div id="social-preview" style="margin-top:12px;display:none"></div>'
+    + '</div></div>'
+    + '<div class="panel"><div class="panel-title">Quick Stats</div><div style="padding:14px">'
+    + '<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:var(--muted);font-size:0.82rem">Scheduled</span><span style="font-weight:700">' + posts.filter(function(p){return p.status==='scheduled'}).length + '</span></div>'
+    + '<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:var(--muted);font-size:0.82rem">Posted</span><span style="font-weight:700;color:var(--green)">' + posts.filter(function(p){return p.status==='posted'}).length + '</span></div>'
+    + '<div style="display:flex;justify-content:space-between"><span style="color:var(--muted);font-size:0.82rem">Products Ready</span><span style="font-weight:700;color:var(--teal)">' + listed.length + '</span></div>'
+    + '</div></div>'
+    + '</div></div>';
+}
+
+async function generateSocialPost(){
+  var prodEl = document.getElementById('social-product');
+  var platEl = document.getElementById('social-platform');
+  var productId = prodEl.value;
+  var platform = platEl.value;
+  if(!productId) return showToast('Select a product first', 'warning');
+  
+  showToast('Generating ' + platform + ' post...', 'info');
+  try {
+    var res = await fetch(API+'/social/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({productId:parseInt(productId), platform:platform})});
+    var data = await res.json();
+    if(data.ok) {
+      var preview = document.getElementById('social-preview');
+      preview.style.display = 'block';
+      preview.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:0.82rem;line-height:1.5;white-space:pre-wrap;max-height:200px;overflow:auto">' + (data.content || '').replace(/</g,'&lt;') + '</div>'
+        + '<div style="display:flex;gap:6px;margin-top:8px">'
+        + '<button class="btn primary" onclick="schedulePost(' + productId + ',\'' + platform + '\',\'\' + btoa(data.content || '') + '\')" style="flex:1">📅 Schedule</button>'
+        + '<button class="btn green" onclick="postNow(' + productId + ',\'' + platform + '\')" style="flex:1">⚡ Post Now</button>'
+        + '</div>';
+      window._lastSocialContent = data.content;
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'warning');
+  }
+}
+
+async function schedulePost(productId, platform, contentB64){
+  try {
+    var content = window._lastSocialContent || atob(contentB64);
+    var scheduledAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour from now
+    var res = await fetch(API+'/social/schedule', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({productId:parseInt(productId), platform:platform, content:content, scheduledAt:scheduledAt})});
+    var data = await res.json();
+    if(data.ok) {
+      showToast('Post scheduled for 1 hour from now', 'success');
+      loadSocialPosts();
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'warning');
+  }
+}
+
+async function postNow(productId, platform){
+  try {
+    var res = await fetch(API+'/social/post-now', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({productId:parseInt(productId), platform:platform})});
+    var data = await res.json();
+    if(data.ok) {
+      showToast('Posted to ' + platform + '!', 'success');
+      loadSocialPosts();
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'warning');
+  }
+}
+
+async function cancelSocialPost(id){
+  try {
+    await fetch(API+'/social/cancel', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:id})});
+    showToast('Post cancelled', 'success');
+    loadSocialPosts();
+  } catch(e) {}
+}
+
+async function loadSocialPosts(){
+  try {
+    var res = await fetch(API+'/social/calendar');
+    var data = await res.json();
+    state.socialPosts = data.posts || [];
+    if(state.view === 'social') render();
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AD SPEND DASHBOARD VIEW
+// ═══════════════════════════════════════════════════════════════════════════
+function renderAds(){
+  var ads = state.adsData || {budget:0, spent:0, remaining:0, percentUsed:0, activeRuns:0, recentRuns:[]};
+  var pct = Math.min(100, ads.percentUsed || 0);
+  var barColor = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--amber)' : 'var(--teal)';
+
+  var runs = (ads.recentRuns || []).map(function(r){
+    var statusColor = r.status === 'active' ? 'var(--green)' : r.status === 'cancelled' ? 'var(--red)' : 'var(--muted)';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border-radius:var(--radius-xs);margin-bottom:6px">'
+      + '<div style="width:8px;height:8px;border-radius:50%;background:' + statusColor + '"></div>'
+      + '<div style="flex:1"><div style="font-weight:600;font-size:0.82rem">' + (r.name || 'Campaign') + '</div><div style="font-size:0.72rem;color:var(--muted)">' + r.platform + ' · $' + r.amount + ' · ' + r.status + '</div></div>'
+      + (r.status === 'active' ? '<button class="btn red" onclick="cancelAd(' + r.id + ')" style="font-size:0.72rem;padding:4px 10px">Cancel</button>' : '')
+      + '</div>';
+  }).join('');
+
+  return '<div class="sh"><div><h2>💰 Ad Spend Dashboard</h2><div class="desc">Track your marketing budget across platforms.</div></div><button class="btn ghost" onclick="go(\'home\')">← Overview</button></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">'
+    + '<div class="kpi" style="border-left:3px solid var(--teal)"><div class="lb">Monthly Budget</div><div class="num" style="color:var(--teal)">$' + (ads.budget || 0).toLocaleString() + '</div></div>'
+    + '<div class="kpi" style="border-left:3px solid ' + barColor + '"><div class="lb">Spent This Month</div><div class="num" style="color:' + barColor + '">$' + (ads.spent || 0).toLocaleString() + '</div></div>'
+    + '<div class="kpi"><div class="lb">Remaining</div><div class="num" style="color:var(--green)">$' + (ads.remaining || 0).toLocaleString() + '</div></div>'
+    + '<div class="kpi"><div class="lb">Active Campaigns</div><div class="num" style="color:var(--blue)">' + (ads.activeRuns || 0) + '</div></div>'
+    + '</div>'
+    + '<div style="height:12px;background:var(--surface);border-radius:6px;margin-bottom:20px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:6px;transition:width 0.5s"></div></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+    + '<div><div class="panel"><div class="panel-title">Commit Ad Spend</div><div style="padding:14px">'
+    + '<input id="ad-name" placeholder="Campaign name" style="width:100%;margin-bottom:8px">'
+    + '<select id="ad-platform" style="width:100%;margin-bottom:8px"><option value="google">Google Ads</option><option value="facebook">Facebook/Instagram</option><option value="pinterest">Pinterest</option><option value="tiktok">TikTok</option></select>'
+    + '<input id="ad-amount" type="number" placeholder="Amount ($)" style="width:100%;margin-bottom:8px">'
+    + '<button class="btn primary" onclick="commitAdSpend()" style="width:100%">💸 Commit Spend</button>'
+    + '</div></div></div>'
+    + '<div><div class="panel"><div class="panel-title">Set Monthly Budget</div><div style="padding:14px">'
+    + '<input id="budget-input" type="number" value="' + (ads.budget || 0) + '" placeholder="Monthly budget ($)" style="width:100%;margin-bottom:8px">'
+    + '<button class="btn" onclick="setAdBudget()" style="width:100%">💾 Save Budget</button>'
+    + '<div style="margin-top:12px"><div class="panel-title" style="border:none;padding:0;margin-bottom:8px">Recent Campaigns</div>'
+    + (runs || '<div style="color:var(--muted);font-size:0.82rem">No campaigns yet</div>')
+    + '</div></div></div>'
+    + '</div></div>';
+}
+
+async function commitAdSpend(){
+  var name = document.getElementById('ad-name').value || 'Untitled';
+  var platform = document.getElementById('ad-platform').value;
+  var amount = parseFloat(document.getElementById('ad-amount').value) || 0;
+  if(!amount) return showToast('Enter an amount', 'warning');
+  
+  try {
+    var res = await fetch(API+'/ads/commit', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:name, platform:platform, amount:amount})});
+    var data = await res.json();
+    if(data.ok) {
+      showToast('Committed $' + amount + ' to ' + platform, 'success');
+      document.getElementById('ad-name').value = '';
+      document.getElementById('ad-amount').value = '';
+      loadAdsData();
+    } else {
+      showToast(data.error || 'Error', 'warning');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'warning');
+  }
+}
+
+async function setAdBudget(){
+  var budget = parseFloat(document.getElementById('budget-input').value) || 0;
+  try {
+    await fetch(API+'/ads/budget', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({budget:budget})});
+    showToast('Budget set to $' + budget, 'success');
+    loadAdsData();
+  } catch(e) {}
+}
+
+async function cancelAd(id){
+  try {
+    await fetch(API+'/ads/cancel', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:id})});
+    showToast('Campaign cancelled and refunded', 'success');
+    loadAdsData();
+  } catch(e) {}
+}
+
+async function loadAdsData(){
+  try {
+    var res = await fetch(API+'/ads/summary');
+    state.adsData = await res.json();
+    if(state.view === 'ads') render();
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRODUCT PREVIEW
+// ═══════════════════════════════════════════════════════════════════════════
+function previewProduct(id){
+  var modal = document.getElementById('preview-modal');
+  if(!modal) return;
+  modal.classList.add('open');
+  modal.innerHTML = '<div class="pwin">'
+    + '<div class="pbar"><div class="title">Product Preview</div><button class="btn" onclick="closeModal(\'preview-modal\')">✕ Close</button></div>'
+    + '<iframe class="pframe" src="' + API + '/products/' + id + '/preview-html"></iframe>'
+    + '</div>';
+}
+
+async function init(){await loadAll();render();if(state.view==='home')loadHomeLog(); loadRevenueKPIs(); loadSocialPosts(); loadAdsData();})();
 </script>
 </body>
 </html>

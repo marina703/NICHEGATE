@@ -1,32 +1,21 @@
 # Goal: NicheGate autonomous digital-product factory — discover niches, generate file-backed products, publish to Gumroad/Etsy.
 
 # Done so far (2026-09-15 -> 09-20):
-- AI idea layer: modelRouter.js + modelConfig.js + conceptEngine.js + contentLibrary.js.
-- Covers: Cloudflare Workers AI FLUX; v3 composite.
-- Dashboard: premium dark redesign (glassmorphism, gradients, glow effects).
-- Types: productTypes.js — 33 types (15 innovative added).
-- Security: helmet, rate-limit, /api/health, Secure cookies, pino, migrations table.
-- Design DNA: 8 styles x 13 niches x 12 fonts x 16 builders.
-- Innovative builders: playbook ($24), pricing-bible ($19), calculator ($15), email-scripts ($15), sop-package ($19).
-- Command Center Phase 1: revenue KPIs, Etsy daily cap (min 10), chat panel, push-to-Etsy, passion niches.
-- Social post generator API ready (pinterest/instagram/twitter/facebook).
-- Marketplace: Etsy + Gumroad connected.
-- Config: MODEL_ENABLED=true, BIND_HOST=0.0.0.0.
+- AI idea layer, covers, Design DNA, 33 product types, security hardening.
+- 16 builders (playbook/pricing-bible/calculator/email-scripts/sop-package + 11 original).
+- Command Center COMPLETE: 8 views, premium dark redesign.
+  - Home: revenue KPIs, pipeline funnel, quick actions.
+  - Catalog: product grid with DNA badges, double-click preview.
+  - Review: approve/reject + push-to-Etsy + push-to-Gumroad.
+  - Chat: custom prompts, passion niches, quick suggestions.
+  - Social: generate posts (pinterest/instagram/twitter/facebook), schedule, post now.
+  - Ads: budget tracking, commit/cancel spend, campaign history.
+  - Marketplace: Etsy cap display, connection status.
+  - Trends: activate, dismiss, generate products from trend.
+- Config: MODEL_ENABLED=true, BIND_HOST=0.0.0.0, Etsy connected, Gumroad connected.
 
-# Current file states:
-- server/services/productTypes.js = 33 types.
-- server/services/designStyles.js = Design DNA engine.
-- server/services/designStudio.js = 16 builders.
-- server/services/calculatorBuilder.js = XLSX calculator.
-- server/services/emailScriptsBuilder.js = 30 email templates.
-- server/services/sopBuilder.js = 11 SOPs.
-- server/services/coverArt.js = NICHE_SCENES + TYPE_SCENES.
-- client/index.html = Premium dashboard with all Phase 1 features.
-
-# Next steps (Phase 2):
-1) Social post scheduler (calendar view, scheduled posts).
-2) Ad spend dashboard (budget tracking, commit/cancel runs).
-3) Product preview in catalog (inline PDF preview).
-4) Trend-to-product pipeline (activate trend → auto-generate products).
-
-# Do NOT redo: productTypes.js, designStyles.js, ALL builders, coverArt.js, calculatorBuilder.js, emailScriptsBuilder.js, sopBuilder.js — git diff before touching.
+# Next steps (Phase 3):
+1) Content calendar (monthly view of scheduled posts + launches).
+2) Sales analytics (revenue by niche, by type, conversion rates).
+3) Batch social generation (one click for all listed products).
+4) Automation improvements (smart quick actions based on context).
