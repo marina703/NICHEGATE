@@ -257,7 +257,7 @@ function renderHome(){
       return `<button class="st ${n>0?'on':''}" title="Filter catalog: ${l}" onclick="funnelGo('${key}')"><div class="ring">${n}</div><div class="l">${l}</div></button>`;
     }).join('<div class="ar">→</div>');
   const k=`<div class="kpi"><div class="lb">Total Products</div><div class="num tc">${c.total}</div></div>`+`<div class="kpi"><div class="lb">Active (Listed)</div><div class="num gn">${c.listed}</div></div>`+`<div class="kpi"><div class="lb">In Review</div><div class="num am">${c.review}</div></div>`+`<div class="kpi"><div class="lb">Ready (Approved)</div><div class="num bl">${c.approved}</div></div>`+`<div class="kpi" id="etsy-cap-kpi"><div class="lb">Etsy Today</div><div class="num" style="color:var(--amber)">--</div></div>`+`<div class="kpi" id="revenue-kpi"><div class="lb">Est. Revenue</div><div class="num gn">$--</div></div>`;
-  const acts=`<button class="btn primary" onclick="runSweep()" style="justify-content:flex-start">🛰️ 🛰️ Discover New Niches</button>`
+  const acts=window._smartActionsHtml||''; acts+=`<button class="btn primary" onclick="runSweep()" style="justify-content:flex-start">🛰️ 🛰️ Discover New Niches</button>`
     +`<button class="btn primary" onclick="runAutoCycle()" style="justify-content:flex-start">▶ ▶ Generate Products Now</button>`
     +`<button class="btn green" onclick="deployBundles()" style="justify-content:flex-start">📦 📦 Publish Bundles → Gumroad</button>`
     +`<button class="btn green" onclick="deployLeadMagnet()" style="justify-content:flex-start">🧲 🧲 Publish Lead Magnet</button>`
@@ -569,6 +569,52 @@ function renderAnalytics(){
 // ═══════════════════════════════════════════════════════════════════════════
 // BATCH SOCIAL GENERATION
 // ═══════════════════════════════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SMART ACTIONS — context-aware suggestions
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadSmartActions(){
+  try {
+    var res = await fetch(API+'/smart-actions');
+    var data = await res.json();
+    if(data.actions && data.actions.length) {
+      window._smartActionsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">'
+        + data.actions.map(function(a){
+          return '<button class="btn" onclick="executeSmartAction(\''+a.action+'\')" style="border-left:3px solid '+a.color+';font-size:0.76rem">'+a.icon+' '+a.title+'</button>';
+        }).join('')
+        + '</div>';
+    } else {
+      window._smartActionsHtml = '';
+    }
+  } catch(e) { window._smartActionsHtml = ''; }
+}
+
+function executeSmartAction(action){
+  switch(action){
+    case 'approve-all': approveAll(); break;
+    case 'generate-drafts': runAutoCycle(); break;
+    case 'auto-list': autoList(); break;
+    case 'run-sweep': runSweep(); break;
+    case 'batch-social': go('social'); break;
+    case 'rebuild-all': rebuildAll(); break;
+    case 'passion-generate': go('chat'); quickChat('Generate products for all my passion niches'); break;
+    default: showToast('Action: '+action, 'info');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NEWSLETTER COPY
+// ═══════════════════════════════════════════════════════════════════════════
+function copyNewsletter(){
+  var text = (window._newsletterSubject || '') + '\n\n' + (window._newsletterBody || '');
+  navigator.clipboard.writeText(text).then(function(){
+    showToast('Newsletter copied to clipboard!', 'success');
+  }).catch(function(){
+    showToast('Failed to copy', 'warning');
+  });
+}
+
 async function batchSocialGenerate(){
   var platform = document.getElementById('social-platform').value || 'instagram';
   showToast('Generating posts for all listed products...', 'info');
@@ -670,7 +716,7 @@ function renderSocial(){
     + listed.map(function(p){ return '<option value="' + p.id + '">' + (p.name || '').slice(0,40) + ' (' + p.type + ')</option>'; }).join('')
     + '</select>'
     + '<select id="social-platform" style="width:100%;margin-bottom:8px">'
-    + '<option value="pinterest">📌 Pinterest</option><option value="instagram">📸 Instagram</option><option value="twitter">🐦 Twitter</option><option value="facebook">📘 Facebook</option>'
+    + '<option value="pinterest">📌 Pinterest</option><option value="instagram">📸 Instagram</option><option value="twitter">🐦 Twitter</option><option value="facebook">📘 Facebook</option><option value="tiktok">🎵 TikTok</option><option value="linkedin">💼 LinkedIn</option>'
     + '</select>'
     + '<button class="btn primary" onclick="generateSocialPost()" style="width:100%">✨ Generate & Schedule</button><div style="margin-top:8px;text-align:center"><button class="btn" onclick="batchSocialGenerate()" style="width:100%;font-size:0.76rem">📱 Batch Generate (All Listed)</button></div>'
     + '<div id="social-preview" style="margin-top:12px;display:none"></div>'
@@ -808,7 +854,7 @@ async function commitAdSpend(){
       showToast('Committed $' + amount + ' to ' + platform, 'success');
       document.getElementById('ad-name').value = '';
       document.getElementById('ad-amount').value = '';
-      loadAdsData(); loadCalendar(); loadAnalytics();
+      loadAdsData(); loadCalendar(); loadAnalytics(); loadSmartActions();
     } else {
       showToast(data.error || 'Error', 'warning');
     }

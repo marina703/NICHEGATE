@@ -671,7 +671,104 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // BATCH SOCIAL — generate posts for all listed products
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post('/api/social/batch-generate', async (req, res) => {
+  a
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EMAIL NEWSLETTER — auto-generate weekly digest
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/newsletter/generate', async (req, res) => {
+    try {
+      const products = db.prepare("SELECT * FROM products WHERE status = 'listed' ORDER BY id DESC LIMIT 5").all();
+      const trends = db.prepare("SELECT * FROM trends WHERE status = 'active' LIMIT 3").all();
+      const stats = db.prepare("SELECT COUNT(*) as c FROM products WHERE status = 'listed'").get();
+      
+      const productList = products.map(function(p, i) {
+        return (i + 1) + '. ' + (p.name || 'Product') + ' — ' + (p.prof_name || '') + ' · $' + (p.price || '0');
+      }).join('\n');
+      
+      const trendList = trends.map(function(t) {
+        return '• ' + (t.name || t.keyword || 'Trend');
+      }).join('\n');
+      
+      const subject = 'New This Week: ' + products.length + ' Fresh ' + (products[0] ? products[0].prof_name : '') + ' Products';
+      const body = 'Hey there!\n\nHere is what is new at NicheGate this week:\n\n📦 NEW PRODUCTS:\n' + productList
+        + '\n\n📈 TRENDING NICHES:\n' + trendList
+        + '\n\nWe now have ' + (stats ? stats.c : 0) + ' products live across all marketplaces.\n\nBrowse the full catalog: ' + (req.protocol || 'https') + '://' + (req.get('host') || 'localhost:5000') + '/store\n\nHappy creating!\nThe NicheGate Team';
+      
+      res.json({ ok: true, subject, body, productCount: products.length, trendCount: trends.length });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SMART QUICK ACTIONS — context-aware based on current state
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/smart-actions', (req, res) => {
+    try {
+      const actions = [];
+      const products = db.prepare('SELECT status, prof_name, type, price FROM products').all();
+      const trends = db.prepare('SELECT status FROM trends').all();
+      const settings = db.prepare("SELECT value FROM settings WHERE key = 'passion_niches'").get();
+      const niches = settings ? JSON.parse(settings.value || '[]') : [];
+      
+      const review = products.filter(p => p.status === 'pending-review' || p.status === 'reviewing').length;
+      const draft = products.filter(p => p.status === 'draft').length;
+      const listed = products.filter(p => p.status === 'listed').length;
+      const activeTrends = trends.filter(t => t.status === 'active').length;
+      
+      if (review > 0) actions.push({ icon: '✅', title: 'Approve ' + review + ' products', action: 'approve-all', color: 'var(--green)' });
+      if (draft > 0) actions.push({ icon: '📦', title: 'Generate ' + draft + ' drafts', action: 'generate-drafts', color: 'var(--blue)' });
+      if (listed > 0 && listed < 20) actions.push({ icon: '🚀', title: 'Publish ' + listed + ' to marketplaces', action: 'auto-list', color: 'var(--teal)' });
+      if (activeTrends === 0) actions.push({ icon: '🔭', title: 'Run trend discovery', action: 'run-sweep', color: 'var(--amber)' });
+      if (niches.length > 0) actions.push({ icon: '🎯', title: 'Generate for passion niches (' + niches.length + ')', action: 'passion-generate', color: 'var(--purple)' });
+      if (listed > 5) actions.push({ icon: '📱', title: 'Batch social posts for ' + listed + ' products', action: 'batch-social', color: 'var(--pink)' });
+      if (products.length > 0) actions.push({ icon: '✨', title: 'Rebuild all covers', action: 'rebuild-all', color: 'var(--blue)' });
+      
+      res.json({ actions: actions.slice(0, 6) });
+    } catch (e) {
+      res.json({ actions: [] });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STRIPE PREP — webhook + status (ready for Stripe key)
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/payments/status', (req, res) => {
+    try {
+      const stripeKey = process.env.STRIPE_SECRET_KEY || '';
+      const stripeWebhook = process.env.STRIPE_WEBHOOK_SECRET || '';
+      res.json({
+        configured: !!(stripeKey && stripeWebhook),
+        stripeKey: stripeKey ? 'sk_...' + stripeKey.slice(-4) : 'not set',
+        note: 'Set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in .env to enable direct payments'
+      });
+    } catch (e) {
+      res.json({ configured: false, note: 'Stripe not configured' });
+    }
+  });
+
+  app.post('/api/payments/checkout', async (req, res) => {
+    try {
+      const { productId } = req.body;
+      const stripeKey = process.env.STRIPE_SECRET_KEY || '';
+      if (!stripeKey) return res.status(400).json({ error: 'Stripe not configured. Add STRIPE_SECRET_KEY to .env' });
+      
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+      
+      // Stripe checkout session creation (placeholder — requires stripe npm package)
+      res.json({ 
+        note: 'Stripe checkout requires the stripe npm package. Run: npm install stripe',
+        product: product.name,
+        price: product.price,
+        status: 'ready_to_configure'
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+pp.post('/api/social/batch-generate', async (req, res) => {
     try {
       const { platform, limit } = req.body;
       const products = db.prepare("SELECT * FROM products WHERE status = 'listed'").all();
