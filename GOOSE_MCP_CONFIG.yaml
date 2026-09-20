@@ -1,0 +1,57 @@
+# NicheGate MCP Server Configuration
+# Add this to: C:\Users\linde\.config\goose\config.yaml
+# Or use: goose configure
+
+extensions:
+  # Filesystem access for enhanced file operations
+  filesystem:
+    command: npx
+    args:
+      - "-y"
+      - "@anthropic/mcp-filesystem"
+      - "--allowed-dir"
+      - "C:\Users\linde\.skales-data\workspace\nichegate"
+
+  # GitHub integration for repo management
+  github:
+    command: npx
+    args:
+      - "-y"
+      - "@anthropic/mcp-github"
+    env:
+      GITHUB_TOKEN: "${GITHUB_TOKEN}"
+
+  # SQLite database queries for analytics
+  sqlite:
+    command: npx
+    args:
+      - "-y"
+      - "@anthropic/mcp-sqlite"
+      - "--db-path"
+      - "C:\Users\linde\.skales-data\workspace\nichegate\data\profession-box.db"
+
+  # Puppeteer for browser automation and testing
+  puppeteer:
+    command: npx
+    args:
+      - "-y"
+      - "@anthropic/mcp-puppeteer"
+
+  # Web search for enhanced trend research
+  web-search:
+    command: npx
+    args:
+      - "-y"
+      - "@anthropic/mcp-web-search"
+    env:
+      TAVILY_API_KEY: "${TAVILY_API_KEY}"  # Get free key at https://tavily.com
+
+  # Cloudflare R2 for image hosting (replace catbox.moe)
+  cloudflare:
+    command: npx
+    args:
+      - "-y"
+      - "@anthropic/mcp-cloudflare"
+    env:
+      CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN}"
+      CLOUDFLARE_ACCOUNT_ID: "${CLOUDFLARE_ACCOUNT_ID}"

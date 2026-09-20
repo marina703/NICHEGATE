@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════════════
 // PRODUCT DRAFT — single source of truth for inserting a draft product row
 // with a consistent theme, type, price, and validation. Used by the auto-cycle,
 // discovery, freshness pass, seasonal engine, and the manual automation endpoint.

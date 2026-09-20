@@ -134,6 +134,28 @@ input:focus,select:focus{border-color:var(--teal)}
 .toast.info{border-left-color:var(--blue)}.toast.success{border-left-color:var(--green)}.toast.warning{border-left-color:var(--amber)}.toast.error{border-left-color:var(--red)}
 .toast .tt{font-size:0.8rem;font-weight:700}.toast .tm{font-size:0.73rem;color:#7c8aa0;line-height:1.35}
 @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
+
+/* ── DESIGN DNA BADGES ── */
+.dna-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:0.58rem;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;line-height:1.4}
+.dna-badge.editorial{background:rgba(196,149,106,0.15);color:#c4956a;border:1px solid rgba(196,149,106,0.2)}
+.dna-badge.brutalist{background:rgba(255,51,51,0.12);color:#ff5555;border:1px solid rgba(255,51,51,0.2)}
+.dna-badge.organic{background:rgba(124,182,157,0.15);color:#7cb69d;border:1px solid rgba(124,182,157,0.2)}
+.dna-badge.technical{background:rgba(0,163,224,0.12);color:#00a3e0;border:1px solid rgba(0,163,224,0.2)}
+.dna-badge.luxe{background:rgba(212,175,55,0.12);color:#d4af37;border:1px solid rgba(212,175,55,0.2)}
+.dna-badge.playful{background:rgba(255,107,107,0.12);color:#ff6b6b;border:1px solid rgba(255,107,107,0.2)}
+.dna-badge.minimal{background:rgba(100,100,100,0.1);color:#999;border:1px solid rgba(100,100,100,0.2)}
+.dna-badge.heritage{background:rgba(139,69,19,0.12);color:#a0724a;border:1px solid rgba(139,69,19,0.2)}
+.dna-niche{font-size:0.55rem;color:#7c8aa0;margin-top:2px}
+.dna-strip{height:3px;border-radius:0 0 12px 12px;margin-top:-1px}
+.dna-strip.editorial{background:linear-gradient(90deg,#c4956a,#1a1a1a)}
+.dna-strip.brutalist{background:linear-gradient(90deg,#ff3333,#0a0a0a)}
+.dna-strip.organic{background:linear-gradient(90deg,#7cb69d,#f0c987)}
+.dna-strip.technical{background:linear-gradient(90deg,#00a3e0,#ff6b35)}
+.dna-strip.luxe{background:linear-gradient(90deg,#d4af37,#b8956a)}
+.dna-strip.playful{background:linear-gradient(90deg,#ff6b6b,#ffd93d)}
+.dna-strip.minimal{background:linear-gradient(90deg,#999,#0066ff)}
+.dna-strip.heritage{background:linear-gradient(90deg,#8b4513,#c8956a)}
+
 </style>
 </head>
 <body>
@@ -190,6 +212,13 @@ const API='/api';
 let state={view:'home',professions:[],products:[],trends:[],selected:new Set(),filters:{status:'all',type:'all',q:''},coverRebuildRunning:false};
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function showToast(kind,tt,tm){const c=document.getElementById('toasts');const t=document.createElement('div');t.className='toast '+kind;t.innerHTML='<div style="flex:1"><div class="tt"></div><div class="tm"></div></div><button class="btn ghost" style="padding:2px 8px">✕</button>';t.querySelector('.tt').textContent=tt;t.querySelector('.tm').textContent=tm;t.querySelector('button').onclick=()=>t.remove();c.appendChild(t);if(c.children.length>4)c.firstChild.remove();setTimeout(()=>t.remove(),kind==='success'?3800:5200);}
+
+// ── Design DNA Client-Side Detection ──
+const _dnaKeywords={tech:/tech|software|ai|app|digital|cyber|code|saas|drone|smart home/i,recovery:/recovery|sober|aa |refuge|faith|therapy/i,spiritual:/faith|bible|dharma|prayer|church|gospel/i,beauty:/beauty|makeup|hair|lash|brow|salon|spa|skincare/i,fashion:/fashion|aesthetic|style|wear|clothing/i,fitness:/fitness|gym|train|sport|pilates|crossfit/i,craft:/craft|art|diy|maker|handmade|pottery|candle|soap|resin|cricut/i,food:/food|chef|bake|brew|cook|kitchen|restaurant|coffee/i,outdoor:/outdoor|fish|hunt|camp|hike|garden|bee/i,home:/home|clean|organize|interior|decor|plant/i,wellness:/wellness|yoga|massage|breath|meditation|nutrition/i,finance:/finance|notary|tax|bookkeep|account|loan|audit/i,trades:/trade|plumb|hvac|roof|electric|concrete|fence|pest|pool|drywall/i,pyro:/pyro|firework|pyrotechnic|fuse|lift|burst|rocket/i};
+const _dnaStyleMap={tech:'brutalist',recovery:'editorial',spiritual:'luxe',beauty:'luxe',fashion:'luxe',fitness:'organic',craft:'playful',food:'organic',outdoor:'organic',home:'organic',wellness:'editorial',finance:'minimal',trades:'technical',pyro:'heritage'};
+const _dnaTypeOverrides={invoice:'brutalist',journal:'editorial',spreadsheet:'brutalist',booking:'minimal','wall-art':'luxe',worksheet:'playful','party-printable':'playful',brand:'luxe',website:'brutalist',tool:'technical',bundle:'luxe'};
+function detectDNA(profName,type){if(!profName)return{style:'editorial',niche:'default'};let niche='default';for(const[k,rx]of Object.entries(_dnaKeywords)){if(rx.test(profName)){niche=k;break;}}const style=_dnaTypeOverrides[type]||_dnaStyleMap[niche]||'editorial';return{style,niche};}
+
 const VIEWS=['home','catalog','review','automation','marketplace','trends'];
 function go(v){state.view=v;VIEWS.forEach(x=>{const el=document.getElementById('rv-'+x);if(el)el.className='rail-link'+(x===v?' active':'');});document.getElementById('crumb').textContent={home:'Overview',catalog:'Catalog',review:'Review Queue',automation:'Automation',marketplace:'Marketplace',trends:'Trends'}[v]||v;render();}
 const statusClass=s=>'st-'+(String(s||'draft').replace('_','-'));
@@ -243,10 +272,10 @@ function renderCatalog(){
   if(f.status!=='all')list=list.filter(p=>p.status===f.status);
   if(f.type!=='all')list=list.filter(p=>p.type===f.type);
   if(f.q)list=list.filter(p=>p.name&&p.name.toLowerCase().includes(f.q.toLowerCase()));
-  const card=p=>{const sel=state.selected.has(p.id);const img=prodImg(p);const shortC=conceptShort(p);
+  const card=p=>{const sel=state.selected.has(p.id);const img=prodImg(p);const shortC=conceptShort(p);const _dna=detectDNA(p.prof_name||'',p.type);
     return `<div class="card ${sel?'sel':''}" onclick="toggleSel(${p.id})">
-      <div style="position:relative"><span class="ck"></span><div class="thumb">${img||`<span class="ph">${thumbFor(p)}</span>`}</div></div>
-      <div class="bd"><div class="nm" title="${esc(p.name)}">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)}</div>${shortC}
+      <div style="position:relative"><span class="ck"></span><div class="thumb">${img||`<span class="ph">${thumbFor(p)}</span>`}<div class="dna-strip ${_dna.style}"></div></div></div>
+      <div class="bd"><div class="nm" title="${esc(p.name)}">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)}<div style="display:flex;gap:4px;align-items:center;margin-top:3px"><span class="dna-badge ${_dna.style}">${_dna.style}</span><span class="dna-niche">${_dna.niche}</span></div></div>${shortC}
       <div style="display:flex;justify-content:space-between"><span>${pillFor(p)}</span><span class="pr">${esc(p.price||'')}</span></div></div></div>`;};
   const sel=state.selected.size;
   return `<div class="sh"><div><h2>Catalog</h2><div class="desc">Generated products across every niche.</div></div><button class="btn ghost" onclick="go('home')">← Overview</button></div>

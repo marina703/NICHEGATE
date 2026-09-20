@@ -1,13 +1,13 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// AUTH — optional single-admin dashboard protection.
-//   • Enforced ONLY when ADMIN_PASSWORD is set. Until then, requests pass
+// ---------------------------------------------------------------------------
+// AUTH � optional single-admin dashboard protection.
+//   � Enforced ONLY when ADMIN_PASSWORD is set. Until then, requests pass
 //     through untouched (zero behavior change, so existing deployments don't
 //     break). Set ADMIN_PASSWORD to lock the admin surface.
-//   • Login → issues an httpOnly cookie bearing a random session token stored
+//   � Login ? issues an httpOnly cookie bearing a random session token stored
 //     in auth_sessions with an expiry.
-//   • The autonomous engine runs server-side (DB/services directly), so login
-//     never blocks sweeps/generation/publish — it only gates the HTTP surface.
-// ═══════════════════════════════════════════════════════════════════════════
+//   � The autonomous engine runs server-side (DB/services directly), so login
+//     never blocks sweeps/generation/publish � it only gates the HTTP surface.
+// ---------------------------------------------------------------------------
 
 const crypto = require('crypto');
 const { db } = require('../database');
@@ -50,7 +50,7 @@ function isValidToken(token) {
 }
 
 async function login(req, res) {
-  if (!enabled()) return res.status(409).json({ error: 'Auth not enabled — set ADMIN_PASSWORD' });
+  if (!enabled()) return res.status(409).json({ error: 'Auth not enabled � set ADMIN_PASSWORD' });
   const { password: given } = req.body || {};
   if (!given || !safeEqual(given, password())) {
     // Short, fixed sleep to blunt brute force.
@@ -58,7 +58,8 @@ async function login(req, res) {
     return res.status(401).json({ error: 'Invalid password' });
   }
   const sess = createSession();
-  res.setHeader('Set-Cookie', `${COOKIE}=${sess.token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`);
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `${COOKIE}=${sess.token}; HttpOnly; SameSite=Lax${secure}; Path=/; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`);
   return res.json({ ok: true, expires: sess.expires });
 }
 

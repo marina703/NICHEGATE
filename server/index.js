@@ -9,6 +9,12 @@ const cron = require('node-cron');
 const { v4: uuid } = require('uuid');
 const XLSX = require('xlsx');
 const AdmZip = require('adm-zip');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const pino = require('pino');
+
+// -- STRUCTURED LOGGER (pino) --
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 const { db, init } = require('./database');
 const pdfGen = require('./services/pdfGenerator');
@@ -38,7 +44,19 @@ const PORT = process.env.PORT || 5000;
 const GENERATED_DIR = path.resolve(path.join(__dirname, '..', 'generated'));
 const MAX_SPREADSHEET_PREVIEW_BYTES = 20 * 1024 * 1024;
 
-// ── MIDDLEWARE ──
+// -- MIDDLEWARE --
+// -- SECURITY HEADERS --
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+
+// -- RATE LIMITING --
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+
 app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -46,7 +64,7 @@ app.use('/generated', express.static(path.join(__dirname, '..', 'generated')));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use(express.static(path.join(__dirname, '..', 'client'), { extensions: ['html'] }));
 
-// ── AUTH (optional single-admin dashboard protection) ──
+// -- AUTH (optional single-admin dashboard protection) --
 // Enabled only when ADMIN_PASSWORD is set. API is gated JSON; health + auth
 // routes stay open so Railway's healthcheck and login keep working. Autonomous
 // jobs run server-side (DB/services), so they are never blocked by login.
@@ -58,6 +76,22 @@ app.post('/api/auth/logout', (req, res) => auth.logout(req, res));
 app.get('/api/auth/status', (req, res) => {
   res.json({ enabled: auth.enabled(), authed: auth.isValidToken(auth.tokenFrom(req)) });
 });
+// -- HEALTH ENDPOINT (Railway healthcheck + monitoring) --
+app.get('/api/health', (req, res) => {
+  const dbOk = db.prepare('SELECT 1').get();
+  res.json({
+    ok: !!dbOk,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV || 'development',
+    products: db.prepare('SELECT COUNT(*) as c FROM products').get().c,
+    professions: db.prepare('SELECT COUNT(*) as c FROM professions').get().c
+  });
+});
+
+// -- APPLY RATE LIMITING TO API --
+app.use('/api', apiLimiter);
+
 app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/auth') || req.path.startsWith('/health')) return next();
   return auth.requireAuth({ json: true })(req, res, next);
@@ -65,17 +99,17 @@ app.use('/api', (req, res, next) => {
 app.use(['/'], auth.requireAuth());
 app.use(['/setup'], auth.requireAuth());
 
-// ── INIT DB ──
+// -- INIT DB --
 init();
 initDefaultSettings();
 brand.syncDesignsToCovers(); // keep covers/ in sync with the nichegate designs folder
 
-// ── MULTER ──
+// -- MULTER --
 const upload = multer({ dest: path.join(__dirname, '..', 'uploads') });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: PROFESSIONS
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 app.get('/api/professions', (req, res) => {
   const rows = db.prepare('SELECT * FROM professions ORDER BY tier, id').all();
   res.json(rows.map(r => ({
@@ -103,9 +137,9 @@ app.patch('/api/professions/:id/status', (req, res) => {
   res.json({ success: true });
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: PRODUCTS
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 app.get('/api/products', (req, res) => {
   const rows = db.prepare('SELECT p.*, pr.emoji as prof_emoji, pr.name as prof_name FROM products p JOIN professions pr ON p.profession_id = pr.id ORDER BY p.created_at DESC').all();
   res.json(rows);
@@ -129,7 +163,7 @@ app.post('/api/products', async (req, res) => {
     VALUES (?, ?, ?, ?, 'draft', ?, ?)
   `).run(profession_id, name, type, price, theme, html_content);
   
-  // Generate the real deliverable file — never create a product that can't be delivered
+  // Generate the real deliverable file � never create a product that can't be delivered
   const newProduct = db.prepare('SELECT * FROM products WHERE id = ?').get(result.lastInsertRowid);
   try {
     await fileFactory.ensureProductFile(newProduct);
@@ -171,7 +205,7 @@ app.post('/api/products/:id/regenerate-idea', async (req, res) => {
     const concept = await enrichProduct(product.id);
     if (!concept) {
       return res.json({ regenerated: false, concept: null,
-        message: 'AI layer off or concept below novelty bar — keeping current product' });
+        message: 'AI layer off or concept below novelty bar � keeping current product' });
     }
     res.json({ regenerated: true, concept,
       name: db.prepare('SELECT name FROM products WHERE id = ?').get(product.id).name });
@@ -180,9 +214,9 @@ app.post('/api/products/:id/regenerate-idea', async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════════════════
-// API: TEMPLATES (Mockup generation) — Returns 5 theme variations
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
+// API: TEMPLATES (Mockup generation) � Returns 5 theme variations
+// ------------------------------------------------------------------------
 app.post('/api/templates/generate', async (req, res) => {
   try {
     const { profession_id, type } = req.body;
@@ -194,7 +228,7 @@ app.post('/api/templates/generate', async (req, res) => {
     const mockups = [];
     
     for (const theme of themes) {
-      // Type → builder. Every type renders a REAL preview so the editor and
+      // Type ? builder. Every type renders a REAL preview so the editor and
       // thumbnail pipeline show exactly what the buyer gets.
       const stub = { id: 0, type, price: '$29', name: `${prof.name} ${type}`, emoji: prof.emoji, profession_id: prof.id };
       let html = '';
@@ -247,9 +281,9 @@ app.get('/api/templates/:profession_id', (req, res) => {
   res.json(rows);
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: TRENDS
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 app.get('/api/trends', (req, res) => {
   const attachVet = rows => rows.map(t => ({ ...t, vet: vetting.vetTrend(t) }));
   res.json({
@@ -287,7 +321,7 @@ app.get('/api/trends/vet/:id', (req, res) => {
   res.json(vetting.vetTrend(trend));
 });
 
-// Live radar source health (ok/fail/lastSuccess) — additive observability
+// Live radar source health (ok/fail/lastSuccess) � additive observability
 app.get('/api/trends/radar-health', (req, res) => {
   try {
     const radar = require('./services/trendRadar');
@@ -326,9 +360,9 @@ app.post('/api/trends/:id/archive', (req, res) => {
   res.json({ success: true });
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: METRICS
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 app.get('/api/metrics', (req, res) => {
   const rows = db.prepare(`
     SELECT m.*, p.name as prof_name, pr.name as product_name 
@@ -383,9 +417,9 @@ app.get('/api/metrics/summary', (req, res) => {
   });
 });
 
-// ══════════════════════════════════════════════════════════════════════
-// API: SALES SYNC (Gumroad → metrics + Discord alerts)
-// ══════════════════════════════════════════════════════════════════════
+// ----------------------------------------------------------------------
+// API: SALES SYNC (Gumroad ? metrics + Discord alerts)
+// ----------------------------------------------------------------------
 async function syncGumroadSales() {
   if (!mp.checkGumroadKey().ok) throw new Error('Gumroad not configured');
   const resp = await axios.get('https://api.gumroad.com/v2/sales', {
@@ -407,7 +441,7 @@ async function syncGumroadSales() {
     revenue += (s.price || 0) / 100;
   }
   if (newSales > 0) {
-    await notifier.sendDiscord(getWebhookUrl(), `💰 **Sale!** ${newSales} new sale${newSales > 1 ? 's' : ''} — +$${revenue.toFixed(2)}. Total so far: see Metrics.`);
+    await notifier.sendDiscord(getWebhookUrl(), `?? **Sale!** ${newSales} new sale${newSales > 1 ? 's' : ''} � +$${revenue.toFixed(2)}. Total so far: see Metrics.`);
     db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
       .run('sales_sync', `${newSales} new sale(s), $${revenue.toFixed(2)}`, 'success');
   }
@@ -422,9 +456,9 @@ app.post('/api/metrics/sync-gumroad', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════════
+// ----------------------------------------------------------------------
 // API: BUNDLES ($29 Complete Toolkits) + LEAD MAGNET + SEASONAL
-// ══════════════════════════════════════════════════════════════════════
+// ----------------------------------------------------------------------
 app.post('/api/bundles/generate', async (req, res) => {
   try {
     res.json(await bundles.generateAllBundles());
@@ -443,7 +477,7 @@ app.post('/api/bundles/publish', async (req, res) => {
       const result = await mp.publishProduct(p);
       db.prepare('UPDATE products SET status = ?, marketplace = ?, marketplace_id = ? WHERE id = ?')
         .run('listed', result.platform, result.listingId || null, p.id);
-      // Branded cover — best effort, never blocks the listing
+      // Branded cover � best effort, never blocks the listing
       try { await mp.attachGumroadCover(result.listingId, bundles.coverForType('bundle')); }
       catch (e) { console.error('[BUNDLES] cover skipped:', e.message); }
       db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
@@ -494,9 +528,9 @@ app.post('/api/metrics', (req, res) => {
   res.json({ success: true });
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: CHAT HISTORY
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 app.get('/api/chat/:profession_id', (req, res) => {
   const rows = db.prepare('SELECT * FROM chat_history WHERE profession_id = ? ORDER BY created_at ASC').all(req.params.profession_id);
   res.json(rows);
@@ -511,9 +545,9 @@ app.post('/api/chat', (req, res) => {
   res.json({ id: result.lastInsertRowid });
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: INSPIRATION PHOTOS
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 app.post('/api/inspiration/:profession_id', upload.single('photo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   db.prepare('INSERT INTO inspiration_photos (profession_id, file_path) VALUES (?, ?)')
@@ -526,9 +560,9 @@ app.get('/api/inspiration/:profession_id', (req, res) => {
   res.json(rows);
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: AUTOMATION
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 app.get('/api/automation/log', (req, res) => {
   const rows = db.prepare('SELECT * FROM automation_log ORDER BY created_at DESC LIMIT 100').all();
   res.json(rows);
@@ -567,7 +601,7 @@ app.post('/api/automation/approve-all', (req, res) => {
   res.json({ approved: result.changes });
 });
 
-// Deduplicate the review queue — collapse identical draft clones (same
+// Deduplicate the review queue � collapse identical draft clones (same
 // profession + type + name) down to ONE keeper each. Never touches approved,
 // listed, published, or sold products. Prefer keeping the row with a real
 // generated file; otherwise the newest one.
@@ -598,13 +632,13 @@ app.post('/api/automation/dedupe', (req, res) => {
   }
   const remaining = db.prepare(`SELECT COUNT(*) c FROM products WHERE status IN ('draft','pending-review')`).get().c;
   db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
-    .run('dedupe', `Removed ${removed.length} duplicate drafts · kept ${keep.length} (${remaining} pending now)`, 'success');
+    .run('dedupe', `Removed ${removed.length} duplicate drafts � kept ${keep.length} (${remaining} pending now)`, 'success');
   res.json({ groups: groups.length, removed: removed.length, kept: keep.length, remaining });
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: MARKETPLACE
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // Test which marketplace connections are live
 app.get('/api/marketplace/test', async (req, res) => {
   const results = {};
@@ -632,7 +666,7 @@ app.post('/api/marketplace/publish/:productId', async (req, res) => {
   }
 });
 
-// Storefront feed — live products with real Gumroad buy links (cached 5 min)
+// Storefront feed � live products with real Gumroad buy links (cached 5 min)
 let storeFeedCache = { at: 0, data: null };
 app.get('/api/store/products', async (req, res) => {
   if (storeFeedCache.data && Date.now() - storeFeedCache.at < 300000) {
@@ -678,7 +712,7 @@ app.get('/api/store/products', async (req, res) => {
   }
 });
 
-// Design showcase — the premium template designs currently in the catalog
+// Design showcase � the premium template designs currently in the catalog
 // (pending drafts that haven't shipped yet) plus the live bundles. Used by the
 // storefront to show what buyers get before they buy.
 let showcaseCache = { at: 0, data: null };
@@ -727,9 +761,9 @@ app.get('/api/store/showcase', async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════════════════
-// STORE BRANDING — deploy the nichegate-designs logo/banner to marketplaces
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
+// STORE BRANDING � deploy the nichegate-designs logo/banner to marketplaces
+// ------------------------------------------------------------------------
 app.get('/api/branding/status', (req, res) => {
   try {
     res.json({
@@ -803,10 +837,10 @@ app.get('/api/marketplace/etsy/callback', async (req, res) => {
   try {
     if (req.query.error) throw new Error(`Etsy denied authorization: ${req.query.error}`);
     const tokens = await mp.exchangeEtsyToken(req.query.code);
-    res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Inter,sans-serif;background:#0a0a0a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px}h1{color:#22c55e}a{color:#2dd4bf}</style></head><body><h1>✅ Etsy connected</h1><p>NicheGate can now list products on Etsy.</p><a href="/setup">Return to Setup →</a></body></html>`);
+    res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Inter,sans-serif;background:#0a0a0a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px}h1{color:#22c55e}a{color:#2dd4bf}</style></head><body><h1>? Etsy connected</h1><p>NicheGate can now list products on Etsy.</p><a href="/setup">Return to Setup ?</a></body></html>`);
   } catch (e) {
     console.error('[ETSY OAUTH] exchange failed:', e.response?.data || e.message);
-    res.status(500).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Inter,sans-serif;background:#0a0a0a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px}a{color:#2dd4bf}</style></head><body><h1 style="color:#ef4444">❌ Etsy connection failed</h1><p>${String(e.message).replace(/[<>]/g,'')}</p><a href="/setup">Back to Setup →</a></body></html>`);
+    res.status(500).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Inter,sans-serif;background:#0a0a0a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px}a{color:#2dd4bf}</style></head><body><h1 style="color:#ef4444">? Etsy connection failed</h1><p>${String(e.message).replace(/[<>]/g,'')}</p><a href="/setup">Back to Setup ?</a></body></html>`);
   }
 });
 
@@ -817,9 +851,9 @@ async function alertPublishError(productId, message) {
   await notifier.sendDiscord(getWebhookUrl(), notifier.formatAlert('error', { message: `Publish failed for product #${productId}: ${message}` }));
 }
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: SETTINGS
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 app.get('/api/settings', (req, res) => {
   const rows = db.prepare('SELECT * FROM settings').all();
   const settings = {};
@@ -858,15 +892,15 @@ function initDefaultSettings() {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: EXPORT
-// ════════════════════════════════════════════════════════════════════════
-// Export a product — generates the file on demand from its saved HTML if none exists
+// ------------------------------------------------------------------------
+// Export a product � generates the file on demand from its saved HTML if none exists
 app.get('/api/export/product/:id', async (req, res) => {
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.status(404).json({ error: 'Product not found' });
 
-  // If a file already exists, serve it (stream manually — Windows sendFile bug)
+  // If a file already exists, serve it (stream manually � Windows sendFile bug)
   if (product.file_path && fs.existsSync(product.file_path)) {
     const abs = path.resolve(product.file_path);
     res.setHeader('Content-Type', 'application/octet-stream');
@@ -888,11 +922,11 @@ app.get('/api/export/product/:id', async (req, res) => {
   }
 });
 
-// ════════════════════════════════════════════════════════════════════════
-// PRODUCT PREVIEW — actually SEE the deliverable before approving:
+// ------------------------------------------------------------------------
+// PRODUCT PREVIEW � actually SEE the deliverable before approving:
 // PDFs render inline, spreadsheets become readable HTML tables, and ZIP
 // archives get a contents list with inline previews of text/HTML files.
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 const PLACEHOLDER_HTML = new Set(['<!-- auto-generated -->', '<!-- bundle -->', '<!-- leadmagnet -->']);
 
 function escHtml(s) {
@@ -922,7 +956,7 @@ pre{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:8px;font-size:0.
 }
 
 function previewHeader(product, prof, fileInfo) {
-  return `<div class="header"><div><h1>${escHtml(product.name)}</h1><div class="meta">${prof ? prof.emoji + ' ' : ''}${escHtml(prof ? prof.name : '')} · ${escHtml(product.type)} · ${escHtml(product.price || '')}${fileInfo ? ' · ' + fileInfo : ''}</div></div><a class="btn" href="/api/export/product/${product.id}" download>⬇ Download file</a></div>`;
+  return `<div class="header"><div><h1>${escHtml(product.name)}</h1><div class="meta">${prof ? prof.emoji + ' ' : ''}${escHtml(prof ? prof.name : '')} � ${escHtml(product.type)} � ${escHtml(product.price || '')}${fileInfo ? ' � ' + fileInfo : ''}</div></div><a class="btn" href="/api/export/product/${product.id}" download>? Download file</a></div>`;
 }
 
 app.get('/api/products/:id/preview', async (req, res) => {
@@ -940,7 +974,7 @@ app.get('/api/products/:id/preview', async (req, res) => {
     product.file_path = filePath;
     const ext = filePath ? path.extname(filePath).toLowerCase() : '';
 
-    // PDF → inline so the browser renders the actual document
+    // PDF ? inline so the browser renders the actual document
     if (ext === '.pdf') {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
@@ -949,7 +983,7 @@ app.get('/api/products/:id/preview', async (req, res) => {
 
     const sizeKB = filePath ? (fs.statSync(filePath).size / 1024).toFixed(1) : null;
 
-    // Spreadsheet → readable HTML table (live formulas included)
+    // Spreadsheet ? readable HTML table (live formulas included)
     if (filePath && (ext === '.xlsx' || ext === '.xls')) {
       const resolvedFilePath = path.resolve(filePath);
       const fileSize = fs.statSync(resolvedFilePath).size;
@@ -964,51 +998,51 @@ app.get('/api/products/:id/preview', async (req, res) => {
         const ws = wb.Sheets[name];
         let html = XLSX.utils.sheet_to_html(ws).replace(/^<table[^>]*>/, '<table>');
         html = html.replace(/<td[^>]*>/g, '<td>').replace(/<th[^>]*>/g, '<th>');
-        return `<div class="card"><h3>📄 ${escHtml(name)}</h3>${html}</div>`;
+        return `<div class="card"><h3>?? ${escHtml(name)}</h3>${html}</div>`;
       }).join('');
-      const body = previewHeader(product, prof, `Excel · ${sizeKB} KB`) + `<img class="preview-img" src="/api/products/${product.id}/preview-image">` + tables;
-      return res.type('html').send(previewShell(escHtml(product.name) + ' — Preview', body));
+      const body = previewHeader(product, prof, `Excel � ${sizeKB} KB`) + `<img class="preview-img" src="/api/products/${product.id}/preview-image">` + tables;
+      return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', body));
     }
 
-    // ZIP archive → contents list + inline previews of text/HTML entries
+    // ZIP archive ? contents list + inline previews of text/HTML entries
     if (filePath && ext === '.zip') {
       const zip = new AdmZip(filePath);
       const entries = zip.getEntries();
-      let html = previewHeader(product, prof, `ZIP archive · ${sizeKB} KB · ${entries.length} files`);
+      let html = previewHeader(product, prof, `ZIP archive � ${sizeKB} KB � ${entries.length} files`);
       html += `<img class="preview-img" src="/api/products/${product.id}/preview-image">`;
-      html += `<div class="card"><h3>📦 Archive contents</h3>` + entries.map(e =>
+      html += `<div class="card"><h3>?? Archive contents</h3>` + entries.map(e =>
         `<div class="entry"><span>${escHtml(e.entryName)}</span><span>${(e.header.size / 1024).toFixed(1)} KB</span></div>`).join('') + '</div>';
       html += entries.filter(e => /\.(html?|txt|css|json|csv|xml)$/i.test(e.entryName)).map(e =>
-        `<div class="card"><h3>🔍 ${escHtml(e.entryName)} (preview)</h3><pre>${escHtml(e.getData().toString('utf8').slice(0, 5000))}</pre></div>`).join('');
-      return res.type('html').send(previewShell(escHtml(product.name) + ' — Preview', html));
+        `<div class="card"><h3>?? ${escHtml(e.entryName)} (preview)</h3><pre>${escHtml(e.getData().toString('utf8').slice(0, 5000))}</pre></div>`).join('');
+      return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', html));
     }
 
-    // No file (or only HTML saved) → HTML preview + product metadata
+    // No file (or only HTML saved) ? HTML preview + product metadata
     const realHtml = product.html_content && !PLACEHOLDER_HTML.has(String(product.html_content).trim()) && String(product.html_content).trim().length > 10;
     let body = previewHeader(product, prof, filePath ? `${sizeKB} KB file` : null);
     body += `<img class="preview-img" src="/api/products/${product.id}/preview-image">`;
-    if (ensureError) body += `<div class="note">⚠ ${escHtml(ensureError)}</div>`;
-    else if (!filePath) body += '<div class="note">⚠ No generated file yet — use "Download file" to build it on demand.</div>';
+    if (ensureError) body += `<div class="note">? ${escHtml(ensureError)}</div>`;
+    else if (!filePath) body += '<div class="note">? No generated file yet � use "Download file" to build it on demand.</div>';
     if (!filePath) {
       body += `<div class="card"><h3>Details</h3>
         <div class="entry"><span>Status</span><span>${escHtml(product.status)}</span></div>
         <div class="entry"><span>Type</span><span>${escHtml(product.type)}</span></div>
-        <div class="entry"><span>Price</span><span>${escHtml(product.price || '—')}</span></div>
-        <div class="entry"><span>Theme</span><span>${escHtml(product.theme || '—')}</span></div>
-        <div class="entry"><span>Profession</span><span>${escHtml(prof ? prof.name : '—')}</span></div>
+        <div class="entry"><span>Price</span><span>${escHtml(product.price || '�')}</span></div>
+        <div class="entry"><span>Theme</span><span>${escHtml(product.theme || '�')}</span></div>
+        <div class="entry"><span>Profession</span><span>${escHtml(prof ? prof.name : '�')}</span></div>
         <div class="entry"><span>File path</span><span>${escHtml(product.file_path || 'none')}</span></div></div>`;
     }
     if (realHtml) {
-      body += `<div class="card" style="padding:0"><h3 style="padding:14px 18px;border-bottom:1px solid #e2e8f0;">🖼 Saved HTML</h3><iframe sandbox="allow-same-origin" srcdoc="${escHtml(product.html_content).replace(/"/g, '&quot;')}" style="width:100%;height:460px;border:none;background:white;"></iframe></div>`;
+      body += `<div class="card" style="padding:0"><h3 style="padding:14px 18px;border-bottom:1px solid #e2e8f0;">?? Saved HTML</h3><iframe sandbox="allow-same-origin" srcdoc="${escHtml(product.html_content).replace(/"/g, '&quot;')}" style="width:100%;height:460px;border:none;background:white;"></iframe></div>`;
     }
-    return res.type('html').send(previewShell(escHtml(product.name) + ' — Preview', body));
+    return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', body));
   } catch (e) {
     console.error('[PREVIEW] error:', e.message);
-    return res.status(500).send(previewShell('Preview Error', `<div class="note">⚠ Could not preview this product: ${escHtml(e.message)}</div>`));
+    return res.status(500).send(previewShell('Preview Error', `<div class="note">? Could not preview this product: ${escHtml(e.message)}</div>`));
   }
 });
 
-// Raster preview image (JPEG mockup) — generated on demand, cached in DB
+// Raster preview image (JPEG mockup) � generated on demand, cached in DB
 app.get('/api/products/:id/preview-image', async (req, res) => {
   try {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
@@ -1025,7 +1059,7 @@ app.get('/api/products/:id/preview-image', async (req, res) => {
   }
 });
 
-// Lifestyle background (AI photo, images 2-3 in the gallery) — free tier.
+// Lifestyle background (AI photo, images 2-3 in the gallery) � free tier.
 app.get('/api/products/:id/lifestyle-image', async (req, res) => {
   try {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
@@ -1034,7 +1068,7 @@ app.get('/api/products/:id/lifestyle-image', async (req, res) => {
     if (!prof) return res.status(404).json({ error: 'Profession not found' });
     const coverArt = require('./services/coverArt');
     const artPath = await coverArt.ensureCoverArt(product, prof);
-    if (!artPath || !fs.existsSync(artPath)) return res.status(404).json({ error: 'Lifestyle image unavailable — try again later' });
+    if (!artPath || !fs.existsSync(artPath)) return res.status(404).json({ error: 'Lifestyle image unavailable � try again later' });
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Content-Disposition', `inline; filename="${path.basename(artPath)}"`);
     return fs.createReadStream(artPath).pipe(res);
@@ -1044,7 +1078,7 @@ app.get('/api/products/:id/lifestyle-image', async (req, res) => {
   }
 });
 
-// Batch-generate AI lifestyle backgrounds (slow on free tier — background job)
+// Batch-generate AI lifestyle backgrounds (slow on free tier � background job)
 app.post('/api/covers/generate', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '10', 10) || 10, 100);
   const status = String(req.query.status || 'approved');
@@ -1109,7 +1143,7 @@ app.post('/api/export/render', async (req, res) => {
     filePath = await pdfGen.generatePDF(html, `${safeName}.pdf`);
     const abs = path.resolve(filePath);
     if (!fs.existsSync(abs)) return res.status(404).json({ error: 'File not generated' });
-    // Stream manually — res.sendFile/res.download have a Windows path bug
+    // Stream manually � res.sendFile/res.download have a Windows path bug
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pdf"`);
     return fs.createReadStream(abs).pipe(res);
@@ -1131,9 +1165,9 @@ app.get('/api/export/profession/:id/zip', (req, res) => {
   fs.createReadStream(abs).pipe(res);
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // CRON: Scheduled Automation
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 let cronJob = null;
 
 let discoveryCron = null;
@@ -1152,7 +1186,7 @@ function startCron() {
   // so trend-hunting never pauses) + freshness pass for active niches
   discoveryCron = cron.schedule('17 */2 * * *', async () => {
     if (discoveryLock || cycleLock) {
-      console.log('[CRON] Discovery sweep skipped — lock held');
+      console.log('[CRON] Discovery sweep skipped � lock held');
       return;
     }
     discoveryLock = true;
@@ -1223,9 +1257,9 @@ function checkIsReviewDay() {
   return daysSince >= reviewInterval;
 }
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // AUTO-START: On server boot
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 function autoStart() {
   // Check if auto-start is disabled
   const autoGen = db.prepare('SELECT * FROM settings WHERE key = ?').get('auto_generate');
@@ -1241,7 +1275,7 @@ function autoStart() {
   console.log('[AUTO] Automation engine auto-started on server boot');
   
   // Run immediate first cycle (trend scan + review gate + publish of approved).
-  // runFullCycle still honors the review gate — it skips NEW generation on a
+  // runFullCycle still honors the review gate � it skips NEW generation on a
   // review day while continuing to publish already-approved products.
   setTimeout(() => {
     runAutoCycle();
@@ -1255,7 +1289,7 @@ function getWebhookUrl() {
 
 async function runAutoCycle() {
   if (cycleLock) {
-    console.log('[AUTO] Cycle already running — skipped');
+    console.log('[AUTO] Cycle already running � skipped');
     return { skipped: true, reason: 'lock' };
   }
   cycleLock = true;
@@ -1276,9 +1310,9 @@ async function runAutoCycle() {
 
 // (Website template + recovery prompts now live in services/fileFactory.js)
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: SETUP / ONBOARDING STATUS
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // Gumroad + Etsy live-test caches (60s) so /setup shows the REAL connection state
 let gumroadTestCache = { at: 0, result: null };
 let etsyTestCache = { at: 0, result: null };
@@ -1322,16 +1356,16 @@ app.get('/api/setup/status', async (req, res) => {
   });
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // API: LAUNCH READINESS
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 app.get('/api/health/readiness', (req, res) => {
   res.json(readiness.buildReadinessReport());
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // SERVE CLIENT
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
 });
@@ -1344,18 +1378,18 @@ app.get('/store', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'store.html'));
 });
 
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 // START
-// ════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------
 const BIND_HOST = process.env.BIND_HOST || (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT ? '0.0.0.0' : '127.0.0.1');
 function startServer() {
   const server = app.listen(PORT, BIND_HOST, () => {
-  console.log(`╔════════════════════════════════════════════════════════════╗`);
-  console.log(`║  NicheGate  |  Full Stack Server                  ║`);
-  console.log(`║  Port: ${PORT}  Host: ${BIND_HOST}                              ║`);
-  console.log(`║  DB: SQLite (WAL mode)                                      ║`);
-  console.log(`║  Professions: ${db.prepare('SELECT COUNT(*) as c FROM professions').get().c} seeded                                ║`);
-  console.log(`╚════════════════════════════════════════════════════════════╝`);
+  console.log(`+------------------------------------------------------------+`);
+  console.log(`�  NicheGate  |  Full Stack Server                  �`);
+  console.log(`�  Port: ${PORT}  Host: ${BIND_HOST}                              �`);
+  console.log(`�  DB: SQLite (WAL mode)                                      �`);
+  console.log(`�  Professions: ${db.prepare('SELECT COUNT(*) as c FROM professions').get().c} seeded                                �`);
+  console.log(`+------------------------------------------------------------+`);
   console.log(`\nOpen: http://localhost:${PORT}/`);
   console.log(`API docs available at endpoints under /api/*\n`);
   
@@ -1409,3 +1443,6 @@ function startServer() {
 if (require.main === module) startServer();
 
 module.exports = { app, startServer };
+
+
+

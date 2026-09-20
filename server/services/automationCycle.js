@@ -1,4 +1,4 @@
-// AUTOMATION CYCLE â€” modular stateful tasks for the 6-hour full cycle.
+// AUTOMATION CYCLE — modular stateful tasks for the 6-hour full cycle.
 const { db } = require('../database');
 const discovery = require('./discovery');
 const seasonal = require('./seasonalEngine');
@@ -7,7 +7,9 @@ const mp = require('./marketplace');
 const { validatePublishResult } = require('./pipelineSchemas');
 const { draftProduct } = require('./productDraft');
 
-const TYPE_PRICES = { invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15' };
+// Prices imported from single source of truth (productTypes.js)
+const productTypes = require('./productTypes');
+const TYPE_PRICES = {};
 const VARY_TYPES = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social'];
 
 function getWebhookUrl() {
@@ -76,7 +78,7 @@ function taskReviewGate(ctx) {
 async function notifyReviewDay(ctx) {
   if (ctx.reviewDay) {
     await notifier.sendDiscord(ctx.webhookUrl, notifier.formatAlert('review_day', { count: ctx.pendingCount || 0 }));
-    console.log('[AUTO] Review day â€” skipping generation (publish continues), sent alert');
+    console.log('[AUTO] Review day — skipping generation (publish continues), sent alert');
   }
   return ctx;
 }
@@ -241,3 +243,4 @@ module.exports = {
   TYPE_PRICES,
   VARY_TYPES
 };
+

@@ -22,25 +22,137 @@ function provider() {
 }
 
 // Photo-only scene per niche — styled props, morning light, no text.
-function promptFor(prof, product) {
-  const niche = prof.name || 'small business';
-  const t = String(product.type || '').toLowerCase();
-  const scenes = {
-    invoice: `overhead desk flat-lay, printed invoice on clipboard, ${niche} workspace, pen, calculator, coffee cup`,
-    checklist: `close-up of hands checking off a printed checklist on a wooden desk, ${niche} tools nearby`,
-    spreadsheet: `laptop showing a clean pricing spreadsheet on a bright desk, ${niche} notebook, pen, coffee`,
-    booking: `open planner calendar with pen on a styled desk, ${niche} workspace, small plant`,
-    social: `smartphone showing social posts on a styled desk, ${niche} props, soft morning light`,
-    brand: `brand identity stationery suite flat-lay, business cards, color swatches, ${niche} mood`,
-    journal: `open guided journal with pen on a cozy desk, morning coffee, soft window light, ${niche} calm`,
-    bundle: `stack of printed workbooks and binders tied with twine on a desk, ${niche} toolkit, styled props`,
-    leadmagnet: `free starter pack printables fanned on a bright desk, ${niche}, coffee, plant`,
-    website: `laptop showing a clean service website on a styled desk, ${niche} branding, notebook`
-  };
-  const scene = scenes[t] || `styled ${niche} workspace flat-lay, bright morning light`;
-  return `${scene}, photorealistic, shallow depth of field, professional product photography, no text, no words, no letters, no watermark`;
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// NICHE-SPECIFIC COVER ART PROMPTS — each profession category gets unique
+// visual scenes, props, and mood. The AI generates photo-only backgrounds
+// (no text — it garbles). Title composites happen in the storefront UI.
+// ═══════════════════════════════════════════════════════════════════════════
 
+const designDNA = require('./designStyles');
+
+// Per-niche scene descriptions — unique props, mood, lighting per category
+const NICHE_SCENES = {
+  tech: {
+    mood: 'clean, modern, slightly futuristic',
+    lighting: 'cool blue-white studio light, subtle screen glow',
+    props: 'holographic elements, circuit board patterns, sleek monitors, LED accents',
+    textures: 'brushed aluminum, matte black surfaces, glass',
+  },
+  trades: {
+    mood: 'industrial, hardworking, authentic',
+    lighting: 'warm workshop light, golden hour through warehouse windows',
+    props: 'tool belt, measuring tape, hard hat, blueprints, concrete surfaces',
+    textures: 'raw wood, concrete, steel, worn leather',
+  },
+  wellness: {
+    mood: 'serene, calming, natural',
+    lighting: 'soft diffused natural light, warm golden tones',
+    props: 'plants, crystals, essential oils, yoga mat, incense, smooth stones',
+    textures: 'linen, bamboo, smooth wood, soft fabric',
+  },
+  recovery: {
+    mood: 'hopeful, gentle, safe',
+    lighting: 'warm sunrise light, soft morning glow through sheer curtains',
+    props: 'open journal, steaming tea, candle, fresh flowers, comfortable chair',
+    textures: 'soft cotton, warm wood, watercolor washes, paper',
+  },
+  food: {
+    mood: 'appetizing, artisanal, inviting',
+    lighting: 'warm kitchen light, morning sun on countertops',
+    props: 'fresh ingredients, wooden cutting board, copper pots, recipe cards, herbs',
+    textures: 'marble countertop, butcher block, ceramic, linen napkins',
+  },
+  beauty: {
+    mood: 'elegant, luxurious, aspirational',
+    lighting: 'soft ring light, vanity mirror glow, rose gold tones',
+    props: 'brushes, palettes, flowers, perfume bottles, silk fabric',
+    textures: 'marble, velvet, rose gold, frosted glass',
+  },
+  fitness: {
+    mood: 'energetic, motivating, powerful',
+    lighting: 'high-contrast dramatic light, gym spotlight',
+    props: 'kettlebell, resistance bands, protein shaker, stopwatch, chalk dust',
+    textures: 'rubber mat, steel, concrete, sweat-wicking fabric',
+  },
+  outdoor: {
+    mood: 'adventurous, natural, free',
+    lighting: 'golden hour, campfire glow, forest dappled light',
+    props: 'tent, compass, fishing rod, hiking boots, campfire, binoculars',
+    textures: 'weathered wood, canvas, leather, pine needles, river stone',
+  },
+  finance: {
+    mood: 'trustworthy, precise, professional',
+    lighting: 'clean office light, daylight through tall windows',
+    props: 'calculator, financial charts, leather portfolio, pen, glasses',
+    textures: 'mahogany desk, leather, crisp paper, polished brass',
+  },
+  spiritual: {
+    mood: 'reverent, peaceful, sacred',
+    lighting: 'candlelight, stained glass glow, soft amber',
+    props: 'prayer beads, open scripture, candle, cross, incense, stained glass',
+    textures: 'velvet, aged paper, gold leaf, stone, wood',
+  },
+  craft: {
+    mood: 'creative, handmade, personal',
+    lighting: 'natural daylight, craft lamp glow, warm studio light',
+    props: 'yarn, paintbrushes, pottery wheel, fabric swatches, scissors, thread',
+    textures: 'raw clay, woven fabric, unfinished wood, canvas, watercolor paper',
+  },
+  pyro: {
+    mood: 'dramatic, powerful, controlled danger',
+    lighting: 'dark background with bright spark accents, ember glow, dramatic contrast',
+    props: 'safety goggles, fuse cord, sparklers, mortar tubes, protective gloves',
+    textures: 'charred wood, metal, fuse cord texture, smoke wisps',
+  },
+  default: {
+    mood: 'professional, clean, inviting',
+    lighting: 'bright natural light, clean shadows',
+    props: 'notebook, pen, coffee cup, laptop, desk plant',
+    textures: 'wood desk, clean paper, modern office',
+  },
+};
+
+// Per-product-type scene templates — uses niche props for unique visuals
+const TYPE_SCENES = {
+  invoice: (niche) => `overhead desk flat-lay with printed documents, ${niche.props}, ${niche.textures} surfaces, ${niche.lighting}`,
+  checklist: (niche) => `close-up of hands reviewing a detailed checklist with a pen, ${niche.props}, ${niche.lighting}`,
+  spreadsheet: (niche) => `laptop or tablet showing organized data on a clean desk, ${niche.props}, ${niche.lighting}`,
+  booking: (niche) => `open planner or calendar with pen on a styled surface, ${niche.props}, ${niche.lighting}`,
+  social: (niche) => `smartphone or tablet showing social media content, ${niche.props}, ${niche.lighting}`,
+  brand: (niche) => `brand stationery suite flat-lay with business cards and color swatches, ${niche.props}, ${niche.lighting}`,
+  journal: (niche) => `open journal with pen on a cozy surface, ${niche.props}, ${niche.lighting}`,
+  bundle: (niche) => `stack of printed materials and binders with ${niche.props}, styled collection, ${niche.lighting}`,
+  leadmagnet: (niche) => `fanned printables and free samples on a bright surface, ${niche.props}, ${niche.lighting}`,
+  website: (niche) => `laptop showing a clean website design, ${niche.props}, ${niche.lighting}`,
+  'wall-art': (niche) => `framed print on a wall with ${niche.props}, gallery-style display, ${niche.lighting}`,
+  worksheet: (niche) => `printed worksheet with pen on a desk, ${niche.props}, ${niche.lighting}`,
+  planner: (niche) => `open planner spread with colored pens, ${niche.props}, ${niche.lighting}`,
+  'party-printable': (niche) => `party decorations and printables styled on a surface, ${niche.props}, festive ${niche.lighting}`,
+  'pyro-batch': (niche) => `workshop table with batch mixing equipment, ${niche.props}, ${niche.lighting}`,
+  'pyro-lift-fuse': (niche) => `close-up of fuse assembly tools, ${niche.props}, ${niche.lighting}`,
+  'pyro-shoot-log': (niche) => `clipboard with log sheet near staging area, ${niche.props}, ${niche.lighting}`,
+  tool: (niche) => `professional toolkit or equipment display, ${niche.props}, ${niche.lighting}`,
+  'decision-matrix': (niche) => `printed decision matrix with annotations, ${niche.props}, ${niche.lighting}`,
+  roi: (niche) => `financial analysis printout with charts, ${niche.props}, ${niche.lighting}`,
+  pricing: (niche) => `pricing sheet or rate card on a clean desk, ${niche.props}, ${niche.lighting}`,
+  inventory: (niche) => `inventory tracking sheet or tablet, ${niche.props}, ${niche.lighting}`,
+};
+
+function promptFor(prof, product) {
+  const nicheName = prof.name || 'small business';
+  const t = String(product.type || '').toLowerCase();
+
+  // Detect niche category from profession
+  const nicheKey = designDNA.detectNicheCategory(prof);
+  const niche = NICHE_SCENES[nicheKey] || NICHE_SCENES.default;
+
+  // Get the type-specific scene
+  const sceneFn = TYPE_SCENES[t] || ((n) => `styled workspace flat-lay with ${n.props}, ${n.lighting}`);
+  const scene = sceneFn(niche);
+
+  // Build the final prompt with niche-specific mood + anti-text tags
+  return `${scene}, ${niche.mood}, photorealistic, shallow depth of field, professional product photography, no text, no words, no letters, no watermark, no UI elements`;
+}
 function cachePath(prof, product) {
   const h = crypto.createHash('sha1')
     .update(`${provider()}|${prof.slug || prof.name}|${product.type}|${promptFor(prof, product)}`)

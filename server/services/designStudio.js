@@ -9,6 +9,7 @@ function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 const { getContentFor } = require('./contentLibrary');
+const designDNA = require('./designStyles');
 
 function priceNum(str) {
   const m = String(str || '').replace(/,/g, '').match(/\d+(?:\.\d+)?/);
@@ -47,6 +48,7 @@ function shell(title, extraCss, body, theme) {
 }
 // ── INVOICE ──────────────────────────────────────────────────────────────
 function buildInvoiceHTML(prof, theme, opts) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
   const cat = getContentFor(prof);
   const safe = cat.invoice.length ? cat.invoice : parseServices(prof).length ? parseServices(prof) : [["Professional Consultation", "$50"]];
   const total = safe.reduce((a, s) => a + (priceNum(s[1]) || 0), 0);
@@ -63,7 +65,7 @@ function buildInvoiceHTML(prof, theme, opts) {
     </tr>`;
   }).join('');
 
-  return shell(`${prof.name} — Invoice Template`, `
+  return _sh(`${prof.name} — Invoice Template`, `
     body{background:#eef1f5}
     .top-grid{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;margin-bottom:34px}
     .brand{display:flex;align-items:center;gap:16px}
@@ -135,6 +137,7 @@ function buildInvoiceHTML(prof, theme, opts) {
 }
 // ── CHECKLIST ────────────────────────────────────────────────────────────
 function buildChecklistHTML(prof, theme) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
   const services = parseServices(prof);
   const groups = (services.length ? services : [["Standard Service Package", "$100"]]).map((s, g) => {
     const routine = [
@@ -150,7 +153,7 @@ function buildChecklistHTML(prof, theme) {
     </div>`;
   }).join('');
 
-  return shell(`${prof.name} — Service Quality Checklist`, `
+  return _sh(`${prof.name} — Service Quality Checklist`, `
     .head{display:grid;grid-template-columns:64px 1fr;gap:18px;align-items:center;margin-bottom:26px}
     .head .ic{width:64px;height:64px;border-radius:18px;background:${theme.primary};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.9rem;box-shadow:0 14px 30px -14px ${theme.primary}}
     .head h1{font-size:1.55rem;font-weight:900;letter-spacing:-0.4px}
@@ -184,6 +187,7 @@ function buildChecklistHTML(prof, theme) {
 }
 // ── JOURNAL (30-day recovery / reflection) ───────────────────────────────
 function buildJournalHTML(prof, theme, prompts) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
   const days = prompts && prompts.length ? prompts : Array.from({ length: 30 }, (_, i) => [
     'What am I grateful for today?', 'What challenged me?', 'How did I grow?',
     'What do I hope for tomorrow?', 'One word to describe today'
@@ -194,7 +198,7 @@ function buildJournalHTML(prof, theme, prompts) {
       ${qs.map((q) => `<div class="q"><span class="qmark">${i % 5 === 4 ? '🙏' : '✎'}</span><div><div class="qtext">${esc(q)}</div><div class="lines"></div></div></div>`).join('')}
     </div>`).join('');
 
-  return shell(`${prof.name} — 30-Day Journal`, `
+  return _sh(`${prof.name} — 30-Day Journal`, `
     .cover{height:1123px;background:${theme.primary};color:#fff;padding:120px 60px;display:flex;flex-direction:column;justify-content:center;position:relative}
     .cover .emoji{font-size:4.5rem;margin-bottom:20px}
     .cover .tagbox{position:absolute;top:44px;right:46px}
@@ -225,6 +229,7 @@ function buildJournalHTML(prof, theme, prompts) {
 }
 // ── BRAND KIT ────────────────────────────────────────────────────────────
 function buildBrandKitHTML(prof, theme) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
   const swatches = [
     { c: theme.primary, name: 'Primary', use: 'Headers · logo · 55%' },
     { c: theme.secondary, name: 'Secondary', use: 'Accents · links · 25%' },
@@ -239,7 +244,7 @@ function buildBrandKitHTML(prof, theme) {
       <div class="sw-use">${esc(sw.use)}</div>
     </div>`).join('');
 
-  return shell(`${prof.name} — Brand Identity Kit`, `
+  return _sh(`${prof.name} — Brand Identity Kit`, `
     .cover{border-radius:0 0 40px 40px;background:${theme.primary};color:#fff;padding:96px 60px;position:relative}
     .cover .logo-mark{width:92px;height:92px;border-radius:26px;background:${theme.accent};display:flex;align-items:center;justify-content:center;font-size:3rem;box-shadow:0 24px 50px -20px rgba(0,0,0,0.45)}
     .cover h1{font-size:2.6rem;font-weight:900;margin:22px 0 8px;letter-spacing:-0.8px}
@@ -609,9 +614,10 @@ h1{font-size:3.2rem;font-weight:900;letter-spacing:-1px;margin-bottom:40px}
 
 // ── PRINTABLE PLANNER (personal planning / organizers) ─────────────────────
 function buildPlannerHTML(prof, theme) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const cells = days.map((d) => `<div class="pc"><div class="pd">${d}</div><div class="pb"></div><div class="pb"></div><div class="pb"></div></div>`).join('');
-  return shell(`${esc(prof.name)} — Planner`, `
+  return _sh(`${esc(prof.name)} — Planner`, `
     .pp{background:${theme.bg};padding:38px 42px;font-family:${SYSTEM_FONT}}
     .pp .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
     .pp .head h1{font-size:1.6rem;font-weight:900;letter-spacing:-.4px;color:${theme.primary}}
@@ -639,7 +645,8 @@ function buildPlannerHTML(prof, theme) {
 
 // ── WALL ART PRINT (aesthetic typography printable) ─────────────────────────
 function buildWallArtHTML(prof, theme) {
-  return shell(`${esc(prof.name)} — Wall Art`, `
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  return _sh(`${esc(prof.name)} — Wall Art`, `
     body{background:#f7f5f1;display:flex;align-items:center;justify-content:center;min-height:1120px;margin:0}
     .art{width:840px;background:${theme.bg};border-radius:18px;box-shadow:0 30px 60px -30px rgba(15,23,42,.5);overflow:hidden}
     .art .top{height:14px;background:linear-gradient(90deg,${theme.primary},${theme.accent})}
@@ -665,7 +672,8 @@ function buildWallArtHTML(prof, theme) {
 
 // ── LEARNING WORKSHEET (education / kids) ──────────────────────────────────
 function buildWorksheetHTML(prof, theme) {
-  return shell(`${esc(prof.name)} — Worksheet`, `
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  return _sh(`${esc(prof.name)} — Worksheet`, `
     .ws{width:820px;background:#fff;border-radius:14px;padding:52px 50px;font-family:${SYSTEM_FONT};border:2px solid ${theme.accent}}
     .ws .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${theme.primary};padding-bottom:12px}
     .ws .hd h1{font-size:1.5rem;font-weight:900;color:${theme.primary}}
@@ -687,7 +695,8 @@ function buildWorksheetHTML(prof, theme) {
 
 // ── PARTY PRINTABLE (invitation + décor set) ───────────────────────────────
 function buildPartyPrintableHTML(prof, theme) {
-  return shell(`${esc(prof.name)} — Party Printables`, `
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  return _sh(`${esc(prof.name)} — Party Printables`, `
     .pv{width:860px;display:grid;grid-template-columns:1fr 1fr;gap:18px;font-family:${SYSTEM_FONT}}
     .card{background:${theme.bg};border:2px dashed ${theme.accent};border-radius:16px;overflow:hidden;text-align:center}
     .card .c-top{background:${theme.primary};color:#fff;padding:18px;font-size:0.72rem;letter-spacing:3px;text-transform:uppercase;font-weight:800}
@@ -705,7 +714,8 @@ function buildPartyPrintableHTML(prof, theme) {
 
 // ── PYRO BATCH MIXING WORKSHEET (manual method) ────────────────────────────
 function buildPyroBatchHTML(prof, theme) {
-  return shell(`${esc(prof.name)} — Batch Mixing Worksheet`, `
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  return _sh(`${esc(prof.name)} — Batch Mixing Worksheet`, `
     body{background:#f7f5f1;display:flex;align-items:center;justify-content:center;min-height:1120px;margin:0}
     .ws{width:840px;background:#fff;border-radius:14px;padding:52px 50px;font-family:${SYSTEM_FONT};border:2px solid ${theme.accent}}
     .ws .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${theme.primary};padding-bottom:12px}
@@ -740,7 +750,8 @@ function buildPyroBatchHTML(prof, theme) {
 
 // ── PYRO LIFT & FUSE WORKSHEET (manual method) ─────────────────────────────
 function buildPyroLiftFuseHTML(prof, theme) {
-  return shell(`${esc(prof.name)} — Lift & Fuse Worksheet`, `
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  return _sh(`${esc(prof.name)} — Lift & Fuse Worksheet`, `
     body{background:#f7f5f1;display:flex;align-items:center;justify-content:center;min-height:1120px;margin:0}
     .ws{width:840px;background:#fff;border-radius:14px;padding:46px 48px;font-family:${SYSTEM_FONT};border:2px solid ${theme.accent}}
     .ws .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${theme.primary};padding-bottom:12px}
@@ -789,6 +800,7 @@ function buildPyroLiftFuseHTML(prof, theme) {
 
 // ── PYRO PRE-SHOOT CHECKLIST & LAUNCH LOG (manual method) ──────────────────
 function buildPyroShootLogHTML(prof, theme) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
   const checks = [
     'Verify minimum spectator separation distance (NFPA 1123)',
     'Secure and stabilize all mortar racks (sandbags/stakes)',
@@ -798,7 +810,7 @@ function buildPyroShootLogHTML(prof, theme) {
     'Conduct final continuity test on electronic firing system'
   ];
   const rows = checks.map((c, i) => `<div class="chk"><span class="box">${i + 1}</span><span class="t">${c}</span><span class="tick"></span></div>`).join('');
-  return shell(`${esc(prof.name)} — Pre-Shoot Checklist & Log`, `
+  return _sh(`${esc(prof.name)} — Pre-Shoot Checklist & Log`, `
     body{background:#f7f5f1;display:flex;align-items:center;justify-content:center;min-height:1120px;margin:0}
     .ws{width:840px;background:#fff;border-radius:14px;padding:44px 46px;font-family:${SYSTEM_FONT};border:2px solid ${theme.accent}}
     .ws .hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${theme.primary};padding-bottom:12px}
@@ -997,6 +1009,58 @@ function wrapMarketplaceMockup(innerHtml, opts) {
 </body></html>`;
 }
 
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DESIGN DNA — Google Fonts, style CSS, niche patterns
+// ═══════════════════════════════════════════════════════════════════════════
+
+function dnaHeadExtras(theme) {
+  if (!theme || !theme.dna) return '';
+  return '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="' + designDNA.GOOGLE_FONTS_URL + '" rel="stylesheet">';
+}
+
+function dnaBodyClass(theme) {
+  if (!theme || !theme.dna) return '';
+  return 'dna-style-' + theme.dna.styleKey + ' dna-niche-' + theme.dna.niche;
+}
+
+function dnaCSS(theme) {
+  if (!theme || !theme.dna) return '';
+  var d = theme.dna;
+  var nl = d.nicheLanguage || {};
+  var css = d.css || '';
+
+  // Niche background pattern
+  if (nl.bgOverlay && nl.bgOverlay !== 'none') {
+    css += '.page::before{content:"";position:absolute;inset:0;background:' + nl.bgOverlay + ';pointer-events:none;z-index:0}';
+  }
+
+  // Corner decoration
+  var deco = d.decorRules || {};
+  if (deco.cornerDecoration === 'grid') {
+    css += '.corner-deco{position:absolute;top:12px;right:12px;width:40px;height:40px;background-image:linear-gradient(' + d.colors.primary + ' 1px,transparent 1px),linear-gradient(90deg,' + d.colors.primary + ' 1px,transparent 1px);background-size:8px 8px;opacity:.12}';
+  } else if (deco.cornerDecoration === 'diamond') {
+    css += '.corner-deco::after{content:"◆";font-size:1rem;color:' + d.colors.accent + ';opacity:.25}';
+  } else if (deco.cornerDecoration === 'ornate') {
+    css += '.page{border:2px solid ' + d.colors.secondary + '}';
+  }
+
+  return css;
+}
+
+function shellDNA(title, extraCss, body, theme) {
+  var he = dnaHeadExtras(theme);
+  var bc = dnaBodyClass(theme);
+  var dc = dnaCSS(theme);
+  return '<!DOCTYPE html>\n<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">\n<title>' + esc(title) + '</title>\n' + he + '\n<style>' + baseStyle(theme) + dc + (extraCss || '') + '</style></head>\n<body class="' + bc + '">' + body + '</body></html>';
+}
+
+function buildDNAHTML(prof, productType, title, extraCss, body) {
+  var theme = designDNA.resolveDesign(prof, productType);
+  return shellDNA(title, extraCss || '', body, theme);
+}
+
 module.exports = {
   esc, priceNum, parseServices, baseStyle, shell, SYSTEM_FONT,
   buildInvoiceHTML, buildChecklistHTML, buildJournalHTML, buildBrandKitHTML,
@@ -1007,5 +1071,6 @@ module.exports = {
   buildPyroBatchHTML, buildPyroLiftFuseHTML, buildPyroShootLogHTML,
   thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover,
   wrapMarketplaceMockup
-};
+,
+  shellDNA, buildDNAHTML, dnaCSS, dnaHeadExtras, designDNA };
 
