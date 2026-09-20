@@ -541,7 +541,184 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // PRODUCT PREVIEW — serve PDF for inline preview
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/products/:id/preview-html', (req, res) => {
+  a
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONTENT CALENDAR — monthly view of all activity
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/calendar', (req, res) => {
+    try {
+      const month = req.query.month || new Date().toISOString().slice(0, 7); // YYYY-MM
+      const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
+      const posts = scheduled ? JSON.parse(scheduled.value || '[]') : [];
+      
+      // Filter posts to this month
+      const monthPosts = posts.filter(p => p.scheduledAt && p.scheduledAt.startsWith(month));
+      
+      // Get products listed this month
+      const products = db.prepare("SELECT id, name, type, prof_name, status, created_at FROM products WHERE status = 'listed'").all();
+      const monthProducts = products.filter(p => p.created_at && p.created_at.startsWith(month));
+      
+      // Get ad runs this month
+      const runs = db.prepare("SELECT value FROM settings WHERE key = 'ad_runs'").get();
+      const adRuns = runs ? JSON.parse(runs.value || '[]').filter(r => r.committedAt && r.committedAt.startsWith(month)) : [];
+      
+      // Build daily activity map
+      const days = {};
+      const daysInMonth = new Date(parseInt(month.slice(0,4)), parseInt(month.slice(5,7)), 0).getDate();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dayStr = month + '-' + String(d).padStart(2, '0');
+        days[dayStr] = { posts: 0, products: 0, ads: 0 };
+      }
+      
+      monthPosts.forEach(p => {
+        const day = p.scheduledAt ? p.scheduledAt.slice(0, 10) : '';
+        if (days[day]) days[day].posts++;
+      });
+      
+      monthProducts.forEach(p => {
+        const day = p.created_at ? p.created_at.slice(0, 10) : '';
+        if (days[day]) days[day].products++;
+      });
+      
+      adRuns.forEach(r => {
+        const day = r.committedAt ? r.committedAt.slice(0, 10) : '';
+        if (days[day]) days[day].ads++;
+      });
+      
+      res.json({ month, days, posts: monthPosts.length, products: monthProducts.length, ads: adRuns.length });
+    } catch (e) {
+      res.json({ month: '', days: {}, posts: 0, products: 0, ads: 0 });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SALES ANALYTICS — revenue by niche, by type, conversion rates
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get('/api/analytics/sales', (req, res) => {
+    try {
+      const products = db.prepare('SELECT * FROM products').all();
+      const trends = db.prepare('SELECT * FROM trends').all();
+      
+      // Revenue by type
+      const byType = {};
+      products.forEach(p => {
+        const t = p.type || 'unknown';
+        if (!byType[t]) byType[t] = { total: 0, listed: 0, draft: 0, revenue: 0, avgPrice: 0 };
+        byType[t].total++;
+        if (p.status === 'listed') {
+          byType[t].listed++;
+          byType[t].revenue += parseFloat(String(p.price || '0').replace(/[^0-9.]/g, '')) || 0;
+        } else if (p.status === 'draft') {
+          byType[t].draft++;
+        }
+      });
+      Object.keys(byType).forEach(k => {
+        byType[k].avgPrice = byType[k].listed > 0 ? Math.round(byType[k].revenue / byType[k].listed) : 0;
+      });
+      
+      // Revenue by niche (top 15)
+      const byNiche = {};
+      products.forEach(p => {
+        const n = p.prof_name || 'Unknown';
+        if (!byNiche[n]) byNiche[n] = { total: 0, listed: 0, revenue: 0 };
+        byNiche[n].total++;
+        if (p.status === 'listed') {
+          byNiche[n].listed++;
+          byNiche[n].revenue += parseFloat(String(p.price || '0').replace(/[^0-9.]/g, '')) || 0;
+        }
+      });
+      const topNiches = Object.entries(byNiche)
+        .sort((a, b) => b[1].listed - a[1].listed)
+        .slice(0, 15)
+        .map(([name, data]) => ({ name, ...data }));
+      
+      // Conversion funnel
+      const statusCounts = {
+        draft: products.filter(p => p.status === 'draft').length,
+        review: products.filter(p => p.status === 'pending-review' || p.status === 'reviewing').length,
+        approved: products.filter(p => p.status === 'approved').length,
+        listed: products.filter(p => p.status === 'listed').length,
+        rejected: products.filter(p => p.status === 'rejected').length,
+        archived: products.filter(p => p.status === 'archived').length
+      };
+      
+      // Trend performance
+      const trendPerf = {
+        total: trends.length,
+        active: trends.filter(t => t.status === 'active' || t.status === 'approved').length,
+        dismissed: trends.filter(t => t.status === 'dismissed').length
+      };
+      
+      // Total metrics
+      const totalRevenue = products.filter(p => p.status === 'listed')
+        .reduce((sum, p) => sum + (parseFloat(String(p.price || '0').replace(/[^0-9.]/g, '')) || 0), 0);
+      
+      res.json({
+        totalProducts: products.length,
+        totalRevenue,
+        byType,
+        topNiches,
+        conversion: statusCounts,
+        trendPerformance: trendPerf,
+        avgPrice: statusCounts.listed > 0 ? Math.round(totalRevenue / statusCounts.listed) : 0
+      });
+    } catch (e) {
+      res.json({ totalProducts: 0, totalRevenue: 0, byType: {}, topNiches: [], conversion: {}, trendPerformance: {}, avgPrice: 0 });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BATCH SOCIAL — generate posts for all listed products
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.post('/api/social/batch-generate', async (req, res) => {
+    try {
+      const { platform, limit } = req.body;
+      const products = db.prepare("SELECT * FROM products WHERE status = 'listed'").all();
+      const toProcess = products.slice(0, limit || 10);
+      
+      const conceptEngine = require('./services/conceptEngine');
+      const results = [];
+      
+      for (const product of toProcess) {
+        try {
+          const niche = product.prof_name || 'Small Business';
+          const prompt = 'Generate a ' + (platform || 'instagram') + ' post for "' + (product.name || 'Product') + '" in the ' + niche + ' niche.';
+          const content = await conceptEngine.generateSocialPost(prompt, niche);
+          
+          // Auto-schedule for staggered times
+          const scheduledAt = new Date(Date.now() + results.length * 3600000 + 3600000).toISOString();
+          
+          const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
+          const posts = scheduled ? JSON.parse(scheduled.value || '[]') : [];
+          posts.push({
+            id: Date.now() + results.length,
+            productId: product.id,
+            platform: platform || 'instagram',
+            content,
+            scheduledAt,
+            status: 'scheduled',
+            createdAt: new Date().toISOString()
+          });
+          db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('social_scheduled', ?)").run(JSON.stringify(posts));
+          
+          results.push({ productId: product.id, name: product.name, status: 'scheduled' });
+        } catch (e) {
+          results.push({ productId: product.id, name: product.name, status: 'error', error: e.message });
+        }
+      }
+      
+      res.json({
+        ok: true,
+        generated: results.filter(r => r.status === 'scheduled').length,
+        errors: results.filter(r => r.status === 'error').length,
+        results
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+pp.get('/api/products/:id/preview-html', (req, res) => {
     try {
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
       if (!product) return res.status(404).json({ error: 'Product not found' });

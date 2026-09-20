@@ -437,6 +437,155 @@ function renderTrends(c){
 async function trendScan(){showToast('info','Scan','Running live radar…');const d=await (await fetch(`${API}/trends/scan`,{method:'POST'})).json();showToast('success','Scan Done','Trends refreshed');await refresh();}
 async function trendSweep(){showToast('info','Sweep','Discovery sweep…');await fetch(`${API}/discovery/sweep`,{method:'POST'});showToast('success','Sweep','Discovery complete');await refresh();}
 
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONTENT CALENDAR VIEW
+// ═══════════════════════════════════════════════════════════════════════════
+function renderCalendar(){
+  var cal = state.calendarMonth = state.calendarMonth || new Date().toISOString().slice(0,7); state.calendarData || {days:{}, posts:0, products:0, ads:0};
+  var month = state.calendarMonth || new Date().toISOString().slice(0,7);
+  var year = parseInt(month.slice(0,4));
+  var mon = parseInt(month.slice(5,7));
+  var daysInMonth = new Date(year, mon, 0).getDate();
+  var firstDay = new Date(year, mon-1, 1).getDay();
+  
+  var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var header = dayNames.map(function(d){ return '<div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--muted);padding:8px 0">'+d+'</div>'; }).join('');
+  
+  var cells = '';
+  // Empty cells before first day
+  for(var i=0; i<firstDay; i++) cells += '<div style="min-height:80px"></div>';
+  
+  for(var d=1; d<=daysInMonth; d++){
+    var dayStr = month + '-' + String(d).padStart(2,'0');
+    var dayData = cal.days[dayStr] || {posts:0,products:0,ads:0};
+    var hasActivity = dayData.posts > 0 || dayData.products > 0 || dayData.ads > 0;
+    var today = new Date().toISOString().slice(0,10) === dayStr;
+    
+    cells += '<div style="min-height:80px;padding:6px;border:1px solid '+(today?'var(--teal)':'var(--border)')+';border-radius:var(--radius-xs);background:'+(today?'var(--teal-dim)':hasActivity?'var(--surface)':'transparent')+'">'
+      + '<div style="font-size:0.72rem;font-weight:700;color:'+(today?'var(--teal)':'var(--text)')+'">'+d+'</div>';
+    if(dayData.posts > 0) cells += '<div style="font-size:0.62rem;color:var(--amber);margin-top:2px">📱 '+dayData.posts+' post'+(dayData.posts>1?'s':'')+'</div>';
+    if(dayData.products > 0) cells += '<div style="font-size:0.62rem;color:var(--teal);margin-top:2px">📦 '+dayData.products+' product'+(dayData.products>1?'s':'')+'</div>';
+    if(dayData.ads > 0) cells += '<div style="font-size:0.62rem;color:var(--green);margin-top:2px">💰 '+dayData.ads+' ad'+(dayData.ads>1?'s':'')+'</div>';
+    cells += '</div>';
+  }
+  
+  return '<div class="sh"><div><h2>📅 Content Calendar</h2><div class="desc">Monthly view of all scheduled activity — posts, products, and ad spend.</div></div><button class="btn ghost" onclick="go(\'home\')">← Overview</button></div>'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">'
+    + '<button class="btn" onclick="changeCalendarMonth(-1)">← Prev</button>'
+    + '<div style="font-weight:700;font-size:1rem;color:var(--text)">'+year+'-'+String(mon).padStart(2,'0')+'</div>'
+    + '<button class="btn" onclick="changeCalendarMonth(1)">Next →</button>'
+    + '<div style="flex:1"></div>'
+    + '<div style="display:flex;gap:12px;font-size:0.72rem">'
+    + '<span style="color:var(--amber)">📱 '+cal.posts+' posts</span>'
+    + '<span style="color:var(--teal)">📦 '+cal.products+' products</span>'
+    + '<span style="color:var(--green)">💰 '+cal.ads+' ads</span>'
+    + '</div></div>'
+    + '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">'+header+cells+'</div>';
+}
+
+function changeCalendarMonth(dir){
+  var parts = state.calendarMonth.split('-');
+  var m = parseInt(parts[1]) + dir;
+  var y = parseInt(parts[0]);
+  if(m < 1) { m = 12; y--; }
+  if(m > 12) { m = 1; y++; }
+  state.calendarMonth = y + '-' + String(m).padStart(2,'0');
+  loadCalendar();
+}
+
+async function loadCalendar(){
+  try {
+    var res = await fetch(API+'/calendar?month='+(state.calendarMonth||new Date().toISOString().slice(0,7)));
+    state.calendarData = await res.json();
+    if(state.view === 'calendar') render();
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SALES ANALYTICS VIEW
+// ═══════════════════════════════════════════════════════════════════════════
+function renderAnalytics(){
+  var a = state.analyticsData || {totalProducts:0, totalRevenue:0, byType:{}, topNiches:[], conversion:{}, avgPrice:0};
+  
+  // Type breakdown
+  var typeRows = Object.entries(a.byType || {}).sort(function(x,y){ return y[1].listed - x[1].listed; }).map(function(entry){
+    var t = entry[0], d = entry[1];
+    return '<div style="display:grid;grid-template-columns:1fr 60px 60px 80px;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:0.82rem">'
+      + '<div style="font-weight:600">'+t+'</div>'
+      + '<div style="text-align:center;color:var(--muted)">'+d.total+'</div>'
+      + '<div style="text-align:center;color:var(--teal)">'+d.listed+'</div>'
+      + '<div style="text-align:right;font-weight:700;color:var(--green)">$'+d.revenue+'</div>'
+      + '</div>';
+  }).join('');
+  
+  // Niche breakdown
+  var nicheRows = (a.topNiches || []).slice(0,10).map(function(n){
+    return '<div style="display:grid;grid-template-columns:1fr 60px 80px;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:0.82rem">'
+      + '<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+n.name+'</div>'
+      + '<div style="text-align:center;color:var(--teal)">'+n.listed+'</div>'
+      + '<div style="text-align:right;font-weight:700;color:var(--green)">$'+n.revenue+'</div>'
+      + '</div>';
+  }).join('');
+  
+  // Conversion funnel
+  var conv = a.conversion || {};
+  var funnel = [
+    {label:'Draft', count:conv.draft||0, color:'var(--blue)'},
+    {label:'Review', count:conv.review||0, color:'var(--amber)'},
+    {label:'Approved', count:conv.approved||0, color:'var(--teal)'},
+    {label:'Listed', count:conv.listed||0, color:'var(--green)'}
+  ];
+  var funnelHtml = funnel.map(function(f){
+    var pct = a.totalProducts > 0 ? Math.round(f.count/a.totalProducts*100) : 0;
+    return '<div style="text-align:center">'
+      + '<div style="font-size:1.5rem;font-weight:800;color:'+f.color+'">'+f.count+'</div>'
+      + '<div style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px">'+f.label+'</div>'
+      + '<div style="height:4px;background:var(--surface);border-radius:2px;margin-top:4px"><div style="height:100%;width:'+pct+'%;background:'+f.color+';border-radius:2px"></div></div>'
+      + '</div>';
+  }).join('');
+  
+  return '<div class="sh"><div><h2>📊 Sales Analytics</h2><div class="desc">Revenue breakdown by type, niche, and conversion funnel.</div></div><button class="btn ghost" onclick="go(\'home\')">← Overview</button></div>'
+    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'
+    + '<div class="kpi"><div class="lb">Total Products</div><div class="num tc">'+a.totalProducts+'</div></div>'
+    + '<div class="kpi"><div class="lb">Listed</div><div class="num gn">'+(a.conversion||{}).listed+'</div></div>'
+    + '<div class="kpi"><div class="lb">Total Revenue</div><div class="num gn">$'+(a.totalRevenue||0).toLocaleString()+'</div></div>'
+    + '<div class="kpi"><div class="lb">Avg Price</div><div class="num tc">$'+a.avgPrice+'</div></div>'
+    + '</div>'
+    + '<div style="margin-bottom:20px"><div class="panel"><div class="panel-title">Conversion Funnel</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:20px">'+funnelHtml+'</div></div></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+    + '<div class="panel"><div class="panel-title">Revenue by Type</div><div style="max-height:300px;overflow:auto">'
+    + '<div style="display:grid;grid-template-columns:1fr 60px 60px 80px;gap:8px;padding:8px 12px;font-size:0.68rem;color:var(--muted);border-bottom:1px solid var(--border)"><div>Type</div><div style="text-align:center">Total</div><div style="text-align:center">Listed</div><div style="text-align:right">Revenue</div></div>'
+    + typeRows
+    + '</div></div>'
+    + '<div class="panel"><div class="panel-title">Top Niches</div><div style="max-height:300px;overflow:auto">'
+    + '<div style="display:grid;grid-template-columns:1fr 60px 80px;gap:8px;padding:8px 12px;font-size:0.68rem;color:var(--muted);border-bottom:1px solid var(--border)"><div>Niche</div><div style="text-align:center">Listed</div><div style="text-align:right">Revenue</div></div>'
+    + nicheRows
+    + '</div></div>'
+    + '</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BATCH SOCIAL GENERATION
+// ═══════════════════════════════════════════════════════════════════════════
+async function batchSocialGenerate(){
+  var platform = document.getElementById('social-platform').value || 'instagram';
+  showToast('Generating posts for all listed products...', 'info');
+  try {
+    var res = await fetch(API+'/social/batch-generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({platform:platform, limit:10})});
+    var data = await res.json();
+    if(data.ok) {
+      showToast('Generated '+data.generated+' posts for '+platform+'!', 'success');
+      loadSocialPosts();
+    } else {
+      showToast(data.error || 'Error', 'warning');
+    }
+  } catch(e) {
+    showToast('Error: '+e.message, 'warning');
+  }
+}
+
 async function generateFromTrend(id){
   try {
     showToast('Generating products from trend...', 'info');
@@ -523,7 +672,7 @@ function renderSocial(){
     + '<select id="social-platform" style="width:100%;margin-bottom:8px">'
     + '<option value="pinterest">📌 Pinterest</option><option value="instagram">📸 Instagram</option><option value="twitter">🐦 Twitter</option><option value="facebook">📘 Facebook</option>'
     + '</select>'
-    + '<button class="btn primary" onclick="generateSocialPost()" style="width:100%">✨ Generate & Schedule</button>'
+    + '<button class="btn primary" onclick="generateSocialPost()" style="width:100%">✨ Generate & Schedule</button><div style="margin-top:8px;text-align:center"><button class="btn" onclick="batchSocialGenerate()" style="width:100%;font-size:0.76rem">📱 Batch Generate (All Listed)</button></div>'
     + '<div id="social-preview" style="margin-top:12px;display:none"></div>'
     + '</div></div>'
     + '<div class="panel"><div class="panel-title">Quick Stats</div><div style="padding:14px">'
@@ -659,7 +808,7 @@ async function commitAdSpend(){
       showToast('Committed $' + amount + ' to ' + platform, 'success');
       document.getElementById('ad-name').value = '';
       document.getElementById('ad-amount').value = '';
-      loadAdsData();
+      loadAdsData(); loadCalendar(); loadAnalytics();
     } else {
       showToast(data.error || 'Error', 'warning');
     }
