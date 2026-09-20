@@ -162,9 +162,9 @@ input:focus,select:focus{border-color:var(--teal)}
 <div id="rail">
   <div class="rail-mark">NG</div>
   <div class="rail-div"></div>
-  <div class="rail-link active" id="rv-home" title="Overview" onclick="go('home')">🏠</div>
-  <div class="rail-link" id="rv-catalog" title="Catalog" onclick="go('catalog')">🗂️</div>
-  <div class="rail-link" id="rv-review" title="Review" onclick="go('review')">✅</div>
+  <div class="rail-link active" id="rv-home" title="Command Center" onclick="go('home')">🏠</div>
+  <div class="rail-link" id="rv-catalog" title="Product Catalog" onclick="go('catalog')">🗂️</div>
+  <div class="rail-link" id="rv-review" title="Review Queue" onclick="go('review')">✅</div>
   <div class="rail-link" id="rv-auto" title="Automation" onclick="go('automation')">⚙️</div>
   <div class="rail-link" id="rv-market" title="Marketplace" onclick="go('marketplace')">💳</div>
   <div class="rail-link" id="rv-trends" title="Trends" onclick="go('trends')">🔥</div>
@@ -243,7 +243,7 @@ function prodImg(p){return p&&p.preview_path?`<img src="/api/products/${p.id}/pr
 function renderHome(){
   const c=counts();
   const rq=state.professions.filter(x=>x.status==='researching'||x.status==='generating'||x.status==='reviewing').length;
-  const funnel=[['Research','research'],['Draft','draft'],['Review','review'],['Approved','approved'],['Listed','listed']]
+  const funnel=[['Discover','research'],['Generate','draft'],['Review','review'],['Approve','approved'],['Publish','listed']]
     .map(([l,key])=>{
       const n=key==='research'?rq:key==='draft'?c.draft:key==='review'?c.review:key==='approved'?c.approved:c.listed;
       return `<button class="st ${n>0?'on':''}" title="Filter catalog: ${l}" onclick="funnelGo('${key}')"><div class="ring">${n}</div><div class="l">${l}</div></button>`;
@@ -252,13 +252,13 @@ function renderHome(){
      +`<div class="kpi"><div class="lb">Review</div><div class="num am">${c.review}</div></div>`
      +`<div class="kpi"><div class="lb">Approved</div><div class="num bl">${c.approved}</div></div>`
      +`<div class="kpi"><div class="lb">Listed</div><div class="num gn">${c.listed}</div></div>`;
-  const acts=`<button class="btn primary" onclick="runSweep()" style="justify-content:flex-start">🛰️ Run Discovery Sweep</button>`
-    +`<button class="btn primary" onclick="runAutoCycle()" style="justify-content:flex-start">▶ Run Full Cycle Now</button>`
-    +`<button class="btn green" onclick="deployBundles()" style="justify-content:flex-start">📦 Deploy Bundles → Gumroad</button>`
-    +`<button class="btn green" onclick="deployLeadMagnet()" style="justify-content:flex-start">🧲 Deploy Lead Magnet</button>`
+  const acts=`<button class="btn primary" onclick="runSweep()" style="justify-content:flex-start">🛰️ 🛰️ Discover New Niches</button>`
+    +`<button class="btn primary" onclick="runAutoCycle()" style="justify-content:flex-start">▶ ▶ Generate Products Now</button>`
+    +`<button class="btn green" onclick="deployBundles()" style="justify-content:flex-start">📦 📦 Publish Bundles → Gumroad</button>`
+    +`<button class="btn green" onclick="deployLeadMagnet()" style="justify-content:flex-start">🧲 🧲 Publish Lead Magnet</button>`
     +`<button class="btn" onclick="syncSales()" style="justify-content:flex-start">💰 Sync Sales</button>`
-    +`<button class="btn" onclick="go('review');rebuildAll()" style="justify-content:flex-start">✨ Rebuild All Covers</button>`;
-  return `<div class="sh"><div><h2>Command Center</h2><div class="desc">Sweep → generate → review → publish. The engine runs while you watch the funnel.</div></div></div>
+    +`<button class="btn" onclick="go('review');rebuildAll()" style="justify-content:flex-start">✨ ✨ Rebuild All Covers</button>`;
+  return `<div class="sh"><div><h2>🚀 Command Center</h2><div class="desc">Discover niches → generate innovative products → review → publish to Etsy & Gumroad.</div></div></div>
   <div class="kpis" style="margin-bottom:14px">${k}</div>
   <div class="panel" style="margin-bottom:16px"><div class="panel-title">Pipeline</div><div style="padding:14px 18px"><div class="funnel" style="border:none;box-shadow:none">${funnel}</div></div></div>
   <div style="width:calc(50% - 8px);display:inline-block;vertical-align:top"><div class="panel"><div class="panel-title">Quick Actions</div><div style="display:flex;flex-direction:column;gap:8px;padding:14px 16px;align-items:stretch">${acts}</div></div></div>
@@ -278,7 +278,7 @@ function renderCatalog(){
       <div class="bd"><div class="nm" title="${esc(p.name)}">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)}<div style="display:flex;gap:4px;align-items:center;margin-top:3px"><span class="dna-badge ${_dna.style}">${_dna.style}</span><span class="dna-niche">${_dna.niche}</span></div></div>${shortC}
       <div style="display:flex;justify-content:space-between"><span>${pillFor(p)}</span><span class="pr">${esc(p.price||'')}</span></div></div></div>`;};
   const sel=state.selected.size;
-  return `<div class="sh"><div><h2>Catalog</h2><div class="desc">Generated products across every niche.</div></div><button class="btn ghost" onclick="go('home')">← Overview</button></div>
+  return `<div class="sh"><div><h2>📦 Product Catalog</h2><div class="desc">Innovative digital products — playbooks, pricing guides, calculators, email kits, SOPs, and more.</div></div><button class="btn ghost" onclick="go('home')">← Overview</button></div>
   <div class="frow">
     <div class="search"><span>🔍</span><input placeholder="Search products…" value="${esc(f.q)}" oninput="setQ(this.value)"></div>
     <select onchange="setStatus(this.value)"><option value="all">All status</option><option value="draft">Draft</option><option value="pending-review">Review</option><option value="approved">Approved</option><option value="listed">Listed</option><option value="rejected">Rejected</option></select>
@@ -287,9 +287,21 @@ function renderCatalog(){
     <button class="btn green" onclick="batchSet('approved')" ${sel?'':'disabled'}>Approve</button>
     <button class="btn" onclick="batchSet('listed')" ${sel?'':'disabled'}>List</button>
     <button class="btn red" onclick="batchReject()" ${sel?'':'disabled'}>Reject</button>
-    <span style="color:#7c8aa0;font-size:0.78rem">${list.length} shown</span>
+    <span style="color:#7c8aa0;font-size:0.78rem">${list.length} shown · ${types.length} types</span>
   </div>
-  ${list.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px">${list.map(card).join('')}</div>`:`<div class="panel" style="padding:30px;text-align:center;color:#7c8aa0">No products match these filters.</div>`}`;
+  ${list.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px">${list.map(card).join('')}</div>`:`<div class="panel" style="padding:30px;text-align:center;color:#7c8aa0">
+<div style="margin-bottom:14px;padding:12px 16px;background:var(--panel);border:1px solid var(--border);border-radius:10px">
+  <div style="font-size:0.68rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--teal);margin-bottom:8px">Product Types</div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px">
+    <span style="padding:3px 8px;border-radius:6px;font-size:0.68rem;background:rgba(45,212,191,0.1);color:var(--teal)">📘 Playbook $24</span>
+    <span style="padding:3px 8px;border-radius:6px;font-size:0.68rem;background:rgba(45,212,191,0.1);color:var(--teal)">💰 Pricing Bible $19</span>
+    <span style="padding:3px 8px;border-radius:6px;font-size:0.68rem;background:rgba(45,212,191,0.1);color:var(--teal)">🧮 Calculator $15</span>
+    <span style="padding:3px 8px;border-radius:6px;font-size:0.68rem;background:rgba(45,212,191,0.1);color:var(--teal)">✉️ Email Scripts $15</span>
+    <span style="padding:3px 8px;border-radius:6px;font-size:0.68rem;background:rgba(45,212,191,0.1);color:var(--teal)">📋 SOP Package $19</span>
+    <span style="padding:3px 8px;border-radius:6px;font-size:0.68rem;background:rgba(100,116,139,0.1);color:#94a3b8">+ 28 more types</span>
+  </div>
+</div>
+No products match. Try adjusting your filters or run a discovery sweep.</div>`}`;
 }
 function toggleSel(id){if(id===null){state.selected.clear();}else{if(state.selected.has(id))state.selected.delete(id);else state.selected.add(id);}render();}
 function setQ(v){state.filters.q=v;render();}
@@ -346,7 +358,7 @@ function renderReview(){
     return `<div class="rrow"><div class="rt">${img||thumbFor(p)}</div>
       <div><div class="nm">${esc(p.name)}</div><div class="mt">${esc(p.prof_name||'')} · ${esc(p.type)} · ${esc(p.price||'')}</div>${conceptLine(p)}<div class="tags">${pillFor(p)}</div></div>
       <div class="acts"><button class="btn ghost" onclick="openProduct(${p.id})">👁 Open</button><button class="btn amber" title="Ask AI for a more differentiated angle" onclick="regenerateIdea(${p.id})">🔮 Better Idea</button><button class="btn green" onclick="approveProduct(${p.id})">Approve</button><button class="btn primary" onclick="publishProduct(${p.id})">🚀 Publish</button><button class="btn red" onclick="rejectProduct(${p.id})">Reject</button></div></div>`;};
-  return `<div class="sh"><div><h2>Review Queue</h2><div class="desc">${items.length} awaiting a decision.</div></div><button class="btn ghost" onclick="go('catalog')">All Products →</button></div>
+  return `<div class="sh"><div><h2>Review Queue</h2><div class="desc">${items.length} awaiting your review — approve to publish.</div></div><button class="btn ghost" onclick="go('catalog')">All Products →</button></div>
   <div class="frow"><button class="btn" onclick="dedupeQueue()">🧹 Dedupe Clones</button><button class="btn primary" onclick="rebuildAll()">✨ Rebuild ALL Covers</button><button class="btn red" onclick="rejectTrash()">🗑 Reject All Trash</button><button class="btn green" onclick="approveAll()">✅ Approve All</button></div>
   <div class="rows">${items.length?items.map(row).join(''):'<div class="panel" style="padding:30px;text-align:center;color:#7c8aa0">✅ Review queue is clear.</div>'}</div>`;
 }
@@ -374,7 +386,7 @@ async function renderMarketplace(c){
   const good=x=>x&&x.connected||x&&x.configured;
   const ets=state.products.filter(p=>p.marketplace==='etsy'&&(p.status==='listed'||p.status==='published')).length;
   const gumx=state.products.filter(p=>p.marketplace==='gumroad'&&(p.status==='listed'||p.status==='published')).length;
-  c.innerHTML=`<div class="sh"><div><h2>Marketplace</h2><div class="desc">Publish to Etsy + Gumroad. Sales sync back automatically.</div></div></div>
+  c.innerHTML=`<div class="sh"><div><h2>🏪 Marketplace</h2><div class="desc">Publish to Etsy + Gumroad. Sales sync back automatically.</div></div></div>
   <div class="conn ${good(etsy)?'ok':'bad'}"><span class="dv"></span><div class="cx">Etsy ${etsy&&etsy.connected?'Connected':etsy&&etsy.configured?'Keys set, needs auth':'Not configured'}</div><a class="btn ghost" href="/setup" target="_blank" rel="noopener">Setup</a></div>
   <div class="conn ${good(gum)?'ok':'bad'}"><span class="dv"></span><div class="cx">Gumroad ${gum&&gum.connected?'Ready':'Not configured'}</div><a class="btn ghost" href="/setup" target="_blank" rel="noopener">Setup</a></div>
   <div class="frow"><button class="btn green" onclick="deployBundles()">📦 Deploy Bundles</button><button class="btn primary" onclick="deployLeadMagnet()">🧲 Lead Magnet</button><button class="btn" onclick="syncSales()">💰 Sync Sales</button></div>
