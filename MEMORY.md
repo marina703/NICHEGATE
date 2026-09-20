@@ -9,25 +9,23 @@
   - OpenRouter primary (scan=gemini-flash-1.5, judge=claude-3.5-haiku, ideation=deepseek-chat)
   - MODEL_ENABLED=true (as of 2026-09-20)
   - Cost caps: 3 calls/scan, 4 calls/idea-batch
-- Product types: server/services/productTypes.js = single registry (invoice/checklist/spreadsheet/booking/social/brand/journal/website/decision-matrix/roi/tool/wall-art/worksheet/planner/party-printable/pyro-batch/pyro-lift-fuse/pyro-shoot-log)
+- Product types: server/services/productTypes.js = single registry — 33 types (was 18, added 15 innovative)
+  - Original: invoice/checklist/spreadsheet/booking/social/brand/journal/website/decision-matrix/roi/tool/wall-art/worksheet/planner/party-printable/pyro×3
+  - Innovative: playbook/pricing-bible/seasonal-calendar/email-scripts/certification-guide/sop-package/equipment-guide/compliance-checklist/first-year-roadmap/client-onboarding/business-in-a-box/marketing-kit/prompt-library/client-emails/profit-calculator
 - Covers: server/services/coverArt.js + previewBatch.js + cf-worker/src/index.js (Cloudflare Workers AI FLUX, x-ng-key secret). COVER_ART_PROVIDER=cloudflare.
 - Auth: server/services/auth.js (ADMIN_PASSWORD → ng_session httpOnly cookie, 7d TTL, Secure flag in production)
 
 ## Design DNA System (2026-09-20)
-- server/services/designStyles.js = 8 design styles (editorial/brutalist/organic/technical/luxe/playful/minimal/heritage) + 13 niche categories + Google Fonts library (12 fonts)
-- Styles auto-resolve per (profession, productType) via getDesignDNA(). Product-type overrides (invoice→brutalist, journal→editorial, etc.) + niche→style mapping + sentiment detection
-- Niche design language: unique background patterns, icons, color shifts per category (trades→blueprint, wellness→wave, pyro→spark, etc.)
-- Resolves to legacy theme object via toLegacyTheme() for backward compatibility with existing template system
-- Fonts: Playfair Display, DM Serif Display, Cormorant Garamond, Crimson Pro, Outfit, Plus Jakarta Sans, Inter, Bebas Neue, Caveat, Fredoka, JetBrains Mono, Space Grotesk
-- Google Fonts URL: see GOOGLE_FONTS_URL constant in designStyles.js
-- Sentiment detection: pyro-specific patterns checked BEFORE broad tech pattern to avoid false matches
-- TODO: Wire designStyles.js into designStudio.js + pdfGenerator.js (Chunks 2-5)
+- server/services/designStyles.js = 8 design styles (editorial/brutalist/organic/technical/luxe/playful/minimal/heritage) + 13 niche categories + 12 Google Fonts
+- server/services/designStudio.js = ALL 11 original builders DNA-aware via _sh() wrapper
+- client/index.html = DNA badges + niche labels + color strips on catalog cards
+- TODO: Build HTML builders for 15 new innovative product types
 
 ## Security Hardening (2026-09-20)
 - helmet (CSP disabled for inline CSS), express-rate-limit (200 req/15min on /api/*)
 - /api/health endpoint (DB status, uptime, product/profession counts)
 - Secure cookie flag in production (NODE_ENV=production)
-- pino structured logger installed (not yet wired into all services)
+- pino structured logger installed
 - Migration tracking table in database.js
 
 ## Rules
@@ -36,7 +34,7 @@
 - AI calls must never throw upstream — return null and degrade gracefully (conceptEngine returns null on any failure).
 - No listing without a real file (File Factory rule — fileFactory.ensureProductFile before publish).
 - Keys only from env, never log keys. .env secrets stay out of git.
-- Adding a product type = one entry in productTypes.js (+ a build*HTML builder in designStudio/pdfGenerator if it needs a custom layout). Backward-compatible: never change existing type keys/prices.
+- Adding a product type = one entry in productTypes.js (+ a build*HTML builder in designStudio if it needs a custom layout). Backward-compatible: never change existing type keys/prices.
 - Bundles are products rows with type='bundle' (no separate bundle table).
 - Auth is a no-op until ADMIN_PASSWORD is set — never block the autonomous server-side engine.
 - Design DNA: use designStyles.js getDesignDNA() for all new template work. Legacy themes.js still works via toLegacyTheme().

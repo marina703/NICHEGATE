@@ -3,6 +3,537 @@
 // Each builder returns a full HTML document styled with one design system:
 // clean type, tasteful accent colour, soft shadows, print-ready @page rules.
 // Editor-safe: hex theme tokens + font-family declarations only.
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRICING BIBLE — data-driven pricing guide ($19).
+// ═══════════════════════════════════════════════════════════════════════════
+
+function buildPricingBibleHTML(prof, theme, opts) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  const niche = prof.name || 'Small Business';
+  const emoji = prof.emoji || '\u{1F4B0}';
+  const services = parseServices(prof);
+  const basePrice = services.length && services[0][1] ? priceNum(services[0][1]) : 100;
+  const year = new Date().getFullYear();
+  const bp = basePrice; // shorthand
+
+  const title = niche + ' \u2014 Pricing Bible ' + year;
+
+  const css = [
+    '.cover{height:1123px;background:linear-gradient(160deg, ' + theme.primary + ' 0%, ' + theme.bg + ' 60%);color:#fff;padding:80px 60px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}',
+    '.cover::before{content:"";position:absolute;top:-80px;right:-80px;width:350px;height:350px;border-radius:50%;background:rgba(255,255,255,0.04)}',
+    '.cover .badge{display:inline-block;padding:6px 18px;border-radius:999px;background:rgba(255,255,255,0.15);font-size:0.75rem;font-weight:700;letter-spacing:2px;text-transform:uppercase}',
+    '.cover h1{font-size:2.6rem;font-weight:900;line-height:1.1;letter-spacing:-1px;margin:20px 0 10px}',
+    '.cover .sub{font-size:1rem;opacity:0.8;max-width:460px;line-height:1.5}',
+    '.cover .meta{font-size:0.72rem;opacity:0.5;letter-spacing:1px;text-transform:uppercase}',
+    '.section{page-break-before:always;padding:50px 60px}',
+    '.section-num{font-size:0.7rem;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:' + theme.accent + ';margin-bottom:8px}',
+    '.section h2{font-size:1.7rem;font-weight:900;color:' + theme.primary + ';margin-bottom:6px}',
+    '.section .intro{font-size:0.88rem;color:#64748b;margin-bottom:24px;line-height:1.6;max-width:580px}',
+    '.formula-box{background:' + theme.primary + ';color:#fff;border-radius:16px;padding:24px 28px;margin:20px 0}',
+    '.formula-box .label{font-size:0.68rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;opacity:0.6;margin-bottom:8px}',
+    '.formula-box .formula{font-size:1.3rem;font-weight:800;font-family:monospace;letter-spacing:1px}',
+    '.formula-box .example{font-size:0.82rem;opacity:0.75;margin-top:10px;line-height:1.5}',
+    '.rate-table{width:100%;border-collapse:collapse;margin:16px 0}',
+    '.rate-table th{background:' + theme.accent + ';color:#fff;padding:10px 14px;text-align:left;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase}',
+    '.rate-table td{padding:10px 14px;border-bottom:1px solid #e8ecf2;font-size:0.85rem}',
+    '.rate-table tr:nth-child(even){background:rgba(0,0,0,0.02)}',
+    '.tier-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:20px 0}',
+    '.tier-card{border:2px solid #e8ecf2;border-radius:16px;padding:20px;text-align:center}',
+    '.tier-card.featured{border-color:' + theme.accent + ';background:rgba(0,0,0,0.02)}',
+    '.tier-card .tier-name{font-size:0.68rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:' + theme.accent + ';margin-bottom:8px}',
+    '.tier-card .tier-price{font-size:1.8rem;font-weight:900;color:' + theme.primary + ';margin-bottom:6px}',
+    '.tier-card .tier-desc{font-size:0.78rem;color:#64748b;line-height:1.4}',
+    '.tier-card ul{list-style:none;padding:0;text-align:left;margin-top:12px}',
+    '.tier-card li{padding:4px 0;font-size:0.78rem;color:#334155}',
+    '.tier-card li::before{content:"\2713 ";color:' + theme.accent + ';font-weight:700}',
+    '.tip-box{background:rgba(0,0,0,0.03);border-left:4px solid ' + theme.accent + ';border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}',
+    '.tip-box .label{font-size:0.66rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:' + theme.accent + ';margin-bottom:6px}',
+    '.tip-box p{font-size:0.84rem;color:#334155;line-height:1.5}',
+    '.checklist{list-style:none;padding:0}',
+    '.checklist li{padding:10px 0 10px 28px;position:relative;font-size:0.86rem;color:#334155;border-bottom:1px dashed #e8ecf2}',
+    '.checklist li::before{content:"\2610";position:absolute;left:0;color:' + theme.accent + ';font-size:1.1rem}',
+    '.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}',
+    '.compare-card{background:#fff;border:1px solid #e8ecf2;border-radius:12px;padding:18px}',
+    '.compare-card h4{font-size:0.9rem;font-weight:800;color:' + theme.primary + ';margin-bottom:8px}',
+    '.compare-card p{font-size:0.82rem;color:#64748b;line-height:1.5}',
+  ].join('\n');
+
+  // Rate card values computed from basePrice
+  const r1lo = Math.round(bp * 0.7), r1hi = bp;
+  const r2lo = bp, r2hi = Math.round(bp * 1.5);
+  const r3lo = Math.round(bp * 1.5), r3hi = Math.round(bp * 2.5);
+  const r4lo = Math.round(bp * 1.5), r4hi = Math.round(bp * 2.5);
+  const r5lo = Math.round(bp * 2.5), r5hi = Math.round(bp * 4);
+  const r6lo = Math.round(bp * 2.5), r6hi = Math.round(bp * 4);
+  const r7lo = Math.round(bp * 4), r7hi = Math.round(bp * 6);
+  const tBasic = Math.round(bp * 0.8);
+  const tPro = Math.round(bp * 1.8);
+  const tPremium = Math.round(bp * 3.2);
+
+  const body = [
+    // COVER
+    '<div class="page" style="padding:0"><div class="cover">',
+    '<div class="badge">Pricing Guide & Rate Card ' + year + '</div>',
+    '<h1>' + esc(niche) + '<br>Pricing Bible</h1>',
+    '<div class="sub">Stop guessing what to charge. This guide gives you the formulas, rate cards, and pricing strategies used by six- and seven-figure service businesses.</div>',
+    '<div class="meta">A NicheGate Publication \u00B7 ' + year + ' Edition</div>',
+    '</div></div>',
+
+    // SECTION 1: MARKUP FORMULA
+    '<div class="page section">',
+    '<div class="section-num">Section 01</div>',
+    '<h2>The Markup Formula</h2>',
+    '<div class="intro">Every price you quote should start with a formula, not a gut feeling.</div>',
+    '<div class="formula-box"><div class="label">The Core Formula</div>',
+    '<div class="formula">Price = (Materials \u00D7 1.8) + (Labor Hours \u00D7 Rate \u00D7 3) + Overhead + Profit</div>',
+    '<div class="example">A job with $200 in materials and 4 hours at $50/hr: $200\u00D71.8=$360 | 4\u00D7$50\u00D73=$600 | Overhead $100 | Profit $140 = <strong>$1,200</strong></div></div>',
+    '<div class="tip-box"><div class="label">Why 3x Labor?</div><p>The 3x multiplier covers taxes (25-30%), insurance, vehicle, software, marketing, and profit margin. Without it, you lose money on every job.</p></div>',
+    '<div class="compare-grid">',
+    '<div class="compare-card"><h4>Hourly Pricing</h4><p>Pro: Easy, transparent. Con: Caps your income. Best for: consulting.</p></div>',
+    '<div class="compare-card"><h4>Project-Based</h4><p>Pro: Rewards efficiency. Con: Scope creep risk. Best for: defined-scope work.</p></div>',
+    '<div class="compare-card"><h4>Value-Based</h4><p>Pro: Highest margin. Con: Requires sales skills. Best for: high-impact services.</p></div>',
+    '<div class="compare-card"><h4>Package Pricing</h4><p>Pro: Simple for clients. Con: May underprice. Best for: recurring services.</p></div>',
+    '</div></div>',
+
+    // SECTION 2: RATE CARDS
+    '<div class="page section">',
+    '<div class="section-num">Section 02</div>',
+    '<h2>Rate Card Templates</h2>',
+    '<div class="intro">Adjust based on your market, experience, and competition.</div>',
+    '<table class="rate-table"><thead><tr><th>Service Tier</th><th>Starting</th><th>Experienced</th><th>Premium</th></tr></thead><tbody>',
+    '<tr><td><strong>Basic</strong></td><td>$' + r1lo + ' - $' + r1hi + '</td><td>$' + r2lo + ' - $' + r2hi + '</td><td>$' + r3lo + ' - $' + r3hi + '</td></tr>',
+    '<tr><td><strong>Standard</strong></td><td>$' + r2lo + ' - $' + r2hi + '</td><td>$' + r4lo + ' - $' + r4hi + '</td><td>$' + r5lo + ' - $' + r5hi + '</td></tr>',
+    '<tr><td><strong>Premium</strong></td><td>$' + r4lo + ' - $' + r4hi + '</td><td>$' + r6lo + ' - $' + r6hi + '</td><td>$' + r7lo + ' - $' + r7hi + '</td></tr>',
+    '<tr><td><strong>Emergency / Rush</strong></td><td colspan="3" style="background:' + theme.accent + ';color:#fff;font-weight:800">Add 50-100% premium to any base rate</td></tr>',
+    '</tbody></table>',
+    '<div class="tip-box"><div class="label">The Anchor Effect</div><p>Always present your highest price first. When a client sees $2,500 before $1,200, the $1,200 feels like a deal.</p></div>',
+    '</div>',
+
+    // SECTION 3: PACKAGE TIERS
+    '<div class="page section">',
+    '<div class="section-num">Section 03</div>',
+    '<h2>Package Tier Strategy</h2>',
+    '<div class="intro">Offer three tiers. Most clients pick the middle one.</div>',
+    '<div class="tier-grid">',
+    '<div class="tier-card"><div class="tier-name">Basic</div><div class="tier-price">$' + tBasic + '</div><div class="tier-desc">The essentials.</div><ul><li>Core service</li><li>Standard turnaround</li><li>Email support</li></ul></div>',
+    '<div class="tier-card featured"><div class="tier-name">Professional</div><div class="tier-price">$' + tPro + '</div><div class="tier-desc">Best value.</div><ul><li>Priority scheduling</li><li>Phone + email</li><li>Detailed docs</li><li>30-day follow-up</li></ul></div>',
+    '<div class="tier-card"><div class="tier-name">Premium</div><div class="tier-price">$' + tPremium + '</div><div class="tier-desc">Zero compromises.</div><ul><li>Same-day response</li><li>Dedicated contact</li><li>90-day maintenance</li><li>Priority rebooking</li></ul></div>',
+    '</div></div>',
+
+    // SECTION 4: MISTAKES
+    '<div class="page section">',
+    '<div class="section-num">Section 04</div>',
+    '<h2>7 Pricing Mistakes That Kill Service Businesses</h2>',
+    '<div class="intro">If you are making even one, you are leaving money on the table.</div>',
+    '<ul class="checklist">',
+    '<li><strong>Charging by the hour instead of by value.</strong> A 30-min fix saving $10K is worth more than $25.</li>',
+    '<li><strong>Not raising prices annually.</strong> Raise 5-10% every January. New clients never knew the old price.</li>',
+    '<li><strong>Quoting without discovery.</strong> Never price before understanding scope.</li>',
+    '<li><strong>Discounts instead of added value.</strong> "Free follow-up" beats "10% off" every time.</li>',
+    '<li><strong>Being the cheapest.</strong> Low price = low trust. Price shoppers leave for price.</li>',
+    '<li><strong>Not tracking costs.</strong> If you don\u2019t know your cost per job, you don\u2019t know if you\u2019re profitable.</li>',
+    '<li><strong>Fear of quoting your real price.</strong> Build more value, don\u2019t lower the number.</li>',
+    '</ul></div>',
+
+    // SECTION 5: RAISING PRICES
+    '<div class="page section">',
+    '<div class="section-num">Section 05</div>',
+    '<h2>How to Raise Prices Without Losing Clients</h2>',
+    '<div class="intro">The fastest path to more profit.</div>',
+    '<div class="formula-box"><div class="label">The 30-Day Notice</div>',
+    '<div class="formula">Send notice \u2192 Explain value added \u2192 Grandfather loyal clients \u2192 Offer annual prepay lock</div></div>',
+    '<ul class="checklist">',
+    '<li><strong>Fully booked 2+ weeks out?</strong> Raise 15-20%. You are underpriced.</li>',
+    '<li><strong>20+ five-star reviews?</strong> Your reputation justifies a premium.</li>',
+    '<li><strong>Costs increased?</strong> Pass it through. Clients understand.</li>',
+    '<li><strong>It is January?</strong> Annual increases are expected and normal.</li>',
+    '<li><strong>New skills or certs?</strong> You are worth more now.</li>',
+    '</ul></div>',
+
+    // SECTION 6: QUOTE TEMPLATES
+    '<div class="page section">',
+    '<div class="section-num">Section 06</div>',
+    '<h2>Quote & Proposal Templates</h2>',
+    '<div class="formula-box"><div class="label">The Confidence Frame</div>',
+    '<div class="formula">"For [scope], the investment is [price]. This includes [3 deliverables]. I can start [date]."</div></div>',
+    '<div class="formula-box" style="background:' + theme.secondary + '"><div class="label">The Value Justification</div>',
+    '<div class="formula">"This service saves [amount] in [risk/cost]. My fee pays for itself within [timeframe]."</div></div>',
+    '<div class="tip-box"><div class="label">Never Do This</div><p>Never say "It depends" or "I can probably do it for..." Always lead with a specific number and let the client respond.</p></div>',
+    '</div>',
+
+    // FINAL PAGE
+    '<div class="page" style="page-break-before:always;padding:80px 60px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:' + theme.primary + ';color:#fff;min-height:1050px">',
+    '<div style="font-size:3rem;margin-bottom:20px">' + emoji + '</div>',
+    '<h2 style="font-size:2rem;font-weight:900;margin-bottom:16px">Price With Confidence</h2>',
+    '<p style="font-size:1rem;opacity:0.8;max-width:400px;line-height:1.6">You have the formulas, the rate cards, and the scripts. Say the number out loud.</p>',
+    '<div style="margin-top:30px;padding:12px 24px;border:2px solid rgba(255,255,255,0.3);border-radius:999px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:0.8rem">Know Your Worth. Then Add Tax.</div>',
+    '<div style="margin-top:40px;font-size:0.7rem;opacity:0.4">Created by NicheGate \u00B7 nichegate.com</div>',
+    '</div>',
+  ].join('\n');
+
+  return _sh(title, css, body, theme);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NICHE PLAYBOOK — comprehensive multi-page business guide ($24).
+// Each playbook is a 30-40 page PDF with 8 chapters covering everything
+// a beginner needs to start and grow a business in a specific niche.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function buildPlaybookHTML(prof, theme, opts) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  const o = opts || {};
+  const niche = prof.name || 'Small Business';
+  const emoji = prof.emoji || '📘';
+  const slug = prof.slug || 'business';
+  const year = new Date().getFullYear();
+  const services = parseServices(prof);
+  const serviceName = services.length ? services[0][0] : niche;
+  const priceRange = services.length && services[0][1] ? services[0][1] : '$50-200';
+
+  // Generate chapter content based on niche
+  const chapters = generatePlaybookChapters(prof, o);
+
+  return _sh(`${niche} — The Complete Business Playbook ${year}`, `
+    /* ── PLAYBOOK STYLES ── */
+    .playbook-cover{height:1123px;background:linear-gradient(135deg, ${theme.primary} 0%, ${theme.bg} 100%);color:#fff;padding:80px 60px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+    .playbook-cover::before{content:'';position:absolute;top:-100px;right:-100px;width:400px;height:400px;border-radius:50%;background:rgba(255,255,255,0.05)}
+    .playbook-cover::after{content:'';position:absolute;bottom:-50px;left:-50px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,0.03)}
+    .playbook-cover .badge{display:inline-block;padding:6px 18px;border-radius:999px;background:rgba(255,255,255,0.15);font-size:0.75rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;backdrop-filter:blur(10px)}
+    .playbook-cover h1{font-size:2.8rem;font-weight:900;line-height:1.1;letter-spacing:-1px;margin:24px 0 12px}
+    .playbook-cover .sub{font-size:1.1rem;opacity:0.8;max-width:480px;line-height:1.5}
+    .playbook-cover .meta{font-size:0.75rem;opacity:0.5;letter-spacing:1px;text-transform:uppercase}
+    .playbook-cover .emoji{font-size:4rem;position:absolute;top:60px;right:60px}
+
+    .toc{padding:60px}
+    .toc h2{font-size:1.6rem;font-weight:900;margin-bottom:24px;color:${theme.primary}}
+    .toc-item{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0;border-bottom:1px dashed #e2e8f0}
+    .toc-num{font-weight:900;color:${theme.accent};font-size:1.1rem;width:40px}
+    .toc-title{flex:1;font-weight:600;color:${theme.primary}}
+    .toc-page{font-size:0.85rem;color:#64748b;font-variant-numeric:tabular-nums}
+
+    .chapter{page-break-before:always;padding:50px 60px}
+    .chapter-num{font-size:0.7rem;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:${theme.accent};margin-bottom:8px}
+    .chapter h2{font-size:1.8rem;font-weight:900;color:${theme.primary};margin-bottom:6px;letter-spacing:-0.5px}
+    .chapter .intro{font-size:0.9rem;color:#64748b;margin-bottom:24px;line-height:1.6;max-width:600px}
+
+    .playbook-section{margin-bottom:32px}
+    .playbook-section h3{font-size:1.1rem;font-weight:800;color:${theme.primary};margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid ${theme.accent}}
+    .playbook-section p{font-size:0.88rem;color:#334155;line-height:1.65;margin-bottom:10px}
+    .playbook-section ul{list-style:none;padding:0}
+    .playbook-section li{padding:8px 0 8px 20px;position:relative;font-size:0.86rem;color:#334155;line-height:1.5}
+    .playbook-section li::before{content:'▸';position:absolute;left:0;color:${theme.accent};font-weight:700}
+
+    .cost-table{width:100%;border-collapse:collapse;margin:16px 0}
+    .cost-table th{background:${theme.primary};color:#fff;padding:10px 14px;text-align:left;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase}
+    .cost-table td{padding:10px 14px;border-bottom:1px solid #e8ecf2;font-size:0.85rem}
+    .cost-table tr:nth-child(even){background:rgba(0,0,0,0.02)}
+    .cost-table .total{font-weight:800;background:${theme.accent};color:#fff}
+
+    .tip-box{background:rgba(0,0,0,0.03);border-left:4px solid ${theme.accent};border-radius:0 12px 12px 0;padding:16px 20px;margin:16px 0}
+    .tip-box .label{font-size:0.68rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${theme.accent};margin-bottom:6px}
+    .tip-box p{font-size:0.85rem;color:#334155;line-height:1.5}
+
+    .roadmap-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+    .roadmap-card{background:#fff;border:1px solid #e8ecf2;border-radius:12px;padding:16px}
+    .roadmap-card .month{font-size:0.68rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${theme.accent};margin-bottom:6px}
+    .roadmap-card .task{font-size:0.82rem;color:#334155;line-height:1.5}
+
+    .final-page{page-break-before:always;padding:80px 60px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:${theme.primary};color:#fff;min-height:1050px}
+    .final-page h2{font-size:2rem;font-weight:900;margin-bottom:16px}
+    .final-page p{font-size:1rem;opacity:0.8;max-width:400px;line-height:1.6}
+  `, `
+  <div class="page" style="padding:0">
+    <!-- COVER -->
+    <div class="playbook-cover">
+      <div class="badge">The Complete Business Guide · ${year}</div>
+      <div class="emoji">${emoji}</div>
+      <div>
+        <h1>The Complete<br>${esc(niche)}<br>Business Playbook</h1>
+        <div class="sub">Everything you need to know to start, grow, and profit from a ${esc(niche.toLowerCase())} business — from zero to your first $10,000 month.</div>
+      </div>
+      <div class="meta">A NicheGate Publication · ${year} Edition · 30+ Pages of Actionable Guidance</div>
+    </div>
+  </div>
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="page">
+    <div class="toc">
+      <h2>What's Inside</h2>
+      ${chapters.map((ch, i) => `
+        <div class="toc-item">
+          <span class="toc-num">${String(i + 1).padStart(2, '0')}</span>
+          <span class="toc-title">${esc(ch.title)}</span>
+          <span class="toc-page">${i + 3}</span>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+
+  <!-- CHAPTERS -->
+  ${chapters.map((ch, i) => `
+    <div class="page chapter">
+      <div class="chapter-num">Chapter ${String(i + 1).padStart(2, '0')}</div>
+      <h2>${esc(ch.title)}</h2>
+      <div class="intro">${esc(ch.intro)}</div>
+      ${ch.sections.map(s => `
+        <div class="playbook-section">
+          ${s.heading ? `<h3>${esc(s.heading)}</h3>` : ''}
+          ${s.content}
+        </div>
+      `).join('')}
+    </div>
+  `).join('')}
+
+  <!-- FINAL PAGE -->
+  <div class="page final-page">
+    <div style="font-size:3rem;margin-bottom:20px">${emoji}</div>
+    <h2>You're Ready to Launch</h2>
+    <p>You now have the knowledge, tools, and roadmap to build a successful ${esc(niche.toLowerCase())} business. The only thing left is to take action.</p>
+    <div style="margin-top:30px;padding:12px 24px;border:2px solid rgba(255,255,255,0.3);border-radius:999px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:0.8rem">Start Today · Not Tomorrow</div>
+    <div style="margin-top:40px;font-size:0.7rem;opacity:0.4">Created by NicheGate · nichegate.com</div>
+  </div>
+  `, theme);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PLAYBOOK CONTENT GENERATOR — generates niche-specific chapter content
+// based on profession data, services, and pricing.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function generatePlaybookChapters(prof, opts) {
+  const niche = prof.name || 'Small Business';
+  const services = parseServices(prof);
+  const svcName = services.length ? services[0][0] : 'professional services';
+  const priceStr = services.length && services[0][1] ? services[0][1] : '$50-200';
+
+  return [
+    // ── CHAPTER 1: Getting Started ──
+    {
+      title: `Getting Started: Your ${niche} Business Blueprint`,
+      intro: `Starting a ${niche.toLowerCase()} business doesn't require a fortune — but it does require a plan. This chapter covers exactly what you need to get off the ground.`,
+      sections: [
+        { heading: 'Startup Costs Breakdown', content: `
+          <table class="cost-table">
+            <thead><tr><th>Category</th><th>Budget Option</th><th>Pro Option</th></tr></thead>
+            <tbody>
+              <tr><td>Essential Equipment</td><td>$500 — $1,500</td><td>$2,000 — $5,000</td></tr>
+              <tr><td>Insurance & Licenses</td><td>$300 — $800</td><td>$800 — $2,000</td></tr>
+              <tr><td>Marketing & Branding</td><td>$200 — $500</td><td>$1,000 — $3,000</td></tr>
+              <tr><td>Software & Tools</td><td>$50 — $150/mo</td><td>$200 — $500/mo</td></tr>
+              <tr><td>Working Capital</td><td>$1,000 — $3,000</td><td>$5,000 — $15,000</td></tr>
+              <tr class="total"><td>TOTAL TO START</td><td>$2,050 — $5,950</td><td>$9,000 — $25,000</td></tr>
+            </tbody>
+          </table>
+        ` },
+        { heading: 'Your First 30 Days', content: `
+          <ul>
+            <li><strong>Week 1:</strong> Register your business, get an EIN, open a business bank account</li>
+            <li><strong>Week 2:</strong> Purchase essential equipment, set up insurance, create your brand identity</li>
+            <li><strong>Week 3:</strong> Build your online presence — website, Google Business, social media profiles</li>
+            <li><strong>Week 4:</strong> Launch with 3-5 pilot clients at discounted rates in exchange for reviews</li>
+          </ul>
+        ` },
+        { heading: 'Critical Certifications', content: `
+          <p>Most ${niche.toLowerCase()} businesses require specific certifications. Research your state and local requirements early — they vary significantly by region. Common requirements include business licenses, professional certifications, and specialized insurance.</p>
+        ` }
+      ]
+    },
+
+    // ── CHAPTER 2: Pricing Strategy ──
+    {
+      title: `Pricing Strategy: What to Charge (and How to Justify It)`,
+      intro: `Most new business owners undercharge. Here's how to price for profit while staying competitive.`,
+      sections: [
+        { heading: 'Pricing Models', content: `
+          <ul>
+            <li><strong>Hourly Rate:</strong> Best for ongoing consulting. Start at $50-75/hr, increase as demand grows</li>
+            <li><strong>Project-Based:</strong> Best for defined scopes. Price at 2.5-3x your hourly estimate</li>
+            <li><strong>Package Pricing:</strong> Best for recurring services. Offer Good/Better/Best tiers</li>
+            <li><strong>Value-Based:</strong> Best for premium positioning. Price based on the value you deliver, not the time you spend</li>
+          </ul>
+          <div class="tip-box"><div class="label">Pro Tip</div><p>Never quote your first price out loud. Ask the client's budget first. Most people will reveal a number higher than what you were going to charge.</p></div>
+        ` },
+        { heading: 'The Markup Formula', content: `
+          <p><strong>Your Price = (Cost × Markup) + Overhead + Profit Margin</strong></p>
+          <p>A typical service business uses a 2.5-3x markup. If a job costs you $100 in materials and 2 hours of labor, you should charge $500-600 minimum.</p>
+          <ul>
+            <li>Materials: multiply by 1.5-2x (covers waste, delivery, admin)</li>
+            <li>Labor: multiply by 2.5-3x (covers overhead, profit, taxes)</li>
+            <li>Overhead: add 15-25% for insurance, vehicle, software, marketing</li>
+          </ul>
+        ` }
+      ]
+    },
+
+    // ── CHAPTER 3: Equipment Guide ──
+    {
+      title: `Equipment Guide: What You Actually Need (vs. What Salespeople Tell You)`,
+      intro: `Don't blow your budget on gear you won't use for months. Here's the honest equipment list.`,
+      sections: [
+        { heading: 'Essential (Buy Now)', content: `
+          <ul>
+            <li>Core operational equipment — the tools that directly deliver your service</li>
+            <li>Basic safety gear — PPE, first aid kit, fire extinguisher as applicable</li>
+            <li>Transportation — reliable vehicle for getting to clients</li>
+            <li>Communication — professional phone, email, scheduling software</li>
+          </ul>
+        ` },
+        { heading: 'Nice to Have (Month 3-6)', content: `
+          <ul>
+            <li>Upgraded tools — as revenue justifies the investment</li>
+            <li>Vehicle branding — wraps, magnets, or signs for mobile advertising</li>
+            <li>Additional safety equipment — as job complexity increases</li>
+          </ul>
+        ` },
+        { heading: 'Skip for Now', content: `
+          <ul>
+            <li>Premium equipment you haven't mastered yet</li>
+            <li>Redundant tools (you don't need two of everything)</li>
+            <li>Expensive software subscriptions you won't use daily</li>
+          </ul>
+        ` }
+      ]
+    },
+
+    // ── CHAPTER 4: Marketing Playbook ──
+    {
+      title: `Marketing Playbook: Getting Your First 50 Clients`,
+      intro: `Marketing doesn't have to be expensive. It has to be consistent and targeted.`,
+      sections: [
+        { heading: 'The Client Acquisition Funnel', content: `
+          <ul>
+            <li><strong>Strangers → Visitors:</strong> Google Business Profile, social media, referral links</li>
+            <li><strong>Visitors → Leads:</strong> Website with clear CTA, free consultation offer, lead magnet</li>
+            <li><strong>Leads → Clients:</strong> Fast follow-up (within 1 hour), professional proposal, social proof</li>
+            <li><strong>Clients → Repeat:</strong> Follow-up emails, maintenance plans, referral incentives</li>
+          </ul>
+        ` },
+        { heading: 'Free Marketing Channels (Do These First)', content: `
+          <ul>
+            <li><strong>Google Business Profile:</strong> Complete your profile, post weekly, respond to every review</li>
+            <li><strong>Nextdoor:</strong> Join your local neighborhood, answer questions, offer expertise</li>
+            <li><strong>Facebook Groups:</strong> Join local community groups, be helpful (not salesy)</li>
+            <li><strong>Referral Program:</strong> Offer $25-50 for every referral that converts</li>
+            <li><strong>Yelp:</strong> Claim your listing, respond to reviews, post photos of your work</li>
+          </ul>
+        ` },
+        { heading: 'Paid Marketing (Start at Month 2)', content: `
+          <ul>
+            <li><strong>Google Ads:</strong> Start with $10-20/day targeting "near me" searches</li>
+            <li><strong>Facebook/Instagram Ads:</strong> Target homeowners in your service area, $5-10/day</li>
+            <li><strong>Vehicle Wrap:</strong> One-time investment that generates leads 24/7</li>
+          </ul>
+        ` }
+      ]
+    },
+
+    // ── CHAPTER 5: Client Management ──
+    {
+      title: `Client Management: From First Call to Five-Star Review`,
+      intro: `Your client experience is your brand. Here's how to deliver it consistently.`,
+      sections: [
+        { heading: 'The Perfect Client Flow', content: `
+          <ul>
+            <li><strong>1. First Contact:</strong> Respond within 1 hour. Ask 3 qualifying questions. Set expectations.</li>
+            <li><strong>2. Proposal:</br>Send within 24 hours. Include scope, timeline, price, and terms.</li>
+            <li><strong>3. Confirmation:</strong> Send booking confirmation with date, time, what to expect.</li>
+            <li><strong>4. Execution:</strong> Arrive early. Communicate throughout. Document your work.</li>
+            <li><strong>5. Follow-Up:</strong> Thank-you email within 24 hours. Request review at day 3. Follow up at day 30.</li>
+          </ul>
+        ` },
+        { heading: 'Handling Complaints', content: `
+          <p>The 3-step recovery: <strong>Listen → Acknowledge → Fix.</strong></p>
+          <ul>
+            <li>Never argue, even if you're right</li>
+            <li>Offer a concrete solution within 24 hours</li>
+            <li>Follow up to confirm satisfaction</li>
+          </ul>
+          <div class="tip-box"><div class="label">The 10x Rule</div><p>If a client has a bad experience and you fix it exceptionally well, they become more loyal than a client who never had a problem. A complaint handled well is a gift.</p></div>
+        ` }
+      ]
+    },
+
+    // ── CHAPTER 6: Financial Management ──
+    {
+      title: `Financial Management: Keeping More of What You Earn`,
+      intro: `Revenue is vanity, profit is sanity. Here's how to actually make money.`,
+      sections: [
+        { heading: 'The 50/30/20 Rule for Service Businesses', content: `
+          <ul>
+            <li><strong>50% — Operations:</strong> Materials, equipment, insurance, software</li>
+            <li><strong>30% — Owner's Pay:</strong> Your salary (pay yourself first!)</li>
+            <li><strong>20% — Growth:</strong> Marketing, training, emergency fund, taxes</li>
+          </ul>
+        ` },
+        { heading: 'Tax Essentials', content: `
+          <ul>
+            <li>Set aside 25-30% of every payment for taxes</li>
+            <li>Track every business expense (receipts, mileage, home office)</li>
+            <li>Consider forming an LLC for liability protection</li>
+            <li>File quarterly estimated taxes (April 15, June 15, Sept 15, Jan 15)</li>
+            <li>Hire a CPA at $200-500/year — they'll save you more than they cost</li>
+          </ul>
+        ` }
+      ]
+    },
+
+    // ── CHAPTER 7: Scaling ──
+    {
+      title: `Scaling: From Solo to Team (and Beyond)`,
+      intro: `When you're turning away work, it's time to scale. But scaling wrong will kill your business.`,
+      sections: [
+        { heading: "Signs You're Ready to Scale", content: `
+          <ul>
+            <li>You're turning away 3+ jobs per month</li>
+            <li>You've been consistently profitable for 6+ months</li>
+            <li>You have documented processes for your core services</li>
+            <li>You have a steady pipeline of leads (not just referrals)</li>
+          </ul>
+        ` },
+        { heading: 'Scaling Options (Pick One)', content: `
+          <ul>
+            <li><strong>Hire a helper:</strong> Start part-time. Train them on YOUR standards before they see clients.</li>
+            <li><strong>Raise prices:</strong> If you're fully booked, you're too cheap. Raise prices 10-20%.</li>
+            <li><strong>Add services:</strong> New services to existing clients costs nothing to acquire.</li>
+            <li><strong>Productize:</strong> Create digital products (guides, checklists, templates) for passive income.</li>
+          </ul>
+        ` }
+      ]
+    },
+
+    // ── CHAPTER 8: First-Year Roadmap ──
+    {
+      title: `First-Year Roadmap: Your Month-by-Month Action Plan`,
+      intro: `Here's exactly what to focus on each month of your first year.`,
+      sections: [
+        { heading: 'Quarter 1: Foundation', content: `
+          <div class="roadmap-grid">
+            <div class="roadmap-card"><div class="month">Month 1</div><div class="task">Register business, get insurance, buy core equipment, set up accounts. Goal: Be legally operational.</div></div>
+            <div class="roadmap-card"><div class="month">Month 2</div><div class="task">Launch website, Google Business, social media. Get first 3-5 pilot clients. Goal: First revenue.</div></div>
+            <div class="roadmap-card"><div class="month">Month 3</div><div class="task">Collect reviews, refine pricing, start referral program. Goal: 5+ reviews, consistent leads.</div></div>
+          </div>
+        ` },
+        { heading: 'Quarter 2: Momentum', content: `
+          <div class="roadmap-grid">
+            <div class="roadmap-card"><div class="month">Month 4</div><div class="task">Increase prices 10-15%. Start paid ads. Goal: $2,000+ revenue.</div></div>
+            <div class="roadmap-card"><div class="month">Month 5</div><div class="task">Systemize operations. Create SOPs. Goal: Work ON the business, not just IN it.</div></div>
+            <div class="roadmap-card"><div class="month">Month 6</div><div class="task">Evaluate first half. Cut what isn't working. Double down on what is. Goal: Profitable and growing.</div></div>
+          </div>
+        ` },
+        { heading: 'Quarter 3-4: Growth', content: `
+          <div class="roadmap-grid">
+            <div class="roadmap-card"><div class="month">Months 7-9</div><div class="task">Consider first hire or subcontractor. Expand service area. Goal: $5,000+ monthly revenue.</div></div>
+            <div class="roadmap-card"><div class="month">Months 10-12</div><div class="task">Build recurring revenue. Create digital products. Plan year two expansion. Goal: $8,000-10,000/month.</div></div>
+          </div>
+        ` }
+      ]
+    }
+  ];
+}
+
+
 // ═══════════════════════════════════════════════════════════════════════════
 
 function esc(s) {
@@ -1072,5 +1603,7 @@ module.exports = {
   thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover,
   wrapMarketplaceMockup
 ,
-  shellDNA, buildDNAHTML, dnaCSS, dnaHeadExtras, designDNA };
+  shellDNA, buildDNAHTML, dnaCSS, dnaHeadExtras, designDNA ,
+  buildPlaybookHTML ,
+  buildPricingBibleHTML };
 

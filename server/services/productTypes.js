@@ -35,7 +35,34 @@ const TYPES = [
   // Educational reference worksheets for pyrotechnics hobbies/enthusiasts.
   { key: 'pyro-batch', label: 'Batch Mixing Worksheet', emoji: '⚗️', price: 8, format: 'pdf', buyer: 'hobby', cats: ['pyro'] },
   { key: 'pyro-lift-fuse', label: 'Lift & Fuse Worksheet', emoji: '🎆', price: 8, format: 'pdf', buyer: 'hobby', cats: ['pyro'] },
-  { key: 'pyro-shoot-log', label: 'Pre-Shoot Checklist & Log', emoji: '🧨', price: 9, format: 'pdf', buyer: 'hobby', cats: ['pyro'] }
+  { key: 'pyro-shoot-log', label: 'Pre-Shoot Checklist & Log', emoji: '🧨', price: 9, format: 'pdf', buyer: 'hobby', cats: ['pyro'] },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INNOVATIVE PRODUCT TYPES — high-value, low-competition, genuinely useful.
+  // These are what separate NicheGate from every other template shop.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── DATA-DRIVEN GUIDES (highest value, hard to copy) ──
+  { key: 'playbook', label: 'Niche Business Playbook', emoji: '📘', price: 24, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'pricing-bible', label: 'Pricing Bible', emoji: '💰', price: 19, format: 'pdf', buyer: 'business', cats: ['business', 'finance'] },
+  { key: 'seasonal-calendar', label: 'Seasonal Activity Calendar', emoji: '📅', price: 12, format: 'pdf', buyer: 'business', cats: ['business', 'home'] },
+  { key: 'email-scripts', label: 'Client Email Script Kit', emoji: '✉️', price: 15, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'certification-guide', label: 'Certification Roadmap', emoji: '🎓', price: 17, format: 'pdf', buyer: 'business', cats: ['business', 'education'] },
+
+  // ── OPERATIONAL TOOLS (medium value, unique) ──
+  { key: 'sop-package', label: 'SOP Procedure Package', emoji: '📋', price: 19, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'equipment-guide', label: 'Equipment Buying Guide', emoji: '🔧', price: 14, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'compliance-checklist', label: 'Compliance & Permits Guide', emoji: '⚖️', price: 15, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'first-year-roadmap', label: 'First-Year Business Roadmap', emoji: '🗺️', price: 17, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'client-onboarding', label: 'Client Onboarding Kit', emoji: '🤝', price: 19, format: 'zip', buyer: 'business', cats: ['business'] },
+
+  // ── PREMIUM KITS (highest value, bundled) ──
+  { key: 'business-in-a-box', label: 'Business-in-a-Box Starter Kit', emoji: '🚀', price: 49, format: 'zip', buyer: 'business', cats: ['business'] },
+  { key: 'marketing-kit', label: 'Social Media Marketing Kit', emoji: '📣', price: 19, format: 'zip', buyer: 'business', cats: ['business'] },
+  { key: 'prompt-library', label: 'AI Prompt Library', emoji: '🤖', price: 12, format: 'pdf', buyer: 'business', cats: ['business', 'tech'] },
+
+  // ── NICHE-SPECIFIC (high value, low competition) ──
+  { key: 'client-emails', label: 'Client Communication Templates', emoji: '💌', price: 14, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'profit-calculator', label: 'Profit & Pricing Calculator', emoji: '🧮', price: 15, format: 'xlsx', buyer: 'business', cats: ['business', 'finance'] }
 ];
 
 const byKey = new Map(TYPES.map(t => [t.key, t]));
@@ -63,6 +90,9 @@ const CATEGORY_MIX = {
   events: ['party-printable', 'social', 'checklist'],
   pyro: ['pyro-batch', 'pyro-lift-fuse', 'pyro-shoot-log', 'checklist'],
   fashion: ['social', 'brand', 'checklist'],
+  innovative: ['playbook', 'pricing-bible', 'sop-package', 'business-in-a-box', 'first-year-roadmap'],
+  data: ['playbook', 'pricing-bible', 'certification-guide', 'equipment-guide', 'compliance-checklist'],
+  premium: ['business-in-a-box', 'client-onboarding', 'marketing-kit', 'sop-package'],
   default: ['checklist', 'invoice', 'spreadsheet']
 };
 
