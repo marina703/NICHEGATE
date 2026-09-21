@@ -12,8 +12,15 @@
 - Design DNA: 8 styles × 13 niches × 12 fonts × 16 builders
 - Covers: Cloudflare Workers AI FLUX, niche-specific prompts
 
-## Command Center — 10 Views, 32 API Endpoints
-Premium dark redesign (glassmorphism, gradients, glow).
+## Command Center — 10 Views (ALL VERIFIED WORKING 2026-09-20)
+Dark command-center theme (deep #04060a base, teal→blue→violet gradient,
+ambient radial glows, grid texture, depth/glow on panels, cards, KPIs).
+The 10 REAL views (nav rail + VIEWS array + render() branches all wired):
+home, catalog, review, social, ads, calendar, analytics, automation,
+marketplace, trends.
+⚠ CORRECTION: item 4 below ("Chat — Custom prompts, passion niches") is WRONG.
+There is NO chat view. It was never wired. Passion niches are served by
+GET/POST /api/niches/passion and surfaced in Home → Smart Actions.
 1. 🚀 Home — Revenue KPIs, pipeline, smart actions
 2. 📦 Catalog — Grid with DNA badges, double-click preview
 3. ✅ Review — Approve/reject + push-to-Etsy/Gumroad
@@ -24,6 +31,59 @@ Premium dark redesign (glassmorphism, gradients, glow).
 8. 📊 Analytics — Revenue by type/niche, conversion funnel
 9. 🏪 Marketplace — Etsy cap, newsletter preview, connections
 10. 🔭 Trends — Activate, generate products from trend
+
+## CRITICAL LESSONS (learned 2026-09-20 — READ BEFORE EDITING server/index.js)
+
+### 1. Never trust "edit reported OK" — always VERIFY
+Developer.edit and PowerShell string edits silently failed several times on
+these large files while still reporting success. After ANY edit, verify with a
+grep/regex count read back from the file — not the tool's return value.
+
+### 2. server/index.js route-nesting bug (FIXED)
+The /api/health handler was never closed properly, so ~790 lines containing 22
+route registrations were NESTED INSIDE it. They only registered when
+/api/health was hit, and a stray "a" fragment threw mid-handler, permanently
+killing every route after it. Symptom: 9 endpoints returned 404 forever, yet
+node --check still PASSED (braces balanced — the scope was just wrong).
+Now: 98 top-level routes, 0 nested. Verify with:
+  node -e "const L=require('fs').readFileSync('server/index.js','utf8').split(/\r?\n/);console.log('top:',L.filter(l=>/^app\.(get|post|patch|delete|put)\(/.test(l)).length,'nested:',L.filter(l=>/^[ \t]+app\.(get|post|patch|delete|put)\(/.test(l)).length)"
+
+### 3. Patch-script truncation fragments (FIXED)
+Earlier patch scripts left behind: stray "a" lines, "unction" (missing f),
+"pp.post(...)" / "pp.get(...)" (missing the "a" of "app"), "async f". All
+removed. Scan for more with: ^\s*(pp|p)\.  |  ^\s*unction\b  |  ^\s*[a-z]{1,3}$
+
+### 4. products has NO prof_name column
+products columns: id, profession_id, name, type, price, status, theme,
+html_content, file_path, marketplace_id, marketplace, created_at, updated_at,
+preview_path, concept.
+prof_name must come from a JOIN:
+  LEFT JOIN professions pr ON p.profession_id = pr.id  →  pr.name AS prof_name
+Newer routes queried prof_name straight from products → 500. Fixed in
+revenue/summary, calendar, smart-actions, newsletter/generate.
+
+### 5. trends has NO status column
+trends columns: id, name, emoji, phase, velocity, window, est_revenue, why,
+activated, detected_at, activated_at, outcome.
+Use "activated = 1" — NOT status = 'active'.
+
+### 6. conceptEngine exports (generateSocialPost ADDED 2026-09-20)
+generateConcept, applyConcept, enrichProduct, noveltyScore, parseConcept,
+generateSocialPost. It was being called by /api/social/generate and
+/api/social/post-now but never existed → both 500'd. Now implemented; never
+throws upstream, degrades to deterministic ready-to-post copy.
+modelRouter helpers: callModel, cheapSummarize, scoreOptions, generateIdeas,
+fallbackChat, status, redact.
+
+### 7. Verify on a throwaway port, NOT the live one
+The local :5000 server is frequently a STALE process started long before your
+edits (check Get-Process StartTime vs the file's LastWriteTime). Boot with
+PORT=509x and curl that, or you test old code and draw wrong conclusions.
+
+### 8. Known external issue
+OpenRouter returns 401 (key expired/invalid). Model calls degrade gracefully by
+design so nothing crashes, but AI concept + social copy currently fall back to
+deterministic templates. User must refresh OPENROUTER_API_KEY for real AI output.
 
 ## Rules
 - Always update TASK.md AND MEMORY.md before stopping.

@@ -97,4 +97,50 @@ async function enrichProduct(productId) {
   }
 }
 
-module.exports = { generateConcept, applyConcept, enrichProduct, noveltyScore, parseConcept };
+
+// ---------------------------------------------------------------------
+// Social copy generator.
+// Never throws: if the model layer is off or the call fails we return
+// deterministic, ready-to-post copy so the feature always works.
+// ---------------------------------------------------------------------
+function fallbackSocialPost(prompt, niche) {
+  const name = (() => {
+    const m = /called "([^"]+)"/.exec(String(prompt || ''));
+    return (m && m[1]) ? m[1] : 'This digital download';
+  })();
+  const tag = String(niche || 'small business').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'smallbusiness';
+  return [
+    'Stop reinventing the wheel every single time.',
+    '',
+    name + ' was built for ' + niche + ' owners who would rather execute than stare at a blank page.',
+    '',
+    'What you get:',
+    '  - A ready-to-use structure (no blank-page paralysis)',
+    '  - Proven fields, already filled with worked examples',
+    '  - Instant download - usable in the next 10 minutes',
+    '',
+    'One purchase. Use it forever.',
+    '',
+    '#smallbusiness #digitaldownload #etsyseller #' + tag,
+  ].join('\n');
+}
+
+async function generateSocialPost(prompt, niche) {
+  const label = niche || 'Small Business';
+  try {
+    if (cfg.enabled && prompt) {
+      const raw = await router.generateIdeas(
+        prompt,
+        'You are a direct-response social copywriter for digital products. ' +
+        'Output ONLY the post copy itself - no preamble, no quotation marks, no explanations.'
+      );
+      const text = String(raw || '').trim().replace(/^["'`]+|["'`]+$/g, '');
+      if (text && text.length > 15) return text.slice(0, 4000);
+    }
+  } catch (e) {
+    console.error('[CONCEPT] generateSocialPost failed:', e.message);
+  }
+  return fallbackSocialPost(prompt, label);
+}
+
+module.exports = { generateConcept, applyConcept, enrichProduct, noveltyScore, parseConcept, generateSocialPost };

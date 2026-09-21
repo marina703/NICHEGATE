@@ -87,13 +87,14 @@ app.get('/api/health', (req, res) => {
     products: db.prepare('SELECT COUNT(*) as c FROM products').get().c,
     professions: db.prepare('SELECT COUNT(*) as c FROM professions').get().c
   });
+});
 
   // ═══════════════════════════════════════════════════════════════════════════
   // REVENUE DASHBOARD — aggregated sales data
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/revenue/summary', (req, res) => {
+app.get('/api/revenue/summary', (req, res) => {
     try {
-      const products = db.prepare('SELECT type, price, status, prof_name FROM products').all();
+      const products = db.prepare('SELECT p.type, p.price, p.status, pr.name AS prof_name FROM products p LEFT JOIN professions pr ON p.profession_id = pr.id').all();
       const total = products.length;
       const listed = products.filter(p => p.status === 'listed').length;
       const draft = products.filter(p => p.status === 'draft').length;
@@ -155,7 +156,7 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // ETSY DAILY CAP — prevent account suspension
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/etsy/cap', (req, res) => {
+app.get('/api/etsy/cap', (req, res) => {
     try {
       const cap = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
       const published = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
@@ -182,7 +183,7 @@ app.get('/api/health', (req, res) => {
     }
   });
 
-  app.post('/api/etsy/cap', (req, res) => {
+app.post('/api/etsy/cap', (req, res) => {
     try {
       const cap = Math.max(10, parseInt(req.body.cap) || 10); // minimum 10
       db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_daily_cap', ?)").run(String(cap));
@@ -195,7 +196,7 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // PASSION NICHES — custom niche management
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/niches/passion', (req, res) => {
+app.get('/api/niches/passion', (req, res) => {
     try {
       const niches = db.prepare("SELECT value FROM settings WHERE key = 'passion_niches'").get();
       const list = niches ? JSON.parse(niches.value || '[]') : [];
@@ -205,7 +206,7 @@ app.get('/api/health', (req, res) => {
     }
   });
 
-  app.post('/api/niches/passion', (req, res) => {
+app.post('/api/niches/passion', (req, res) => {
     try {
       const { action, niche } = req.body;
       const current = db.prepare("SELECT value FROM settings WHERE key = 'passion_niches'").get();
@@ -229,7 +230,7 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // DIRECT ETSY PUSH — publish a single product directly to Etsy
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post('/api/etsy/push/:id', async (req, res) => {
+app.post('/api/etsy/push/:id', async (req, res) => {
     try {
       // Check daily cap
       const cap = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
@@ -262,7 +263,7 @@ app.get('/api/health', (req, res) => {
     }
   });
 
-  app.post('/api/etsy/push-batch', async (req, res) => {
+app.post('/api/etsy/push-batch', async (req, res) => {
     try {
       const { ids } = req.body; // array of product IDs
       if (!ids || !ids.length) return res.status(400).json({ error: 'No product IDs provided' });
@@ -319,12 +320,12 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // SOCIAL POST GENERATOR — one-click social content
   // ═══════════════════════════════════════════════════════════════════════════
-  a
+
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SOCIAL SCHEDULER — schedule posts for specific times
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/social/calendar', (req, res) => {
+app.get('/api/social/calendar', (req, res) => {
     try {
       const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
       const posts = scheduled ? JSON.parse(scheduled.value || '[]') : [];
@@ -337,7 +338,7 @@ app.get('/api/health', (req, res) => {
     }
   });
 
-  app.post('/api/social/schedule', (req, res) => {
+app.post('/api/social/schedule', (req, res) => {
     try {
       const { productId, platform, content, scheduledAt } = req.body;
       const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
@@ -360,7 +361,7 @@ app.get('/api/health', (req, res) => {
     }
   });
 
-  app.post('/api/social/cancel', (req, res) => {
+app.post('/api/social/cancel', (req, res) => {
     try {
       const { id } = req.body;
       const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
@@ -373,7 +374,7 @@ app.get('/api/health', (req, res) => {
     }
   });
 
-  app.post('/api/social/post-now', async (req, res) => {
+app.post('/api/social/post-now', async (req, res) => {
     try {
       const { productId, platform } = req.body;
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
@@ -408,7 +409,7 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // AD SPEND DASHBOARD — budget tracking
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/ads/summary', (req, res) => {
+app.get('/api/ads/summary', (req, res) => {
     try {
       const budget = db.prepare("SELECT value FROM settings WHERE key = 'ad_monthly_budget'").get();
       const spend = db.prepare("SELECT value FROM settings WHERE key = 'ad_spend_this_month'").get();
@@ -443,7 +444,7 @@ app.get('/api/health', (req, res) => {
     }
   });
 
-  app.post('/api/ads/budget', (req, res) => {
+app.post('/api/ads/budget', (req, res) => {
     try {
       const { budget } = req.body;
       db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('ad_monthly_budget', ?)").run(String(budget || 0));
@@ -453,7 +454,7 @@ app.get('/api/health', (req, res) => {
     }
   });
 
-  app.post('/api/ads/commit', (req, res) => {
+app.post('/api/ads/commit', (req, res) => {
     try {
       const { platform, amount, name } = req.body;
       const spend = db.prepare("SELECT value FROM settings WHERE key = 'ad_spend_this_month'").get();
@@ -487,7 +488,7 @@ app.get('/api/health', (req, res) => {
     }
   });
 
-  app.post('/api/ads/cancel', (req, res) => {
+app.post('/api/ads/cancel', (req, res) => {
     try {
       const { id } = req.body;
       const runs = db.prepare("SELECT value FROM settings WHERE key = 'ad_runs'").get();
@@ -511,7 +512,7 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // TREND → PRODUCT PIPELINE
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post('/api/trends/:id/generate', async (req, res) => {
+app.post('/api/trends/:id/generate', async (req, res) => {
     try {
       const trend = db.prepare('SELECT * FROM trends WHERE id = ?').get(req.params.id);
       if (!trend) return res.status(404).json({ error: 'Trend not found' });
@@ -541,12 +542,11 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // PRODUCT PREVIEW — serve PDF for inline preview
   // ═══════════════════════════════════════════════════════════════════════════
-  a
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CONTENT CALENDAR — monthly view of all activity
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/calendar', (req, res) => {
+app.get('/api/calendar', (req, res) => {
     try {
       const month = req.query.month || new Date().toISOString().slice(0, 7); // YYYY-MM
       const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
@@ -556,7 +556,7 @@ app.get('/api/health', (req, res) => {
       const monthPosts = posts.filter(p => p.scheduledAt && p.scheduledAt.startsWith(month));
       
       // Get products listed this month
-      const products = db.prepare("SELECT id, name, type, prof_name, status, created_at FROM products WHERE status = 'listed'").all();
+      const products = db.prepare("SELECT p.id, p.name, p.type, pr.name AS prof_name, p.status, p.created_at FROM products p LEFT JOIN professions pr ON p.profession_id = pr.id WHERE p.status = 'listed'").all();
       const monthProducts = products.filter(p => p.created_at && p.created_at.startsWith(month));
       
       // Get ad runs this month
@@ -595,7 +595,7 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // SALES ANALYTICS — revenue by niche, by type, conversion rates
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/analytics/sales', (req, res) => {
+app.get('/api/analytics/sales', (req, res) => {
     try {
       const products = db.prepare('SELECT * FROM products').all();
       const trends = db.prepare('SELECT * FROM trends').all();
@@ -671,15 +671,14 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // BATCH SOCIAL — generate posts for all listed products
   // ═══════════════════════════════════════════════════════════════════════════
-  a
 
   // ═══════════════════════════════════════════════════════════════════════════
   // EMAIL NEWSLETTER — auto-generate weekly digest
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/newsletter/generate', async (req, res) => {
+app.get('/api/newsletter/generate', async (req, res) => {
     try {
-      const products = db.prepare("SELECT * FROM products WHERE status = 'listed' ORDER BY id DESC LIMIT 5").all();
-      const trends = db.prepare("SELECT * FROM trends WHERE status = 'active' LIMIT 3").all();
+      const products = db.prepare("SELECT p.*, pr.name AS prof_name FROM products p LEFT JOIN professions pr ON p.profession_id = pr.id WHERE p.status = 'listed' ORDER BY p.id DESC LIMIT 5").all();
+      const trends = db.prepare("SELECT * FROM trends WHERE activated = 1 ORDER BY activated_at DESC LIMIT 3").all();
       const stats = db.prepare("SELECT COUNT(*) as c FROM products WHERE status = 'listed'").get();
       
       const productList = products.map(function(p, i) {
@@ -704,11 +703,11 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // SMART QUICK ACTIONS — context-aware based on current state
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/smart-actions', (req, res) => {
+app.get('/api/smart-actions', (req, res) => {
     try {
       const actions = [];
-      const products = db.prepare('SELECT status, prof_name, type, price FROM products').all();
-      const trends = db.prepare('SELECT status FROM trends').all();
+      const products = db.prepare('SELECT p.status, pr.name AS prof_name, p.type, p.price FROM products p LEFT JOIN professions pr ON p.profession_id = pr.id').all();
+      const trends = db.prepare('SELECT activated, phase FROM trends').all();
       const settings = db.prepare("SELECT value FROM settings WHERE key = 'passion_niches'").get();
       const niches = settings ? JSON.parse(settings.value || '[]') : [];
       
@@ -734,7 +733,7 @@ app.get('/api/health', (req, res) => {
   // ═══════════════════════════════════════════════════════════════════════════
   // STRIPE PREP — webhook + status (ready for Stripe key)
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get('/api/payments/status', (req, res) => {
+app.get('/api/payments/status', (req, res) => {
     try {
       const stripeKey = process.env.STRIPE_SECRET_KEY || '';
       const stripeWebhook = process.env.STRIPE_WEBHOOK_SECRET || '';
@@ -748,7 +747,7 @@ app.get('/api/health', (req, res) => {
     }
   });
 
-  app.post('/api/payments/checkout', async (req, res) => {
+app.post('/api/payments/checkout', async (req, res) => {
     try {
       const { productId } = req.body;
       const stripeKey = process.env.STRIPE_SECRET_KEY || '';
@@ -768,7 +767,7 @@ app.get('/api/health', (req, res) => {
       res.status(500).json({ error: e.message });
     }
   });
-pp.post('/api/social/batch-generate', async (req, res) => {
+app.post('/api/social/batch-generate', async (req, res) => {
     try {
       const { platform, limit } = req.body;
       const products = db.prepare("SELECT * FROM products WHERE status = 'listed'").all();
@@ -815,7 +814,7 @@ pp.post('/api/social/batch-generate', async (req, res) => {
       res.status(500).json({ error: e.message });
     }
   });
-pp.get('/api/products/:id/preview-html', (req, res) => {
+app.get('/api/products/:id/preview-html', (req, res) => {
     try {
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
       if (!product) return res.status(404).json({ error: 'Product not found' });
@@ -843,7 +842,7 @@ pp.get('/api/products/:id/preview-html', (req, res) => {
       res.status(500).json({ error: e.message });
     }
   });
-pp.post('/api/social/generate', async (req, res) => {
+app.post('/api/social/generate', async (req, res) => {
     try {
       const { productId, platform } = req.body;
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
@@ -870,7 +869,6 @@ pp.post('/api/social/generate', async (req, res) => {
   });
 
 
-});
 
 // -- APPLY RATE LIMITING TO API --
 app.use('/api', apiLimiter);
