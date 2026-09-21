@@ -80,3 +80,17 @@ Done this session (all verified by curl against a freshly-booted server):
   Direct OpenRouter auth test returned a real completion (no fallback).
 - Lesson: local .env changes do NOT propagate to Railway. Push AI-layer vars with the
   railway CLI after any .env edit. Use set_prod_env.cjs (or railway variable set KEY --stdin).
+
+# ── 2026-09-21 AM: SERP discovery pipeline (Chunk 1) ──
+- Added durable `search_queue` table (server/database.js init) for throttled/retried SERP calls
+  (status / attempts / next_run / result columns; exponential backoff on error).
+- Extended trendRadar.js with two new discovery sources that feed the EXISTING scan→vet→activate flow:
+  - fetchSerperAutocomplete() — Google autocomplete via Serper API. VERIFIED LIVE (20 real phrases).
+  - fetchValueSERPShopping() — Google Shopping competitor-count validation via ValueSERP API.
+  - Both rate-limited (~1.1s) and logged to search_queue; drainSearchQueue() retries errored jobs.
+- Added endpoints: GET /api/discovery/search-queue, POST /api/discovery/serp-scan,
+  POST /api/discovery/search-queue/drain (source-health observable via getSourceHealth).
+- Verified locally: table created, Serper returns live autocomplete, queue populates with done rows.
+- KNOWN: VALUE_SERP_API key in .env is INVALID (ValueSERP returns an HTML block page, not JSON).
+  Code degrades gracefully (marks source unhealthy, inserts nothing) — replace the key to activate Layer 2.
+- NEXT CHUNK: Layer 3 Etsy Open API saturation gate (etsySaturationScore) before activateTrend().

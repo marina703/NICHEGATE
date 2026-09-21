@@ -92,3 +92,5 @@ deterministic templates. User must refresh OPENROUTER_API_KEY for real AI output
 
 - PROD AI verified 2026-09-21: MODEL_ENABLED=true + clean OPENROUTER_API_KEY pushed to
   Railway via CLI; /api/model/status enabled:true. Prod URL: nichegate-production.up.railway.app
+
+- SERP discovery pipeline added 2026-09-21 (Chunk 1): search_queue table + Serper autocomplete + ValueSERP shopping in trendRadar.js, discovery endpoints in index.js. Serper key works; VALUE_SERP_API is invalid (returns HTML) — replace before Layer 2 validation activates. Layer 3 = Etsy Open API saturation gate (next).
