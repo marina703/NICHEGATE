@@ -24,3 +24,10 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+# Local build artifacts and helpers (not part of the deployed app)  
+.freebuff/  
+_rlw.js  
+client/_css_part.css  
+client/_css_part2.css  
+client/_css_part3.css  
+client/v2.html 
