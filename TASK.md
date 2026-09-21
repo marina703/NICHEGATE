@@ -94,3 +94,22 @@ Done this session (all verified by curl against a freshly-booted server):
 - KNOWN: VALUE_SERP_API key in .env is INVALID (ValueSERP returns an HTML block page, not JSON).
   Code degrades gracefully (marks source unhealthy, inserts nothing) — replace the key to activate Layer 2.
 - NEXT CHUNK: Layer 3 Etsy Open API saturation gate (etsySaturationScore) before activateTrend().
+
+# ── 2026-09-21 (cont): Discovery stack swap + Etsy gate fix (Chunk 2) ──
+- FIXED Chunk-2 bug: etsySaturationGate was missing `await` on the async
+  fetchEtsySaturation call, so `s` was a Promise (truthy) and the gate returned
+  pass:false on EVERY call - would have blocked the whole pipeline when the key
+  was bad. Now async/await throughout (gateActivateTrend + autoActivateHotFads too).
+  Verified: with an invalid key the gate returns {pass:true, unknown:true} (degrades,
+  does NOT block).
+- SWAPPED ValueSERP -> DataForSEO (Keyword Research API): fetchValueSERPShopping
+  replaced by fetchDataForSEO (Basic auth, rate-limited, logged to search_queue).
+  Kept Serper autocomplete as the PRIMARY discovery source (reliable from Railway IPs);
+  Google Suggest noted as a free secondary to add later.
+- ENRICHED Etsy saturation score: fetchEtsySaturation now reads avg favorites,
+  avg price, listing age from results and nudges saturation up for established niches.
+- ADDED Opportunity Engine: scoreOpportunity() + GET /api/discovery/opportunity.
+- KNOWN (user-action): DataForSEO account returns 403 "verify your account" -
+  must complete verification at app.dataforseo.com before live volume/intent data.
+  Etsy shared secret (ETSY_SHARED_SECRET) still 403s (invalid/inactive) -> blocks
+  Layer 3 until replaced with a valid, active key. Both degrade gracefully meanwhile.

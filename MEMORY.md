@@ -94,3 +94,5 @@ deterministic templates. User must refresh OPENROUTER_API_KEY for real AI output
   Railway via CLI; /api/model/status enabled:true. Prod URL: nichegate-production.up.railway.app
 
 - SERP discovery pipeline added 2026-09-21 (Chunk 1): search_queue table + Serper autocomplete + ValueSERP shopping in trendRadar.js, discovery endpoints in index.js. Serper key works; VALUE_SERP_API is invalid (returns HTML) — replace before Layer 2 validation activates. Layer 3 = Etsy Open API saturation gate (next).
+
+- Chunk 2 done: Etsy saturation gate fixed (await bug) + ValueSERP swapped for DataForSEO (Keyword Research) + enriched Etsy score + opportunity engine endpoint. Serper kept as primary discovery. DataForSEO needs account verification (app.dataforseo.com) and Etsy shared secret needs a valid active key before Layer 3 goes live; both degrade gracefully.
