@@ -5,6 +5,7 @@
 // ============================================================================
 
 const { computeVelocityScore, parseRevenue } = require('./velocityEngine');
+const radar = require('./trendRadar');
 
 // Weights biased toward margin + low competition + specificity (micro-niches)
 const WEIGHTS = {
@@ -147,6 +148,27 @@ function isProductizable(trend) {
   return !!(vet && vet.verdict !== 'SKIP');
 }
 
+
+// Layer 3 gate: query Etsy active-listing count for a niche name. Passes when
+// the niche is NOT oversaturated (count < ~3000). Unknown/errored => pass (so a
+// broken key never silently blocks the whole pipeline).
+const _satCache = new Map();
+async function etsySaturationGate(name, opts) {
+  const maxAge = (opts && opts.maxAgeMs) || 3600000;
+  const cached = _satCache.get(name);
+  if (cached && (Date.now() - cached.t) < maxAge) return cached.result;
+  let result;
+  try {
+    const s = await radar.fetchEtsySaturation(name);
+    if (!s) result = { pass: true, unknown: true, reason: 'etsy api unavailable' };
+    else result = { pass: s.saturation >= 0.3, count: s.count, saturation: s.saturation, unknown: false };
+  } catch (e) {
+    result = { pass: true, unknown: true, reason: e.message };
+  }
+  _satCache.set(name, { t: Date.now(), result });
+  return result;
+}
+
 module.exports = {
   vetTrend,
   shouldActivate,
@@ -154,5 +176,6 @@ module.exports = {
   isProductizable,
   scoreSpecificity,
   scoreShoppingIntent,
+  etsySaturationGate,
   WEIGHTS
 };

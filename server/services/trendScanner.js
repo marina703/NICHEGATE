@@ -115,6 +115,23 @@ function activateTrend(id) {
 }
 
 
+
+// Saturation-gated activation: blocks oversaturated Etsy niches before they burn
+// file-factory / publish resources. Falls through to activateTrend when pass.
+async function gateActivateTrend(id) {
+  const trend = db.prepare('SELECT * FROM trends WHERE id = ?').get(id);
+  if (!trend) return { ok: false, reason: 'not found' };
+  const gate = await vetting.etsySaturationGate(trend.name);
+  if (!gate.pass) {
+    db.prepare("UPDATE trends SET outcome = 'saturated' WHERE id = ?").run(id);
+    db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+      .run('saturation_gate', 'Blocked "' + trend.name + '" — Etsy saturation ' + (gate.saturation || '?') + ' (' + (gate.count || '?') + ' active listings)', 'warning');
+    return { ok: false, reason: 'saturated', count: gate.count, saturation: gate.saturation };
+  }
+  const prof = activateTrend(id);
+  return { ok: !!prof, prof: prof, gate: gate };
+}
+
 function dismissTrend(id) {
   db.prepare("UPDATE trends SET outcome = 'dismissed' WHERE id = ?").run(id);
 }
@@ -137,5 +154,6 @@ module.exports = {
   activateTrend,
   dismissTrend,
   archiveTrend,
+  gateActivateTrend,
   withScores
 };

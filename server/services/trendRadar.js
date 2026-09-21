@@ -352,7 +352,6 @@ async function fetchTikTokTrends(limit = 6) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const SERPER_KEY = process.env.SERPER_API_KEY;
-const VALUE_SERP_KEY = process.env.VALUE_SERP_API || process.env.VALUE_SERP_API_KEY;
 let _lastSerp = 0, _lastVs = 0;
 async function serpThrottle(min = 1100) {
   const wait = _lastSerp + min - Date.now();
@@ -425,41 +424,113 @@ async function fetchSerperAutocomplete(seeds) {
   return out;
 }
 
-async function fetchValueSERPShopping(seeds) {
-  if (!VALUE_SERP_KEY) { markHealth('valueserp-shopping', false, 'VALUE_SERP_API not set'); return []; }
+
+const DATAFORSEO_LOGIN = process.env.DATAFORSEO_LOGIN;
+const DATAFORSEO_KEY = process.env.DATAFORSEO_KEY || process.env.DATAFORSEO_API_KEY;
+let _lastDf = 0;
+async function dfThrottle(min = 1100) {
+  const wait = _lastDf + min - Date.now();
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  _lastDf = Date.now();
+}
+
+async function fetchDataForSEO(seeds) {
+  if (!DATAFORSEO_LOGIN || !DATAFORSEO_KEY) { markHealth('dataforseo', false, 'DataForSEO credentials not set'); return []; }
   const seedList = seeds || ['digital planner','invoice template','checklist printable','pet portrait','sticker pack','resume template','meal planner','wedding sign','budget spreadsheet','party game'];
   const out = [];
   for (const seed of seedList) {
-    const qid = searchQueueEnqueue('valueserp-shopping', seed);
+    const qid = searchQueueEnqueue('dataforseo', seed);
     try {
-      await vsThrottle();
-      const url = 'https://www.valueserp.com/api/v1/search.json?api_key=' + encodeURIComponent(VALUE_SERP_KEY) + '&engine=google_shopping&q=' + encodeURIComponent(seed) + '&num=20';
-      const resp = await axios.get(url, { timeout: 12000 });
-      const raw = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data);
-      if (raw.trim().startsWith('<')) {
-        searchQueueRecord(qid, false, 'HTML response (invalid key or blocked)');
-        markHealth('valueserp-shopping', false, 'HTML response — VALUE_SERP_API likely invalid');
-        return [];
+      await dfThrottle();
+      const auth = 'Basic ' + Buffer.from(DATAFORSEO_LOGIN + ':' + DATAFORSEO_KEY).toString('base64');
+      const resp = await axios.post('https://api.dataforseo.com/v3/keywords_data/google/ad_words/recommendations',
+        [{ language_code: 'en', location_code: 2840, keywords: [seed] }],
+        { timeout: 15000, headers: { 'Authorization': auth, 'Content-Type': 'application/json' } });
+      const tasks = (resp.data && resp.data.tasks) || [];
+      let volume = 0, cpc = 0, difficulty = 0, intent = 0, n = 0;
+      for (const t of tasks) {
+        for (const r of (t.results || t.result || [])) {
+          volume += Number(r.search_volume) || 0;
+          cpc += Number(r.cpc) || 0;
+          difficulty += Number(r.competition) || Number(r.keyword_difficulty) || 0;
+          if (/buy|shop|order|price|coupon|best|review|template|printable/i.test(r.keyword || '')) intent += 1;
+          n++;
+        }
       }
-      let data = resp.data;
-      if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { data = {}; } }
-      const shopping = Array.isArray(data) ? data
-        : Array.isArray(data.shopping_results) ? data.shopping_results
-        : Object.values(data).filter(v => v && typeof v === 'object');
-      const competitorCount = shopping.length;
-      const avgPrice = shopping.length ? shopping.reduce((a, b) => a + (parseFloat(String(b.price || '0').replace(/[^0-9.]/g, '')) || 0), 0) / shopping.length : 0;
-      const saturation = competitorCount >= 18 ? 0.45 : competitorCount >= 10 ? 0.7 : 0.95;
-      if (competitorCount < 20) {
-        out.push({ name: seed, traffic: 'ValueSERP shopping · ' + competitorCount + ' competitors · $' + avgPrice.toFixed(0) + ' avg', source: 'valueserp-shopping', shoppingIntent: saturation });
+      const avgVol = n ? Math.round(volume / n) : 0;
+      const opp = avgVol > 1000 ? 0.9 : avgVol > 300 ? 0.7 : avgVol > 100 ? 0.5 : 0.3;
+      if (avgVol > 50) {
+        out.push({ name: seed, traffic: 'DataForSEO · vol ' + avgVol, source: 'dataforseo', shoppingIntent: opp,
+          validation: { volume: avgVol, cpc: n ? +(cpc / n).toFixed(2) : 0, difficulty: n ? +(difficulty / n).toFixed(2) : 0, intent } });
       }
-      searchQueueRecord(qid, true, { competitorCount, avgPrice });
-      markHealth('valueserp-shopping', true);
+      searchQueueRecord(qid, true, { volume: avgVol, results: n });
+      markHealth('dataforseo', true);
     } catch (e) {
-      searchQueueRecord(qid, false, e.message);
-      markHealth('valueserp-shopping', false, e.message);
+      const detail = e.response ? (e.response.status + ' ' + JSON.stringify(e.response.data).slice(0, 120)) : e.message;
+      searchQueueRecord(qid, false, detail);
+      markHealth('dataforseo', false, detail);
     }
   }
   return out;
+}
+
+// Opportunity Engine: combine DataForSEO demand/intent/difficulty with Etsy saturation.
+async function scoreOpportunity(phrase) {
+  const df = fetchDataForSEO([phrase]);
+  const etsy = fetchEtsySaturation(phrase);
+  const [dfItems, e] = await Promise.all([df, etsy]);
+  const v = dfItems[0] && dfItems[0].validation ? dfItems[0].validation.volume : 0;
+  const intent = dfItems[0] && dfItems[0].validation ? dfItems[0].validation.intent : 0;
+  const sat = e ? e.saturation : 0.5;
+  // Weighted: demand + intent - saturation (higher = better opportunity)
+  const opportunity = Math.max(0, Math.min(100, Math.round((Math.log10(v + 1) * 18) + (intent * 6) - (sat * 40))));
+  return { phrase, volume: v, intent, etsySaturation: sat, etsyCount: e ? e.count : null, opportunity };
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LAYER 3 — ETSY SATURATION GATE (Etsy Open API v3 active-listings count)
+// Uses the app shared secret as x-api-key (no user OAuth needed). Graceful on
+// invalid/expired key: returns null and marks source unhealthy.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const ETSY_SHARED_SECRET = process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET;
+
+async function fetchEtsySaturation(phrase) {
+  if (!ETSY_SHARED_SECRET) { markHealth('etsy-saturation', false, 'ETSY_SHARED_SECRET not set'); return null; }
+  const qid = searchQueueEnqueue('etsy-saturation', phrase);
+  try {
+    const resp = await axios.get('https://openapi.etsy.com/v3/application/listings/active', {
+      params: { keywords: phrase, limit: 100 },
+      timeout: 12000,
+      headers: { 'x-api-key': ETSY_SHARED_SECRET }
+    });
+    const results = (resp.data && resp.data.results) || [];
+    const count = (resp.data && typeof resp.data.count === 'number') ? resp.data.count : results.length;
+    let f = 0, p = 0, a = 0;
+    for (const r of results) {
+      f += Number(r.num_favorers || 0);
+      p += parseFloat(String(r.price || '0').replace(/[^0-9.]/g, '')) || 0;
+      if (r.created_timestamp) a += (Date.now() / 1000 - Number(r.created_timestamp)) / 86400;
+    }
+    const avgFav = results.length ? f / results.length : 0;
+    const avgPrice = results.length ? p / results.length : 0;
+    const avgAge = results.length ? a / results.length : 0;
+    // More active listings => more saturated => lower opportunity
+    let saturation = count >= 8000 ? 0.1 : count >= 3000 ? 0.3 : count >= 1000 ? 0.5 : count >= 300 ? 0.7 : 0.9;
+    // Established niches (heavy favorites / premium price) are harder to break into
+    if (avgFav > 500 || avgPrice > 30) saturation = Math.min(1, saturation + 0.05);
+    searchQueueRecord(qid, true, { count, avgFav: Math.round(avgFav), avgPrice: +avgPrice.toFixed(2), avgAge: Math.round(avgAge) });
+    markHealth('etsy-saturation', true);
+    return { count, saturation, avgFavorites: Math.round(avgFav), avgPrice: +avgPrice.toFixed(2), avgAgeDays: Math.round(avgAge), unsaturated: saturation >= 0.3 };
+
+  } catch (e) {
+    const detail = e.response ? (e.response.status + ' ' + JSON.stringify(e.response.data).slice(0, 120)) : e.message;
+    searchQueueRecord(qid, false, detail);
+    markHealth('etsy-saturation', false, detail);
+    return null;
+  }
 }
 
 function insertLiveTrend(item, rank) {
@@ -513,7 +584,7 @@ async function scanLiveTrends(max = 5) {
   await pull('ebay-trending', () => fetchEbayTrending(8));
   // SERP discovery layers (Serper autocomplete + ValueSERP shopping validation)
   await pull('serper-autocomplete', () => fetchSerperAutocomplete());
-  await pull('valueserp-shopping', () => fetchValueSERPShopping());
+  await pull('dataforseo', () => fetchDataForSEO());
 
 
   // Prefer shopping-intent sources when ranking
@@ -556,11 +627,13 @@ module.exports = {
   detectFad,
   isProductizableCandidate,
   getSourceHealth,  fetchSerperAutocomplete,
-  fetchValueSERPShopping,
+  fetchDataForSEO,
+  scoreOpportunity,
   searchQueueEnqueue,
   searchQueueRecord,
   getSearchQueue,
   drainSearchQueue,
+  fetchEtsySaturation,
 
   markHealth
 };

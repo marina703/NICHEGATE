@@ -279,7 +279,7 @@ function retireColdTrends(now = new Date()) {
 
 // Fads don't wait for a human review gate — auto-activate ACTIVATE-grade,
 // shopping-intent-driven, high-velocity trends on sight.
-function autoActivateHotFads(limit = 3) {
+async function autoActivateHotFads(limit = 3) {
   const candidates = db.prepare(
     "SELECT * FROM trends WHERE activated = 0 AND outcome IS NULL ORDER BY detected_at DESC"
   ).all();
@@ -293,7 +293,8 @@ function autoActivateHotFads(limit = 3) {
     const v = parseInt(String(t.velocity || '').match(/(\d+(?:\.\d+)?)/)?.[1] || '0', 10) || 0;
     if (v < 120) continue; // needs real momentum
     try {
-      const prof = trendScanner.activateTrend(t.id);
+      const g = await trendScanner.gateActivateTrend(t.id);
+      const prof = g.ok ? g.prof : null;
       if (!prof) continue;
       generateProductsForTrend(prof.id, t);
       db.prepare('INSERT INTO automation_log (action, profession_id, details, status) VALUES (?, ?, ?, ?)')

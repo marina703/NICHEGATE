@@ -1219,6 +1219,30 @@ app.post('/api/discovery/search-queue/drain', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+
+// ── Etsy saturation probe (manual check + observability) ──
+app.get('/api/discovery/etsy-saturation', async (req, res) => {
+  try {
+    const radar = require('./services/trendRadar');
+    const q = String(req.query.q || '');
+    if (!q) return res.status(400).json({ error: 'q required' });
+    const s = await radar.fetchEtsySaturation(q);
+    res.json({ ok: true, query: q, saturation: s, sourceHealth: radar.getSourceHealth()['etsy-saturation'] || null });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ── Opportunity Engine probe (DataForSEO demand + Etsy saturation) ──
+app.get('/api/discovery/opportunity', async (req, res) => {
+  try {
+    const radar = require('./services/trendRadar');
+    const q = String(req.query.q || '');
+    if (!q) return res.status(400).json({ error: 'q required' });
+    const score = await radar.scoreOpportunity(q);
+    res.json({ ok: true, score });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/metrics/summary', (req, res) => {
   // Compute live metrics from the products table (source of truth)
   const byProfession = db.prepare(`
