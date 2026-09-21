@@ -1196,6 +1196,29 @@ app.get('/api/metrics', (req, res) => {
   res.json(rows);
 });
 
+
+// ── SERP discovery queue (observability + manual retry) ──
+app.get('/api/discovery/search-queue', (req, res) => {
+  try {
+    const radar = require('./services/trendRadar');
+    res.json({ ok: true, queue: radar.getSearchQueue(50), sources: radar.getSourceHealth() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/discovery/serp-scan', async (req, res) => {
+  try {
+    const radar = require('./services/trendRadar');
+    const inserted = await radar.scanLiveTrends(4);
+    res.json({ ok: true, inserted: inserted.length, items: inserted.map(t => ({ id: t.id, name: t.name, why: t.why })) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/discovery/search-queue/drain', async (req, res) => {
+  try {
+    const radar = require('./services/trendRadar');
+    const n = await radar.drainSearchQueue(10);
+    res.json({ ok: true, reprocessed: n });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/metrics/summary', (req, res) => {
   // Compute live metrics from the products table (source of truth)
   const byProfession = db.prepare(`

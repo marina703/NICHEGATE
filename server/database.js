@@ -138,6 +138,23 @@ function init() {
     );
   `);
 
+
+  // Durable SERP discovery search queue (throttled/retried SERP calls)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS search_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source TEXT NOT NULL,
+      query TEXT NOT NULL,
+      payload TEXT,
+      status TEXT DEFAULT 'pending',
+      result TEXT,
+      attempts INTEGER DEFAULT 0,
+      last_error TEXT,
+      next_run DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Migration tracking table (prevents re-applying migrations)
   db.exec(`
     CREATE TABLE IF NOT EXISTS migrations (

@@ -345,6 +345,123 @@ async function fetchTikTokTrends(limit = 6) {
   }
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SERP DISCOVERY LAYERS (Serper autocomplete + ValueSERP shopping validation)
+// Rate-limited + durable search_queue for retry/observability.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SERPER_KEY = process.env.SERPER_API_KEY;
+const VALUE_SERP_KEY = process.env.VALUE_SERP_API || process.env.VALUE_SERP_API_KEY;
+let _lastSerp = 0, _lastVs = 0;
+async function serpThrottle(min = 1100) {
+  const wait = _lastSerp + min - Date.now();
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  _lastSerp = Date.now();
+}
+async function vsThrottle(min = 1100) {
+  const wait = _lastVs + min - Date.now();
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  _lastVs = Date.now();
+}
+
+// Durable search queue (throttled/retried SERP calls)
+function searchQueueEnqueue(source, query, payload) {
+  try {
+    const info = db.prepare('INSERT INTO search_queue (source, query, payload, status, next_run) VALUES (?, ?, ?, ?, ?)')
+      .run(source, query, payload ? JSON.stringify(payload) : null, 'pending', new Date().toISOString());
+    return info.lastInsertRowid;
+  } catch (e) { return null; }
+}
+function searchQueueRecord(id, ok, data) {
+  if (id == null) return;
+  try {
+    const row = db.prepare('SELECT attempts FROM search_queue WHERE id = ?').get(id);
+    const attempts = (row && row.attempts) || 0;
+    const next = ok ? null : new Date(Date.now() + Math.min(60000, 2000 * Math.pow(2, attempts))).toISOString();
+    db.prepare('UPDATE search_queue SET status = ?, result = ?, attempts = ?, last_error = ?, next_run = ? WHERE id = ?')
+      .run(ok ? 'done' : 'error', data == null ? null : JSON.stringify(data).slice(0, 2000), attempts + 1, ok ? null : String(data).slice(0, 500), next, id);
+  } catch (e) {}
+}
+function getSearchQueue(limit = 50) {
+  try { return db.prepare('SELECT * FROM search_queue ORDER BY created_at DESC LIMIT ?').all(limit); } catch (e) { return []; }
+}
+async function drainSearchQueue(limit = 10) {
+  const pending = db.prepare("SELECT * FROM search_queue WHERE status != 'done' AND (next_run IS NULL OR next_run <= ?) ORDER BY created_at ASC LIMIT ?").all(new Date().toISOString(), limit);
+  let n = 0;
+  for (const job of pending) {
+    try {
+      if (job.source === 'serper-autocomplete') { const r = await fetchSerperAutocomplete([job.query]); searchQueueRecord(job.id, true, { count: r.length }); }
+      else if (job.source === 'valueserp-shopping') { const r = await fetchValueSERPShopping([job.query]); searchQueueRecord(job.id, true, { count: r.length }); }
+      n++;
+    } catch (e) { searchQueueRecord(job.id, false, e.message); }
+  }
+  return n;
+}
+
+async function fetchSerperAutocomplete(seeds) {
+  if (!SERPER_KEY) { markHealth('serper-autocomplete', false, 'SERPER_API_KEY not set'); return []; }
+  const seedList = seeds || ['digital planner','invoice template','checklist printable','business toolkit','wedding sign','pet portrait','sticker pack','budget spreadsheet','meal planner','resume template','party game','garden sign'];
+  const out = [];
+  for (const seed of seedList) {
+    const qid = searchQueueEnqueue('serper-autocomplete', seed);
+    try {
+      await serpThrottle();
+      const resp = await axios.post('https://google.serper.dev/autocomplete', { q: seed },
+        { timeout: 10000, headers: { 'X-API-KEY': SERPER_KEY, 'Content-Type': 'application/json' } });
+      const sugg = Array.isArray(resp.data && resp.data.suggestions) ? resp.data.suggestions : [];
+      for (const sg of sugg) {
+        const name = String(sg.suggestion || sg.value || '').trim();
+        if (name && name.length > 3 && name.length < 72) out.push({ name, traffic: 'Serper autocomplete', source: 'serper-autocomplete', shoppingIntent: 0.9 });
+      }
+      searchQueueRecord(qid, true, { count: sugg.length });
+      markHealth('serper-autocomplete', true);
+    } catch (e) {
+      searchQueueRecord(qid, false, e.message);
+      markHealth('serper-autocomplete', false, e.message);
+    }
+    if (out.length >= 60) break;
+  }
+  return out;
+}
+
+async function fetchValueSERPShopping(seeds) {
+  if (!VALUE_SERP_KEY) { markHealth('valueserp-shopping', false, 'VALUE_SERP_API not set'); return []; }
+  const seedList = seeds || ['digital planner','invoice template','checklist printable','pet portrait','sticker pack','resume template','meal planner','wedding sign','budget spreadsheet','party game'];
+  const out = [];
+  for (const seed of seedList) {
+    const qid = searchQueueEnqueue('valueserp-shopping', seed);
+    try {
+      await vsThrottle();
+      const url = 'https://www.valueserp.com/api/v1/search.json?api_key=' + encodeURIComponent(VALUE_SERP_KEY) + '&engine=google_shopping&q=' + encodeURIComponent(seed) + '&num=20';
+      const resp = await axios.get(url, { timeout: 12000 });
+      const raw = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data);
+      if (raw.trim().startsWith('<')) {
+        searchQueueRecord(qid, false, 'HTML response (invalid key or blocked)');
+        markHealth('valueserp-shopping', false, 'HTML response — VALUE_SERP_API likely invalid');
+        return [];
+      }
+      let data = resp.data;
+      if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { data = {}; } }
+      const shopping = Array.isArray(data) ? data
+        : Array.isArray(data.shopping_results) ? data.shopping_results
+        : Object.values(data).filter(v => v && typeof v === 'object');
+      const competitorCount = shopping.length;
+      const avgPrice = shopping.length ? shopping.reduce((a, b) => a + (parseFloat(String(b.price || '0').replace(/[^0-9.]/g, '')) || 0), 0) / shopping.length : 0;
+      const saturation = competitorCount >= 18 ? 0.45 : competitorCount >= 10 ? 0.7 : 0.95;
+      if (competitorCount < 20) {
+        out.push({ name: seed, traffic: 'ValueSERP shopping · ' + competitorCount + ' competitors · $' + avgPrice.toFixed(0) + ' avg', source: 'valueserp-shopping', shoppingIntent: saturation });
+      }
+      searchQueueRecord(qid, true, { competitorCount, avgPrice });
+      markHealth('valueserp-shopping', true);
+    } catch (e) {
+      searchQueueRecord(qid, false, e.message);
+      markHealth('valueserp-shopping', false, e.message);
+    }
+  }
+  return out;
+}
+
 function insertLiveTrend(item, rank) {
   if (!isProductizableCandidate(item)) return null;
   item.shoppingIntent = fuseShoppingIntent(item);
@@ -394,6 +511,10 @@ async function scanLiveTrends(max = 5) {
   await pull('tiktok-rss', () => fetchTikTokTrends(5));
   await pull('amazon-movers', () => fetchAmazonMovers(8));
   await pull('ebay-trending', () => fetchEbayTrending(8));
+  // SERP discovery layers (Serper autocomplete + ValueSERP shopping validation)
+  await pull('serper-autocomplete', () => fetchSerperAutocomplete());
+  await pull('valueserp-shopping', () => fetchValueSERPShopping());
+
 
   // Prefer shopping-intent sources when ranking
   sources.sort((a, b) => (b.shoppingIntent || 0) - (a.shoppingIntent || 0));
@@ -434,6 +555,12 @@ module.exports = {
   fuseShoppingIntent,
   detectFad,
   isProductizableCandidate,
-  getSourceHealth,
+  getSourceHealth,  fetchSerperAutocomplete,
+  fetchValueSERPShopping,
+  searchQueueEnqueue,
+  searchQueueRecord,
+  getSearchQueue,
+  drainSearchQueue,
+
   markHealth
 };
