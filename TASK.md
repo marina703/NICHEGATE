@@ -66,3 +66,17 @@ Done this session (all verified by curl against a freshly-booted server):
 #    was not viewable during implementation, so the palette was chosen as a
 #    darker premium interpretation of the existing design).
 # 4. Optional: Stripe key, email automation, Reddit/YouTube social.
+
+# ── 2026-09-21 AM: PRODUCTION AI regression fix ──
+- PRODUCTION was silently on template fallback. Root cause (regression): MODEL_ENABLED
+  was only set in the LOCAL .env and never pushed to Railway, and the Railway
+  OPENROUTER_API_KEY had a stray whitespace char (len 74, wellFormed:false).
+  /api/model/status reported enabled:false, modelEnabledEnv:"(not set)".
+- FIXED via Railway CLI (variable set ... --stdin, secret never on cmd line):
+  pushed OPENROUTER_API_KEY = clean 73-char local key (all-hex, no whitespace) and
+  MODEL_ENABLED=true. Auto-redeploy confirmed.
+- VERIFIED: https://nichegate-production.up.railway.app/api/model/status now returns
+  enabled:true, modelEnabledEnv:"true", keyShape.wellFormed:true, diagnosis "AI layer enabled".
+  Direct OpenRouter auth test returned a real completion (no fallback).
+- Lesson: local .env changes do NOT propagate to Railway. Push AI-layer vars with the
+  railway CLI after any .env edit. Use set_prod_env.cjs (or railway variable set KEY --stdin).

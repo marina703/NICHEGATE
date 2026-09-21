@@ -89,3 +89,6 @@ deterministic templates. User must refresh OPENROUTER_API_KEY for real AI output
 - Always update TASK.md AND MEMORY.md before stopping.
 - Etsy daily cap minimum 10/day. No listing without real file.
 - AI calls must never throw. Keys only from env.
+
+- PROD AI verified 2026-09-21: MODEL_ENABLED=true + clean OPENROUTER_API_KEY pushed to
+  Railway via CLI; /api/model/status enabled:true. Prod URL: nichegate-production.up.railway.app
