@@ -73,6 +73,47 @@ app.post('/api/auth/login', async (req, res) => {
   try { await auth.login(req, res); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.post('/api/auth/logout', (req, res) => auth.logout(req, res));
+
+// -- MODEL / AI LAYER STATUS (diagnostic; never exposes the key) --
+app.get('/api/model/status', (req, res) => {
+  try {
+    const router = require('./services/modelRouter');
+    const cfg = require('./services/modelConfig');
+    const key = String(process.env.OPENROUTER_API_KEY || '');
+    const trimmed = key.trim();
+    const afterPrefix = trimmed.replace(/^sk-or-v1-/, '');
+    res.json({
+      ok: true,
+      enabled: !!cfg.enabled,
+      modelEnabledEnv: String(process.env.MODEL_ENABLED || '(not set)'),
+      hasKey: !!key,
+      keyShape: {
+        length: trimmed.length,
+        startsCorrectly: trimmed.startsWith('sk-or-v1-'),
+        expectedLength: 73,
+        hexAfterPrefix: afterPrefix.length,
+        expectedHexAfterPrefix: 64,
+        allHex: /^[0-9a-f]+$/i.test(afterPrefix),
+        hasWhitespace: /\s/.test(key),
+        hasLabelPrefix: !trimmed.startsWith('sk-or-v1-') && trimmed.includes('sk-or-v1-'),
+        wellFormed: trimmed.startsWith('sk-or-v1-') && afterPrefix.length === 64 && /^[0-9a-f]+$/i.test(afterPrefix) && !/\s/.test(key)
+      },
+      models: {
+        scan: cfg.openrouter && cfg.openrouter.defaultModel,
+        judge: cfg.openrouter && cfg.openrouter.judgeModel,
+        ideation: cfg.openrouter && cfg.openrouter.ideationModel
+      },
+      callsThisCycle: typeof router.callsUsed === 'function' ? router.callsUsed() : null,
+      diagnosis: (!cfg.enabled && !key) ? 'MISSING KEY - set OPENROUTER_API_KEY'
+        : (!cfg.enabled && key) ? 'MODEL_ENABLED is not "true" - set MODEL_ENABLED=true'
+        : (cfg.enabled && !key) ? 'MODEL_ENABLED=true but no key present'
+        : 'AI layer enabled'
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/auth/status', (req, res) => {
   res.json({ enabled: auth.enabled(), authed: auth.isValidToken(auth.tokenFrom(req)) });
 });
