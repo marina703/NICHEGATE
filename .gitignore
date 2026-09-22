@@ -1,33 +1,6 @@
-# ── Secrets — NEVER commit these ──
-.env
-.env.local
-*.env
-
-# ── Dependencies ──
-node_modules/
-
-# ── Runtime data (generated products, DB, logs, uploads) ──
-data/*.db
-data/*.db-*
-generated/
-logs/
-uploads/
-*.log
-previews/
-nichegate designs/
-nichegate designs.zip
-runtime/backups/
-
-# ── OS / editor ──
-.DS_Store
-Thumbs.db
-*.swp
-.idea/
-.vscode/
-# Local build artifacts and helpers (not part of the deployed app)  
-.freebuff/  
-_rlw.js  
 client/_css_part.css  
 client/_css_part2.css  
 client/_css_part3.css  
-client/v2.html 
+client/v2.html  
+.freebuff/  
+_rlw.js 
