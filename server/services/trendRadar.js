@@ -434,45 +434,54 @@ async function dfThrottle(min = 1100) {
   _lastDf = Date.now();
 }
 
-async function fetchDataForSEO(seeds) {
-  if (!DATAFORSEO_LOGIN || !DATAFORSEO_KEY) { markHealth('dataforseo', false, 'DataForSEO credentials not set'); return []; }
-  const seedList = seeds || ['digital planner','invoice template','checklist printable','pet portrait','sticker pack','resume template','meal planner','wedding sign','budget spreadsheet','party game'];
-  const out = [];
-  for (const seed of seedList) {
-    const qid = searchQueueEnqueue('dataforseo', seed);
+  async function fetchDataForSEO(seeds) {
+    if (!DATAFORSEO_LOGIN || !DATAFORSEO_KEY) { markHealth('dataforseo', false, 'DataForSEO credentials not set'); return []; }
+    const seedList = seeds || ['digital planner','invoice template','checklist printable','pet portrait','sticker pack','resume template','meal planner','wedding sign','budget spreadsheet','party game'];
+    const out = [];
+    const qids = seedList.map(s => searchQueueEnqueue('dataforseo', s));
     try {
       await dfThrottle();
       const auth = 'Basic ' + Buffer.from(DATAFORSEO_LOGIN + ':' + DATAFORSEO_KEY).toString('base64');
-      const resp = await axios.post('https://api.dataforseo.com/v3/keywords_data/google/ad_words/recommendations',
-        [{ language_code: 'en', location_code: 2840, keywords: [seed] }],
-        { timeout: 15000, headers: { 'Authorization': auth, 'Content-Type': 'application/json' } });
-      const tasks = (resp.data && resp.data.tasks) || [];
-      let volume = 0, cpc = 0, difficulty = 0, intent = 0, n = 0;
-      for (const t of tasks) {
-        for (const r of (t.results || t.result || [])) {
-          volume += Number(r.search_volume) || 0;
-          cpc += Number(r.cpc) || 0;
-          difficulty += Number(r.competition) || Number(r.keyword_difficulty) || 0;
-          if (/buy|shop|order|price|coupon|best|review|template|printable/i.test(r.keyword || '')) intent += 1;
-          n++;
+      // DataForSEO keyword data is task-based: submit one task for all seeds, then poll results.
+      const post = await axios.post('https://api.dataforseo.com/v3/keywords_data/google/search_volume/task_post',
+        [{ language_code: 'en', location_code: 2840, keywords: seedList }],
+        { timeout: 15000, headers: { Authorization: auth, 'Content-Type': 'application/json' } });
+      const pt = (post.data && post.data.tasks && post.data.tasks[0]) || {};
+      const id = pt.id;
+      if (!id) throw new Error('DataForSEO: no task id returned');
+      let arr = [];
+      for (let attempt = 0; attempt < 3 && arr.length === 0; attempt++) {
+        await new Promise(r => setTimeout(r, attempt === 0 ? 6000 : 3000));
+        const get = await axios.get('https://api.dataforseo.com/v3/keywords_data/google/search_volume/task_get/' + id,
+          { timeout: 15000, headers: { Authorization: auth } });
+        const gt = (get.data && get.data.tasks && get.data.tasks[0]) || {};
+        const res = gt.result || gt.results || [];
+        arr = Array.isArray(res) ? res : [];
+      }
+      const byKeyword = {};
+      arr.forEach(r => { byKeyword[(r.keyword || '').toLowerCase()] = r; });
+      seedList.forEach((seed, idx) => {
+        const r = byKeyword[(seed || '').toLowerCase()];
+        const qid = qids[idx];
+        const vol = r ? Number(r.search_volume) || 0 : 0;
+        const cpc = r ? Number(r.cpc) || 0 : 0;
+        const difficulty = r ? Number(r.competition) || 0 : 0;
+        const intent = r ? (/buy|shop|order|price|coupon|best|review|template|printable/i.test(r.keyword || '') ? 1 : 0) : 0;
+        if (vol > 50) {
+          out.push({ name: seed, traffic: 'DataForSEO · vol ' + vol, source: 'dataforseo',
+            shoppingIntent: vol > 1000 ? 0.9 : vol > 300 ? 0.7 : vol > 100 ? 0.5 : 0.3,
+            validation: { volume: vol, cpc: +cpc.toFixed(2), difficulty: +difficulty.toFixed(2), intent } });
         }
-      }
-      const avgVol = n ? Math.round(volume / n) : 0;
-      const opp = avgVol > 1000 ? 0.9 : avgVol > 300 ? 0.7 : avgVol > 100 ? 0.5 : 0.3;
-      if (avgVol > 50) {
-        out.push({ name: seed, traffic: 'DataForSEO · vol ' + avgVol, source: 'dataforseo', shoppingIntent: opp,
-          validation: { volume: avgVol, cpc: n ? +(cpc / n).toFixed(2) : 0, difficulty: n ? +(difficulty / n).toFixed(2) : 0, intent } });
-      }
-      searchQueueRecord(qid, true, { volume: avgVol, results: n });
+        searchQueueRecord(qid, true, { volume: vol, results: r ? 1 : 0 });
+      });
       markHealth('dataforseo', true);
     } catch (e) {
       const detail = e.response ? (e.response.status + ' ' + JSON.stringify(e.response.data).slice(0, 120)) : e.message;
-      searchQueueRecord(qid, false, detail);
+      qids.forEach(qid => searchQueueRecord(qid, false, detail));
       markHealth('dataforseo', false, detail);
     }
+    return out;
   }
-  return out;
-}
 
 // Opportunity Engine: combine DataForSEO demand/intent/difficulty with Etsy saturation.
 async function scoreOpportunity(phrase) {

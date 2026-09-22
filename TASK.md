@@ -113,3 +113,15 @@ Done this session (all verified by curl against a freshly-booted server):
   must complete verification at app.dataforseo.com before live volume/intent data.
   Etsy shared secret (ETSY_SHARED_SECRET) still 403s (invalid/inactive) -> blocks
   Layer 3 until replaced with a valid, active key. Both degrade gracefully meanwhile.
+
+# ── 2026-09-21 (cont): DataForSEO fix (Chunk 2 addendum) ──
+- DataForSEO keyword data is TASK-BASED, not live. Rewrote fetchDataForSEO to
+  POST /keywords_data/google/search_volume/task_post (ALL seeds in one task) then
+  poll /search_volume/task_get/$id (up to 3 retries, 6s+3s). Verified LIVE:
+  digital planner vol 12100/cpc 4.65, invoice template vol 90500/cpc 12.63.
+  Source health ok:true.
+- Account needed verification at app.dataforseo.com (was 403 "verify your account");
+  now active. The earlier /ad_words/recommendations live path was a 404 (no live
+  endpoint exists for keyword data) - that is why all probes 404'd post-verification.
+- Layer 2 (DataForSEO validation) + Layer 3 (Etsy saturation; ETSY_SHARED_SECRET now
+  in Railway) are both wired. Go live on next GitHub push + Railway redeploy.

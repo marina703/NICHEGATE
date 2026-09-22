@@ -96,3 +96,15 @@ deterministic templates. User must refresh OPENROUTER_API_KEY for real AI output
 - SERP discovery pipeline added 2026-09-21 (Chunk 1): search_queue table + Serper autocomplete + ValueSERP shopping in trendRadar.js, discovery endpoints in index.js. Serper key works; VALUE_SERP_API is invalid (returns HTML) — replace before Layer 2 validation activates. Layer 3 = Etsy Open API saturation gate (next).
 
 - Chunk 2 done: Etsy saturation gate fixed (await bug) + ValueSERP swapped for DataForSEO (Keyword Research) + enriched Etsy score + opportunity engine endpoint. Serper kept as primary discovery. DataForSEO needs account verification (app.dataforseo.com) and Etsy shared secret needs a valid active key before Layer 3 goes live; both degrade gracefully.
+
+# ── 2026-09-21 (cont): DataForSEO fix (Chunk 2 addendum) ──
+- DataForSEO keyword data is TASK-BASED, not live. Rewrote fetchDataForSEO to
+  POST /keywords_data/google/search_volume/task_post (ALL seeds in one task) then
+  poll /search_volume/task_get/$id (up to 3 retries, 6s+3s). Verified LIVE:
+  digital planner vol 12100/cpc 4.65, invoice template vol 90500/cpc 12.63.
+  Source health ok:true.
+- Account needed verification at app.dataforseo.com (was 403 "verify your account");
+  now active. The earlier /ad_words/recommendations live path was a 404 (no live
+  endpoint exists for keyword data) - that is why all probes 404'd post-verification.
+- Layer 2 (DataForSEO validation) + Layer 3 (Etsy saturation; ETSY_SHARED_SECRET now
+  in Railway) are both wired. Go live on next GitHub push + Railway redeploy.
