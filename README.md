@@ -141,3 +141,20 @@ Recovery journals (AA, SMART, Refuge, WFS, Secular, Faith-Based) are 30-day guid
 ---
 
 *Built as a full-stack Express + SQLite app with Puppeteer-rendered PDFs, SheetJS spreadsheets with live formulas, and adm-zip packaging. Windows-first, runs anywhere Node runs.*
+  
+## ?? Railway Environment Variables  
+  
+Set these in your Railway project variables at https://railway.app/dashboard  
+  
+```  
+ETSY_SHARED_SECRET=sizb32x01hv4vzok64qt3iah  
+ETSY_CLIENT_ID=sizb32x01hv4vzok64qt3iah  
+ETSY_CLIENT_SECRET=nx8yl6b7da  
+```  
+  
+## ?? Railway Environment Variables  
+  
+Set these in your Railway project:  
+ETSY_SHARED_SECRET=sizb32x01hv4vzok64qt3iah  
+ETSY_CLIENT_ID=sizb32x01hv4vzok64qt3iah  
+ETSY_CLIENT_SECRET=nx8yl6b7da 
