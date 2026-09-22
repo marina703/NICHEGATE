@@ -504,43 +504,50 @@ async function scoreOpportunity(phrase) {
 // invalid/expired key: returns null and marks source unhealthy.
 // ═══════════════════════════════════════════════════════════════════════════
 
-const ETSY_SHARED_SECRET = process.env.ETSY_SHARED_SECRET || process.env.ETSY_CLIENT_SECRET;
-
-async function fetchEtsySaturation(phrase) {
-  if (!ETSY_SHARED_SECRET) { markHealth('etsy-saturation', false, 'ETSY_SHARED_SECRET not set'); return null; }
-  const qid = searchQueueEnqueue('etsy-saturation', phrase);
-  try {
-    const resp = await axios.get('https://openapi.etsy.com/v3/application/listings/active', {
-      params: { keywords: phrase, limit: 100 },
-      timeout: 12000,
-      headers: { 'x-api-key': ETSY_SHARED_SECRET }
-    });
-    const results = (resp.data && resp.data.results) || [];
-    const count = (resp.data && typeof resp.data.count === 'number') ? resp.data.count : results.length;
-    let f = 0, p = 0, a = 0;
-    for (const r of results) {
-      f += Number(r.num_favorers || 0);
-      p += parseFloat(String(r.price || '0').replace(/[^0-9.]/g, '')) || 0;
-      if (r.created_timestamp) a += (Date.now() / 1000 - Number(r.created_timestamp)) / 86400;
+  async function fetchEtsySaturation(phrase) {
+    // Try every Etsy key var we have; Etsy's x-api-key wants ONE specific value
+    // (Shared Secret OR Keystring), and portals label them inconsistently. First
+    // non-403 wins. Harmless to probe the others (they just 403).
+    const candidates = [process.env.ETSY_SHARED_SECRET, process.env.ETSY_CLIENT_SECRET, process.env.ETSY_CLIENT_ID].filter(Boolean);
+    if (!candidates.length) { markHealth('etsy-saturation', false, 'no Etsy API key set'); return null; }
+    const qid = searchQueueEnqueue('etsy-saturation', phrase);
+    let lastErr = null;
+    for (const key of candidates) {
+      try {
+        const resp = await axios.get('https://openapi.etsy.com/v3/application/listings/active', {
+          params: { keywords: phrase, limit: 100 },
+          timeout: 12000,
+          headers: { 'x-api-key': key }
+        });
+        const results = (resp.data && resp.data.results) || [];
+        const count = (resp.data && typeof resp.data.count === 'number') ? resp.data.count : results.length;
+        let f = 0, p = 0, a = 0;
+        for (const r of results) {
+          f += Number(r.num_favorers || 0);
+          p += parseFloat(String(r.price || '0').replace(/[^0-9.]/g, '')) || 0;
+          if (r.created_timestamp) a += (Date.now() / 1000 - Number(r.created_timestamp)) / 86400;
+        }
+        const avgFav = results.length ? f / results.length : 0;
+        const avgPrice = results.length ? p / results.length : 0;
+        const avgAge = results.length ? a / results.length : 0;
+        let saturation = count >= 8000 ? 0.1 : count >= 3000 ? 0.3 : count >= 1000 ? 0.5 : count >= 300 ? 0.7 : 0.9;
+        if (avgFav > 500 || avgPrice > 30) saturation = Math.min(1, saturation + 0.05);
+        searchQueueRecord(qid, true, { count, avgFav: Math.round(avgFav), avgPrice: +avgPrice.toFixed(2), avgAge: Math.round(avgAge) });
+        markHealth('etsy-saturation', true);
+        return { count, saturation, avgFavorites: Math.round(avgFav), avgPrice: +avgPrice.toFixed(2), avgAgeDays: Math.round(avgAge), unsaturated: saturation >= 0.3 };
+      } catch (e) {
+        const status = e.response && e.response.status;
+        const detail = e.response ? (status + ' ' + JSON.stringify(e.response.data).slice(0, 120)) : e.message;
+        if (status === 403) { lastErr = detail; continue; }
+        searchQueueRecord(qid, false, detail);
+        markHealth('etsy-saturation', false, detail);
+        return null;
+      }
     }
-    const avgFav = results.length ? f / results.length : 0;
-    const avgPrice = results.length ? p / results.length : 0;
-    const avgAge = results.length ? a / results.length : 0;
-    // More active listings => more saturated => lower opportunity
-    let saturation = count >= 8000 ? 0.1 : count >= 3000 ? 0.3 : count >= 1000 ? 0.5 : count >= 300 ? 0.7 : 0.9;
-    // Established niches (heavy favorites / premium price) are harder to break into
-    if (avgFav > 500 || avgPrice > 30) saturation = Math.min(1, saturation + 0.05);
-    searchQueueRecord(qid, true, { count, avgFav: Math.round(avgFav), avgPrice: +avgPrice.toFixed(2), avgAge: Math.round(avgAge) });
-    markHealth('etsy-saturation', true);
-    return { count, saturation, avgFavorites: Math.round(avgFav), avgPrice: +avgPrice.toFixed(2), avgAgeDays: Math.round(avgAge), unsaturated: saturation >= 0.3 };
-
-  } catch (e) {
-    const detail = e.response ? (e.response.status + ' ' + JSON.stringify(e.response.data).slice(0, 120)) : e.message;
-    searchQueueRecord(qid, false, detail);
-    markHealth('etsy-saturation', false, detail);
+    searchQueueRecord(qid, false, lastErr);
+    markHealth('etsy-saturation', false, lastErr);
     return null;
   }
-}
 
 function insertLiveTrend(item, rank) {
   if (!isProductizableCandidate(item)) return null;

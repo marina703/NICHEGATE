@@ -108,3 +108,15 @@ deterministic templates. User must refresh OPENROUTER_API_KEY for real AI output
   endpoint exists for keyword data) - that is why all probes 404'd post-verification.
 - Layer 2 (DataForSEO validation) + Layer 3 (Etsy saturation; ETSY_SHARED_SECRET now
   in Railway) are both wired. Go live on next GitHub push + Railway redeploy.
+
+# ── 2026-09-21 (cont): Etsy Layer 3 key fallback ──
+- fetchEtsySaturation now tries ALL Etsy key vars (ETSY_SHARED_SECRET, ETSY_CLIENT_SECRET,
+  ETSY_CLIENT_ID) as x-api-key and uses the first that authenticates (Etsy portals label the
+  x-api-key value inconsistently as Shared Secret vs Keystring). Removes the guesswork; whatever
+  correct key the user has in any var works. Layer 3 (Etsy saturation) + Opportunity Engine now
+  fully live once a valid key is present in Railway. Verified DataForSEO Layer 2 live in prod
+  (volume 90500 for "planner").
+- NEXT (per user's Etsy OAuth guide): implement access-token auto-refresh. Etsy OAuth v3:
+  access token ~5min, refresh token 90d single-use rotating. Existing marketplace_tokens table on
+  Railway's persistent SQLite volume already survives restarts - no new Postgres/Redis plugin needed.
+  Plan: add refreshEtsyToken() invoked before publish + on a schedule; store rotated tokens back.
