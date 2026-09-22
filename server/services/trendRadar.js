@@ -505,10 +505,15 @@ async function scoreOpportunity(phrase) {
 // ═══════════════════════════════════════════════════════════════════════════
 
   async function fetchEtsySaturation(phrase) {
-    // Try every Etsy key var we have; Etsy's x-api-key wants ONE specific value
-    // (Shared Secret OR Keystring), and portals label them inconsistently. First
-    // non-403 wins. Harmless to probe the others (they just 403).
-    const candidates = [process.env.ETSY_SHARED_SECRET, process.env.ETSY_CLIENT_SECRET, process.env.ETSY_CLIENT_ID].filter(Boolean);
+    // Etsy API v3 requires x-api-key header in format: "KEYSTRING:SHARED_SECRET"
+    // Try all combinations from our available credentials until one works
+    const candidates = [];
+    if (process.env.ETSY_CLIENT_ID && process.env.ETSY_CLIENT_SECRET) {
+      candidates.push(`${process.env.ETSY_CLIENT_ID}:${process.env.ETSY_CLIENT_SECRET}`);
+    }
+    if (process.env.ETSY_SHARED_SECRET) {
+      candidates.push(process.env.ETSY_SHARED_SECRET); // Also try standalone (in case portal uses just one value)
+    }
     if (!candidates.length) { markHealth('etsy-saturation', false, 'no Etsy API key set'); return null; }
     const qid = searchQueueEnqueue('etsy-saturation', phrase);
     let lastErr = null;
