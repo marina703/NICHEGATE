@@ -1,6 +1,24 @@
-client/_css_part.css  
-client/_css_part2.css  
-client/_css_part3.css  
-client/v2.html  
-.freebuff/  
-_rlw.js 
+# ── Dependencies ──
+node_modules/
+
+# ── Secrets / environment (NEVER commit) ──
+.env
+.env.*
+!.env.example
+
+# ── Runtime data — the SQLite DB is the business ──
+data/
+uploads/
+logs/
+runtime/
+
+# ── Generated deliverables + previews ──
+generated/
+
+# ── Legacy / scratch ──
+client/_css_part.css
+client/_css_part2.css
+client/_css_part3.css
+client/v2.html
+.freebuff/
+_rlw.js

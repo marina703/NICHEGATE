@@ -17,6 +17,8 @@ These three are the single source of truth. Treat them as authoritative over any
 
 ## Git / deploy state as of handoff (IMPORTANT — do not auto-push)
 
+> **Historical (2026-09-15 → 09-17).** The audit + Flight Deck redesign described in `AUDIT_REPORT.md` landed afterwards on a separate branch. Re-check `git log`/`git status` before trusting the state below.
+
 - **Working tree on `main` is clean.** Local `main` is **1 commit ahead** of `origin/main`:
   - `652cb96` — `docs: session log + refreshed TASK/MEMORY`. **Committed locally, NOT pushed, NOT deployed.**
 - **Do not push or deploy until the owner audits.** Wanted state: saved locally, not deployed.
@@ -50,6 +52,19 @@ There are **no 35 pending files** in any working tree. The "35" corresponds to:
 
 ---
 
+## Command Center ("Flight Deck") — architecture rules
+
+The dashboard was rebuilt as a no-bundler ES-module console. Follow these invariants when touching it:
+
+- **Middleware order is load-bearing.** `apiLimiter` + the auth guard are mounted *before every route*; the ADMIN page gate runs *before* `express.static(client)`. Never register a route above those lines and never move the static mount above the gate — doing so silently unprotects publish/spend endpoints.
+- **Client layout:** `client/index.html` is a 29-line shell. Logic lives in `client/js/{ui,api,views,console,rebuild}.js` + `client/css/flightdeck.css`. No build step — Docker/Railway serve these files as-is.
+- **Views are pure:** `views.js` exports `(state) => HTML string`. All interaction goes through `data-action` attributes handled by delegation in `console.js`. Do not reintroduce inline `onclick`.
+- **Escape everything dynamic.** Every interpolated value passes through `esc()`; `helmet`'s CSP is still off, so an unescaped feed/model string is stored XSS.
+- **One review-queue predicate.** The rail badge, Home KPIs/funnel, the Catalog *Needs review* filter and the Review table all use `isReviewable`/`reviewQueue`/`reviewPage` from `ui.js`. Never re-inline a status list.
+- **Actions are a closed allowlist** in `server/services/actionRegistry.js`; unknown names must be rejected. New actions are registered there (name/label/description/input/handler) and appear in ⌘K automatically.
+- **BI is real-data only.** `server/services/bi.js` computes Shop Health, deltas, the 14-day series, listing health and insights exclusively from `products`/`metrics`/`automation_log`/`settings`. Never introduce synthetic multipliers; absent data must report itself as 0/empty.
+- **Nothing in the console may require the AI layer.** Every action must work with `MODEL_ENABLED=false`.
+
 ## Hard rules (from MEMORY.md — follow exactly)
 
 - Update `TASK.md` before stopping. Never redo "Done/Do-NOT-redo" items — `git diff` first.
@@ -79,6 +94,8 @@ There are **no 35 pending files** in any working tree. The "35" corresponds to:
 ## Tests
 
 ```
-node --test
+node --test        # or: npm test
 ```
-Expected: 77 tests · 18 suites · 74 pass · 0 fail · 3 skipped.
+Expected: 77 tests · 18 suites · 73 pass · 0 fail · 4 skipped (verified 2026-09-21).
+
+The suite is hermetic: it must pass on a fresh database with no seed data. `test/concept.test.js` provisions and cleans up its own fixture — do not reintroduce a dependency on production rows.

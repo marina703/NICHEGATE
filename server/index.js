@@ -46,29 +46,86 @@ const MAX_SPREADSHEET_PREVIEW_BYTES = 20 * 1024 * 1024;
 
 // -- MIDDLEWARE --
 // -- SECURITY HEADERS --
-app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+// CSP: script-src 'self' only — possible because no page ships inline
+// handlers or inline scripts (all client logic is external ES modules).
+// style-src keeps 'unsafe-inline' for the design tokens / generated layouts;
+// img-src data: covers inline SVG favicons; frame-src 'self' covers product
+// preview iframes; frame-ancestors 'none' blocks clickjacking. Etsy OAuth
+// needs form POST + redirect, so form-action allows etsy.com.
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      "default-src": ["'self'"],
+      "script-src": ["'self'"],
+      "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
+      "img-src": ["'self'", "data:"],
+      "connect-src": ["'self'"],
+      "frame-src": ["'self'"],
+      "form-action": ["'self'", "https://www.etsy.com"],
+      "frame-ancestors": ["'none'"],
+      "upgrade-insecure-requests": []
+    }
+  }
+}));
 
 // -- RATE LIMITING --
+// The authenticated console batches many API calls per view (12 views × 4-6
+// endpoints), so the limit must sit above a full session sweep, not just a
+// page load. Anonymous public traffic is still capped hard.
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: (req) => (auth.enabled() && auth.isValidToken(auth.tokenFrom(req)) ? 1200 : 200),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' }
 });
 
-app.use(cors());
+if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) app.set('trust proxy', 1);
+
+// -- CORS: same-origin by default; add extra origins via CORS_ORIGINS --
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+  credentials: true
+}));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use('/generated', express.static(path.join(__dirname, '..', 'generated')));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
-app.use(express.static(path.join(__dirname, '..', 'client'), { extensions: ['html'] }));
-
 // -- AUTH (optional single-admin dashboard protection) --
 // Enabled only when ADMIN_PASSWORD is set. API is gated JSON; health + auth
 // routes stay open so Railway's healthcheck and login keep working. Autonomous
 // jobs run server-side (DB/services), so they are never blocked by login.
 const auth = require('./services/auth');
+
+// -- RATE LIMITING + AUTH GUARD --
+// Registered BEFORE every route so no endpoint can bypass them. /api/auth/* and
+// /api/health* stay open so login + Railway's healthcheck keep working.
+app.use('/api', apiLimiter);
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/auth') || req.path.startsWith('/health')) return next();
+  return auth.requireAuth({ json: true })(req, res, next);
+});
+
+// -- ADMIN PAGE GATE -- runs BEFORE static, so the console shell can never be
+// fetched directly. /login and the public /store stay open on purpose.
+const ADMIN_PAGES = new Set(['/', '/index.html', '/setup', '/setup.html']);
+app.use((req, res, next) => {
+  if (!auth.enabled() || !ADMIN_PAGES.has(req.path)) return next();
+  return auth.requireAuth()(req, res, next);
+});
+
+app.use('/generated', express.static(path.join(__dirname, '..', 'generated')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// covers/ holds brand + product cover art referenced by the storefront;
+// read-only and cache-friendly.
+app.use('/covers', express.static(path.join(__dirname, '..', 'covers'), { maxAge: '1d' }));
+app.use(express.static(path.join(__dirname, '..', 'client'), { extensions: ['html'] }));
 app.post('/api/auth/login', async (req, res) => {
   try { await auth.login(req, res); } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -911,15 +968,7 @@ app.post('/api/social/generate', async (req, res) => {
 
 
 
-// -- APPLY RATE LIMITING TO API --
-app.use('/api', apiLimiter);
-
-app.use('/api', (req, res, next) => {
-  if (req.path.startsWith('/auth') || req.path.startsWith('/health')) return next();
-  return auth.requireAuth({ json: true })(req, res, next);
-});
-app.use(['/'], auth.requireAuth());
-app.use(['/setup'], auth.requireAuth());
+// (API rate limiting + auth are registered above, before any route is defined.)
 
 // -- INIT DB --
 init();
@@ -979,13 +1028,17 @@ app.get('/api/products/:id', (req, res) => {
 });
 
 app.post('/api/products', async (req, res) => {
-  const { profession_id, name, type, price, theme, html_content } = req.body;
+  const { profession_id, name, type, price, theme, html_content } = req.body || {};
+  if (!profession_id || !name || !type) {
+    return res.status(400).json({ error: 'profession_id, name and type are required' });
+  }
+  // node:sqlite cannot bind undefined — omit empty optionals as NULL.
   const result = db.prepare(`
     INSERT INTO products (profession_id, name, type, price, status, theme, html_content)
     VALUES (?, ?, ?, ?, 'draft', ?, ?)
-  `).run(profession_id, name, type, price, theme, html_content);
+  `).run(profession_id, name, type, price ?? null, theme ?? null, html_content ?? null);
   
-  // Generate the real deliverable file � never create a product that can't be delivered
+  // Generate the real deliverable file — never create a product that can't be delivered
   const newProduct = db.prepare('SELECT * FROM products WHERE id = ?').get(result.lastInsertRowid);
   try {
     await fileFactory.ensureProductFile(newProduct);
@@ -1027,7 +1080,7 @@ app.post('/api/products/:id/regenerate-idea', async (req, res) => {
     const concept = await enrichProduct(product.id);
     if (!concept) {
       return res.json({ regenerated: false, concept: null,
-        message: 'AI layer off or concept below novelty bar � keeping current product' });
+        message: 'AI layer off or concept below novelty bar — keeping current product' });
     }
     res.json({ regenerated: true, concept,
       name: db.prepare('SELECT name FROM products WHERE id = ?').get(product.id).name });
@@ -1037,7 +1090,7 @@ app.post('/api/products/:id/regenerate-idea', async (req, res) => {
 });
 
 // ------------------------------------------------------------------------
-// API: TEMPLATES (Mockup generation) � Returns 5 theme variations
+// API: TEMPLATES (Mockup generation) — Returns 5 theme variations
 // ------------------------------------------------------------------------
 app.post('/api/templates/generate', async (req, res) => {
   try {
@@ -1143,7 +1196,7 @@ app.get('/api/trends/vet/:id', (req, res) => {
   res.json(vetting.vetTrend(trend));
 });
 
-// Live radar source health (ok/fail/lastSuccess) � additive observability
+// Live radar source health (ok/fail/lastSuccess) — additive observability
 app.get('/api/trends/radar-health', (req, res) => {
   try {
     const radar = require('./services/trendRadar');
@@ -1310,7 +1363,7 @@ async function syncGumroadSales() {
     revenue += (s.price || 0) / 100;
   }
   if (newSales > 0) {
-    await notifier.sendDiscord(getWebhookUrl(), `?? **Sale!** ${newSales} new sale${newSales > 1 ? 's' : ''} � +$${revenue.toFixed(2)}. Total so far: see Metrics.`);
+    await notifier.sendDiscord(getWebhookUrl(), `💰 **Sale!** ${newSales} new sale${newSales > 1 ? 's' : ''} — +$${revenue.toFixed(2)}. Total so far: see Metrics.`);
     db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
       .run('sales_sync', `${newSales} new sale(s), $${revenue.toFixed(2)}`, 'success');
   }
@@ -1338,48 +1391,13 @@ app.post('/api/bundles/generate', async (req, res) => {
 });
 
 app.post('/api/bundles/publish', async (req, res) => {
-  const pending = db.prepare("SELECT * FROM products WHERE type = 'bundle' AND status = 'approved' AND marketplace_id IS NULL").all();
-  let published = 0, failed = 0;
-  const errors = [];
-  for (const p of pending) {
-    try {
-      const result = await mp.publishProduct(p);
-      db.prepare('UPDATE products SET status = ?, marketplace = ?, marketplace_id = ? WHERE id = ?')
-        .run('listed', result.platform, result.listingId || null, p.id);
-      // Branded cover � best effort, never blocks the listing
-      try { await mp.attachGumroadCover(result.listingId, bundles.coverForType('bundle')); }
-      catch (e) { console.error('[BUNDLES] cover skipped:', e.message); }
-      db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
-        .run('published', p.id, `Bundle live on ${result.platform}`, 'success');
-      published++;
-    } catch (e) {
-      failed++;
-      errors.push(`${p.name}: ${e.message}`);
-      db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
-        .run('publish_error', p.id, e.message, 'error');
-    }
-  }
-  res.json({ published, failed, errors });
+  try { res.json(await publishQueuedBundles()); }
+  catch (e) { console.error('[BUNDLES] publish error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/leadmagnet/deploy', async (req, res) => {
-  try {
-    const existing = db.prepare("SELECT value FROM settings WHERE key = 'leadmagnet_url'").get();
-    if (existing?.value) return res.json({ alreadyLive: true, url: existing.value });
-
-    const product = await bundles.buildLeadMagnet();
-    const result = await mp.publishFreeGumroad(product);
-    db.prepare('UPDATE products SET status = ?, marketplace = ?, marketplace_id = ? WHERE id = ?')
-      .run('listed', result.platform, result.listingId, product.id);
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('leadmagnet_url', ?)").run(result.url || '');
-    try { await mp.attachGumroadCover(result.listingId, bundles.coverForType('leadmagnet')); } catch {}
-    db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
-      .run('published', product.id, 'Lead magnet live (free email capture)', 'success');
-    res.json({ success: true, url: result.url });
-  } catch (e) {
-    console.error('[LEADMAGNET] error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
+  try { res.json(await deployLeadMagnet()); }
+  catch (e) { console.error('[LEADMAGNET] error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/seasonal', (req, res) => {
@@ -1389,11 +1407,12 @@ app.get('/api/seasonal', (req, res) => {
 });
 
 app.post('/api/metrics', (req, res) => {
-  const { profession_id, product_id, views, sales, revenue, favorites } = req.body;
+  const { profession_id, product_id, views, sales, revenue, favorites } = req.body || {};
+  if (!profession_id) return res.status(400).json({ error: 'profession_id is required' });
   db.prepare(`
     INSERT INTO metrics (profession_id, product_id, views, sales, revenue, favorites)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).run(profession_id, product_id, views || 0, sales || 0, revenue || 0, favorites || 0);
+  `).run(profession_id, product_id ?? null, views || 0, sales || 0, revenue || 0, favorites || 0);
   res.json({ success: true });
 });
 
@@ -1406,7 +1425,10 @@ app.get('/api/chat/:profession_id', (req, res) => {
 });
 
 app.post('/api/chat', (req, res) => {
-  const { profession_id, role, text, mockups } = req.body;
+  const { profession_id, role, text, mockups } = req.body || {};
+  if (!profession_id || !role || !text) {
+    return res.status(400).json({ error: 'profession_id, role and text are required' });
+  }
   const result = db.prepare(`
     INSERT INTO chat_history (profession_id, role, text, mockups)
     VALUES (?, ?, ?, ?)
@@ -1464,45 +1486,15 @@ app.post('/api/automation/run', async (req, res) => {
 });
 
 app.post('/api/automation/approve-all', (req, res) => {
-  const result = db.prepare("UPDATE products SET status = 'approved' WHERE status = 'draft' OR status = 'pending-review'").run();
-  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
-    .run('batch_approve', `Approved ${result.changes} products`, 'success');
-  res.json({ approved: result.changes });
+  res.json(approveAllPending());
 });
 
-// Deduplicate the review queue � collapse identical draft clones (same
+// Deduplicate the review queue — collapse identical draft clones (same
 // profession + type + name) down to ONE keeper each. Never touches approved,
 // listed, published, or sold products. Prefer keeping the row with a real
 // generated file; otherwise the newest one.
 app.post('/api/automation/dedupe', (req, res) => {
-  const groups = db.prepare(`
-    SELECT profession_id, type, name, COUNT(*) c
-    FROM products
-    WHERE status IN ('draft','pending-review')
-    GROUP BY profession_id, type, name
-    HAVING c > 1
-  `).all();
-  const removed = [];
-  const keep = [];
-  for (const g of groups) {
-    const rows = db.prepare(`
-      SELECT id, file_path, preview_path, html_content FROM products
-      WHERE status IN ('draft','pending-review') AND profession_id = ? AND type = ? AND name = ?
-      ORDER BY id DESC
-    `).all(g.profession_id, g.type, g.name);
-    const keeper = rows.find(r => r.file_path) || rows[0];
-    keep.push(keeper.id);
-    for (const r of rows) {
-      if (r.id !== keeper.id) {
-        db.prepare('DELETE FROM products WHERE id = ?').run(r.id);
-        removed.push(r.id);
-      }
-    }
-  }
-  const remaining = db.prepare(`SELECT COUNT(*) c FROM products WHERE status IN ('draft','pending-review')`).get().c;
-  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
-    .run('dedupe', `Removed ${removed.length} duplicate drafts � kept ${keep.length} (${remaining} pending now)`, 'success');
-  res.json({ groups: groups.length, removed: removed.length, kept: keep.length, remaining });
+  res.json(dedupeQueue());
 });
 
 // ------------------------------------------------------------------------
@@ -1535,7 +1527,7 @@ app.post('/api/marketplace/publish/:productId', async (req, res) => {
   }
 });
 
-// Storefront feed � live products with real Gumroad buy links (cached 5 min)
+// Storefront feed — live products with real Gumroad buy links (cached 5 min)
 let storeFeedCache = { at: 0, data: null };
 app.get('/api/store/products', async (req, res) => {
   if (storeFeedCache.data && Date.now() - storeFeedCache.at < 300000) {
@@ -1581,7 +1573,7 @@ app.get('/api/store/products', async (req, res) => {
   }
 });
 
-// Design showcase � the premium template designs currently in the catalog
+// Design showcase — the premium template designs currently in the catalog
 // (pending drafts that haven't shipped yet) plus the live bundles. Used by the
 // storefront to show what buyers get before they buy.
 let showcaseCache = { at: 0, data: null };
@@ -1631,7 +1623,7 @@ app.get('/api/store/showcase', async (req, res) => {
 });
 
 // ------------------------------------------------------------------------
-// STORE BRANDING � deploy the nichegate-designs logo/banner to marketplaces
+// STORE BRANDING — deploy the nichegate-designs logo/banner to marketplaces
 // ------------------------------------------------------------------------
 app.get('/api/branding/status', (req, res) => {
   try {
@@ -1731,8 +1723,9 @@ app.get('/api/settings', (req, res) => {
 });
 
 app.post('/api/settings', (req, res) => {
-  const { key, value } = req.body;
-  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
+  const { key, value } = req.body || {};
+  if (!key) return res.status(400).json({ error: 'key is required (use POST /api/settings/batch to save many)' });
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value ?? null);
   res.json({ success: true });
 });
 
@@ -1764,12 +1757,12 @@ function initDefaultSettings() {
 // ------------------------------------------------------------------------
 // API: EXPORT
 // ------------------------------------------------------------------------
-// Export a product � generates the file on demand from its saved HTML if none exists
+// Export a product — generates the file on demand from its saved HTML if none exists
 app.get('/api/export/product/:id', async (req, res) => {
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.status(404).json({ error: 'Product not found' });
 
-  // If a file already exists, serve it (stream manually � Windows sendFile bug)
+  // If a file already exists, serve it (stream manually — Windows sendFile bug)
   if (product.file_path && fs.existsSync(product.file_path)) {
     const abs = path.resolve(product.file_path);
     res.setHeader('Content-Type', 'application/octet-stream');
@@ -1792,7 +1785,7 @@ app.get('/api/export/product/:id', async (req, res) => {
 });
 
 // ------------------------------------------------------------------------
-// PRODUCT PREVIEW � actually SEE the deliverable before approving:
+// PRODUCT PREVIEW — actually SEE the deliverable before approving:
 // PDFs render inline, spreadsheets become readable HTML tables, and ZIP
 // archives get a contents list with inline previews of text/HTML files.
 // ------------------------------------------------------------------------
@@ -1825,7 +1818,7 @@ pre{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:8px;font-size:0.
 }
 
 function previewHeader(product, prof, fileInfo) {
-  return `<div class="header"><div><h1>${escHtml(product.name)}</h1><div class="meta">${prof ? prof.emoji + ' ' : ''}${escHtml(prof ? prof.name : '')} � ${escHtml(product.type)} � ${escHtml(product.price || '')}${fileInfo ? ' � ' + fileInfo : ''}</div></div><a class="btn" href="/api/export/product/${product.id}" download>? Download file</a></div>`;
+  return `<div class="header"><div><h1>${escHtml(product.name)}</h1><div class="meta">${prof ? prof.emoji + ' ' : ''}${escHtml(prof ? prof.name : '')} — ${escHtml(product.type)} · ${escHtml(product.price || '')}${fileInfo ? ' · ' + fileInfo : ''}</div></div><a class="btn" href="/api/export/product/${product.id}" download>⬇ Download file</a></div>`;
 }
 
 app.get('/api/products/:id/preview', async (req, res) => {
@@ -1869,21 +1862,21 @@ app.get('/api/products/:id/preview', async (req, res) => {
         html = html.replace(/<td[^>]*>/g, '<td>').replace(/<th[^>]*>/g, '<th>');
         return `<div class="card"><h3>?? ${escHtml(name)}</h3>${html}</div>`;
       }).join('');
-      const body = previewHeader(product, prof, `Excel � ${sizeKB} KB`) + `<img class="preview-img" src="/api/products/${product.id}/preview-image">` + tables;
-      return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', body));
+      const body = previewHeader(product, prof, `Excel · ${sizeKB} KB`) + `<img class="preview-img" src="/api/products/${product.id}/preview-image">` + tables;
+      return res.type('html').send(previewShell(escHtml(product.name) + ' · Preview', body));
     }
 
     // ZIP archive ? contents list + inline previews of text/HTML entries
     if (filePath && ext === '.zip') {
       const zip = new AdmZip(filePath);
       const entries = zip.getEntries();
-      let html = previewHeader(product, prof, `ZIP archive � ${sizeKB} KB � ${entries.length} files`);
+      let html = previewHeader(product, prof, `ZIP archive · ${sizeKB} KB · ${entries.length} files`);
       html += `<img class="preview-img" src="/api/products/${product.id}/preview-image">`;
       html += `<div class="card"><h3>?? Archive contents</h3>` + entries.map(e =>
         `<div class="entry"><span>${escHtml(e.entryName)}</span><span>${(e.header.size / 1024).toFixed(1)} KB</span></div>`).join('') + '</div>';
       html += entries.filter(e => /\.(html?|txt|css|json|csv|xml)$/i.test(e.entryName)).map(e =>
         `<div class="card"><h3>?? ${escHtml(e.entryName)} (preview)</h3><pre>${escHtml(e.getData().toString('utf8').slice(0, 5000))}</pre></div>`).join('');
-      return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', html));
+      return res.type('html').send(previewShell(escHtml(product.name) + ' · Preview', html));
     }
 
     // No file (or only HTML saved) ? HTML preview + product metadata
@@ -1891,27 +1884,27 @@ app.get('/api/products/:id/preview', async (req, res) => {
     let body = previewHeader(product, prof, filePath ? `${sizeKB} KB file` : null);
     body += `<img class="preview-img" src="/api/products/${product.id}/preview-image">`;
     if (ensureError) body += `<div class="note">? ${escHtml(ensureError)}</div>`;
-    else if (!filePath) body += '<div class="note">? No generated file yet � use "Download file" to build it on demand.</div>';
+    else if (!filePath) body += '<div class="note">⚠ No generated file yet — use "Download file" to build it on demand.</div>';
     if (!filePath) {
       body += `<div class="card"><h3>Details</h3>
         <div class="entry"><span>Status</span><span>${escHtml(product.status)}</span></div>
         <div class="entry"><span>Type</span><span>${escHtml(product.type)}</span></div>
-        <div class="entry"><span>Price</span><span>${escHtml(product.price || '�')}</span></div>
-        <div class="entry"><span>Theme</span><span>${escHtml(product.theme || '�')}</span></div>
-        <div class="entry"><span>Profession</span><span>${escHtml(prof ? prof.name : '�')}</span></div>
+        <div class="entry"><span>Price</span><span>${escHtml(product.price || '—')}</span></div>
+        <div class="entry"><span>Theme</span><span>${escHtml(product.theme || '—')}</span></div>
+        <div class="entry"><span>Profession</span><span>${escHtml(prof ? prof.name : '—')}</span></div>
         <div class="entry"><span>File path</span><span>${escHtml(product.file_path || 'none')}</span></div></div>`;
     }
     if (realHtml) {
       body += `<div class="card" style="padding:0"><h3 style="padding:14px 18px;border-bottom:1px solid #e2e8f0;">?? Saved HTML</h3><iframe sandbox="allow-same-origin" srcdoc="${escHtml(product.html_content).replace(/"/g, '&quot;')}" style="width:100%;height:460px;border:none;background:white;"></iframe></div>`;
     }
-    return res.type('html').send(previewShell(escHtml(product.name) + ' � Preview', body));
+    return res.type('html').send(previewShell(escHtml(product.name) + ' · Preview', body));
   } catch (e) {
     console.error('[PREVIEW] error:', e.message);
     return res.status(500).send(previewShell('Preview Error', `<div class="note">? Could not preview this product: ${escHtml(e.message)}</div>`));
   }
 });
 
-// Raster preview image (JPEG mockup) � generated on demand, cached in DB
+// Raster preview image (JPEG mockup) — generated on demand, cached in DB
 app.get('/api/products/:id/preview-image', async (req, res) => {
   try {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
@@ -1928,7 +1921,7 @@ app.get('/api/products/:id/preview-image', async (req, res) => {
   }
 });
 
-// Lifestyle background (AI photo, images 2-3 in the gallery) � free tier.
+// Lifestyle background (AI photo, images 2-3 in the gallery) — free tier.
 app.get('/api/products/:id/lifestyle-image', async (req, res) => {
   try {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
@@ -1937,7 +1930,7 @@ app.get('/api/products/:id/lifestyle-image', async (req, res) => {
     if (!prof) return res.status(404).json({ error: 'Profession not found' });
     const coverArt = require('./services/coverArt');
     const artPath = await coverArt.ensureCoverArt(product, prof);
-    if (!artPath || !fs.existsSync(artPath)) return res.status(404).json({ error: 'Lifestyle image unavailable � try again later' });
+    if (!artPath || !fs.existsSync(artPath)) return res.status(404).json({ error: 'Lifestyle image unavailable — try again later' });
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Content-Disposition', `inline; filename="${path.basename(artPath)}"`);
     return fs.createReadStream(artPath).pipe(res);
@@ -1947,7 +1940,7 @@ app.get('/api/products/:id/lifestyle-image', async (req, res) => {
   }
 });
 
-// Batch-generate AI lifestyle backgrounds (slow on free tier � background job)
+// Batch-generate AI lifestyle backgrounds (slow on free tier — background job)
 app.post('/api/covers/generate', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '10', 10) || 10, 100);
   const status = String(req.query.status || 'approved');
@@ -2012,7 +2005,7 @@ app.post('/api/export/render', async (req, res) => {
     filePath = await pdfGen.generatePDF(html, `${safeName}.pdf`);
     const abs = path.resolve(filePath);
     if (!fs.existsSync(abs)) return res.status(404).json({ error: 'File not generated' });
-    // Stream manually � res.sendFile/res.download have a Windows path bug
+    // Stream manually — res.sendFile/res.download have a Windows path bug
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pdf"`);
     return fs.createReadStream(abs).pipe(res);
@@ -2055,7 +2048,7 @@ function startCron() {
   // so trend-hunting never pauses) + freshness pass for active niches
   discoveryCron = cron.schedule('17 */2 * * *', async () => {
     if (discoveryLock || cycleLock) {
-      console.log('[CRON] Discovery sweep skipped � lock held');
+      console.log('[CRON] Discovery sweep skipped — lock held');
       return;
     }
     discoveryLock = true;
@@ -2104,13 +2097,17 @@ app.get('/api/automation/status', (req, res) => {
   
   res.json({
     running: !!cronJob,
+    // Truthful engine state: when auto_generate is off the scheduler may still
+    // exist (started by hand) but nothing will ever be generated — the UI must
+    // say "Stopped", not "Running".
+    autoGenerate: settings.auto_generate !== 'false',
+    effectivelyRunning: !!cronJob && settings.auto_generate !== 'false',
     cycleBusy: !!cycleLock,
     discoveryBusy: !!discoveryLock,
     isReviewDay,
     pendingCount: pending.c,
     lastRun: lastRun.created_at || null,
     autoList: settings.auto_list === 'true',
-    autoGenerate: settings.auto_generate !== 'false',
     reviewInterval: parseInt(settings.review_interval) || 2,
     gumroadQuota: (typeof mp.getGumroadQuota === 'function' ? mp.getGumroadQuota() : null)
   });
@@ -2144,7 +2141,7 @@ function autoStart() {
   console.log('[AUTO] Automation engine auto-started on server boot');
   
   // Run immediate first cycle (trend scan + review gate + publish of approved).
-  // runFullCycle still honors the review gate � it skips NEW generation on a
+  // runFullCycle still honors the review gate — it skips NEW generation on a
   // review day while continuing to publish already-approved products.
   setTimeout(() => {
     runAutoCycle();
@@ -2158,7 +2155,7 @@ function getWebhookUrl() {
 
 async function runAutoCycle() {
   if (cycleLock) {
-    console.log('[AUTO] Cycle already running � skipped');
+    console.log('[AUTO] Cycle already running — skipped');
     return { skipped: true, reason: 'lock' };
   }
   cycleLock = true;
@@ -2227,9 +2224,350 @@ app.get('/api/setup/status', async (req, res) => {
 
 // ------------------------------------------------------------------------
 // API: LAUNCH READINESS
+// Gate: readiness reveals configuration POSTURE (which keys are set, backlog
+// counts, OAuth state) but no secret values. It is auth-gated by default; set
+// READYNESS_PUBLIC=true only if an external monitor must poll it.
 // ------------------------------------------------------------------------
 app.get('/api/health/readiness', (req, res) => {
+  if (!auth.enabled() || String(process.env.READYNESS_PUBLIC).toLowerCase() === 'true') {
+    return res.json(readiness.buildReadinessReport());
+  }
+  if (!auth.isValidToken(auth.tokenFrom(req))) {
+    return res.status(401).json({ error: 'Unauthorized — set READYNESS_PUBLIC=true to expose readiness to monitors.' });
+  }
   res.json(readiness.buildReadinessReport());
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// FLIGHT DECK CONSOLE — overview, action registry, run stream
+// ════════════════════════════════════════════════════════════════════════
+const { EventEmitter } = require('node:events');
+const actionRegistry = require('./services/actionRegistry');
+const biService = require('./services/bi');
+const consoleBus = new EventEmitter();
+consoleBus.setMaxListeners(100);
+function consoleEmit(evt) { try { consoleBus.emit('event', evt); } catch (e) { /* never break a run */ } }
+
+// ── Shared action helpers used by BOTH the console and the REST routes ──
+async function publishQueuedBundles() {
+  const pending = db.prepare("SELECT * FROM products WHERE type = 'bundle' AND status = 'approved' AND marketplace_id IS NULL").all();
+  let published = 0, failed = 0;
+  const errors = [];
+  for (const p of pending) {
+    try {
+      const result = await mp.publishProduct(p);
+      db.prepare('UPDATE products SET status = ?, marketplace = ?, marketplace_id = ? WHERE id = ?')
+        .run('listed', result.platform, result.listingId || null, p.id);
+      try { await mp.attachGumroadCover(result.listingId, bundles.coverForType('bundle')); }
+      catch (e) { console.error('[BUNDLES] cover skipped:', e.message); }
+      db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+        .run('published', p.id, `Bundle live on ${result.platform}`, 'success');
+      published++;
+    } catch (e) {
+      failed++;
+      errors.push(`${p.name}: ${e.message}`);
+      db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+        .run('publish_error', p.id, e.message, 'error');
+    }
+  }
+  return { published, failed, errors };
+}
+
+async function deployLeadMagnet() {
+  const existing = db.prepare("SELECT value FROM settings WHERE key = 'leadmagnet_url'").get();
+  if (existing && existing.value) return { alreadyLive: true, url: existing.value };
+  const product = await bundles.buildLeadMagnet();
+  const result = await mp.publishFreeGumroad(product);
+  db.prepare('UPDATE products SET status = ?, marketplace = ?, marketplace_id = ? WHERE id = ?')
+    .run('listed', result.platform, result.listingId, product.id);
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('leadmagnet_url', ?)").run(result.url || '');
+  try { await mp.attachGumroadCover(result.listingId, bundles.coverForType('leadmagnet')); } catch (e) { /* best effort */ }
+  db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+    .run('published', product.id, 'Lead magnet live (free email capture)', 'success');
+  return { success: true, url: result.url };
+}
+
+function approveAllPending() {
+  const result = db.prepare("UPDATE products SET status = 'approved' WHERE status = 'draft' OR status = 'pending-review'").run();
+  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+    .run('batch_approve', `Approved ${result.changes} products`, 'success');
+  return { approved: result.changes };
+}
+
+function dedupeQueue() {
+  const groups = db.prepare(`
+    SELECT profession_id, type, name, COUNT(*) c
+    FROM products
+    WHERE status IN ('draft','pending-review')
+    GROUP BY profession_id, type, name
+    HAVING c > 1
+  `).all();
+  const removed = [];
+  const keep = [];
+  for (const g of groups) {
+    const rows = db.prepare(`
+      SELECT id, file_path, preview_path, html_content FROM products
+      WHERE status IN ('draft','pending-review') AND profession_id = ? AND type = ? AND name = ?
+      ORDER BY id DESC
+    `).all(g.profession_id, g.type, g.name);
+    const keeper = rows.find(r => r.file_path) || rows[0];
+    keep.push(keeper.id);
+    for (const r of rows) {
+      if (r.id !== keeper.id) {
+        db.prepare('DELETE FROM products WHERE id = ?').run(r.id);
+        removed.push(r.id);
+      }
+    }
+  }
+  const remaining = db.prepare("SELECT COUNT(*) c FROM products WHERE status IN ('draft','pending-review')").get().c;
+  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+    .run('dedupe', `Removed ${removed.length} duplicate drafts — kept ${keep.length} (${remaining} pending now)`, 'success');
+  return { groups: groups.length, removed: removed.length, kept: keep.length, remaining };
+}
+
+function rejectTrashDrafts(q) {
+  const filter = String(q || '').trim();
+  const rows = filter
+    ? db.prepare("SELECT id FROM products WHERE (status = 'draft' OR status = 'pending-review') AND lower(name) LIKE ?").all(`%${filter.toLowerCase()}%`)
+    : db.prepare("SELECT id FROM products WHERE status = 'draft' OR status = 'pending-review'").all();
+  let rejected = 0;
+  for (const r of rows) {
+    db.prepare("UPDATE products SET status = 'rejected' WHERE id = ?").run(r.id);
+    rejected++;
+  }
+  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+    .run('bulk_reject', `Rejected ${rejected} trash draft(s)${filter ? ` matching "${filter}"` : ''}`, 'warning');
+  return { rejected };
+}
+
+function backupDatabase() {
+  const dir = path.join(__dirname, '..', 'runtime', 'backups');
+  fs.mkdirSync(dir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const dest = path.join(dir, `profession-box-${stamp}.db`);
+  const safe = dest.replace(/\\/g, '/').replace(/'/g, "''");
+  db.exec(`VACUUM INTO '${safe}'`);
+  return { path: path.relative(path.join(__dirname, '..'), dest), bytes: fs.statSync(dest).size };
+}
+
+function slugifyNiche(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+}
+
+async function generateForNiche(niche, count, step) {
+  let prof = db.prepare('SELECT * FROM professions WHERE lower(name) = lower(?)').get(niche)
+    || db.prepare('SELECT * FROM professions WHERE lower(name) LIKE lower(?)').get(`%${niche}%`);
+  if (!prof) {
+    const slug = slugifyNiche(niche) || `niche-${Date.now()}`;
+    const id = db.prepare('INSERT INTO professions (emoji, name, slug, status, tier, colors, services, hashtags) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run('🎯', niche, slug, 'researching', 'passion',
+        JSON.stringify({ primary: '#0f172a', secondary: '#2dd4bf', accent: '#8b5cf6', bg: '#f8fafc' }), '[]', '[]').lastInsertRowid;
+    prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(id);
+    step(`created niche "${niche}"`);
+  } else {
+    step(`matched existing niche "${prof.name}"`);
+  }
+  const types = automationCycle.VARY_TYPES;
+  const created = [];
+  for (let i = 0; i < count; i++) {
+    const have = new Set(db.prepare('SELECT type FROM products WHERE profession_id = ?').all(prof.id).map(r => r.type));
+    const missing = types.filter(t => !have.has(t));
+    const pool = missing.length ? missing : types;
+    const type = pool[i % pool.length];
+    try {
+      const pid = draftProduct(prof, type);
+      if (pid) { created.push({ id: pid, type }); step(`drafted ${type}`, 'success'); }
+    } catch (e) {
+      step(`failed ${type}`, 'error', e.message);
+    }
+  }
+  return { niche: prof.name, professionId: prof.id, created };
+}
+
+// ── Named action handlers (deterministic; no AI required) ──
+const consoleHandlers = {
+  'sweep': async (input, step) => {
+    step('scanning live sources');
+    const found = await discovery.sweep(8);
+    step(`found ${found.length} candidate(s)`, 'success');
+    discovery.freshnessPass();
+    return { count: found.length, names: found.map(t => t.name) };
+  },
+  'full-cycle': async (input, step) => {
+    step('running full automation cycle');
+    return await runAutoCycle();
+  },
+  'generate-for-niche': async (input, step) => generateForNiche(input.niche, input.count, step),
+  'approve-all': async (input, step) => { const r = approveAllPending(); step(`approved ${r.approved}`, 'success'); return r; },
+  'reject-trash': async (input, step) => { const r = rejectTrashDrafts(input.q); step(`rejected ${r.rejected}`, 'success'); return r; },
+  'dedupe-queue': async (input, step) => { const r = dedupeQueue(); step(`removed ${r.removed} clone(s)`, 'success'); return r; },
+  'push-bundles': async (input, step) => {
+    step('building toolkits');
+    await bundles.generateAllBundles();
+    step('publishing queued bundles');
+    return await publishQueuedBundles();
+  },
+  'lead-magnet': async (input, step) => { step('building starter pack'); return await deployLeadMagnet(); },
+  'sync-sales': async (input, step) => { step('syncing Gumroad sales'); return await syncGumroadSales(); },
+  'rebuild-covers': async (input, step) => {
+    const { generatePreviewBatch } = require('./services/previewBatch');
+    step(`rebuilding covers (limit ${input.limit})`);
+    return await generatePreviewBatch(db, p => fileFactory.ensureProductThumbnail(p), { limit: input.limit, force: input.force ? '1' : '0' });
+  },
+  'set-auto-list': async (input, step) => {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('auto_list', ?)").run(String(!!input.value));
+    db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)').run('auto_list', `auto_list = ${!!input.value}`, 'info');
+    step(`auto_list = ${!!input.value}`, 'success');
+    return { autoList: !!input.value };
+  },
+  'serp-scan': async (input, step) => {
+    const radar = require('./services/trendRadar');
+    const inserted = await radar.scanLiveTrends(4);
+    step(`inserted ${inserted.length}`, 'success');
+    return { inserted: inserted.length };
+  },
+  'drain-search-queue': async (input, step) => {
+    const radar = require('./services/trendRadar');
+    const n = await radar.drainSearchQueue(10);
+    step(`reprocessed ${n}`, 'success');
+    return { reprocessed: n };
+  },
+  'backup-database': async (input, step) => {
+    step('writing backup');
+    const r = backupDatabase();
+    step('backup written', 'success');
+    return r;
+  }
+};
+
+function buildOverview() {
+  const products = db.prepare('SELECT status, type, price FROM products').all();
+  const countStatus = s => products.filter(p => p.status === s).length;
+  const listed = products.filter(p => p.status === 'listed' || p.status === 'published');
+  const priceOf = p => parseFloat(String(p.price || '0').replace(/[^0-9.]/g, '')) || 0;
+  const estimatedRevenue = listed.reduce((sum, p) => sum + priceOf(p), 0);
+  const draft = countStatus('draft');
+  const review = products.filter(p => p.status === 'pending-review' || p.status === 'reviewing').length;
+  const approved = countStatus('approved');
+  const professions = db.prepare('SELECT COUNT(*) c FROM professions').get().c;
+  const trends = db.prepare('SELECT COUNT(*) c FROM trends').get().c;
+  const activeTrends = db.prepare('SELECT COUNT(*) c FROM trends WHERE activated = 1').get().c;
+  const realSales = db.prepare('SELECT COUNT(*) c FROM metrics WHERE sales > 0').get().c;
+  const realRevenue = db.prepare('SELECT COALESCE(SUM(revenue), 0) r FROM metrics').get().r;
+
+  const capRow = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
+  const pubRow = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
+  const cap = capRow ? parseInt(capRow.value) || 10 : 10;
+  const publishedToday = pubRow ? parseInt(pubRow.value) || 0 : 0;
+  const autoList = (db.prepare("SELECT value FROM settings WHERE key = 'auto_list'").get() || {}).value === 'true';
+  const autoGenerate = (db.prepare("SELECT value FROM settings WHERE key = 'auto_generate'").get() || {}).value !== 'false';
+
+  const byType = {};
+  for (const p of products) {
+    const t = p.type || 'unknown';
+    if (!byType[t]) byType[t] = { total: 0, listed: 0, revenue: 0 };
+    byType[t].total++;
+    if (p.status === 'listed') { byType[t].listed++; byType[t].revenue += priceOf(p); }
+  }
+  const topTypes = Object.entries(byType)
+    .sort((a, b) => b[1].listed - a[1].listed)
+    .slice(0, 8)
+    .map(([type, d]) => ({ type, ...d }));
+
+  const topNiches = db.prepare(`
+    SELECT COALESCE(pr.name, 'Unknown') AS name, COUNT(*) AS total,
+           SUM(CASE WHEN p.status = 'listed' THEN 1 ELSE 0 END) AS listed
+    FROM products p LEFT JOIN professions pr ON p.profession_id = pr.id
+    GROUP BY pr.name ORDER BY listed DESC, total DESC LIMIT 8
+  `).all();
+
+  let ready = { ok: false, ready: false, issues: [], summary: {} };
+  try { ready = readiness.buildReadinessReport(); } catch (e) { /* keep default */ }
+
+  const cfg = require('./services/modelConfig');
+  const activity = db.prepare('SELECT action, details, status, created_at FROM automation_log ORDER BY id DESC LIMIT 12').all();
+
+  return {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    engine: {
+      // Truthful: a scheduled cron with auto_generate off will never generate,
+      // so the engine is NOT effectively running.
+      running: !!cronJob && autoGenerate,
+      cronScheduled: !!cronJob,
+      autoGenerate,
+      cycleBusy: !!cycleLock,
+      discoveryBusy: !!discoveryLock,
+      isReviewDay: checkIsReviewDay(),
+      autoList
+    },
+    counts: {
+      products: products.length, professions, trends, activeTrends,
+      draft, review, approved, listed: listed.length,
+      rejected: countStatus('rejected'), archived: countStatus('archived')
+    },
+    funnel: { discover: professions, generate: draft, review, approve: approved, publish: listed.length },
+    revenue: { estimated: estimatedRevenue, realSales, realRevenue },
+    etsy: { cap, published: publishedToday, remaining: Math.max(0, cap - publishedToday) },
+    marketplace: mp.getMarketplaceStatus(),
+    model: { enabled: !!cfg.enabled, diagnosis: cfg.enabled ? 'AI layer enabled' : 'AI layer off' },
+    readiness: { ok: ready.ok, ready: ready.ready, issues: ready.issues, summary: ready.summary },
+    topTypes,
+    topNiches,
+    activity
+  };
+}
+
+app.get('/api/console/actions', (req, res) => {
+  res.json({ actions: actionRegistry.list() });
+});
+
+app.get('/api/console/overview', (req, res) => {
+  try { res.json(buildOverview()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// BI aggregates: shop health /100, 7d-vs-prior deltas, 14d revenue series,
+// listing health (zero-sale + SEO weakness + velocity badges) and the
+// rule-based Opportunity/Risk/Action insights. All real tables, no synthetics.
+app.get('/api/console/bi', (req, res) => {
+  try { res.json(biService.build()); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.get('/api/console/runs', (req, res) => {
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+  try { res.json({ runs: actionRegistry.recentRuns(limit) }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Server-Sent Events: live run stream for the Flight Deck.
+app.get('/api/console/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+  const send = (event, data) => {
+    try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) { /* client gone */ }
+  };
+  send('hello', { at: new Date().toISOString() });
+  const onEvent = evt => send('run', evt);
+  consoleBus.on('event', onEvent);
+  const heartbeat = setInterval(() => { try { res.write(': ping\n\n'); } catch (e) { /* ignore */ } }, 15000);
+  req.on('close', () => { clearInterval(heartbeat); consoleBus.off('event', onEvent); });
+});
+
+app.post('/api/console/run', async (req, res) => {
+  const { action, input } = req.body || {};
+  try {
+    const result = await actionRegistry.execute(action, consoleHandlers, input, consoleEmit);
+    res.json({ ok: result.status === 'success', ...result });
+  } catch (e) {
+    const status = e.code === 'VALIDATION' || e.code === 'UNKNOWN_ACTION' ? 400
+      : e.code === 'ALREADY_RUNNING' ? 409 : 500;
+    res.status(status).json({ ok: false, error: e.message, code: e.code || null, runId: e.runId || null });
+  }
 });
 
 // ------------------------------------------------------------------------
@@ -2248,16 +2586,37 @@ app.get('/store', (req, res) => {
 });
 
 // ------------------------------------------------------------------------
+// ERROR HANDLING — must be last so it catches every route above it
+// ------------------------------------------------------------------------
+// API clients always get JSON. Without this, an uncaught async route error
+// falls through to Express's default handler and returns an HTML page, which
+// every JSON caller then fails to parse.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `Unknown API endpoint: ${req.method} ${req.path}`, code: 'NOT_FOUND' });
+});
+
+app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
+  const status = Number(err.status || err.statusCode) || 500;
+  const isApi = req.path === '/api' || req.path.startsWith('/api/');
+  console.error(`[ERROR] ${req.method} ${req.originalUrl} -> ${status}: ${err.message}`);
+  if (res.headersSent) return;
+  // Never echo an internal error message back to a client.
+  const message = status >= 500 ? 'Internal server error' : err.message;
+  if (isApi) return res.status(status).json({ error: message });
+  res.status(status).type('text/plain').send(message);
+});
+
+// ------------------------------------------------------------------------
 // START
 // ------------------------------------------------------------------------
 const BIND_HOST = process.env.BIND_HOST || (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT ? '0.0.0.0' : '127.0.0.1');
 function startServer() {
   const server = app.listen(PORT, BIND_HOST, () => {
   console.log(`+------------------------------------------------------------+`);
-  console.log(`�  NicheGate  |  Full Stack Server                  �`);
-  console.log(`�  Port: ${PORT}  Host: ${BIND_HOST}                              �`);
-  console.log(`�  DB: SQLite (WAL mode)                                      �`);
-  console.log(`�  Professions: ${db.prepare('SELECT COUNT(*) as c FROM professions').get().c} seeded                                �`);
+  console.log(`  NicheGate  |  Full Stack Server`);
+  console.log(`  Port: ${PORT}  Host: ${BIND_HOST}`);
+  console.log(`  DB: SQLite (WAL mode)`);
+  console.log(`  Professions: ${db.prepare('SELECT COUNT(*) as c FROM professions').get().c} seeded`);
   console.log(`+------------------------------------------------------------+`);
   console.log(`\nOpen: http://localhost:${PORT}/`);
   console.log(`API docs available at endpoints under /api/*\n`);

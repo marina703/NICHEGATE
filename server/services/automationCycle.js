@@ -1,4 +1,4 @@
-// AUTOMATION CYCLE — modular stateful tasks for the 6-hour full cycle.
+// AUTOMATION CYCLE â€” modular stateful tasks for the 6-hour full cycle.
 const { db } = require('../database');
 const discovery = require('./discovery');
 const seasonal = require('./seasonalEngine');
@@ -78,7 +78,7 @@ function taskReviewGate(ctx) {
 async function notifyReviewDay(ctx) {
   if (ctx.reviewDay) {
     await notifier.sendDiscord(ctx.webhookUrl, notifier.formatAlert('review_day', { count: ctx.pendingCount || 0 }));
-    console.log('[AUTO] Review day — skipping generation (publish continues), sent alert');
+    console.log('[AUTO] Review day â€” skipping generation (publish continues), sent alert');
   }
   return ctx;
 }

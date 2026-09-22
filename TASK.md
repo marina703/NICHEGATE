@@ -137,3 +137,80 @@ Done this session (all verified by curl against a freshly-booted server):
   access token ~5min, refresh token 90d single-use rotating. Existing marketplace_tokens table on
   Railway's persistent SQLite volume already survives restarts - no new Postgres/Redis plugin needed.
   Plan: add refreshEtsyToken() invoked before publish + on a schedule; store rotated tokens back.
+
+# ── 2026-09-21 (cont): END-TO-END AUDIT + "FLIGHT DECK" CONSOLE REBUILD ──
+Full report: AUDIT_REPORT.md (findings, resolutions, parity contract, verification record).
+
+Audit headline: the core (file gate, graceful AI degradation, WAL SQLite, additive
+migrations, redacted readiness) is sound. The real problems were exposure and wiring.
+- CRITICAL: live Etsy credentials were committed in README.md (git history too).
+  Scrubbed from the docs on the owner's call. NOT rotated -> still compromised.
+- HIGH: 30 routes were registered ABOVE the auth/rate-limit middleware, so they
+  bypassed both - including real publish (POST /api/etsy/push*) and spend
+  (POST /api/ads/commit|budget|cancel). Guards hoisted above every route now
+  (0 routes above the guard; /api/auth/* + /api/health* intentionally open).
+- HIGH: express.static(client) was mounted BEFORE auth, so / and /setup were
+  served unauthenticated. An ADMIN page gate now runs before the static mount.
+- HIGH: dead/mis-wired controls - Analytics never loaded (loadAnalytics undefined),
+  Auto-List PATCH 404'd, nav highlight broken (rv-auto vs rv-automation), Etsy cap
+  widget orphaned, Home activity log never reloaded. All fixed in the rebuild.
+- MEDIUM: injection surface (unescaped innerHTML into class attrs/markup), open CORS
+  (now same-origin by default + CORS_ORIGINS allowlist), missing trust proxy,
+  near-empty .gitignore (node_modules/.env/data/generated were NOT ignored).
+- LOW: deleted 3 orphan modules (calculator/emailScripts/sopBuilder, 554 lines, zero
+  refs), repaired encoding corruption, fixed '??' seeded profession emojis.
+
+UI: the 1,010-line single-file dashboard was replaced by the "Flight Deck":
+client/index.html (29-line shell) + css/flightdeck.css + js/{ui,api,views,console,rebuild}.js.
+Native ES modules, NO bundler and NO build step, so Docker/Railway are unchanged.
+- STRICT SUPERSET of the old UI: all 10 old views preserved and fixed, + Discovery and
+  System (12 total), both old modals (preview -> drawer, HTML editor -> sanitised),
+  all 6 Quick Actions and the review toolbar.
+- NEW: aggregated GET /api/console/overview, GET /api/console/actions, POST /api/console/run,
+  GET /api/console/runs, GET /api/console/stream (SSE), a CLOSED-ALLOWLIST action
+  registry (server/services/actionRegistry.js) and durable run history in the additive
+  action_runs + action_run_steps tables (no new job queue).
+- NEW UI: Cmd/Ctrl-K command palette, live run stream with per-step timelines, review
+  triage keys (J/K move, A approve, R reject, Enter open), Catalog "Needs review" filter.
+- Hardened the visual editor: sanitised on load AND save (<script>, on* handlers and
+  javascript: URLs stripped); colour + font edits round-trip byte-identically otherwise.
+- SINGLE SOURCE OF TRUTH for the review queue (ui.js isReviewable/reviewQueue/reviewPage),
+  shared by the rail badge, Home KPI/funnel, the Catalog filter and the Review table -
+  they used to disagree (badge 0 while the queue held 12 drafts).
+
+Verified: npm test 77 tests / 73 pass / 0 fail / 4 skipped (baseline was 72 pass + 1
+environmental fail; test/concept.test.js is now hermetic). Auth gate, endpoint sweep
+(zero 5xx), all 12 views in a real browser (0 console errors), SSE, an action run
+end-to-end (backup-database) and keyboard triage (DB-verified) all pass.
+
+NEXT (recommended, in order): rotate the Etsy keys; purge them from git history if the
+repo is ever shared; enable a CSP now that inline onclick is gone; harden
+client/setup.html + client/store.html, which still use inline handlers.
+
+# ── 2026-09-22: PASS 2 hardening + BI panels + revenue roadmap ──
+Everything above in NEXT is now DONE (except key rotation, owner's call):
+- CSP enabled (script-src 'self'; fonts/gstatic allowlisted; form-action allows
+  etsy.com for OAuth POST). setup/store/login scripts extracted to
+  client/js/{setup,store,login}.js — zero inline handlers remain anywhere; store
+  URLs scheme-validated; favicon added to all four pages.
+- /api/health/readiness auth-gated (READYNESS_PUBLIC=true escape hatch); rate
+  limiter is session-aware (1200 authed / 200 anon — the console batches 4-6
+  calls per view and was 429-ing mid-session); /covers static mounted (store logo
+  was 404); 19 placeholder seed emojis fixed at the source; engine status is
+  truthful (auto_generate=false now reports "Halted", not "Running").
+- AUDIT_REPORT.md gained the Pass 2 section (findings + verification record +
+  the HF Spaces competitive scan).
+- NEW Phase C: server/services/bi.js + GET /api/console/bi — Shop Health /100
+  (transparent breakdown), 7d-vs-prior deltas, 14d revenue series, listing health
+  (velocity badges, zero-view, SEO-weakness from seoEngine), and an
+  Opportunity/Risk/Action insights triad wired to one-click actions. Home shows
+  Health KPI + Insights panel; Analytics shows real-revenue sparkline + health
+  tables. Real tables only — empty DB reports zeros truthfully (AGENTS.md rule).
+- Phase D: UPGRADES.md rewritten as a 3-wave revenue roadmap (Waves 1-3,
+  15 plays, every item mapped to existing machinery).
+Verified: npm test 77/73 pass/0 fail, BI endpoint 401 unauth → 200 authed,
+browser pass over all 12 views + setup/store/login with 0 console errors and
+0 CSP violations, ⌘K action run persisted a backup file.
+
+NEXT: rotate the Etsy keys (only remaining Pass-1 item); drain the publish
+queue per UPGRADES.md Wave 1; finish Etsy identity verification + OAuth.

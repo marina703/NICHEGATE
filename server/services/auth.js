@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------------
-// AUTH — optional single-admin dashboard protection.
-//   • Enforced ONLY when ADMIN_PASSWORD is set. Until then, requests pass
+// AUTH â€” optional single-admin dashboard protection.
+//   â€” Enforced ONLY when ADMIN_PASSWORD is set. Until then, requests pass
 //     through untouched (zero behavior change, so existing deployments don't
 //     break). Set ADMIN_PASSWORD to lock the admin surface.
-//   • Login ? issues an httpOnly cookie bearing a random session token stored
+//   â€” Login issues an httpOnly cookie bearing a random session token stored
 //     in auth_sessions with an expiry.
-//   • The autonomous engine runs server-side (DB/services directly), so login
-//     never blocks sweeps/generation/publish — it only gates the HTTP surface.
+//   â€” The autonomous engine runs server-side (DB/services directly), so login
+//     never blocks sweeps/generation/publish â€” it only gates the HTTP surface.
 // ---------------------------------------------------------------------------
 
 const crypto = require('crypto');
@@ -50,7 +50,7 @@ function isValidToken(token) {
 }
 
 async function login(req, res) {
-  if (!enabled()) return res.status(409).json({ error: 'Auth not enabled — set ADMIN_PASSWORD' });
+  if (!enabled()) return res.status(409).json({ error: 'Auth not enabled â€” set ADMIN_PASSWORD' });
   const { password: given } = req.body || {};
   if (!given || !safeEqual(given, password())) {
     // Short, fixed sleep to blunt brute force.

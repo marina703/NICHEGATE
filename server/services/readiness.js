@@ -29,11 +29,15 @@ function buildReadinessReport() {
   // Etsy
   const id = process.env.ETSY_CLIENT_ID;
   const secret = process.env.ETSY_CLIENT_SECRET;
+  // Etsy's portals label the x-api-key inconsistently; the keystring may legitimately
+  // equal ETSY_SHARED_SECRET. Only an id===secret clash WITHOUT a distinct shared
+  // secret is a real misconfiguration.
+  const shared = process.env.ETSY_SHARED_SECRET;
   const etsyToken = count("SELECT COUNT(*) c FROM marketplace_tokens WHERE platform = 'etsy'") > 0;
   if (!id || !secret) {
     issues.push(issue('etsy_keys', 'error', 'ETSY_CLIENT_ID and/or ETSY_CLIENT_SECRET missing in .env.'));
-  } else if (keysMisconfigured(id, secret)) {
-    issues.push(issue('etsy_keys', 'error', 'ETSY_CLIENT_ID equals ETSY_CLIENT_SECRET — a misconfiguration that breaks token exchange/refresh. Set the real keystring and secret (two different values).'));
+  } else if (keysMisconfigured(id, secret) && !shared) {
+    issues.push(issue('etsy_keys', 'error', 'ETSY_CLIENT_ID equals ETSY_CLIENT_SECRET and no ETSY_SHARED_SECRET is set — a misconfiguration that breaks token exchange/refresh. Set the real keystring and secret (two different values).'));
   } else if (!etsyToken) {
     issues.push(issue('etsy_oauth', 'warning', 'Etsy keys are set but OAuth is not completed (no token stored). Connect at /setup.'));
   }

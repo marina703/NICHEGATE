@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 const { DatabaseSync } = require('node:sqlite');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
 const { generatePreviewBatch } = require('../server/services/previewBatch');
 
 function fixture() {
@@ -80,25 +79,25 @@ test('Worker fails closed and never invokes AI for missing/incorrect keys', asyn
 });
 
 test('browser rebuild sends cursors, prevents double start, and reports HTTP failure honestly', async () => {
-  const html = fs.readFileSync(path.join(__dirname, '../client/index.html'), 'utf8');
-  const code = html.slice(html.indexOf('let coverRebuildRunning'), html.indexOf('async function approveProduct'));
+  const source = fs.readFileSync(path.join(__dirname, '../client/js/rebuild.js'), 'utf8');
+  const mod = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
   const urls = [], messages = [];
   let call = 0;
-  const context = vm.createContext({ URLSearchParams, confirm: () => true,
-    state: { currentPanel: '' }, refreshStats() {}, openPanel() {},
-    showToast: (...args) => messages.push(args),
-    API: '/api', fetch: async url => {
+  const rebuild = mod.createCoverRebuild({
+    apiBase: '/api',
+    confirmFn: () => true,
+    notify: (...args) => messages.push(args),
+    fetch: async url => {
       urls.push(url);
       call++;
       if (call === 1) return { ok: true, json: async () => ({ generated: 5, failed: 0, remaining: 2, hasMore: true, nextAfterId: 5, maxId: 7 }) };
       return { ok: false, json: async () => ({ error: 'Unavailable' }) };
     }
   });
-  vm.runInContext(code, context);
-  await vm.runInContext('Promise.all([regenerateAll(), regenerateAll()])', context);
+  await Promise.all([rebuild.regenerateAll(), rebuild.regenerateAll()]);
   assert.equal(urls.length, 2);
   assert.match(urls[1], /afterId=5&maxId=7/);
   assert.ok(messages.some(m => m[1] === 'Rebuild Stopped'));
   assert.ok(!messages.some(m => m[1] === 'Rebuild Complete'));
-  assert.equal(vm.runInContext('coverRebuildRunning', context), false);
+  assert.equal(rebuild.isRunning(), false);
 });

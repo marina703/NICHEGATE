@@ -25,13 +25,37 @@ test('concept creation returns null when the model layer is disabled (zero cost)
 });
 
 test('applyConcept persists name + concept and validates input', () => {
-  const id = db.prepare('SELECT id FROM products LIMIT 1').get().id;
+  // Hermetic: never depend on production data. If the DB has no products yet
+  // (fresh install / CI), provision a throwaway row and clean it up afterwards.
+  let existing = db.prepare('SELECT id FROM products LIMIT 1').get();
+  let tempProductId = null;
+  let tempProfessionId = null;
+  if (!existing) {
+    const prof = db.prepare('SELECT id FROM professions LIMIT 1').get();
+    let professionId;
+    if (prof) {
+      professionId = prof.id;
+    } else {
+      professionId = db.prepare("INSERT INTO professions (emoji,name,slug,status,tier,colors,services,hashtags) VALUES ('🧪','__test_prof__','__test-prof__','researching','safe','{}','[]','[]')").run().lastInsertRowid;
+      tempProfessionId = professionId;
+    }
+    tempProductId = db.prepare("INSERT INTO products (profession_id,name,type,price,status) VALUES (?,?,?,?,?)")
+      .run(professionId, '__test_product__', 'checklist', '$10', 'draft').lastInsertRowid;
+    existing = { id: tempProductId };
+  }
+  const id = existing.id;
+
   assert.equal(applyConcept(id, null), false);
   assert.equal(applyConcept(id, { name: '' }), false);
   assert.equal(applyConcept(id, { name: 'ScopeLock Quote Builder', pitch: 'x', benefits: [], differentiator: 'y' }), true);
-  const row = db.prepare('SELECT name, concept FROM products WHERE id = ?').get(id);
-  assert.equal(row.name, 'ScopeLock Quote Builder');
-  assert.ok(JSON.parse(row.concept).pitch === 'x');
-  // restore name
-  db.prepare('UPDATE products SET name = ?, concept = NULL WHERE id = ?').run('Restored Product', id);
+  const updated = db.prepare('SELECT name, concept FROM products WHERE id = ?').get(id);
+  assert.equal(updated.name, 'ScopeLock Quote Builder');
+  assert.ok(JSON.parse(updated.concept).pitch === 'x');
+
+  if (tempProductId) {
+    db.prepare('DELETE FROM products WHERE id = ?').run(tempProductId);
+    if (tempProfessionId) db.prepare('DELETE FROM professions WHERE id = ?').run(tempProfessionId);
+  } else {
+    db.prepare('UPDATE products SET name = ?, concept = NULL WHERE id = ?').run('Restored Product', id);
+  }
 });
