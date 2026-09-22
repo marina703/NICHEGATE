@@ -194,6 +194,13 @@ function init() {
 
   // Migration: AI product concept (differentiated name + pitch + why-not-generic)
   try { db.exec('ALTER TABLE products ADD COLUMN concept TEXT'); } catch (e) { /* column already exists */ }
+  // Origin tag: 'manual' (Make-this / hand-fed) vs 'engine' (auto-generated).
+  // The deploy policy reads it — manual products never auto-publish.
+  try { db.exec('ALTER TABLE products ADD COLUMN origin TEXT'); } catch (e) { /* column already exists */ }
+  // Optimized listing copy (title/tags/description) written by the optimizer.
+  try { db.exec('ALTER TABLE products ADD COLUMN listing_json TEXT'); } catch (e) { /* column already exists */ }
+  // Buyer-supplied details/prompts captured at generation time.
+  try { db.exec('ALTER TABLE products ADD COLUMN brief TEXT'); } catch (e) { /* column already exists */ }
 
   const count = db.prepare('SELECT COUNT(*) as c FROM professions').get();
   if (count.c === 0) {

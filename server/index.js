@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true }); // quiet: dotenv@17 prints rotating promo "tips" to stdout
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -259,7 +259,7 @@ app.get('/api/etsy/cap', (req, res) => {
       const cap = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
       const published = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
       const lastReset = db.prepare("SELECT value FROM settings WHERE key = 'etsy_cap_last_reset'").get();
-      const capNum = cap ? parseInt(cap.value) || 10 : 10;
+      const capNum = cap ? parseInt(cap.value) || 20 : 20; // default 20/day
       const pubNum = published ? parseInt(published.value) || 0 : 0;
       
       // Auto-reset if new day
@@ -277,15 +277,47 @@ app.get('/api/etsy/cap', (req, res) => {
         canPublish: pubNum < capNum
       });
     } catch (e) {
-      res.json({ cap: 10, published: 0, remaining: 10, canPublish: true });
+      res.json({ cap: 20, published: 0, remaining: 20, canPublish: true });
     }
   });
 
 app.post('/api/etsy/cap', (req, res) => {
     try {
-      const cap = Math.max(10, parseInt(req.body.cap) || 10); // minimum 10
+      const cap = Math.min(50, Math.max(1, parseInt(req.body.cap) || 20)); // default 20/day, clamp 1–50
       db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_daily_cap', ?)").run(String(cap));
       res.json({ ok: true, cap });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+// Combined daily publish caps — Gumroad 10/day (their hard creation limit) and
+// Etsy 20/day (account safety), both editable. Copy edits from the optimizer
+// are updates, not creates, so they never consume these caps.
+app.get('/api/caps', (req, res) => {
+    try {
+      const cap = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
+      const published = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
+      const capNum = cap ? parseInt(cap.value) || 20 : 20;
+      const pubNum = published ? parseInt(published.value) || 0 : 0;
+      res.json({
+        etsy: { cap: capNum, published: pubNum, remaining: Math.max(0, capNum - pubNum) },
+        gumroad: mp.getGumroadQuota()
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+app.post('/api/caps', (req, res) => {
+    try {
+      const etsy = Math.min(50, Math.max(1, parseInt(req.body && req.body.etsy) || 20));
+      const gumroad = Math.min(50, Math.max(1, parseInt(req.body && req.body.gumroad) || 10));
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_daily_cap', ?)").run(String(etsy));
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gumroad_daily_cap', ?)").run(String(gumroad));
+      // Clear a stale "exhausted" latch so a raised cap applies immediately.
+      db.prepare("DELETE FROM settings WHERE key = 'gumroad_quota_exhausted_day'").run();
+      res.json({ ok: true, etsy, gumroad });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -333,7 +365,7 @@ app.post('/api/etsy/push/:id', async (req, res) => {
       // Check daily cap
       const cap = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
       const published = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
-      const capNum = cap ? parseInt(cap.value) || 10 : 10;
+      const capNum = cap ? parseInt(cap.value) || 20 : 20; // default 20/day
       const pubNum = published ? parseInt(published.value) || 0 : 0;
       
       if (pubNum >= capNum) {
@@ -368,7 +400,7 @@ app.post('/api/etsy/push-batch', async (req, res) => {
       
       const cap = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
       const published = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
-      const capNum = cap ? parseInt(cap.value) || 10 : 10;
+      const capNum = cap ? parseInt(cap.value) || 20 : 20; // default 20/day
       let pubNum = published ? parseInt(published.value) || 0 : 0;
       
       const marketplace = require('./services/marketplace');
@@ -615,24 +647,85 @@ app.post('/api/trends/:id/generate', async (req, res) => {
       const trend = db.prepare('SELECT * FROM trends WHERE id = ?').get(req.params.id);
       if (!trend) return res.status(404).json({ error: 'Trend not found' });
       
-      const conceptEngine = require('./services/conceptEngine');
-      const productDraft = require('./services/productDraft');
-      const productTypes = require('./services/productTypes');
+      // Optional details/prompts from the Generate dialog: stored on each
+      // draft (products.brief) and honored by the concept engine when the
+      // model layer is on.
+      const brief = String((req.body && req.body.brief) || '').trim().slice(0, 2000);
+      const count = Math.min(6, Math.max(1, parseInt(req.body && req.body.count) || 3));
+      const niche = trend.niche || trend.name;
       
-      // Generate 3-5 products for this trend
-      const types = ['playbook', 'checklist', 'spreadsheet', 'email-scripts', 'sop-package'];
-      const generated = [];
+      // Drafts land in the review queue like every other generated product.
+      const result = await generateForNiche(niche, count, () => {}, { brief, origin: 'engine' });
+      const generated = result.created || [];
       
-      for (const type of types.slice(0, 3)) {
-        const concept = await conceptEngine.generateConcept(trend.niche || trend.name, type);
-        if (concept) {
-          const draft = productDraft.createDraft(trend.niche || trend.name, type, concept);
-          if (draft) generated.push(draft);
-        }
-      }
+
       
-      res.json({ ok: true, generated: generated.length, products: generated });
+      res.json({ ok: true, generated: generated.length, products: generated, brief: brief || null });
     } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MAKE THIS — manual custom generation. Products land in the review queue
+  // tagged origin='manual': the deploy policy keeps them local-only and the
+  // auto-list cycle never publishes them — you push them live yourself.
+  // ═══════════════════════════════════════════════════════════════════════════
+app.post('/api/products/generate-custom', async (req, res) => {
+    try {
+      const idea = String(req.body.idea || '').trim().slice(0, 120);
+      if (!idea) return res.status(400).json({ error: 'idea is required — describe what to make' });
+      const brief = String(req.body.brief || '').trim().slice(0, 2000);
+      const count = Math.min(6, Math.max(1, parseInt(req.body.count) || 1));
+      const price = req.body.price ? '$' + (parseFloat(req.body.price) || 12) : undefined;
+      const type = req.body.type ? String(req.body.type).toLowerCase().slice(0, 40) : undefined;
+      if (type && !require('./services/pipelineSchemas').PRODUCT_TYPES.has(type)) {
+        return res.status(400).json({ error: 'unsupported type: ' + type });
+      }
+
+      const result = await generateForNiche(idea, count, () => {}, {
+        brief, origin: 'manual', price, type, name: idea
+      });
+      res.json({ ok: true, ...result, origin: 'manual' });
+    } catch (e) {
+      console.error('[ERROR] POST /api/products/generate-custom -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LISTING OPTIMIZER — rewrite title/tags/description for weak listings.
+  // Deploy rule: engine-generated + already listed → auto-deploy to the live
+  // listing (edits don't consume creation caps); manual products stay local.
+  // ═══════════════════════════════════════════════════════════════════════════
+app.get('/api/products/:id/optimization', (req, res) => {
+    try {
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+      res.json(optimizer.preview(product));
+    } catch (e) {
+      console.error('[ERROR] GET /api/products/:id/optimization -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+app.post('/api/products/:id/optimization/apply', async (req, res) => {
+    try {
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+      res.json(await optimizer.apply(product, { deploy: !(req.body && req.body.deploy === false) }));
+    } catch (e) {
+      console.error('[ERROR] POST /api/products/:id/optimization/apply -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+app.post('/api/optimize/weak', async (req, res) => {
+    try {
+      const limit = Math.min(50, Math.max(1, parseInt(req.body && req.body.limit) || 20));
+      res.json(await optimizer.optimizeWeak(limit));
+    } catch (e) {
+      console.error('[ERROR] POST /api/optimize/weak -> 500:', e.message);
       res.status(500).json({ error: e.message });
     }
   });
@@ -2244,6 +2337,7 @@ app.get('/api/health/readiness', (req, res) => {
 const { EventEmitter } = require('node:events');
 const actionRegistry = require('./services/actionRegistry');
 const biService = require('./services/bi');
+const optimizer = require('./services/listingOptimizer');
 const consoleBus = new EventEmitter();
 consoleBus.setMaxListeners(100);
 function consoleEmit(evt) { try { consoleBus.emit('event', evt); } catch (e) { /* never break a run */ } }
@@ -2354,7 +2448,7 @@ function slugifyNiche(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
 }
 
-async function generateForNiche(niche, count, step) {
+async function generateForNiche(niche, count, step = () => {}, opts = {}) {
   let prof = db.prepare('SELECT * FROM professions WHERE lower(name) = lower(?)').get(niche)
     || db.prepare('SELECT * FROM professions WHERE lower(name) LIKE lower(?)').get(`%${niche}%`);
   if (!prof) {
@@ -2367,7 +2461,7 @@ async function generateForNiche(niche, count, step) {
   } else {
     step(`matched existing niche "${prof.name}"`);
   }
-  const types = automationCycle.VARY_TYPES;
+  const types = opts.type ? [String(opts.type)] : automationCycle.VARY_TYPES;
   const created = [];
   for (let i = 0; i < count; i++) {
     const have = new Set(db.prepare('SELECT type FROM products WHERE profession_id = ?').all(prof.id).map(r => r.type));
@@ -2375,8 +2469,22 @@ async function generateForNiche(niche, count, step) {
     const pool = missing.length ? missing : types;
     const type = pool[i % pool.length];
     try {
-      const pid = draftProduct(prof, type);
-      if (pid) { created.push({ id: pid, type }); step(`drafted ${type}`, 'success'); }
+      const pid = draftProduct(prof, type, {
+        origin: opts.origin || 'engine',
+        brief: opts.brief || undefined,
+        price: opts.price || undefined,
+        theme: opts.theme || undefined,
+        name: opts.name ? (count > 1 ? `${opts.name} — ${type}` : opts.name) : undefined
+      });
+      if (pid) {
+        created.push({ id: pid, type });
+        step(`drafted ${type}`, 'success');
+        // Fire-and-forget concept enrichment: honors the buyer's brief when the
+        // model layer is on, returns null (template stays) when it's off.
+        if (opts.brief) require('./services/conceptEngine').enrichProduct(pid, opts.brief).catch(() => {});
+      } else {
+        step(`skipped ${type} — draft already queued`);
+      }
     } catch (e) {
       step(`failed ${type}`, 'error', e.message);
     }
@@ -2397,7 +2505,7 @@ const consoleHandlers = {
     step('running full automation cycle');
     return await runAutoCycle();
   },
-  'generate-for-niche': async (input, step) => generateForNiche(input.niche, input.count, step),
+  'generate-for-niche': async (input, step) => generateForNiche(input.niche, input.count || 3, step, { brief: input.brief }),
   'approve-all': async (input, step) => { const r = approveAllPending(); step(`approved ${r.approved}`, 'success'); return r; },
   'reject-trash': async (input, step) => { const r = rejectTrashDrafts(input.q); step(`rejected ${r.rejected}`, 'success'); return r; },
   'dedupe-queue': async (input, step) => { const r = dedupeQueue(); step(`removed ${r.removed} clone(s)`, 'success'); return r; },
@@ -2457,7 +2565,7 @@ function buildOverview() {
 
   const capRow = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
   const pubRow = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
-  const cap = capRow ? parseInt(capRow.value) || 10 : 10;
+  const cap = capRow ? parseInt(capRow.value) || 20 : 20; // default 20/day
   const publishedToday = pubRow ? parseInt(pubRow.value) || 0 : 0;
   const autoList = (db.prepare("SELECT value FROM settings WHERE key = 'auto_list'").get() || {}).value === 'true';
   const autoGenerate = (db.prepare("SELECT value FROM settings WHERE key = 'auto_generate'").get() || {}).value !== 'false';
@@ -2532,7 +2640,10 @@ app.get('/api/console/overview', (req, res) => {
 // rule-based Opportunity/Risk/Action insights. All real tables, no synthetics.
 app.get('/api/console/bi', (req, res) => {
   try { res.json(biService.build()); }
-  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  catch (e) {
+    console.error('[ERROR] GET /api/console/bi -> 500:', e.message); // never swallow silently
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 app.get('/api/console/runs', (req, res) => {

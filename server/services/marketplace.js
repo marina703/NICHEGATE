@@ -490,7 +490,12 @@ async function uploadGumroadFile(filePath) {
 }
 
 // ── GUMROAD DAILY CREATION QUOTA (local counter; Gumroad hard-caps ~10/day) ──
-const GUMROAD_DAILY_LIMIT = 10;
+const GUMROAD_DAILY_LIMIT = 10; // default; settings key `gumroad_daily_cap` overrides
+
+function gumroadDailyLimit() {
+  const v = parseInt(settingGet('gumroad_daily_cap'), 10);
+  return Number.isFinite(v) && v > 0 ? Math.min(50, v) : GUMROAD_DAILY_LIMIT;
+}
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -514,10 +519,11 @@ function getGumroadQuota() {
     settingSet('gumroad_creates_day', day);
     settingSet('gumroad_creates_today', '0');
   }
+  const limit = gumroadDailyLimit();
   const exhausted = settingGet('gumroad_quota_exhausted_day') === day;
-  if (exhausted) used = Math.max(used, GUMROAD_DAILY_LIMIT);
-  const remaining = Math.max(0, GUMROAD_DAILY_LIMIT - used);
-  return { day, used, limit: GUMROAD_DAILY_LIMIT, remaining, exhausted };
+  if (exhausted) used = Math.max(used, limit);
+  const remaining = Math.max(0, limit - used);
+  return { day, used, limit, remaining, exhausted };
 }
 
 function incrementGumroadCreates() {
@@ -525,7 +531,7 @@ function incrementGumroadCreates() {
   const next = q.used + 1;
   settingSet('gumroad_creates_day', q.day);
   settingSet('gumroad_creates_today', String(next));
-  if (next >= GUMROAD_DAILY_LIMIT) settingSet('gumroad_quota_exhausted_day', q.day);
+  if (next >= q.limit) settingSet('gumroad_quota_exhausted_day', q.day);
   return getGumroadQuota();
 }
 
@@ -533,7 +539,7 @@ function markGumroadQuotaExhausted(reason) {
   const day = todayKey();
   settingSet('gumroad_quota_exhausted_day', day);
   settingSet('gumroad_creates_day', day);
-  settingSet('gumroad_creates_today', String(GUMROAD_DAILY_LIMIT));
+  settingSet('gumroad_creates_today', String(gumroadDailyLimit()));
   db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
     .run('gumroad_quota', reason || 'Daily creation cap hit', 'warning');
   return getGumroadQuota();
@@ -604,7 +610,7 @@ async function publishToGumroadReal(product) {
     console.error('[PUBLISH] Gumroad cover attach skipped:', e.message);
   }
 
-  return { platform: 'gumroad', listingId: gumroadId, url: createResp.data?.product?.short_url || null };
+  return { platform: 'gumroad', listingId: gumroadId, listing_id: gumroadId, url: createResp.data?.product?.short_url || null };
 }
 
 
@@ -701,7 +707,7 @@ async function publishToEtsyReal(product) {
   } catch (e) {
     console.error('[ETSYSLOGAUTO] gallery skipped:', e.message);
   }
-  return { platform: 'etsy', listingId };
+  return { platform: 'etsy', listingId, listing_id: listingId }; // listing_id alias: older call sites
 }
 
 // Priority: Gumroad (simplest auth) → Etsy. NO simulated fallback — a failed
@@ -725,6 +731,53 @@ async function publishProduct(product) {
   throw new Error(errors.length ? errors.join(' | ') : 'No marketplace configured — add API keys in .env');
 }
 
+// ── LIVE LISTING UPDATES (optimizer auto-deploy) ──────────────────────
+// Copy-only edits to EXISTING listings. Edits are not creates, so they never
+// consume the daily creation caps. Failures throw; callers log and keep the
+// improved copy locally.
+
+async function updateGumroadProduct(product, copy) {
+  const token = process.env.GUMROAD_ACCESS_TOKEN;
+  if (!token) throw new Error('Gumroad not configured');
+  const id = product.marketplace_id;
+  if (!id) throw new Error('No Gumroad product id on this product');
+  const priceCents = Math.round((parseFloat(String(product.price).replace('$', '')) || 12) * 100);
+  const form = new URLSearchParams({
+    access_token: token,
+    name: String(copy.title || '').substring(0, 200),
+    description: String(copy.description || '').substring(0, 2000),
+    price: String(priceCents)
+  });
+  const resp = await axios.post(`${GUMROAD_API_BASE}/products/${encodeURIComponent(id)}`, form.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    timeout: 30000
+  });
+  if (resp.data?.success === false) throw new Error(resp.data.message || 'Gumroad update rejected');
+  return { ok: true, platform: 'gumroad', listingId: String(id) };
+}
+
+async function updateEtsyListing(product, copy) {
+  const token = await ensureEtsyApiToken();
+  const shopId = process.env.ETSY_SHOP_ID || await getEtsyShopId(token.access_token);
+  await axios.patch(
+    `${ETSY_API_BASE}/application/shops/${shopId}/listings/${encodeURIComponent(product.marketplace_id)}`,
+    {
+      title: String(copy.title || '').substring(0, 140),
+      description: String(copy.description || '').substring(0, 4999),
+      tags: (copy.tags || []).slice(0, 13),
+      price: parseFloat(String(product.price).replace('$', '')) || 12
+    },
+    { headers: etsyAuthHeaders(token.access_token), timeout: 30000 }
+  );
+  return { ok: true, platform: 'etsy', listingId: String(product.marketplace_id) };
+}
+
+async function updateListingCopy(product, copy) {
+  if (product.marketplace === 'gumroad') return updateGumroadProduct(product, copy);
+  if (product.marketplace === 'etsy') return updateEtsyListing(product, copy);
+  throw new Error('Unknown marketplace: ' + (product.marketplace || '(none)'));
+}
+
 module.exports = {
   getEtsyAuthUrl,
   exchangeEtsyToken,
@@ -745,6 +798,11 @@ module.exports = {
   attachBrandingToGumroadProducts,
   publishFreeGumroad,
   publishProduct,
+  publishToEtsy: publishToEtsyReal,
+  updateListingCopy,
+  updateGumroadProduct,
+  updateEtsyListing,
+  gumroadDailyLimit,
   getGumroadQuota,
   incrementGumroadCreates,
   markGumroadQuotaExhausted,

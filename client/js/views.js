@@ -86,7 +86,7 @@ export function home(s) {
   const c = o.counts || {};
   const f = o.funnel || {};
   const rev = o.revenue || {};
-  const etsy = o.etsy || { cap: 10, published: 0, remaining: 10 };
+  const etsy = o.etsy || { cap: 20, published: 0, remaining: 20 };
   const ready = o.readiness || { issues: [], ok: false };
   const engine = o.engine || {};
 
@@ -124,7 +124,8 @@ export function home(s) {
   const capPct = etsy.cap > 0 ? Math.round((etsy.published / etsy.cap) * 100) : 0;
 
   return head('🚀 Command Center', 'Discover → generate → review → publish. Everything the engine is doing, live.',
-    `<button class="btn primary" data-action="palette">${icon('command')} Run a command <kbd>⌘K</kbd></button>`)
+    `<button class="btn green" data-action="make-this">${icon('sparkles')} Make this…</button>
+     <button class="btn primary" data-action="palette">${icon('command')} Run a command <kbd>⌘K</kbd></button>`)
   + `<div class="kpis mb14">
       ${kpi('Products', fmtNum(c.products), `${fmtNum(c.listed)} listed · ${pctText(bdl.products && bdl.products.deltaPct)}`, 'tc')}
       ${kpi('Shop Health', typeof bh.score === 'number' ? String(bh.score) : '—', bh.grade || 'computing…', bh.score >= 80 ? 'gn' : 'am')}
@@ -161,7 +162,7 @@ export function home(s) {
           <span class="hint">resets daily</span></div>
         <div class="panel-body">
           ${gauge(capPct, `${etsy.published} / ${etsy.cap}`, capPct >= 100 ? 'var(--red)' : capPct >= 70 ? 'var(--amber)' : 'var(--teal)')}
-          <div class="hint mt8">${fmtNum(etsy.remaining)} remaining today · minimum cap 10/day</div>
+          <div class="hint mt8">${fmtNum(etsy.remaining)} remaining today · cap ${fmtNum(etsy.cap)}/day (editable in Automation)</div>
         </div>
       </div>
     </div>
@@ -417,7 +418,8 @@ export function trends(s) {
   }).join('');
 
   return head('🔥 Trend Radar', 'Live discovery + multi-signal vetting. Activate a niche to lock its window.',
-    `<button class="btn primary" data-action="run" data-name="sweep">${icon('discovery')} Sweep</button>`)
+    `<button class="btn green" data-action="make-this">${icon('sparkles')} Make this…</button>
+     <button class="btn primary" data-action="run" data-name="sweep">${icon('discovery')} Sweep</button>`)
   + `<div class="kpis mb14">
       ${kpi('Tracked', fmtNum((s.overview && s.overview.counts && s.overview.counts.trends) || rows.length), '', 'vi')}
       ${kpi('ACTIVATE', fmtNum(act), 'ready to commit', 'gn')}
@@ -630,9 +632,10 @@ export function analytics(s) {
           <span class="hint">${fmtNum(lh.zeroSaleCount || 0)} listed with zero views</span>
         </div></div></div>
     ${(weak.length || zero.length) ? `<div class="grid g2 mb14">
-      <div class="panel"><div class="panel-head">${icon('search')} SEO Weakness <span class="sp"></span><span class="hint">from seoEngine</span></div>
-        <div class="panel-body tight">${weak.length ? `<table class="data"><thead><tr><th>Listing</th><th class="num-r">Score</th><th class="num-r">Tags</th></tr></thead>
-          <tbody>${weak.map(w => `<tr><td>${esc(w.name)}</td><td class="num-r" style="color:${w.score >= 70 ? 'var(--amber)' : 'var(--red)'}">${fmtNum(w.score)}</td><td class="num-r">${fmtNum(w.tagCount)}/13</td></tr>`).join('')}</tbody></table>` : '<div class="empty">All listed products score well.</div>'}</div></div>
+      <div class="panel"><div class="panel-head">${icon('search')} SEO Weakness <span class="sp"></span><span class="hint">from seoEngine</span>
+        ${weak.length ? `<button class="btn primary sm" data-action="optimize-weak">${icon('sparkles')} Optimize all weak</button>` : ''}</div>
+        <div class="panel-body tight">${weak.length ? `<table class="data"><thead><tr><th>Listing</th><th class="num-r">Score</th><th class="num-r">Tags</th><th></th></tr></thead>
+          <tbody>${weak.map(w => `<tr><td>${esc(w.name)}</td><td class="num-r" style="color:${w.score >= 70 ? 'var(--amber)' : 'var(--red)'}">${fmtNum(w.score)}</td><td class="num-r">${fmtNum(w.tagCount)}/13</td><td class="num-r"><button class="btn ghost sm" data-action="optimize-product" data-id="${w.id}">Optimize</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">All listed products score well.</div>'}</div></div>
       <div class="panel"><div class="panel-head">${icon('catalog')} Zero-View Listings <span class="sp"></span><span class="hint">listed, no impressions yet</span></div>
         <div class="panel-body tight">${zero.length ? `<table class="data"><thead><tr><th>Listing</th><th class="num-r">Days</th></tr></thead>
           <tbody>${zero.map(z => `<tr><td>${esc(z.name)}</td><td class="num-r">${fmtNum(z.daysListed)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">Every listing has impressions.</div>'}</div></div>
@@ -690,7 +693,20 @@ export function automation(s) {
       <span class="sp" style="flex:1"></span>
       <span class="hint">pending ${fmtNum(st.pendingCount || 0)}${st.lastRun ? ` · last run ${esc(timeAgo(st.lastRun))}` : ''}</span>
     </div>
-    <div class="button"></div>
+    <div class="grid g2 mb14">
+      <div class="panel"><div class="panel-head">${icon('marketplace')} Daily Publish Caps <span class="sp"></span><span class="hint">Gumroad 10 · Etsy 20 by default</span></div>
+        <div class="panel-body">
+          <div class="flex mb8" style="gap:8px;align-items:flex-end">
+            <label class="hint" style="flex:1">Gumroad / day
+              <input id="cap-gumroad" type="number" min="1" max="50" value="${esc((s.caps && s.caps.gumroad && s.caps.gumroad.limit) || 10)}" style="width:100%"></label>
+            <label class="hint" style="flex:1">Etsy / day
+              <input id="cap-etsy" type="number" min="1" max="50" value="${esc((s.caps && s.caps.etsy && s.caps.etsy.cap) || 20)}" style="width:100%"></label>
+            <button class="btn green" data-action="cap-save">${icon('check')} Save caps</button>
+          </div>
+          <div class="hint">Gumroad hard-caps product creation (~10/day) — a higher number here won't create more there. Listing copy edits from the optimizer are updates, not creates, and never consume these caps.</div>
+        </div>
+      </div>
+    </div>
     <div class="panel"><div class="panel-head">${icon('clock')} Activity Log <span class="sp"></span><span class="hint">live</span></div>
       <div class="panel-body"><div class="logs" style="max-height:520px">${activityRows(s.activity, 40)}</div></div></div>`;
 }

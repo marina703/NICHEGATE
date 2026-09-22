@@ -40,9 +40,11 @@ function draftProduct(prof, type, opts = {}) {
   });
 
   const ins = db.prepare(
-    `INSERT INTO products (profession_id, name, type, price, status, theme, html_content)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(draft.profession_id, draft.name, draft.type, draft.price, draft.status, draft.theme, opts.html_content || '<!-- auto-generated -->');
+    `INSERT INTO products (profession_id, name, type, price, status, theme, html_content, origin, brief)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(draft.profession_id, draft.name, draft.type, draft.price, draft.status, draft.theme, opts.html_content || '<!-- auto-generated -->',
+    opts.origin || 'engine',
+    opts.brief ? String(opts.brief).slice(0, 2000) : null);
 
   return ins.lastInsertRowid;
 }

@@ -6,7 +6,8 @@
 
 import {
   esc, icon, toast, openDrawer, closeDrawer, openModal, closeModal, confirmAction,
-  debounce, fmtNum, fmtMoney,  timeAgo, clockTime, titleCase, statusPillClass, thumbFallback, reviewPage, reviewQueue
+  debounce, fmtNum, fmtMoney,  timeAgo, clockTime, titleCase, statusPillClass, thumbFallback, reviewPage, reviewQueue,
+  barRow, gauge
 } from './ui.js';
 import { consoleApi, dataApi, dataActions, connectStream, renderExport } from './api.js';
 import { NAV, CRUMBS, VIEWS } from './views.js';
@@ -29,6 +30,7 @@ const state = {
   reviewIndex: 0,
   selected: new Set(),
   lastSocialContent: null,
+  caps: null,
   busy: false
 };
 
@@ -73,6 +75,7 @@ async function loadViewData(view) {
       if (niches) state.passionNiches = niches.niches || [];
       break;
     }
+    case 'trends': { const r = await safe(() => dataApi.trends()); if (r) state.trends = r.all || []; break; }
     case 'social': { const r = await safe(() => dataApi.social()); if (r) state.social = r.posts || []; break; }
     case 'ads': { const r = await safe(() => dataApi.ads()); if (r) state.ads = r; break; }
     case 'calendar': {
@@ -99,7 +102,12 @@ async function loadViewData(view) {
       if (bi) state.bi = bi;
       break;
     }
-    case 'automation': { const r = await safe(() => dataApi.automationStatus()); if (r) state.autoStatus = r; break; }
+    case 'automation': {
+      const [r, caps] = await Promise.all([safe(() => dataApi.automationStatus()), safe(() => dataApi.caps())]);
+      if (r) state.autoStatus = r;
+      if (caps) state.caps = caps;
+      break;
+    }
     case 'marketplace': { const r = await safe(() => dataApi.setup()); if (r) state.setup = r; break; }
     case 'system': {
       const [rd, ms, pay, br, runs] = await Promise.all([
@@ -161,7 +169,7 @@ function renderTopbar() {
       ? `<button class="chip busy" data-action="go" data-view="automation"><span class="dot"></span>${eng.cycleBusy ? 'Cycle running' : 'Sweeping'}</button>`
       : '',
     `<button class="chip ${etsy.remaining > 0 ? '' : 'warn'}" data-action="go" data-view="marketplace" title="Etsy daily quota">
-      Etsy ${esc(etsy.published || 0)}/${esc(etsy.cap || 10)}</button>`,
+      Etsy ${esc(etsy.published || 0)}/${esc(etsy.cap || 20)}</button>`,
     blockers ? `<button class="chip err" data-action="go" data-view="system"><span class="dot"></span>${blockers} blocker${blockers > 1 ? 's' : ''}</button>`
       : warns ? `<button class="chip warn" data-action="go" data-view="system"><span class="dot"></span>${warns} warning${warns > 1 ? 's' : ''}</button>`
       : `<button class="chip" data-action="go" data-view="system">All clear</button>`,
@@ -374,6 +382,7 @@ async function openProduct(id) {
       <button class="btn amber sm" data-action="better-idea" data-id="${id}">${icon('brain')} Better Idea</button>
       <button class="btn sm" data-action="edit-product" data-id="${id}">${icon('pencil')} Edit</button>
       <button class="btn sm" data-action="seo-load" data-id="${id}">${icon('search')} SEO</button>
+      <button class="btn sm" data-action="optimize-product" data-id="${id}">${icon('sparkles')} Optimize listing</button>
       <button class="btn sm" data-action="cover-generate" data-id="${id}">${icon('sparkles')} New cover</button>
       <a class="btn sm" href="/api/export/product/${id}" download>${icon('download')} File</a>
       <button class="btn red sm" data-action="confirm" data-confirm="delete:${id}" data-message="Delete this product permanently?">${icon('trash')} Delete</button>
@@ -386,6 +395,7 @@ async function openProduct(id) {
         <div class="flex-between mb8"><span class="hint">Type</span><b>${esc(p ? titleCase(p.type) : '')}</b></div>
         <div class="flex-between mb8"><span class="hint">Price</span><b>${esc(p ? p.price || '' : '')}</b></div>
         <div class="flex-between mb8"><span class="hint">Marketplace</span><b>${esc((p && p.marketplace) || '—')}</b></div>
+        <div class="flex-between mb8"><span class="hint">Origin</span><b>${esc((p && p.origin) || 'engine')}${p && p.origin === 'manual' ? ' · manual publish' : ''}</b></div>
         <div class="flex-between"><span class="hint">Created</span><b>${esc(p ? timeAgo(p.created_at) : '')}</b></div>
       </div></div>
       <div class="panel"><div class="panel-head">Preview</div><div class="panel-body tight" style="padding:0">
@@ -443,6 +453,8 @@ async function refreshRuns() {
 // ── command palette ────────────────────────────────────────────────────
 function paletteItems() {
   const items = [];
+  items.push({ kind: 'command', key: 'Make this…', hint: 'describe anything, get product drafts', run: () => openMakeThis({}) });
+  items.push({ kind: 'command', key: 'Optimize all weak listings', hint: 'bulk listing optimizer', run: () => optimizeAllWeak() });
   for (const n of NAV) items.push({ kind: 'view', key: 'Go to ' + n.label, run: () => go(n.view) });
   // Actions come from the server registry — never hardcode them here, or the
   // palette shows duplicates of whatever the registry already exposes.
@@ -484,7 +496,7 @@ function drawPalette() {
   host.innerHTML = items.length ? items.map((i, idx) => `<div class="palette-item ${idx === paletteSel ? 'sel' : ''}" data-palette="${idx}">
       <span class="ic">${i.kind === 'view' ? icon('chevronRight') : icon('bolt')}</span>
       <span>${esc(i.key)}</span>${i.hint ? `<span class="hint" style="font-size:.68rem">${esc(String(i.hint).slice(0, 48))}</span>` : ''}
-      ${i.kind === 'action' ? '<span class="k">action</span>' : '<span class="k">view</span>'}
+      ${i.kind === 'action' ? '<span class="k">action</span>' : i.kind === 'command' ? '<span class="k">command</span>' : '<span class="k">view</span>'}
     </div>`).join('') : '<div class="empty">No matching command.</div>';
   host.querySelectorAll('[data-palette]').forEach(el => {
     el.addEventListener('click', () => { paletteSel = Number(el.dataset.palette); paletteRun(items); });
@@ -502,7 +514,7 @@ function paletteRun(items) {
   const item = items[paletteSel];
   if (!item) return;
   closePalette();
-  if (item.kind === 'view') { item.run(); return; }
+  if (item.run) { item.run(); return; }
   if (item.action === 'rebuild-covers') { rebuildCovers(); return; }
   if (item.action === 'generate-for-niche') {
     const niche = prompt('Which niche?'); if (!niche) return;
@@ -565,7 +577,13 @@ document.addEventListener('click', async (e) => {
       case 'trend-activate': await trendOp('activate', id); break;
       case 'trend-dismiss': await trendOp('dismiss', id); break;
       case 'trend-archive': await trendOp('archive', id); break;
-      case 'trend-generate': await trendOp('generate', id); break;
+      case 'trend-generate': openGenerateTrend(id); break;
+      case 'trend-generate-run': await trendGenerateRun(id); break;
+      case 'make-this': openMakeThis({}); break;
+      case 'make-this-run': await makeThisRun(); break;
+      case 'optimize-product': await optimizeProduct(id); break;
+      case 'optimize-weak': await optimizeAllWeak(); break;
+      case 'cap-save': await saveCaps(); break;
       case 'trend-vet':
         if (el.dataset.kind === 'product') { await openProduct(id); }
         else { await showVet(id); }
@@ -702,15 +720,112 @@ async function trendOp(op, id) {
   if (op === 'activate') { const r = await safe(() => dataActions.activateTrend(id)); if (r) toast('success', 'Activated', `${r.productsGenerated || 0} products generated`); }
   if (op === 'dismiss') { await safe(() => dataActions.dismissTrend(id)); toast('info', 'Dismissed', 'Trend dismissed.'); }
   if (op === 'archive') { await safe(() => dataActions.archiveTrend(id)); toast('info', 'Archived', 'Trend archived.'); }
-  if (op === 'generate') { const r = await safe(() => dataActions.generateFromTrend(id)); if (r) toast('success', 'Generated', `${r.generated || 0} products`); }
   await loadCore(); render();
 }
 async function showVet(id) {
   const v = await safe(() => dataApi.vetTrend(id));
   if (!v) return;
-  const rows = Object.entries(v).map(([k, val]) =>
-    `<div class="flex-between mb8"><span class="hint">${esc(titleCase(k))}</span><b>${esc(typeof val === 'object' ? JSON.stringify(val) : val)}</b></div>`).join('');
-  openModal('Vetting Detail', `<div class="panel"><div class="panel-body">${rows}</div></div>`);
+  // Structured panel: signals are real numbers, so they render as bars. (This
+  // used to JSON.stringify every object straight into the modal.)
+  const sig = v.signals || {};
+  const rows = Object.entries(sig).map(([k, val]) =>
+    barRow(titleCase(String(k).replace(/_/g, ' ')), Number(val) || 0, 100, 'var(--grad)')).join('');
+  const verdict = String(v.verdict || 'WATCH');
+  const safeVerdict = ['ACTIVATE', 'WATCH', 'SKIP'].includes(verdict) ? verdict : 'WATCH';
+  const score = Number(v.score) || 0;
+  openModal('Vetting Detail', `
+    <div class="grid g2">
+      <div class="panel"><div class="panel-body">
+        ${gauge(score, `Score ${score}/100 · Grade ${esc(v.grade || '—')}`, score >= 65 ? 'var(--green)' : score >= 45 ? 'var(--amber)' : 'var(--red)')}
+        <div class="mt8" style="text-align:center"><span class="grade ${safeVerdict}">${esc(safeVerdict)}</span></div>
+      </div></div>
+      <div class="panel"><div class="panel-head">Signals</div><div class="panel-body">${rows || '<div class="hint">no signal data</div>'}</div></div>
+    </div>
+    <div class="hint mt8">Weighted score: demand, competition, margin, seasonality, longevity, specificity, shopping intent. Verdict: ≥65 ACTIVATE · ≥45 WATCH · below SKIP.</div>`);
+}
+
+// ── Make-this / custom generation dialog ──────────────────────────────────
+// One shared modal for the product customizer: the "Make this" button, the ⌘K
+// palette entry, and Trend rows' Generate button (pre-filled + locked to the
+// trend) all render this. #mk-brief is the details/prompts input.
+function openMakeThis(preset = {}) {
+  const isTrend = preset.mode === 'trend';
+  openModal(isTrend ? 'Generate from trend' : '✨ Make this', `
+    <div class="hint mb8">${isTrend
+      ? 'Generate products for this trend. Add details or prompts to steer the output.'
+      : 'Describe anything — the engine drafts it as a product you can edit and publish.'}</div>
+    <input id="mk-idea" value="${esc(preset.idea || '')}" ${preset.lockIdea ? 'readonly' : ''}
+      placeholder="e.g. dog bakery price list template" aria-label="Idea" style="width:100%;margin-bottom:8px">
+    <textarea id="mk-brief" rows="3" placeholder="Details / prompts — audience, tone, must-haves, what to avoid (optional)" aria-label="Details or prompts" style="width:100%;margin-bottom:8px"></textarea>
+    <div class="flex mb8" style="gap:8px">
+      <select id="mk-type" aria-label="Product type" style="flex:1">
+        <option value="">Auto-pick type</option>
+        ${['checklist', 'spreadsheet', 'invoice', 'planner', 'worksheet', 'journal', 'social', 'brand', 'website', 'booking', 'pricing', 'inventory', 'tool', 'bundle'].map(t => `<option value="${t}">${titleCase(t)}</option>`).join('')}
+      </select>
+      <input id="mk-price" type="number" min="0" step="1" placeholder="Price $" aria-label="Price" style="width:90px">
+      <input id="mk-count" type="number" min="1" max="6" value="${esc(preset.count || 1)}" aria-label="How many" style="width:70px">
+    </div>
+    <div class="btn-row" style="margin-bottom:0">
+      <button class="btn primary" data-action="${isTrend ? 'trend-generate-run' : 'make-this-run'}" data-id="${esc(preset.id || '')}">${icon('sparkles')} Generate</button>
+      <span class="hint" style="flex:1;align-self:center">${isTrend
+        ? 'Engine products — optimizer updates may auto-deploy to live listings.'
+        : 'Manual product — local only; you publish it yourself.'}</span>
+    </div>`);
+}
+
+function openGenerateTrend(id) {
+  const t = state.trends.find(x => String(x.id) === String(id));
+  openMakeThis({ mode: 'trend', id, idea: (t && (t.name || t.niche)) || '', lockIdea: true, count: 3 });
+}
+
+async function makeThisRun() {
+  const idea = ((document.getElementById('mk-idea') || {}).value || '').trim();
+  if (!idea) { toast('warning', 'Describe it first', 'Type what you want made.'); return; }
+  const brief = ((document.getElementById('mk-brief') || {}).value || '').trim();
+  const type = (document.getElementById('mk-type') || {}).value || undefined;
+  const price = parseFloat((document.getElementById('mk-price') || {}).value) || undefined;
+  const count = Math.max(1, Math.min(6, parseInt((document.getElementById('mk-count') || {}).value) || 1));
+  closeModal();
+  const r = await safe(() => dataActions.generateCustom({ idea, brief, type, price, count }));
+  if (!r) return;
+  toast('success', 'Drafted', `${(r.created || []).length} product(s) in the review queue — manual products stay local until you publish.`);
+  await loadCore(); render();
+}
+
+async function trendGenerateRun(id) {
+  const brief = ((document.getElementById('mk-brief') || {}).value || '').trim();
+  const count = Math.max(1, Math.min(6, parseInt((document.getElementById('mk-count') || {}).value) || 3));
+  closeModal();
+  const r = await safe(() => dataActions.generateFromTrend(id, { brief, count }));
+  if (!r) return;
+  toast('success', 'Generated', `${r.generated || 0} products from this trend`);
+  await loadCore(); render();
+}
+
+// ── listing optimizer ─────────────────────────────────────────────────
+async function optimizeProduct(id) {
+  const r = await safe(() => dataActions.optimizeProduct(id));
+  if (!r) return;
+  const d = r.deploy || {};
+  const tail = d.ok ? 'New copy pushed to the live listing.' : (d.reason || d.error || 'Copy stored locally.');
+  toast('success', 'Listing optimized', `score ${r.scoreBefore} → ${r.scoreAfter} · ${tail}`);
+  await loadCore(); render();
+}
+
+async function optimizeAllWeak() {
+  const r = await safe(() => dataActions.optimizeWeak(20));
+  if (!r) return;
+  toast('success', 'Weak listings optimized', `${r.optimized || 0} rewritten · ${r.deployed || 0} deployed to live listings`);
+  await loadCore(); render();
+}
+
+async function saveCaps() {
+  const etsy = parseInt((document.getElementById('cap-etsy') || {}).value) || 20;
+  const gumroad = parseInt((document.getElementById('cap-gumroad') || {}).value) || 10;
+  const r = await safe(() => dataActions.saveCaps({ etsy, gumroad }));
+  if (!r) return;
+  toast('success', 'Caps saved', `Gumroad ${r.gumroad}/day · Etsy ${r.etsy}/day`);
+  await loadViewData('automation'); render();
 }
 async function socialGenerate() {
   const pid = document.getElementById('social-product').value;

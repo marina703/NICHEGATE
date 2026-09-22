@@ -62,11 +62,26 @@ function buildShortTitle(prof, type) {
   return `${prof.name} ${base[0]}`.substring(0, 120);
 }
 
+// Legacy profession rows store plain text ("#tag #tag2" / "a, b, c") where new
+// rows store JSON — and one malformed value used to throw (500s on /api/console/bi).
+// Parse defensively: JSON arrays win, plain text falls back to splitting.
+function safeJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value == null || value === '') return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return String(value).split(/[,#]/).map(s => s.trim()).filter(Boolean);
+  }
+}
+
 // Build an SEO description with keyword-rich structure
 function buildDescription(prof, type, theme) {
   const base = PRODUCT_TERMS[type] || PRODUCT_TERMS.invoice;
-  const services = JSON.parse(prof.services || '[]').slice(0, 4);
-  const serviceList = services.map(s => s[0]).join(', ');
+  const services = safeJsonArray(prof.services).slice(0, 4);
+  const serviceList = services.map(s => (Array.isArray(s) ? s[0] : s)).filter(Boolean).join(', ');
+
 
   return [
     `${prof.name} ${base[0]} — a ${TIER_TERMS[prof.tier]?.[0] || 'professional'} ${base[1].toLowerCase()} designed to make your business look elite.`,
@@ -86,7 +101,7 @@ function buildDescription(prof, type, theme) {
 
 // Build Etsy tags (max 13, ≤20 chars each)
 function buildTags(prof, type) {
-  const hashtags = JSON.parse(prof.hashtags || '[]');
+  const hashtags = safeJsonArray(prof.hashtags);
   const base = PRODUCT_TERMS[type] || PRODUCT_TERMS.invoice;
   const tags = [];
 
@@ -113,6 +128,7 @@ function buildTags(prof, type) {
 
 // Full SEO bundle for a product
 function generateSEO(prof, type, theme) {
+  prof = prof || { name: 'Small Business', tier: 'safe' };
   return {
     title: buildTitle(prof, type),
     shortTitle: buildShortTitle(prof, type),
@@ -121,4 +137,4 @@ function generateSEO(prof, type, theme) {
   };
 }
 
-module.exports = { generateSEO, buildTitle, buildDescription, buildTags };
+module.exports = { generateSEO, buildTitle, buildDescription, buildTags, safeJsonArray };

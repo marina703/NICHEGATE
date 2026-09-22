@@ -214,3 +214,23 @@ browser pass over all 12 views + setup/store/login with 0 console errors and
 
 NEXT: rotate the Etsy keys (only remaining Pass-1 item); drain the publish
 queue per UPGRADES.md Wave 1; finish Etsy identity verification + OAuth.
+
+# ── 2026-09-22: PASS 3 — CAPS, MAKE-THIS, LISTING OPTIMIZER ──
+Full details: AUDIT_REPORT.md "Pass 3".
+- ROOT-CAUSED the prod /api/console/bi 500: bi.js selected a nonexistent
+  professions.type column (only fires with listed products — prod has them,
+  dev didn't). Fixed + legacy-field JSON hardening + error logging. Regression
+  test added (test/optimizer.test.js).
+- Caps: Gumroad 10 (settings-backed) / Etsy 20 default; GET/POST /api/caps;
+  Automation caps panel.
+- Make-This (origin='manual') + shared custom-generate modal with a
+  details/prompts field threaded into generation (products.brief → AI prompt).
+  Fixed the fully-broken Trends Generate button (nonexistent createDraft).
+- Listing optimizer: bulk weak-listing rewrite + origin deploy rule (manual =
+  local only, engine+listed = auto-deploy via new Etsy/Gumroad update APIs);
+  auto_list now skips manual products.
+- Vet modal: JSON dump → gauge + signal bars. Trends view staleness fixed.
+- railway.json healthcheck → /api/health (kills the ADMIN_PASSWORD deploy trap).
+Verified: 83 tests 79 pass 0 fail; browser pass 0 console errors / 0 CSP
+violations; brief visibly steers AI concepts; artifacts cleaned.
+NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.

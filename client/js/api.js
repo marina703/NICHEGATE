@@ -89,7 +89,9 @@ export const dataApi = {
   scoreOpportunity: (q) => request('/discovery/opportunity?q=' + encodeURIComponent(q)),
   radarHealth: () => request('/trends/radar-health'),
   vetTrend: (id) => request(`/trends/vet/${id}`),
-  seo: (productId) => request(`/seo/${productId}`)
+  seo: (productId) => request(`/seo/${productId}`),
+  caps: () => request('/caps'),
+  optimization: (id) => request(`/products/${id}/optimization`)
 };
 
 export const dataActions = {
@@ -103,7 +105,11 @@ export const dataActions = {
   activateTrend: (id) => api.post(`/trends/${id}/activate`),
   dismissTrend: (id) => api.post(`/trends/${id}/dismiss`),
   archiveTrend: (id) => api.post(`/trends/${id}/archive`),
-  generateFromTrend: (id) => api.post(`/trends/${id}/generate`),
+  generateFromTrend: (id, payload) => api.post(`/trends/${id}/generate`, payload || {}),
+  generateCustom: (payload) => api.post('/products/generate-custom', payload),
+  optimizeProduct: (id) => api.post(`/products/${id}/optimization/apply`, {}),
+  optimizeWeak: (limit) => api.post('/optimize/weak', { limit: limit || 20 }),
+  saveCaps: (payload) => api.post('/caps', payload),
   schedulePost: (payload) => api.post('/social/schedule', payload),
   cancelPost: (id) => api.post('/social/cancel', { id }),
   postNow: (productId, platform) => api.post('/social/post-now', { productId, platform }),

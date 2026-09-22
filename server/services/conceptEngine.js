@@ -51,9 +51,16 @@ function parseConcept(text) {
 }
 
 // Generate a differentiated concept for a (prof, type). Returns concept or null.
-async function generateConcept(prof, type, existing) {
+// `brief` is optional buyer-supplied detail (from Make-this / trend generation)
+// that the concept must honor; `existing` carries the dedupe angle.
+async function generateConcept(prof, type, existing, brief) {
   if (!cfg.enabled || !prof || !type) return null;
+  // Tolerate a bare niche string (older call sites) instead of rendering
+  // "Niche: undefined (undefined)" into the prompt.
+  const p = typeof prof === 'string' ? { name: prof, slug: '' } : prof;
+  prof = p;
   const avoid = existing && existing.concept ? `Avoid repeating this existing angle: "${existing.concept}"` : '';
+  const guidance = brief ? `Buyer-supplied details to honor: ${String(brief).slice(0, 600)}` : '';
   const prompt = [
     `Niche: ${prof.name} (${prof.slug}).`,
     `Product type: ${type}.`,
@@ -61,6 +68,7 @@ async function generateConcept(prof, type, existing) {
     'Create ONE differentiated product concept a human competitor would NOT think of.',
     'Rules: specific pain > generic. Niche-specific angle. Unique artifact/format. Real buyer language.',
     avoid,
+    guidance,
     'Reply with ONLY valid JSON, no markdown:',
     '{"name":"Short, specific, sellable product title (max 10 words, no "template/kit/pack")",',
     '"pitch":"2-3 sentence buyer-facing pitch naming the exact pain (max 60 words)",',
@@ -82,13 +90,13 @@ function applyConcept(productId, concept) {
 }
 
 // Best-effort enrich: generate + apply. Never throws. Sync callers can fire-and-forget.
-async function enrichProduct(productId) {
+async function enrichProduct(productId, brief) {
   try {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
     if (!product) return null;
     const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
     if (!prof) return null;
-    const concept = await generateConcept(prof, product.type, product);
+    const concept = await generateConcept(prof, product.type, product, brief);
     if (concept) applyConcept(product.id, concept);
     return concept;
   } catch (e) {

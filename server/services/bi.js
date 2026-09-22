@@ -152,8 +152,11 @@ function listingHealth() {
   // SEO weakness: regenerate the bundle and score title length + tag count.
   const weakestSeo = [];
   for (const p of listed) {
+    // NOTE: professions has no `type` column — selecting it threw "no such
+    // column: type" for every listed product (the production /api/console/bi
+    // 500). Product type comes from the product row (p.type), not the prof.
     const prof = p.profession_id
-      ? db.prepare('SELECT name, type, services, hashtags FROM professions WHERE id = ?').get(p.profession_id)
+      ? db.prepare('SELECT name, services, hashtags FROM professions WHERE id = ?').get(p.profession_id)
       : null;
     if (!prof) continue;
     const bundle = seo.generateSEO(prof, p.type, p.theme);

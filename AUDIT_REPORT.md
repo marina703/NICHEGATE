@@ -295,3 +295,46 @@ Every fixture created during the audit was removed afterwards (verified: zero `_
 | iamgaazicom/etsygenie (static HTML) | DeepSite marketing mockup, zero functionality | One concept taken: competitor-URL → niche pipeline (→ revenue roadmap) |
 
 Residual risk unchanged: **committed Etsy credentials were not rotated (owner's decision)**.
+
+---
+
+## Pass 3 — Caps, Make-This, Listing Optimizer (2026-09-22)
+
+### 🔴 Root cause of the production `/api/console/bi` 500 (found by the new regression test)
+
+`server/services/bi.js` ran `SELECT name, type, services, hashtags FROM professions` — **`professions` has no `type` column**. SQLite threw `no such column: type` for every listed product. It never reproduced locally because the local DB had **zero listed** products at the time (the query only runs over `status IN ('listed','published')`) while production has 530+ — which is why the endpoint worked in dev and 500'd live. Fixed (type comes from the product row). Secondary hardening landed with it: `seoEngine` now parses legacy plain-text `services`/`hashtags` fields safely (was an unguarded `JSON.parse`), tolerates garbage JSON and a missing prof, and the BI route **logs** errors instead of swallowing them silently. Regression-tested (`test/optimizer.test.js`).
+
+### Caps — Gumroad 10 / Etsy 20
+
+Gumroad daily creation limit is now settings-backed (`gumroad_daily_cap`, default **10**, their hard cap); Etsy default is **20** everywhere the old `10` was hardcoded (was clamped to a minimum of 10 — now clamps 1–50). New `GET/POST /api/caps`; the Automation view has a caps panel showing used/remaining per marketplace. **Listing copy edits from the optimizer are updates, not creates — they never consume these caps.**
+
+### Make-This + details/prompts on generation (product customizer)
+
+- New `POST /api/products/generate-custom` — idea + details/prompts + type/price/count. Products land in the review queue tagged **`origin='manual'`**.
+- Trend rows' **Generate** button now opens a dialog with a **details/prompts field** (stored in `products.brief`, honored by the AI concept prompt). Verified live: a "puppy-safe ingredients" brief produced *"Puppy-Safe Sourdough Treat Planner"*.
+- **The Generate button was fully broken before this** — it called `productDraft.createDraft` (doesn't exist → 500 on every click) and passed a raw string where `generateConcept` expects a profession row. Rewritten onto `generateForNiche`.
+- Shared custom-generate modal: Make-this button (Home + Trends), ⌘K palette ("Make this…"), and Trend Generate all use it.
+
+### Listing Optimizer + the origin deploy rule
+
+New `server/services/listingOptimizer.js` + `products.listing_json`. Deterministic rewrite: concept name front-loaded with search keywords in the title (≤140), tag set enriched from concept/brief/theme phrases (≤13 × ≤20 chars), keyword-led description. Endpoints: `GET /api/products/:id/optimization`, `POST /api/products/:id/optimization/apply`, `POST /api/optimize/weak` (bulk over the BI weak-SEO set — the chosen "auto-optimize all weak listings" mode). Per the owner's rule:
+
+| Product | On apply |
+|---|---|
+| manual ("Make this") | **Local only — "you publish it yourself"** (verified: `autoDeploy: false`) |
+| engine-generated, already listed | **Auto-deploys** updated copy to the live listing (new Etsy PATCH / Gumroad update APIs) |
+| engine-generated, not listed | Stored; applies at next publish |
+
+`auto_list` now skips `origin='manual'` — manual products can never be auto-published by the cycle. Test score movement: 88 → 100 on the rubric.
+
+### Polish & platform
+
+- Trend vetting modal rebuilt: was `JSON.stringify`-ing signal/weight objects into the dialog (the "raw code" the owner saw) → now a gauge + 7 signal bars + verdict badge.
+- `loadViewData` staleness class: **Trends view never refetched** (same bug previously fixed for Review/Catalog) — fixed.
+- `/api/etsy/push*` read `result.listing_id`, a field publish never returned — publish shapes normalized and `publishToEtsy` actually exported now.
+- `railway.json` healthcheck → `/api/health` (open by design): the `ADMIN_PASSWORD` 401-trap that failed deploy `6a5f5ed9` and 502'd prod for 11 minutes can no longer happen.
+- `dotenv@17` quiet mode — the rotating promo "tips" (incl. the `vestauth` agent-bait line) no longer pollute logs.
+
+### Verification record
+
+`npm test` → **83 tests, 79 pass, 0 fail, 4 skipped** (model-gated). Browser pass: Make-this → product created `origin=manual` + brief stored; Trend Generate → 3 products `origin=engine` + brief stored; vet modal formatted (0 raw JSON); caps panel round-trips 10/20; optimizer policy verified per-rule; **0 console errors, 0 CSP violations**, all requests 200. Probe artifacts removed (0 rows left).

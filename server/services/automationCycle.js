@@ -131,7 +131,9 @@ async function taskPublishQueue(ctx) {
   const autoList = db.prepare('SELECT * FROM settings WHERE key = ?').get('auto_list');
   if (!autoList || autoList.value !== 'true') return ctx;
 
-  const approved = db.prepare("SELECT * FROM products WHERE status = 'approved' AND marketplace_id IS NULL").all();
+  // Deploy policy: manual ("Make-this") products are local-only — they never
+  // auto-publish. Engine-generated inventory flows as before.
+  const approved = db.prepare("SELECT * FROM products WHERE status = 'approved' AND marketplace_id IS NULL AND (origin IS NULL OR origin != 'manual')").all();
   let listed = 0;
 
   // Check Gumroad quota BEFORE attempting any publishes

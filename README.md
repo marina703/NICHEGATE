@@ -129,13 +129,14 @@ Etsy keys: etsy.com/developers/register → set the redirect URI shown at `/setu
 | Area | Endpoints |
 |---|---|
 | Professions | `GET/POST /api/professions`, `PATCH /api/professions/:id/status` |
-| Products | `GET/POST /api/products`, `PATCH /api/products/:id/status`, `PATCH /api/products/:id/html`, `DELETE /api/products/:id` |
+| Products | `GET/POST /api/products`, `PATCH /api/products/:id/status`, `PATCH /api/products/:id/html`, `DELETE /api/products/:id`, `POST /api/products/generate-custom` (Make-this: idea + details/prompts) |
+| Listing optimizer | `GET /api/products/:id/optimization`, `POST /api/products/:id/optimization/apply`, `POST /api/optimize/weak` (bulk). Deploy rule: manual products stay local, engine-generated listed products auto-deploy updated copy |
 | Mockups | `POST /api/templates/generate` (5 themed variations per prompt) |
 | Visual editor | `POST /api/export/render`, `GET /api/export/product/:id`, `GET /api/export/profession/:id/zip` |
 | Discovery | `POST /api/trends/scan`, `POST /api/discovery/sweep`, `GET /api/trends`, `POST /api/trends/:id/activate`, `GET /api/trends/vet/:id`, `GET /api/trends/radar-health`, `GET /api/discovery/opportunity` |
 | Bundles | `POST /api/bundles/generate`, `POST /api/bundles/publish` |
 | Lead magnet | `POST /api/leadmagnet/deploy` |
-| Marketplace | `POST /api/marketplace/publish/:id`, `GET /api/marketplace/test`, `GET /api/setup/status` |
+| Marketplace | `POST /api/marketplace/publish/:id`, `GET /api/marketplace/test`, `GET /api/setup/status`, `GET/POST /api/caps` (daily publish caps — Gumroad 10, Etsy 20 by default) |
 | Sales | `POST /api/metrics/sync-gumroad`, `GET /api/metrics/summary` |
 | Automation | `GET /api/automation/status`, `POST /api/automation/run`, scheduler start/stop, `GET /api/automation/log` |
 | Console | `GET /api/console/overview`, `GET /api/console/bi` (health/deltas/series/listing-health/insights), `GET /api/console/actions`, `GET /api/console/runs`, `GET /api/console/stream` (SSE), `POST /api/console/run` |
