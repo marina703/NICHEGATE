@@ -480,7 +480,9 @@ const CMD_SUGGESTIONS = [
   'run a discovery sweep',
   'what needs review?',
   'show sales',
-  'sync sales'
+  'sync sales',
+  'Which niche should I double down on next?',
+  'Why did sales dip this week?'
 ];
 let cmdLog = [];
 
@@ -596,7 +598,12 @@ async function routeCommand(q) {
     return { text: `Real revenue (7d): $${(rev.value || 0).toFixed(2)} (${rev.deltaPct >= 0 ? '+' : ''}${rev.deltaPct || 0}% vs prior week)\nSales (7d): ${sales.value || 0} (${sales.deltaPct >= 0 ? '+' : ''}${sales.deltaPct || 0}%)\nTotal catalog: ${(state.products || []).length} products.`, goTo: 'analytics' };
   }
 
-  // review / catalog navigation
+  // anything conversational → AI assistant with live ops context
+  const ai = await safe(() => consoleApi.assistant(q));
+  if (ai && ai.answer) return { text: ai.answer };
+
+  // assistant unreachable: honest deterministic fallback (no fake AI)
+  return { text: 'I could not reach the AI layer. Try: "help" for commands, "make <thing>" to draft a product, or "show sales" for numbers.' };
   if (has('review', 'pending', 'queue')) return { text: 'Opening the Review queue.', goTo: 'review' };
   if (has('catalog', 'products')) return { text: 'Opening the catalog.', goTo: 'catalog' };
   if (has('discover', 'niches')) return { text: 'Opening Discovery.', goTo: 'discovery' };
@@ -727,6 +734,12 @@ document.addEventListener('click', async (e) => {
       case 'toggle-select': {
         const n = Number(id);
         state.selected.has(n) ? state.selected.delete(n) : state.selected.add(n);
+        render(); break;
+      }
+      case 'select-all': {
+        const ids = String(el.dataset.ids || '').split(',').filter(Boolean).map(Number);
+        const every = ids.length && ids.every(n => state.selected.has(n));
+        ids.forEach(n => every ? state.selected.delete(n) : state.selected.add(n));
         render(); break;
       }
       case 'clear-selection': state.selected.clear(); render(); break;

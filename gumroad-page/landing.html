@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="NicheGate — plug-and-play business toolkits for 60+ niches. Spreadsheets, checklists, invoices & social kits, ready the day you open for business.">
+<title>NicheGate — Empowerment Gateway to Growth</title>
+<style>
+  :root {
+    --bg: #f2f0ec; --panel: #ffffff; --ink: #17130f; --ink-2: #5c554d; --ink-3: #8a8178;
+    --line: #e3ddd4; --teal: #0f8b8d; --pink: #c2426d; --gold: #b98a2f;
+    --chip: #f6f3ee; --shadow: 0 1px 2px rgba(23,19,15,.06), 0 10px 30px rgba(23,19,15,.07);
+    --hero: #100d0b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d0b09; --panel: #171310; --ink: #f5efe6; --ink-2: #b3a89a; --ink-3: #7d7366;
+      --line: #2a231d; --teal: #4fd1c5; --pink: #ff7fa8; --gold: #d9ab4a;
+      --chip: #201a15; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 34px rgba(0,0,0,.5);
+    }
+  }
+  [data-theme="light"] { --bg:#f2f0ec; --panel:#fff; --ink:#17130f; --ink-2:#5c554d; --ink-3:#8a8178; --line:#e3ddd4; --teal:#0f8b8d; --pink:#c2426d; --gold:#b98a2f; --chip:#f6f3ee; --shadow:0 1px 2px rgba(23,19,15,.06),0 10px 30px rgba(23,19,15,.07); }
+  [data-theme="dark"]  { --bg:#0d0b09; --panel:#171310; --ink:#f5efe6; --ink-2:#b3a89a; --ink-3:#7d7366; --line:#2a231d; --teal:#4fd1c5; --pink:#ff7fa8; --gold:#d9ab4a; --chip:#201a15; --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 34px rgba(0,0,0,.5); }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 Georgia, 'Times New Roman', serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  a { color: inherit; }
+
+  /* hero: the brand's black plate, banner artwork under a scrim, deco corner glows */
+  .hero { position: relative; background: linear-gradient(rgba(16,13,11,.80), rgba(16,13,11,.88)), url('https://public-files.gumroad.com/dez2wftcvm8qkis5kbfg9b1y3ckg') center 30%/cover no-repeat, var(--hero); overflow: hidden; border-bottom: 1px solid var(--line); }
+  .hero::before, .hero::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 46%;
+    background:
+      radial-gradient(60% 90% at 0% 100%, rgba(79,209,197,.16), transparent 60%),
+      repeating-linear-gradient(115deg, rgba(79,209,197,.05) 0 2px, transparent 2px 26px);
+  }
+  .hero::after {
+    right: 0; left: auto;
+    background:
+      radial-gradient(60% 90% at 100% 100%, rgba(255,127,168,.16), transparent 60%),
+      repeating-linear-gradient(-115deg, rgba(255,127,168,.05) 0 2px, transparent 2px 26px);
+  }
+  .hero-inner { position: relative; z-index: 1; text-align: center; padding: 46px 20px 42px; }
+  .hero-logo { width: 148px; height: 148px; border-radius: 18px; display: block; margin: 0 auto 20px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 18px 50px rgba(0,0,0,.55); }
+  .hero h1 { margin: 0; font: 700 clamp(2rem, 5.5vw, 3rem)/1.05 Georgia, serif; letter-spacing: .14em; text-transform: uppercase; color: #fff; }
+  .hero h1 .t { color: #6ee7de; }
+  .hero h1 .g { color: #ff8fb2; }
+  .hero .tag { margin: 10px auto 0; color: #c9bfae; font: 400 .95rem/1.5 Georgia, serif; letter-spacing: .34em; text-transform: uppercase; }
+  .hero .tag b { color: #6ee7de; font-weight: 400; }
+  .hero .tag i { color: #ff8fb2; font-style: normal; }
+  .hero .rule { width: 220px; height: 10px; margin: 22px auto 0; color: #a89468; }
+  .hero p.lede { color: #e8e1d4; max-width: 620px; margin: 18px auto 0; font-size: 1.02rem; }
+  .hero .stats { display: flex; gap: 26px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
+  .hero .stat { color: #c9bfae; font-size: .8rem; letter-spacing: .18em; text-transform: uppercase; }
+  .hero .stat b { display: block; font: 700 1.5rem Georgia, serif; color: #fff; letter-spacing: 0; }
+  .theme-toggle { position: absolute; top: 14px; right: 14px; z-index: 2; background: rgba(255,255,255,.06);
+    color: #e8e1d4; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 7px 14px;
+    font: 600 .72rem/1 Georgia, serif; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+  .theme-toggle:hover { background: rgba(255,255,255,.12); }
+
+  /* collections */
+  main { padding: 26px 0 10px; }
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 6px 0 10px; }
+  .jump a { text-decoration: none; background: var(--chip); border: 1px solid var(--line); color: var(--ink-2);
+    border-radius: 999px; padding: 7px 14px; font: 600 .74rem/1 Georgia, serif; letter-spacing: .1em; text-transform: uppercase; }
+  .jump a:hover { color: var(--ink); border-color: var(--ink-3); }
+  .collection { margin: 34px 0; }
+  .collection h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px;
+    font: 700 1.18rem/1.2 Georgia, serif; letter-spacing: .04em; }
+  .c-icon { font-size: 1.1rem; }
+  .c-count { color: var(--ink-3); font: 600 .72rem/1 Georgia, serif; letter-spacing: .12em;
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; }
+  .collection .sub { margin: 0 0 16px; color: var(--ink-2); font-size: .92rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+  .card { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; overflow: hidden; text-decoration: none; box-shadow: var(--shadow);
+    transition: transform .15s ease, border-color .15s ease; }
+  .card:hover { transform: translateY(-2px); border-color: var(--teal); }
+  .card-thumb { aspect-ratio: 4/3; background: var(--chip); }
+  .card-text .card-blank { aspect-ratio: auto; height: 6px; padding: 2px 14px 0; font-size: .8rem; opacity: .5; }
+  .card-text .card-body { padding-top: 10px; }
+  .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card-blank { display: flex; align-items: center; justify-content: center; color: var(--ink-3); font-size: 1.4rem; }
+  .card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .card-type { color: var(--ink-3); font: 600 .62rem/1 Georgia, serif; letter-spacing: .16em; text-transform: uppercase; }
+  .card h3 { margin: 0; font: 700 .98rem/1.35 Georgia, serif; color: var(--ink); }
+  .card-price { margin-top: auto; padding-top: 6px; color: var(--teal); font: 700 .95rem Georgia, serif; }
+
+  /* follow */
+  .follow { background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 30px 24px; text-align: center; margin: 44px 0; box-shadow: var(--shadow); }
+  .follow h2 { margin: 0 0 6px; font: 700 1.3rem Georgia, serif; }
+  .follow p { margin: 0 auto 18px; color: var(--ink-2); max-width: 460px; font-size: .95rem; }
+  .follow form { display: flex; gap: 10px; max-width: 440px; margin: 0 auto; }
+  .follow input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); color: var(--ink);
+    border-radius: 10px; padding: 12px 14px; font: 400 .95rem Georgia, serif; }
+  .follow input:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+  .follow button { background: linear-gradient(100deg, var(--teal), var(--pink)); color: #fff; border: 0;
+    border-radius: 10px; padding: 12px 20px; font: 700 .8rem Georgia, serif; letter-spacing: .12em;
+    text-transform: uppercase; cursor: pointer; }
+  .follow-msg { margin: 12px 0 0; color: var(--teal); font-size: .9rem; min-height: 1.2em; }
+
+  footer { border-top: 1px solid var(--line); margin-top: 30px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between;
+    padding: 22px 20px; color: var(--ink-3); font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; }
+  footer .deco { color: var(--gold); letter-spacing: .3em; }
+  footer a { color: var(--ink-2); text-decoration: none; }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 640px) {
+    .hero-logo { width: 118px; height: 118px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    .follow form { flex-direction: column; }
+    .hero .tag { letter-spacing: .2em; }
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme">Theme ◐</button>
+  <div class="hero-inner">
+    <img class="hero-logo" src="https://public-files.gumroad.com/16vhnwfjx5dow38u879s6pkarto1" alt="NicheGate logo" width="148" height="148">
+    <h1><span class="t">Niche</span><span class="g">Gate</span></h1>
+    <p class="tag"><b>Empowerment</b> Gateway to <i>Growth</i></p>
+    <svg class="rule" viewBox="0 0 220 10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1">
+      <line x1="0" y1="5" x2="86" y2="5"/><path d="M96 5l14-4v8z"/><line x1="120" y1="5" x2="220" y2="5"/>
+    </svg>
+    <p class="lede">Plug-and-play business toolkits for real working niches — spreadsheets, checklists, invoices, booking forms and social kits, ready the day you open for business.</p>
+    <div class="stats">
+      <div class="stat"><b>83</b> toolkits</div>
+      <div class="stat"><b>60+</b> niches</div>
+      <div class="stat"><b>Free</b> starter pack</div>
+    </div>
+  </div>
+</header>
+<main class="wrap">
+  <nav class="jump" aria-label="Collections"><a href="#property">Property &amp; Field Services</a><a href="#wellness">Recovery &amp; Wellness</a><a href="#outdoors">Outdoor &amp; Specialty Trades</a><a href="#photo">Photo &amp; Video Pros</a><a href="#legal">Legal &amp; Notary</a><a href="#creative">Creative &amp; Beauty</a></nav>
+  
+    <section class="collection" id="property">
+      <h2><span class="c-icon" aria-hidden="true">🏠</span> Property &amp; Field Services <span class="c-count">34</span></h2>
+      <div class="grid">
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/nnlest">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Air Duct Cleaning Checklist Template</h3>
+            <span class="card-price">$10</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/hvuhi">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/fpwve9ybjve2ertmpl53lu4koi1k" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Air Duct Cleaning Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/apgjiz">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/arkaxky98lc5720n6eu2eqgkb44z" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">spreadsheet</span>
+            <h3>Air Duct Cleaning Spreadsheet Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/wtkjd">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/arv66721g62wjig1tx7w0nevm8ee" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Appliance Repair Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/hyvwk">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/c0tpdvicpufpeqifjp67dcqvsttc" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Appliance Repair Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/zvkrbv">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/41ndkkckip8eahy79dd7sohxraip" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Appliance Repair Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/hcrhv">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/a3tnm6q8y4fewyad01sa5slb89i1" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Air Duct Cleaning</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/gtnfqz">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/910waqg0ekjtkwfyu0zvgu2qsxy1" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Appliance Repair</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/loqcv">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Freelance &amp; Solo Business</h3>
+            <span class="card-price">$49</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/rqgyja">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/b1rljw4pk2mki6igqvscbr64q2lt" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Home Energy Auditor</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/mjhztx">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/jljmotysguwmga4rbpu20cgcnz9u" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — HVAC Technician</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/qtxtll">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/tv5b7b1yduza03aeksuvjg16zvig" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Mold Inspector / Remediator</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/jaels">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/wj8frdgu206xg6tqo32es3lzwwfn" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Native Plant Landscaper</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/bujpty">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/x0lqwflmz8t3taqc9ylu3atxzwpy" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Post-Construction Cleaner</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/odqzyv">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Roofing Contractor</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/mkmrhb">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Free Starter Pack — 3 Pro Business Templates</h3>
+            <span class="card-price">$0+</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/xqdpiz">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Freelance &amp; Solo Business Invoice Template</h3>
+            <span class="card-price">$9</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/gnzymh">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Home Energy Auditor Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/kpmzj">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">spreadsheet</span>
+            <h3>Home Energy Auditor Spreadsheet Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/uzdwr">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>HVAC Technician Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/bgkgo">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>HVAC Technician Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/ogjrja">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>HVAC Technician Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/qhckpr">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>Mold Inspector / Remediator Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/sukei">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Mold Inspector / Remediator Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/pthfup">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Mold Inspector / Remediator Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/tsjode">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>Native Plant Landscaper Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/wupren">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Native Plant Landscaper Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/cifib">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Native Plant Landscaper Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/wdwogt">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">spreadsheet</span>
+            <h3>Native Plant Landscaper Spreadsheet Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/cvsrcz">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>Post-Construction Cleaner Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/pvpdt">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Post-Construction Cleaner Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/wehmc">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">spreadsheet</span>
+            <h3>Post-Construction Cleaner Spreadsheet Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/yvgblr">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Roofing Contractor Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/qgtxu">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Roofing Contractor Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+      </div>
+    </section>
+    <section class="collection" id="wellness">
+      <h2><span class="c-icon" aria-hidden="true">🌿</span> Recovery &amp; Wellness <span class="c-count">21</span></h2>
+      <div class="grid">
+        <a class="card" href="https://marinablow.gumroad.com/l/udphet">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/yqyytft854s7goiro4748r2r0vdp" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>AA / 12-Step Recovery Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/gztwhc">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>AA / 12-Step Recovery Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/aozsae">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — AA / 12-Step Recovery</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/rriix">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Faith-Based Recovery (Biblical)</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/frquel">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/qjnxe5usrr5ywzri05unk3wsdnse" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Massage Therapy</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/ucudov">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Refuge Recovery (Buddhist)</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/ghfgfk">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Secular Recovery (LifeRing/SOS)</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/ikbpy">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — SMART Recovery (CBT)</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/vsfat">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Women's Recovery (WFS)</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/biuiji">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Faith-Based Recovery (Biblical) Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/pjsrrc">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Faith-Based Recovery (Biblical) Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/aceonc">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">spreadsheet</span>
+            <h3>Faith-Based Recovery (Biblical) Spreadsheet Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/svobgf">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>Massage Therapy Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/pgubir">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Massage Therapy Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/dfpkc">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>Refuge Recovery (Buddhist) Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/ueorhl">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Refuge Recovery (Buddhist) Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/ffnjtj">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Secular Recovery (LifeRing/SOS) Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/nhflnz">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Secular Recovery (LifeRing/SOS) Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/jogqvw">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>SMART Recovery (CBT) Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/wfquxb">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>Women's Recovery (WFS) Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/akgqov">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Women's Recovery (WFS) Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+      </div>
+    </section>
+    <section class="collection" id="outdoors">
+      <h2><span class="c-icon" aria-hidden="true">🎯</span> Outdoor &amp; Specialty Trades <span class="c-count">11</span></h2>
+      <div class="grid">
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/mqsky">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>Beekeeping / Apiary Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/rlrepn">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/b71zrsry1iy6sbm9hj1awidtxkrl" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Beekeeping / Apiary Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/ucnwts">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/oh08kj1rku6xpa8tkeota1uzn4mq" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Beekeeping / Apiary Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/udvfzk">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/yujnyb9h4lkou129u7q2xsr41fd5" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Beekeeping / Apiary</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card" href="https://marinablow.gumroad.com/l/hrvev">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/diemmliyk9i6g2nn4rbu626egbjh" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Fishing Guide / Charter</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/lbvgs">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Pyrotechnics / Fireworks</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/jamgt">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">guide</span>
+            <h3>Fishing Guide / Charter Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/epuokr">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">guide</span>
+            <h3>Fishing Guide / Charter Spreadsheet Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/vzsrsh">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Pyrotechnics / Fireworks Checklist Template</h3>
+            <span class="card-price">$10</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/hzntb">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Pyrotechnics / Fireworks Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/jvihop">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">spreadsheet</span>
+            <h3>Pyrotechnics / Fireworks Spreadsheet Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+      </div>
+    </section>
+    <section class="collection" id="photo">
+      <h2><span class="c-icon" aria-hidden="true">📷</span> Photo &amp; Video Pros <span class="c-count">9</span></h2>
+      <div class="grid">
+        <a class="card" href="https://marinablow.gumroad.com/l/lgdla">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/h8zuje0j638zba28zcikec4ytxrl" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Drone Photography &amp; Surveying</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/fiwlh">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Wedding Photography</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/tnuyx">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Drone Photography &amp; Surveying Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/cfvfid">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Drone Photography &amp; Surveying Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/jjiigr">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Drone Photography &amp; Surveying Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/qmcook">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">spreadsheet</span>
+            <h3>Drone Photography &amp; Surveying Spreadsheet</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/vzhzit">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">spreadsheet</span>
+            <h3>Drone Photography &amp; Surveying Spreadsheet Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/jrfyja">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Wedding Photography Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/izoib">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Wedding Photography Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+      </div>
+    </section>
+    <section class="collection" id="legal">
+      <h2><span class="c-icon" aria-hidden="true">⚖️</span> Legal &amp; Notary <span class="c-count">5</span></h2>
+      <div class="grid">
+        <a class="card" href="https://marinablow.gumroad.com/l/lnsljr">
+          <div class="card-thumb"><img src="https://public-files.gumroad.com/uk15kym3fzzqaxaiw2d7oyefoalk" alt="" loading="lazy"></div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Mobile Notary / Loan Signing</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/wrhnikk">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>Mobile Notary / Loan Signing Mobile Notary / Loan Signing Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/fsivyn">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">invoice</span>
+            <h3>Mobile Notary / Loan Signing Mobile Notary / Loan Signing Invoice Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/ahgxs">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">spreadsheet</span>
+            <h3>Mobile Notary / Loan Signing Mobile Notary / Loan Signing Spreadsheet Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/vhjjgr">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">social media kit</span>
+            <h3>Mobile Notary / Loan Signing Social Media Templates</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+      </div>
+    </section>
+    <section class="collection" id="creative">
+      <h2><span class="c-icon" aria-hidden="true">✨</span> Creative &amp; Beauty <span class="c-count">3</span></h2>
+      <div class="grid">
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/xsvawc">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">kit</span>
+            <h3>Complete Toolkit — Tattoo Artist</h3>
+            <span class="card-price">$29</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/rhvpas">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">booking form</span>
+            <h3>Tattoo Artist Booking Form</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+        <a class="card card-text" href="https://marinablow.gumroad.com/l/cpuvwn">
+          <div class="card-blank" aria-hidden="true">◆</div>
+          <div class="card-body">
+            <span class="card-type">checklist</span>
+            <h3>Tattoo Artist Checklist Template</h3>
+            <span class="card-price">$12</span>
+          </div>
+        </a>
+      </div>
+    </section>
+
+  <section class="follow">
+    <h2>New toolkit drops, first</h2>
+    <p>One short email when a new niche lands. No spam, unsubscribe anytime.</p>
+    <form data-gumroad-follow>
+      <input type="email" name="email" placeholder="you@yourbusiness.com" required aria-label="Email address">
+      <button type="submit">Notify me</button>
+    </form>
+    <p class="follow-msg" data-gumroad-follow-message></p>
+  </section>
+</main>
+<footer>
+  <div class="wrap">
+    <span class="deco">◆ ◇ ◆</span>
+    <span>NicheGate — Empowerment Gateway to Growth</span>
+    <a href="https://marinablow.gumroad.com/">All products →</a>
+  </div>
+</footer>
+<script>
+  // progressive enhancement only: page is fully functional without it
+  (function () {
+    try {
+      var saved = localStorage.getItem('ng-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+    } catch (e) {}
+    var btn = document.querySelector('[data-theme-toggle]');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var cur = document.documentElement.getAttribute('data-theme');
+      var sys = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      var next = (cur || sys) === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('ng-theme', next); } catch (e) {}
+    });
+  })();
+</script>
+</body>
+</html>

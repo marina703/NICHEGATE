@@ -67,13 +67,16 @@ async function generateConcept(prof, type, existing, brief) {
     `The Etsy/Gumroad market is saturated with generic "${prof.name} ${type}" templates.`,
     'Create ONE differentiated product concept a human competitor would NOT think of.',
     'Rules: specific pain > generic. Niche-specific angle. Unique artifact/format. Real buyer language.',
+    'Ground it in the niche\'s real workflows: regulations, seasonal cycles, pricing quirks, jargon buyers actually use. The artifact should encode niche expertise (e.g. built-in IRS mileage rules, breed-safe ingredient checks, permit deadlines) so it could only have been made by an insider.',
     avoid,
     guidance,
     'Reply with ONLY valid JSON, no markdown:',
     '{"name":"Short, specific, sellable product title (max 10 words, no "template/kit/pack")",',
     '"pitch":"2-3 sentence buyer-facing pitch naming the exact pain (max 60 words)",',
     '"benefits":["specific benefit 1","benefit 2","benefit 3"],',
-    '"differentiator":"Why this is NOT a generic template. What makes it novel for this niche. (max 45 words)"}'
+    '"differentiator":"Why this is NOT a generic template. What makes it novel for this niche. (max 45 words)"}',
+    'Example of the quality bar (different niche, do not copy):',
+    '{"name":"Snap-Sign Profit Predictor","pitch":"Stop guessing your next loan signing income. This spreadsheet crunches mileage, time, and signing service fees to forecast your exact profit for any job before you accept it.","benefits":["Calculate net profit per signing","Spot underpriced offers before committing","Track income trends by service type"],"differentiator":"Predictive, not just a tracker: projects profitability for new opportunities using built-in rate cards."}',
   ].join('\n');
   const raw = await router.generateIdeas(prompt, 'You are a ruthless product strategist for Etsy/Gumroad digital goods. You reject generic, saturated concepts. You find the specific, differentiated, sellable one.');
   const concept = parseConcept(raw);

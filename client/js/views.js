@@ -225,7 +225,7 @@ export function catalog(s) {
 
   const cards = slice.map(p => `
     <div class="card ${s.selected.has(p.id) ? 'sel' : ''}" data-action="open" data-id="${p.id}">
-      <div class="thumb">${img(p)}<span class="ck"></span><div class="dna-strip"></div></div>
+      <div class="thumb">${img(p)}<span class="ck" role="checkbox" aria-checked="${s.selected.has(p.id)}" aria-label="Select ${esc(p.name)}" title="Select" data-action="toggle-select" data-id="${p.id}">${s.selected.has(p.id) ? '✓' : ''}</span><div class="dna-strip"></div></div>
       <div class="bd">
         <div class="nm" title="${esc(p.name)}">${esc(p.name)}</div>
         <div class="mt">${esc(p.prof_name || '—')} · ${esc(titleCase(p.type))}</div>
@@ -251,6 +251,7 @@ export function catalog(s) {
         <option value="all">All types</option>
         ${types.map(t => `<option value="${esc(t)}" ${f.type === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
       </select>
+      <button class="btn ghost sm" data-action="select-all" data-ids="${list.map(p => p.id).join(',')}" ${list.length ? '' : 'disabled'}>${sel && list.length && list.every(p => s.selected.has(p.id)) ? 'Deselect all' : 'Select all'}</button>
       <button class="btn ghost sm" data-action="clear-selection" ${sel ? '' : 'disabled'}>Clear (${sel})</button>
       <button class="btn green sm" data-action="batch" data-status="approved" ${sel ? '' : 'disabled'}>Approve</button>
       <button class="btn sm" data-action="batch" data-status="listed" ${sel ? '' : 'disabled'}>Mark listed</button>
