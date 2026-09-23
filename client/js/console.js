@@ -126,6 +126,14 @@ async function loadViewData(view) {
 }
 
 // ── rendering ──────────────────────────────────────────────────────────
+function railExpanded() {
+  try { return localStorage.getItem('ng_rail') === 'expanded'; } catch { return false; }
+}
+function toggleRail() {
+  const next = railExpanded() ? 'collapsed' : 'expanded';
+  try { localStorage.setItem('ng_rail', next); } catch { /* private mode */ }
+  renderNav();
+}
 function renderNav() {
   const rail = document.getElementById('rail');
   const c = (state.overview && state.overview.counts) || {};
@@ -136,8 +144,10 @@ function renderNav() {
   // `counts.review` is a narrower status bucket that excludes drafts, so using
   // it made the rail say 0 while the queue held a dozen drafts.
   const queued = state.products.length ? reviewQueue(state.products).length : (c.review || 0);
+  const expanded = railExpanded();
+  rail.classList.toggle('expanded', expanded);
 
-  let html = '<div class="rail-mark">NG</div><div class="rail-sep"></div>';
+  let html = `<button class="rail-mark" data-action="rail-toggle" title="${expanded ? 'Collapse' : 'Expand'} menu" aria-label="${expanded ? 'Collapse' : 'Expand'} menu">${expanded ? '‹ NG' : 'NG'}</button><div class="rail-sep"></div>`;
   let lastGroup = null;
   for (const item of NAV) {
     if (lastGroup && item.group !== lastGroup) html += '<div class="rail-sep"></div>';
@@ -517,6 +527,7 @@ function ensureCmdBar() {
       <span class="ic">${icon('sparkles')}</span>
       <input id="cmd-input" placeholder="Try: make a dog bakery price list · what's trending? · sync sales" aria-label="Command NicheGate" autocomplete="off">
       <button class="btn primary sm" data-action="cmd-run">Send</button>
+      <button class="btn ghost sm" data-action="cmd-close" title="Close chat" aria-label="Close chat">✕</button>
     </div>
     <div class="cmd-chips" id="cmd-chips">
       ${CMD_SUGGESTIONS.map(s => `<button class="cmd-chip" data-cmd="${esc(s)}">${esc(s)}</button>`).join('')}
@@ -706,6 +717,12 @@ document.addEventListener('click', async (e) => {
       case 'go': await go(el.dataset.view); break;
       case 'theme-toggle': toggleTheme(); break;
       case 'cmd-run': await runCommand(); break;
+      case 'cmd-close': {
+        const log2 = document.getElementById('cmd-log');
+        if (log2) log2.classList.remove('open');
+        break;
+      }
+      case 'rail-toggle': toggleRail(); break;
       case 'palette': openPalette(); break;
       case 'runs-open': openRuns(); break;
       case 'run': await runAction(el.dataset.name); break;
@@ -730,6 +747,11 @@ document.addEventListener('click', async (e) => {
         break;
       }
       case 'smart': await dispatchSmart(el.dataset.name); break;
+      case 'kpi-go': {
+        state.filters.status = el.dataset.status || 'all';
+        await go(el.dataset.view);
+        break;
+      }
       case 'open': await openProduct(id); break;
       case 'toggle-select': {
         const n = Number(id);

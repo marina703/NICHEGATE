@@ -38,8 +38,10 @@ function pill(status) {
   const label = String(status || 'draft').replace(/_/g, ' ').replace(/-/g, ' ');
   return `<span class="pill ${statusPillClass(status)}"><span class="dot"></span>${esc(label)}</span>`;
 }
-function kpi(label, value, sub, cls) {
-  return `<div class="kpi ${cls || ''}"><div class="lb">${esc(label)}</div><div class="num">${esc(value)}</div>${sub ? `<div class="sb">${esc(sub)}</div>` : ''}</div>`;
+function kpi(label, value, sub, cls, view, status) {
+  const inner = `<div class="lb">${esc(label)}</div><div class="num">${esc(value)}</div>${sub ? `<div class="sb">${esc(sub)}</div>` : ''}`;
+  if (!view) return `<div class="kpi ${cls || ''}">${inner}</div>`;
+  return `<button class="kpi ${cls || ''} clickable" data-action="kpi-go" data-view="${view}"${status ? ` data-status="${status}"` : ''} title="Open ${esc(view)}">${inner}</button>`;
 }
 function head(title, desc, rightHtml) {
   return `<div class="view-head"><div><h2>${esc(title)}</h2><div class="desc">${esc(desc)}</div></div><div class="sp"></div>${rightHtml || ''}</div>`;
@@ -125,15 +127,16 @@ export function home(s) {
 
   return head('🚀 Command Center', 'Discover → generate → review → publish. Everything the engine is doing, live.',
     `<button class="btn green" data-action="make-this">${icon('sparkles')} Make this…</button>
+     <button class="btn ghost" data-action="optimize-weak" title="Run the listing optimizer across weak listings">${icon('bolt')} Update listings</button>
      <button class="btn primary" data-action="palette">${icon('command')} Run a command <kbd>⌘K</kbd></button>`)
   + `<div class="kpis mb14">
-      ${kpi('Products', fmtNum(c.products), `${fmtNum(c.listed)} listed · ${pctText(bdl.products && bdl.products.deltaPct)}`, 'tc')}
-      ${kpi('Shop Health', typeof bh.score === 'number' ? String(bh.score) : '—', bh.grade || 'computing…', bh.score >= 80 ? 'gn' : 'am')}
-      ${kpi('In Review', fmtNum(queued), 'awaiting you', 'am')}
-      ${kpi('Approved', fmtNum(c.approved), 'ready to publish', 'bl')}
-      ${kpi('Draft', fmtNum(c.draft), `${fmtNum(c.professions)} niches`, '')}
-      ${kpi('Est. Revenue', fmtMoney(rev.estimated), `${fmtNum(rev.realSales)} real sales`, 'gn')}
-      ${kpi('Real Revenue', fmtMoney(rev.realRevenue, true), 'synced from Gumroad', 'gn')}
+      ${kpi('Products', fmtNum(c.products), `${fmtNum(c.listed)} listed · ${pctText(bdl.products && bdl.products.deltaPct)}`, 'tc', 'catalog')}
+      ${kpi('Shop Health', typeof bh.score === 'number' ? String(bh.score) : '—', bh.grade || 'computing…', bh.score >= 80 ? 'gn' : 'am', 'system')}
+      ${kpi('In Review', fmtNum(queued), 'awaiting you', 'am', 'review')}
+      ${kpi('Approved', fmtNum(c.approved), 'ready to publish', 'bl', 'catalog', 'approved')}
+      ${kpi('Draft', fmtNum(c.draft), `${fmtNum(c.professions)} niches`, '', 'catalog', 'draft')}
+      ${kpi('Est. Revenue', fmtMoney(rev.estimated), `${fmtNum(rev.realSales)} real sales`, 'gn', 'analytics')}
+      ${kpi('Real Revenue', fmtMoney(rev.realRevenue, true), 'synced from Gumroad', 'gn', 'analytics')}
     </div>
     <div class="panel mb14"><div class="panel-head">${icon('bolt')} Insights <span class="sp"></span>
       <span class="hint">opportunity · risk · action — rule-based on live state</span></div>
