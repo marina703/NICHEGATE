@@ -15,7 +15,7 @@
   --amber-dim:rgba(180,83,9,.10); --red-dim:rgba(220,38,38,.08); --violet-dim:rgba(124,58,237,.10);
   --grad:linear-gradient(90deg,#0d9488,#2563eb 55%,#7c3aed);
   --radius:14px; --radius-sm:10px; --radius-xs:7px;
-  --mono:'Space Grotesk','Consolas',monospace; --sans:'Barlow Semi Condensed','Inter',system-ui,sans-serif;
+  --mono:'Space Grotesk','Consolas',monospace; --sans:'Oswald','Barlow Semi Condensed','Inter',system-ui,sans-serif;
   --shadow:0 18px 50px rgba(15,23,42,.22);
   --elev1:0 1px 2px rgba(15,23,42,.05),0 8px 24px rgba(15,23,42,.07);
   --elev2:0 14px 40px rgba(15,23,42,.16);
