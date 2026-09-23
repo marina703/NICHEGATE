@@ -1880,6 +1880,49 @@ app.post('/api/automation/dedupe', (req, res) => {
   res.json(dedupeQueue());
 });
 
+// Purge stale non-live products: deletes draft/rejected products older than
+// the cutoff (default 48h) plus their files and dependent rows (any table
+// with a product_id column). Marketplace-listed products are structurally
+// excluded — the live catalog and its sales/attribution data are never touched.
+app.post('/api/products/purge', async (req, res) => {
+  try {
+    const hours = Math.max(0, parseFloat(req.query.hours) || 48);
+    const cutoff = new Date(Date.now() - hours * 3600 * 1000)
+      .toISOString().replace('T', ' ').slice(0, 19);
+    const victims = db.prepare(`
+      SELECT id, file_path, preview_path FROM products
+      WHERE status IN ('draft', 'rejected')
+        AND created_at <= ?
+        AND (marketplace_id IS NULL OR marketplace_id = '')
+    `).all(cutoff);
+    // Every table that hangs off products (metrics, pins, future tables).
+    const childTables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all()
+      .map(r => r.name)
+      .filter(t => t !== 'products')
+      .filter(t => db.prepare(`PRAGMA table_info("${t}")`).all().some(c => c.name === 'product_id'));
+    let filesRemoved = 0, childRows = 0;
+    for (const v of victims) {
+      for (const p of [v.file_path, v.preview_path]) {
+        if (!p) continue;
+        try {
+          await fs.promises.unlink(path.isAbsolute(p) ? p : path.resolve(path.join(__dirname, '..', p)));
+          filesRemoved++;
+        } catch { /* already gone — fine */ }
+      }
+      for (const t of childTables) {
+        childRows += db.prepare(`DELETE FROM "${t}" WHERE product_id = ?`).run(v.id).changes;
+      }
+      db.prepare('DELETE FROM products WHERE id = ?').run(v.id);
+    }
+    const remaining = db.prepare('SELECT COUNT(*) c FROM products').get().c;
+    db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+      .run('purge-stale', `Removed ${victims.length} stale products (${hours}h cutoff) — ${filesRemoved} files, ${childRows} dependent rows; ${remaining} products remain`, 'success');
+    res.json({ success: true, removed: victims.length, filesRemoved, childRows, remaining, hours });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ------------------------------------------------------------------------
 // API: MARKETPLACE
 // ------------------------------------------------------------------------
