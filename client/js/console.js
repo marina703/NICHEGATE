@@ -162,6 +162,13 @@ function renderTopbar() {
 
   document.getElementById('crumb').textContent = CRUMBS[state.view] || state.view;
 
+  // Theme toggle (light-first; preference persisted in localStorage).
+  const themeBtn = document.getElementById('theme-toggle');
+  if (themeBtn) {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    themeBtn.innerHTML = `${icon(dark ? 'sun' : 'moon')}<span class="rail-text" style="display:inline">${dark ? 'Light' : 'Dark'}</span>`;
+  }
+
   const chips = [
     `<button class="chip ${eng.running ? 'live' : ''}" data-action="go" data-view="automation" title="Engine status">
       <span class="dot"></span>${eng.running ? 'Engine Live' : (eng.cronScheduled && eng.autoGenerate === false ? 'Engine Halted' : 'Engine Idle')}</button>`,
@@ -451,6 +458,162 @@ async function refreshRuns() {
   if (r) { state.runs = r.runs || []; updateRunsHost(); }
 }
 
+// ── theme (light-first, persisted) ─────────────────────────────────────
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+  try { localStorage.setItem('ng_theme', t === 'dark' ? 'dark' : 'light'); } catch { /* private mode */ }
+  renderTopbar();
+}
+function toggleTheme() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  applyTheme(dark ? 'light' : 'dark');
+  toast('info', `Theme → ${dark ? 'light' : 'dark'}`, 'Preference saved in this browser.');
+}
+
+// ── command bar / chat ────────────────────────────────────────────────
+// One always-visible prompt bar: understands plain intents and routes them to
+// the existing pipeline. Everything the bar can do maps to a registered
+// action or an existing view — no new server code, no direct SQL from UI.
+const CMD_SUGGESTIONS = [
+  'make a dog bakery price list',
+  "what's trending?",
+  'run a discovery sweep',
+  'what needs review?',
+  'show sales',
+  'sync sales'
+];
+let cmdLog = [];
+
+function cmdPush(role, text) {
+  cmdLog.push({ role, text, at: new Date() });
+  if (cmdLog.length > 60) cmdLog.shift();
+  try { localStorage.setItem('ng_cmdlog', JSON.stringify(cmdLog.slice(-30))); } catch { /* private mode */ }
+  drawCmdLog();
+}
+
+function drawCmdLog() {
+  const log = document.getElementById('cmd-log');
+  if (!log) return;
+  log.innerHTML = cmdLog.map(m => `
+    <div class="cmd-msg ${m.role === 'you' ? 'you' : 'ng'}">
+      <span class="who">${m.role === 'you' ? 'You' : 'NicheGate'}</span>
+      <div class="bubble">${esc(m.text)}</div>
+    </div>`).join('') || '<div class="cmd-chips" style="padding:6px">' +
+      CMD_SUGGESTIONS.map(s => `<button class="cmd-chip" data-cmd="${esc(s)}">${esc(s)}</button>`).join('') + '</div>';
+  const chips = log.querySelectorAll('.cmd-chip');
+  chips.forEach(c => c.addEventListener('click', () => { const input = document.getElementById('cmd-input'); if (input) { input.value = c.dataset.cmd; runCommand(); } }));
+  log.scrollTop = log.scrollHeight;
+}
+
+function ensureCmdBar() {
+  if (document.getElementById('cmdbar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'cmdbar';
+  bar.innerHTML = `
+    <div class="cmd-log" id="cmd-log"></div>
+    <div class="cmdbar-input">
+      <span class="ic">${icon('sparkles')}</span>
+      <input id="cmd-input" placeholder="Try: make a dog bakery price list · what's trending? · sync sales" aria-label="Command NicheGate" autocomplete="off">
+      <button class="btn primary sm" data-action="cmd-run">Send</button>
+    </div>
+    <div class="cmd-chips" id="cmd-chips">
+      ${CMD_SUGGESTIONS.map(s => `<button class="cmd-chip" data-cmd="${esc(s)}">${esc(s)}</button>`).join('')}
+    </div>`;
+  document.body.appendChild(bar);
+  bar.querySelector('#cmd-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); runCommand(); }
+  });
+  bar.querySelectorAll('#cmd-chips .cmd-chip').forEach(c => c.addEventListener('click', () => {
+    const input = document.getElementById('cmd-input');
+    if (input) { input.value = c.dataset.cmd; runCommand(); }
+  }));
+  try { cmdLog = JSON.parse(localStorage.getItem('ng_cmdlog') || '[]'); } catch { cmdLog = []; }
+  drawCmdLog();
+}
+
+async function runCommand() {
+  const input = document.getElementById('cmd-input');
+  const q = ((input || {}).value || '').trim();
+  if (!q) return;
+  if (input) input.value = '';
+  const log = document.getElementById('cmd-log');
+  if (log) log.classList.add('open');
+  cmdPush('you', q);
+  const reply = await routeCommand(q);
+  cmdPush('ng', reply.text);
+  if (reply.goTo) await go(reply.goTo);
+}
+
+// Intent router — order matters: most specific first.
+async function routeCommand(q) {
+  const t = q.toLowerCase();
+  const has = (...ws) => ws.some(w => t.includes(w));
+
+  // make … → product generation (the Make-This pipeline)
+  if (has('make ', 'create ', 'generate ')) {
+    const idea = q.replace(/^(please\s+)?(make|create|generate)\s+(me\s+)?(a|an|some)?\s*/i, '').trim() || q;
+    const r = await safe(() => dataActions.generateCustom({ idea, count: 1 }));
+    if (!r) return { text: 'Generation failed — check the System view for the engine status.' };
+    const n = (r.created || []).length;
+    await loadCore();
+    return { text: `Drafted ${n} product${n === 1 ? '' : 's'} from "${idea}" — waiting in the Review queue for your approval.`, goTo: 'review' };
+  }
+
+  // trends / discovery questions
+  if (has('trend', 'what\'s hot', 'whats hot', 'trending')) {
+    const rows = (state.trends || []).slice(0, 5);
+    if (!rows.length) return { text: 'No trends cached yet — run a discovery sweep first and I will surface what is rising.', goTo: 'trends' };
+    return { text: 'Top trends right now:\n' + rows.map(x => `• ${x.name} — ${x.phase || 'rising'}${x.velocity_pct != null ? ` (+${x.velocity_pct}% WoW)` : ''}`).join('\n'), goTo: 'trends' };
+  }
+
+  // sweeps / automation
+  if (has('sweep', 'discovery', 'scan')) {
+    await runAction('sweep', {});
+    return { text: 'Discovery sweep started — live radar, niche universe and seasonal scan are running. Results land in Discovery.' };
+  }
+  if (has('full cycle', 'full-cycle', 'run everything')) {
+    await runAction('full-cycle', {});
+    return { text: 'Full automation cycle started: sales sync → review gate → generate → publish.' };
+  }
+  if (has('sync sales', 'sync the sales')) {
+    await runAction('sync-sales', {});
+    return { text: 'Gumroad sales sync started — new sales will appear in Analytics.' };
+  }
+  if (has('approve')) {
+    await runAction('approve-all', {});
+    return { text: 'Approving all pending drafts…', goTo: 'review' };
+  }
+  if (has('dedupe', 'dedupe queue')) {
+    await runAction('dedupe-queue', {});
+    return { text: 'Deduplicating the review queue…', goTo: 'review' };
+  }
+
+  // sales / analytics questions
+  if (has('sale', 'revenue', 'analytics')) {
+    const bi = state.overview && state.overview.bi ? state.overview.bi : {};
+    const rev = bi.revenue || {};
+    const sales = bi.sales || {};
+    return { text: `Real revenue (7d): $${(rev.value || 0).toFixed(2)} (${rev.deltaPct >= 0 ? '+' : ''}${rev.deltaPct || 0}% vs prior week)\nSales (7d): ${sales.value || 0} (${sales.deltaPct >= 0 ? '+' : ''}${sales.deltaPct || 0}%)\nTotal catalog: ${(state.products || []).length} products.`, goTo: 'analytics' };
+  }
+
+  // review / catalog navigation
+  if (has('review', 'pending', 'queue')) return { text: 'Opening the Review queue.', goTo: 'review' };
+  if (has('catalog', 'products')) return { text: 'Opening the catalog.', goTo: 'catalog' };
+  if (has('discover', 'niches')) return { text: 'Opening Discovery.', goTo: 'discovery' };
+  if (has('automation', 'engine')) return { text: 'Opening Automation.', goTo: 'automation' };
+  if (has('marketplace', 'etsy', 'gumroad')) return { text: 'Opening Marketplace connections.', goTo: 'marketplace' };
+  if (has('help', 'what can you do')) {
+    return { text: 'I can:\n• make <thing> — draft a product ("make a dog bakery price list")\n• what\'s trending? — top rising trends\n• run a discovery sweep / full cycle\n• sync sales — pull Gumroad orders\n• show sales — revenue summary\n• what needs review? — open the approval queue\n• open <catalog / discovery / trends / analytics / marketplace>' };
+  }
+
+  // fallback: treat the whole line as a product idea
+  const r = await safe(() => dataActions.generateCustom({ idea: q, count: 1 }));
+  if (!r) return { text: 'I did not catch that — try "help" to see what I understand, or rephrase as "make …".' };
+  const n = (r.created || []).length;
+  await loadCore();
+  return { text: `Treated "${q}" as a product idea and drafted ${n} — it is in the Review queue.`, goTo: 'review' };
+}
+
 // ── command palette ────────────────────────────────────────────────────
 function paletteItems() {
   const items = [];
@@ -534,6 +697,8 @@ document.addEventListener('click', async (e) => {
   try {
     switch (a) {
       case 'go': await go(el.dataset.view); break;
+      case 'theme-toggle': toggleTheme(); break;
+      case 'cmd-run': await runCommand(); break;
       case 'palette': openPalette(); break;
       case 'runs-open': openRuns(); break;
       case 'run': await runAction(el.dataset.name); break;
@@ -963,6 +1128,7 @@ function startStream() {
 
 // ── boot ───────────────────────────────────────────────────────────────
 async function init() {
+  ensureCmdBar();
   render();
   await loadCore();
   await loadViewData('home');
