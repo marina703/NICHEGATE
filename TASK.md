@@ -295,3 +295,8 @@ Full details: AUDIT_REPORT.md "Pass 3".
 Verified: 83 tests 79 pass 0 fail; browser pass 0 console errors / 0 CSP
 violations; brief visibly steers AI concepts; artifacts cleaned.
 NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
+
+## AUDIT 2026-09-23 — PDF previews end-to-end (user report: not working)
+- [x] ROOT CAUSE FIXED: global CSP `frame-ancestors 'none'` blocked the console's own preview iframe (responses were 200 but browsers refuse to render them in-frame; frame-ancestors outranks X-Frame-Options). `/api/products/:id/preview` now rewrites just that directive to `'self'`; all other routes keep `'none'`. Verified with header checks (fixed route vs control route) + full suite (116/113/0/3).
+- [x] Pipeline verified end-to-end: local boot → preview 200 application/pdf; production (Railway) → on-demand PDF regen 0.2–0.4s, Chrome thumbnails render, xlsx HTML preview OK, exports distinct per product. No Chrome/puppeteer defect.
+- [ ] OWNER DECISION: `generated/` + `previews/` are ephemeral on Railway (outside the `/app/data` volume). Previews self-heal via regen; the gap is files already published to marketplaces whose local source is wiped. Pick: (a) env override relocating OUTPUT_DIR/PREVIEW_DIR under `/app/data`, or (b) volume mounted at `/app`.
