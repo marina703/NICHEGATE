@@ -52,8 +52,9 @@ const MAX_SPREADSHEET_PREVIEW_BYTES = 20 * 1024 * 1024;
 // handlers or inline scripts (all client logic is external ES modules).
 // style-src keeps 'unsafe-inline' for the design tokens / generated layouts;
 // img-src data: covers inline SVG favicons; frame-src 'self' covers product
-// preview iframes; frame-ancestors 'none' blocks clickjacking. Etsy OAuth
-// needs form POST + redirect, so form-action allows etsy.com.
+// preview iframes; frame-ancestors 'none' blocks clickjacking — the preview
+// route relaxes it to 'self' below (same-origin console embedding only).
+// Etsy OAuth needs form POST + redirect, so form-action allows etsy.com.
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
@@ -2207,6 +2208,18 @@ app.get('/api/products/:id/preview', async (req, res) => {
   try {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
+    // FIX (previews not working): this response is deliberately embedded in
+    // the console's preview iframe (client/js/console.js). The global helmet
+    // CSP ships frame-ancestors 'none' (anti-clickjacking), which makes every
+    // browser silently refuse to render these 200 responses inside the frame.
+    // Rewrite ONLY that directive to 'self' — same-origin-only embedding stays
+    // clickjacking-safe, all other CSP directives are preserved verbatim.
+    const csp = res.getHeader('Content-Security-Policy');
+    if (typeof csp === 'string' && /frame-ancestors/i.test(csp)) {
+      res.setHeader('Content-Security-Policy', csp.replace(/frame-ancestors[^;]*/i, "frame-ancestors 'self'"));
+    } else {
+      res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+    }
     const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
 
     let filePath = (product.file_path && fs.existsSync(product.file_path)) ? product.file_path : null;
