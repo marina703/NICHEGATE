@@ -43,7 +43,8 @@ export const consoleApi = {
   bi: () => request('/console/bi'),
   actions: () => request('/console/actions'),
   runs: (limit = 20) => request(`/console/runs?limit=${limit}`),
-  run: (action, input) => request('/console/run', { method: 'POST', body: JSON.stringify({ action, input: input || {} }) })
+  run: (action, input) => request('/console/run', { method: 'POST', body: JSON.stringify({ action, input: input || {} }) }),
+  assistant: (question) => request('/console/assistant', { method: 'POST', body: JSON.stringify({ question }) })
 };
 
 // ── data ───────────────────────────────────────────────────────────────

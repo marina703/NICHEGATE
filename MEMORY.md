@@ -159,3 +159,20 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
 - Local dev DB discipline: booting the server auto-runs the automation cycle which generates ~24 drafts per boot — clean with `DELETE FROM products WHERE id > 106 AND status IN ('draft','pending-review')` before committing anything DB-dependent (106 = last pre-existing product id in dev).
 - Theme refinement (same day, owner feedback): light `--bg` darkened to #e9edf3 (page), rail uses the previous page gray (#f4f6fa→#eef1f6) so it reads as a distinct column, body text near-black #0a0e14 at font-weight 600, and the UI font is now Barlow Semi Condensed (bold-but-narrow look) with Inter fallback. Keep these relationships if retuning: page < rail < panel brightness.
 - Font swap (2026-09-23): UI sans changed Barlow Semi Condensed → Oswald (weights 400–700 added to Google Fonts link; Barlow kept as fallback). Reason: hard to read at console sizes; Oswald keeps the narrow/condensed look with better small-size clarity. Verify with document.fonts.check('600 14px Oswald').
+
+# ── 2026-09-23: Gumroad profile landing page ─────────────────────────────
+- Published custom profile page via gumroad-cli (pages push profile) → live at marinablow.gumroad.com (served as /landing/embed inside the profile shell).
+- Source: gumroad-page/build.js generates landing.html from `gumroad products list --all` JSON (dedupes doubled names, classifies 83 products into 6 collections, keeps real permalinks).
+- Design: brand assets from Desktop/nichegate designs2 — refined logo on black plate, banner artwork as hero background under scrim, palette sampled from logo (teal #409da4/#0f8b8d, pink #c75073/#c2426d), deco rule/diamonds, Georgia serif. Light+dark via prefers-color-scheme + data-theme toggle; mobile-verified.
+- Constraints discovered: Gumroad reviewer caps pages at 25 images → top-20 covers curated by real sales_count, rest are deco text cards; sanitizer strips head meta (title/viewport) but keeps <script>, CDN images, data-gumroad-follow.
+- Images must be Gumroad-hosted (public-files.gumroad.com via `media upload`): logo.jpg ✅ banner.jpg ✅ (320px icon.jpg auto-rejected as "promo spam" — small images trip the filter).
+- Follow form: <form data-gumroad-follow> + data-gumroad-follow-message included; wired by Gumroad after account compliance review, until then subscribe-page fallback.
+- CLI: .audit-tmp/gcli/gumroad.exe (v2026.09.09), authed via GUMROAD_ACCESS_TOKEN from Railway env (never printed). Re-push: cd gumroad-page && node build.js && gumroad pages preview ./landing.html && gumroad pages push profile ./landing.html.
+
+# ── 2026-09-23: Console UX fixes + AI quality pass ────────────────────────
+- Catalog checkboxes fixed: corner .ck is now a real toggle-select control (was decorative → clicks bubbled to card and opened the side panel); added Select all/Deselect all over the filtered list; batch approve/list/reject buttons already existed.
+- Model bake-off (real production prompt, 2 niches × 4 models): gemini-2.5-flash wins — 2.2s vs deepseek-chat 11.5s, more original concepts ("Snap-Sign Profit Predictor"). IDEATION_MODEL default → google/gemini-2.5-flash. anthropic/claude-3.5-haiku is dead on OpenRouter (404, no endpoints); claude-3-haiku + gemini-flash-lite still alive.
+- Concept prompt upgraded: added insider-workflow grounding rule + few-shot quality bar (the bake-off's best output as the example).
+- New endpoint POST /api/console/assistant: blunt ops copilot with live snapshot in context (catalog, 7d revenue/sales, top sellers, recent trends); honest deterministic fallback when MODEL_ENABLED off. Verified live: ai:true, grounded answer.
+- Command bar: conversational input now routes to the AI assistant instead of silently becoming a product draft; keyword intents unchanged; 2 new suggestion chips.
+- metrics table has recorded_at (not created_at) — assistant SQL uses recorded_at.

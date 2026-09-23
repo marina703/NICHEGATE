@@ -17,8 +17,9 @@ module.exports = {
     defaultModel: process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash-lite',
     // cheap + low temperature → scoring/ranking ideas
     judgeModel: process.env.JUDGE_MODEL || 'anthropic/claude-3-haiku',
-    // stronger value reasoning → product concept generation (still cheap)
-    ideationModel: process.env.IDEATION_MODEL || 'deepseek/deepseek-chat',
+    // strong + fast + cheap → differentiated product concepts (bake-off winner:
+    // 5× faster than deepseek-chat with noticeably more original angles)
+    ideationModel: process.env.IDEATION_MODEL || 'google/gemini-2.5-flash',
     siteUrl: process.env.OPENROUTER_SITE_URL || 'https://nichegate.app',
     siteName: process.env.OPENROUTER_SITE_NAME || 'NicheGate'
   },

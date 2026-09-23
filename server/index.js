@@ -1800,6 +1800,52 @@ app.post('/api/metrics', (req, res) => {
 });
 
 // ------------------------------------------------------------------------
+// API: CONSOLE ASSISTANT — AI chat with the operator's real ops data in
+// context. Falls back to an honest deterministic summary when the model
+// layer is off/failing, so the endpoint always answers with real numbers.
+// ------------------------------------------------------------------------
+app.post('/api/console/assistant', async (req, res) => {
+  const q = String((req.body && req.body.question) || '').slice(0, 1000).trim();
+  if (!q) return res.status(400).json({ error: 'question is required' });
+  const router = require('./services/modelRouter');
+  const cfg = require('./services/modelConfig');
+  try {
+    const productCount = db.prepare('SELECT COUNT(*) c FROM products').get().c;
+    const pending = db.prepare("SELECT COUNT(*) c FROM products WHERE status IN ('pending-review','needs-review')").get().c;
+    const listed = db.prepare("SELECT COUNT(*) c FROM products WHERE status = 'listed'").get().c;
+    const rev = db.prepare("SELECT COALESCE(SUM(revenue),0) r, COALESCE(SUM(sales),0) s FROM metrics WHERE recorded_at >= datetime('now','-7 days')").get();
+    const trends = db.prepare('SELECT name, phase, velocity FROM trends ORDER BY detected_at DESC LIMIT 5').all();
+    const topProducts = db.prepare(`
+      SELECT p.name, SUM(m.sales) s FROM metrics m JOIN products p ON p.id = m.product_id
+      GROUP BY m.product_id ORDER BY s DESC LIMIT 5`).all();
+    const ctx = `Current NicheGate ops snapshot:
+- Catalog: ${productCount} products (${listed} listed live, ${pending} awaiting review)
+- Last 7d: ${rev.s} sales, $${Number(rev.r).toFixed(2)} revenue
+- Top sellers: ${topProducts.map(t => `${t.name} (${t.s} sales)`).join('; ') || 'none yet'}
+- Recent trends: ${trends.map(t => `${t.name} [${t.phase || 'rising'}${t.velocity ? ', ' + t.velocity : ''}]`).join('; ') || 'none cached'}`;
+    const system = 'You are the NicheGate console assistant: a blunt, operator-focused copilot for a digital-product seller (Etsy/Gumroad). Answer using the ops snapshot when relevant; be specific, quantitative and short (max 120 words). No preamble, no restating the question.';
+    let answer = null;
+    if (cfg.enabled) {
+      answer = await router.callModel({
+        model: cfg.openrouter.ideationModel,
+        messages: [
+          { role: 'system', content: system + '\n\n' + ctx },
+          { role: 'user', content: q }
+        ],
+        temperature: 0.4,
+        maxTokens: 400
+      });
+    }
+    if (!answer) {
+      answer = `AI layer is off or unavailable — here is the live snapshot:\n${ctx}`;
+    }
+    res.json({ answer, ai: Boolean(answer && cfg.enabled) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ------------------------------------------------------------------------
 // API: CHAT HISTORY
 // ------------------------------------------------------------------------
 app.get('/api/chat/:profession_id', (req, res) => {
