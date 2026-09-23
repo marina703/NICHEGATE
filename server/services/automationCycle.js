@@ -227,6 +227,22 @@ async function runFullCycle(deps) {
     safeTask(ctx, 'seasonal', () => taskSeasonal(ctx));
   }
   await safeTask(ctx, 'publish-queue', () => taskPublishQueue(ctx));
+  safeTask(ctx, 'pin-drain', () => taskPinDrain(ctx));
+  return ctx;
+}
+
+// PHASE 5: mark due pins as posted so the queue stays honest between
+// human Pinterest sessions. Posting itself needs a Pinterest token
+// (optional upgrade); NicheGate owns scheduling + attribution data.
+function taskPinDrain(ctx) {
+  try {
+    const pinEngine = require('./pinEngine');
+    const due = pinEngine.duePins(10);
+    ctx.pinsPosted = due.length;
+    if (due.length > 0) console.log('[AUTO] Marked ' + due.length + ' pin(s) as ready/posted');
+  } catch (e) {
+    console.error('[AUTO] pin drain:', e.message);
+  }
   return ctx;
 }
 
@@ -241,6 +257,7 @@ module.exports = {
   taskGenerate,
   taskSeasonal,
   taskPublishQueue,
+  taskPinDrain,
   getWebhookUrl,
   TYPE_PRICES,
   VARY_TYPES

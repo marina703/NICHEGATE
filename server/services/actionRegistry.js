@@ -85,6 +85,15 @@ const ACTIONS = {
     description: 'Retry errored SERP queue jobs.',
     input: {}, singleton: true
   },
+  'expand-discovery': {
+    label: 'Expand Term Discovery',
+    description: 'Recursively expand autocomplete (Serper + Etsy) to surface new productizable search terms; first-seen tracked.',
+    input: {
+      depth: { type: 'number', min: 0, max: 2, default: 1 },
+      maxNew: { type: 'number', min: 1, max: 60, default: 30 }
+    },
+    singleton: true
+  },
   'backup-database': {
     label: 'Backup Database',
     description: 'Write a timestamped SQLite backup under runtime/backups.',

@@ -180,6 +180,61 @@ function init() {
     )
   `);
 
+  // ── PHASE 5: DISTRIBUTION LAYER ──────────────────────────────────────
+  // Pin Engine: scheduled pins with optional store URLs for sale attribution.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pins (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER,
+      title TEXT NOT NULL,
+      description TEXT,
+      board_hint TEXT,
+      target_url TEXT,
+      utm TEXT,
+      keywords TEXT,
+      status TEXT DEFAULT 'scheduled',
+      scheduled_for DATETIME,
+      posted_at DATETIME,
+      note TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Sequences: per-niche email launch sequences, delivered by an ESP.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sequences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profession_id INTEGER,
+      trend_key TEXT,
+      name TEXT NOT NULL,
+      purpose TEXT DEFAULT 'launch',
+      emails TEXT,
+      status TEXT DEFAULT 'ready',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Swipe File: competitor ads with longevity as the performance proxy.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS swipe_ads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform TEXT NOT NULL,
+      advertiser TEXT,
+      ad_id TEXT,
+      body TEXT,
+      cta TEXT,
+      formats TEXT,
+      first_seen TEXT,
+      last_seen TEXT,
+      times_seen INTEGER DEFAULT 1,
+      angle TEXT,
+      hooks TEXT,
+      niche_key TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(platform, ad_id)
+      )
+  `);
+
   // Migration tracking table (prevents re-applying migrations)
   db.exec(`
     CREATE TABLE IF NOT EXISTS migrations (
@@ -199,8 +254,41 @@ function init() {
   try { db.exec('ALTER TABLE products ADD COLUMN origin TEXT'); } catch (e) { /* column already exists */ }
   // Optimized listing copy (title/tags/description) written by the optimizer.
   try { db.exec('ALTER TABLE products ADD COLUMN listing_json TEXT'); } catch (e) { /* column already exists */ }
+  // Copy that was live/local BEFORE the last optimization — the one-click
+  // rollback restore point (null means rollback targets the original copy).
+  try { db.exec('ALTER TABLE products ADD COLUMN previous_listing_json TEXT'); } catch (e) { /* column already exists */ }
   // Buyer-supplied details/prompts captured at generation time.
   try { db.exec('ALTER TABLE products ADD COLUMN brief TEXT'); } catch (e) { /* column already exists */ }
+
+  // ── PHASE 1: real growth data ────────────────────────────────────────────
+  // Per-trend measured history. Every discovery sweep writes one row per
+  // tracked trend; velocity/phase/revenue derive from this series (replacing
+  // the synthetic rank-based formula).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trend_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      trend_key TEXT NOT NULL,
+      week TEXT NOT NULL,
+      volume REAL,
+      cpc REAL,
+      competition REAL,
+      score INTEGER,
+      source TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(trend_key, week)
+    )
+  `);
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_trend_snapshots_key_week ON trend_snapshots (trend_key, week DESC)'); } catch (e) { /* exists */ }
+
+  // Newer trend columns (older DBs get them via additive ALTERs).
+  try { db.exec('ALTER TABLE trends ADD COLUMN trend_key TEXT'); } catch (e) { /* column already exists */ }
+  try { db.exec('ALTER TABLE trends ADD COLUMN first_seen_at DATETIME'); } catch (e) { /* column already exists */ }
+  try { db.exec('ALTER TABLE trends ADD COLUMN measured_velocity REAL'); } catch (e) { /* column already exists */ }
+  try { db.exec('ALTER TABLE trends ADD COLUMN last_volume REAL'); } catch (e) { /* column already exists */ }
+  try { db.exec('ALTER TABLE trends ADD COLUMN last_cpc REAL'); } catch (e) { /* column already exists */ }
+
+  // Backfill: existing rows keep their detected_at as first-seen.
+  try { db.exec("UPDATE trends SET first_seen_at = detected_at WHERE first_seen_at IS NULL AND detected_at IS NOT NULL"); } catch (e) { /* non-fatal */ }
 
   const count = db.prepare('SELECT COUNT(*) as c FROM professions').get();
   if (count.c === 0) {

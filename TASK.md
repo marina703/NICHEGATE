@@ -215,6 +215,67 @@ browser pass over all 12 views + setup/store/login with 0 console errors and
 NEXT: rotate the Etsy keys (only remaining Pass-1 item); drain the publish
 queue per UPGRADES.md Wave 1; finish Etsy identity verification + OAuth.
 
+# ── 2026-09-22: CONSOLIDATED 7-PHASE ROADMAP (audit items + trend engine + distribution + growth) ──
+# Sources: top-10 tools deep dive + owner picks (Tailwind / Kit / Foreplay) + end-to-end audit thread (96681957).
+# Baseline: main @ 526bca44; worktree fast-forwarded; npm test 83 tests / 80 pass / 0 fail / 3 model-skips. CLEAN.
+# Convention: [x] done · [ ] open. Do NOT redo [x] items. Phases are independently shippable; Phase 1 is the keystone.
+
+## PHASE 0 — Audit remediation & safety (outstanding items from the end-to-end audit)
+- [ ] OWNER ACTION: rotate BOTH leaked Etsy keys (audit CRITICAL — still valid in git history; rotation happens in the Etsy developer console, not in code)
+- [ ] OWNER DECISION: purge leaked keys from git history (git filter-repo rewrites SHAs — needs explicit approval; repo is private but on GitHub)
+- [x] One-click ROLLBACK for auto-deployed listing optimizations: restore previous title/tags/description locally AND on the live listing (uses products.listing_json + the new Etsy PATCH / Gumroad update APIs from 526bca4) — DONE 2026-09-22: products.previous_listing_json column, optimizer.rollback() with undo/redo toggle semantics, POST /api/products/:id/optimization/rollback, drawer "Rollback copy" button, 2 regression tests. OWNER ACTION items above remain open by owner's call (key rotation skipped per owner).
+- [x] (already landed in 526bca4) BI 500 root cause (professions.type), safeJsonArray hardening, error logging, railway.json healthcheck repoint, caps 10/20, Make-This + origin deploy rule
+
+## PHASE 1 — Real growth data (trend-engine foundation · highest leverage)
+- [x] Add trend_snapshots table (trend_key, week, volume, score, source) + snapshot every trend on each discovery sweep — DONE: UNIQUE(trend_key,week) upsert; trends gained trend_key/first_seen_at/measured_velocity/last_volume/last_cpc (additive ALTERs + detected_at backfill)
+- [x] Integrate DataForSEO Google Trends Explore (keywords_data/google_trends/explore/live) for real interest-over-time series — DONE: fetchDataForSEOTrendsExplore() batched (5 kw/task), throttled via dfThrottle, health-tracked as 'dataforseo-trends'; carry-forward fallback to last_volume
+- [x] Replace synthetic velocity (max(90, 320 - rank*20) in trendRadar.insertLiveTrend) with real week-over-week deltas from snapshots — DONE: refreshTrendMeasurements() runs inside scanLiveTrends; growthFromSnapshots() computes WoW% + acceleration from the trend's own 12-week history
+- [x] Derive phase (emerging/rising/hot/peaking/cooling) from curve slope + acceleration — DONE: phaseFromGrowth(); measured values rewrite phase/velocity/est_revenue per sweep
+- [x] Tie est_revenue to real data (DataForSEO volume × CPC proxy) instead of fabricated traffic tiers — DONE: estRevenueFromDemand() (log-scaled demand × CPC multiplier, $low-high band compatible with velocityEngine.parseRevenue); insertLiveTrend uses it when validation.volume exists
+- [x] Tests — test/trend-growth.test.js (6 hermetic tests: weekKey ISO math, snapshot upsert idempotency, growth/acceleration, phase boundaries, revenue bands, refresh flow incl. carry-forward)
+
+## PHASE 2 — Open-ended discovery
+- [x] Recursive autocomplete expansion (Serper + Etsy: seed → suggestions → new seeds), throttled + deduped — DONE: discoverTerms() BFS with breadth/depth caps, isDiscoverableTerm filter (REJECT_RE), Serper+Etsy via expandTerm (stub-able through module.exports for tests); POST /api/discovery/expand + 'Expand Term Discovery' action in the registry
+- [x] first_seen_at tracking for discovered terms + weekly re-snapshotting of the whole term pool — DONE: trends.first_seen_at (backfilled from detected_at), every new term gets a first-seen snapshot row (source='discovery:*'), refreshTrendMeasurements() re-snapshots the pool on every sweep (2h); discovered terms are NOT auto-inserted as trends — vetting stays the gate
+
+## PHASE 3 — Intelligence layer
+- [x] Z-score breakout detection against each term's own snapshot history — DONE: breakoutScore() (latest week ≥2σ over its own prior 12wk; std=0 → flat-then-jump vs flat-forever), GET /api/trends/:id/intelligence
+- [x] 12-week forecast via exponential fit + growth percentile within cohort — DONE: forecastTrend() (least-squares on ln(volume+1), weeklyGrowthPct + 12 projections) + cohortGrowthPercentile() vs every tracked term, same endpoint
+- [x] Feed measured signals into vettingEngine (longevity/seasonality/competition become measured, not assumed) — DONE: measuredSignals() overrides demand (from real WoW), longevity (observed weeks), seasonality (single-month concentration); vetTrend result exposes measured{demand,longevity,seasonality,breakoutZ}; heuristics remain the fallback
+
+## PHASE 4 — Sources & tests
+- [x] Replace Pinterest/TikTok Google-News-RSS proxies with Pinterest Trends + TikTok Creative Center + YouTube RSS sources — DONE: fetchPinterestTrends (real trends resource endpoint, browser headers), fetchTikTokTrends (Creative Radar keyword edge; auth-gated from datacenter IPs → degrades with honest health note), fetchYouTubeTrends (genuinely public RSS, NEW source); old news-RSS proxies deleted; scanLiveTrends pulls all three; health keys renamed pinterest-trends / tiktok-creative-center / youtube-rss. No invented signal — bot-gated sources return [] with health evidence (established repo pattern). Boot-verified on :5093.
+- [x] Tests — test/trend-growth.test.js + test/trend-intelligence.test.js cover snapshot math, WoW deltas, phase boundaries, revenue bands, discovery recursion, breakout/forecast/cohort + measured vetting; full suite 97 tests / 94 pass / 0 fail / 3 model-skips
+
+## PHASE 5 — Distribution layer (owner picks: Tailwind → Pin Engine · Kit → Sequences · Foreplay → Swipe File)
+- [x] PIN ENGINE: pins table + durable schedule queue with engagement-weighted optimal time slots — DONE: server/services/pinEngine.js (19-slot weekly UTC grid, load-balanced nextSlot, createPinSync bulk twin); automationCycle gains taskPinDrain (due pins → posted each cycle)
+- [x] PIN ENGINE: Ghostwriter-style AI pin descriptions via modelRouter (deterministic fallback) for existing products/covers — DONE: aiPinCopy() through conceptEngine.generateSocialPost; fallbackPinCopy always available (MODEL_ENABLED=false whole)
+- [x] PIN ENGINE: Pinterest keyword research (free Trends tool + autocomplete) feeding seoEngine and pin copy — DONE: pinterestKeywords() via guided-search resource edge, stored on each pin; degrades to [] when bot-gated
+- [x] PIN ENGINE: pin→sale attribution via UTM-tagged links + existing Gumroad sync — DONE: attributedUrl/utmFor (utm_source=pinterest, campaign=pin-<id>, content=board); honest attributionReport (click-side attribution needs the CF worker — recorded as stretch)
+- [x] SEQUENCES: AI-generated per-niche launch sequences (welcome/launch/follow-up) upgraded from the newsletter preview — DONE: server/services/sequenceEngine.js (STRUCTURES + deterministicEmails + aiEmail via conceptEngine; regenerate-or-create per (prof/trend, purpose))
+- [x] SEQUENCES: niche-interest tags/segments + ESP integration via Kit V4 or MailerLite API (RULE: never send email from NicheGate directly) — DONE: exportSequence() hands off to esp_webhook_url (settings/env) and returns emails for manual copy when no webhook; NicheGate NEVER sends
+- [x] SWIPE FILE: Meta Ad Library + TikTok Creative Center fetchers with first_seen/last_seen longevity tracking — DONE: server/services/swipeFileEngine.js (fetchMetaAds/fetchTikTokAds → upsertAds UNIQUE(platform,ad_id), times_seen++, longevityDays); auth-gates degrade honestly
+- [x] SWIPE FILE: AI angle/hook tagging of saved ads + hook-variant generation for real catalog products in the Ads view — DONE: classifyAngle (6 deterministic angle rules), longRunners(minDays) ranking, generateHooks(productId) seeds AI on proven angles with deterministic fallback
+- Routes: /api/pins (create · schedule-batch · list · drain) · /api/sequences (generate · list · get · export) · /api/swipe (sweep · long-runners · hooks/:productId)
+- Tests: test/distribution.test.js (6 hermetic) — full suite 103 tests / 100 pass / 0 fail / 3 model-skips; endpoints boot-verified on :5094
+
+## PHASE 6 — Growth features (owner-approved top 5, in order) — ✅ COMPLETE (2026-09-22, 116 tests / 113 pass / 0 fail)
+- [x] 1. ETSY OAUTH: PKCE flow + token exchange + auto-refresh verified end-to-end. **Real bug fixed:** refreshEtsyToken now persists the ROTATED refresh_token (Etsy rotates on every refresh — the old code silently dropped it, killing OAuth permanently after the second refresh). Test: `refreshEtsyToken persists rotated refresh_token`. Owner-side prerequisite for live listing remains: Etsy identity verification.
+- [x] 2. GAP SCORING: `incumbentQuality` in vettingEngine — weakness score 0-100 from avgFavorites (50%), avgAgeDays (30%), avgPrice (20%); weak incumbents OVERRIDE phase-based competition as a positive signal. Sync cache-fed pattern (background fetch warms, next vet cycle measures) + `seedGap` test seam. Route: GET /api/vetting/gap?name=…
+- [x] 3. SELF-IMPROVING VETTING: new `vettingLearner.js` — logistic regression on the 5 numeric signals (demand/competition/margin/seasonality/longevity) from real activation→sale outcomes (metrics.product_id from the Gumroad sync); L2 + renormalize to sum 1; specificity/shoppingIntent keep fixed 20% heuristic share; factory weights until ≥20 examples with both classes (422 with reason otherwise). vetTrend uses learned weights when present (`learnedWeights: true` in result). Routes: GET /api/vetting/weights · POST /api/vetting/refit · POST /api/vetting/weights/reset
+- [x] 4. PRICING ENGINE: new `pricingEngine.js` — charm pricing ($X.99, floor $3.99), launch rule (first 14 days −30% floored, GET /api/pricing/launch/:id), A/B tiers low/base/high (−15%/base/+25%) with round-robin assignment persisted in settings (POST /api/pricing/tests/start · GET /api/pricing/tests · POST /api/pricing/tests/:id/end), applyPrice deploys via existing updateListingCopy path (POST /api/pricing/apply). Elasticity summary uses REAL sales (units/day, revenue/day); winner declared only with ≥5 sales AND ≥2× units/day lead — honest small-sample behavior.
+- [x] 5. VIDEO HOOK SCRIPTS: `generateVideoScripts` in conceptEngine (AI + deterministic fallback per repo rules) — 3× 15-30s TikTok/Reels scripts in template-as-b-roll format (problem-agitation / proof-of-speed / list-value) with hook, b-roll beats, caption, hashtags. Route: POST /api/products/:id/video-scripts
+### Phase 6 stretch (recorded so nothing is lost — build after the top 5)
+- [ ] Ad attribution ledger + kill rules (needs Pin Engine UTMs first)
+- [ ] Programmatic SEO keyword landing pages (after catalog deepens via Phases 1–2)
+- [ ] Interactive/hosted web-tool products (biggest lift, biggest differentiation)
+- [ ] Sibling-seller emails (blocked on SEQUENCES — trivial once Phase 5 lands)
+- [ ] Complaint mining → conceptEngine briefs
+- [ ] Catalog diversity guard (per-niche type quotas + forced format rotation)
+
+# Roadmap status: PLAN/DOCS ONLY this session — no code changed. Baseline verified green on 526bca44.
+# NEXT: owner go-signal → Phase 0 rollback (small, code-only) and/or Phase 1 (trend_snapshots + DataForSEO Explore + real velocity).
+
 # ── 2026-09-22: PASS 3 — CAPS, MAKE-THIS, LISTING OPTIMIZER ──
 Full details: AUDIT_REPORT.md "Pass 3".
 - ROOT-CAUSED the prod /api/console/bi 500: bi.js selected a nonexistent

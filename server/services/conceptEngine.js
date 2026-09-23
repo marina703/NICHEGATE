@@ -151,4 +151,98 @@ async function generateSocialPost(prompt, niche) {
   return fallbackSocialPost(prompt, label);
 }
 
-module.exports = { generateConcept, applyConcept, enrichProduct, noveltyScore, parseConcept, generateSocialPost };
+// ═════════════════════════════════════════════════════════════════════════
+// VIDEO HOOK SCRIPTS (Phase 6) — 3× 15-30s TikTok/Reels scripts per product
+// in the standard "template-as-b-roll" format. Same rules as the rest of
+// this file: AI when enabled, deterministic fallback when not, local quality
+// gate on parsed output.
+// ═════════════════════════════════════════════════════════════════════════
+
+function parseScripts(text) {
+  if (!text) return null;
+  const cleaned = String(text).replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start < 0 || end < start) return null;
+  try {
+    const obj = JSON.parse(cleaned.slice(start, end + 1));
+    const arr = Array.isArray(obj.scripts) ? obj.scripts : [];
+    const out = arr.slice(0, 3).map(s => ({
+      style: String(s.style || 'hook').slice(0, 40),
+      hook: String(s.hook || '').slice(0, 120).trim(),
+      beats: Array.isArray(s.beats) ? s.beats.slice(0, 5).map(b => String(b).slice(0, 140).trim()).filter(Boolean) : [],
+      caption: String(s.caption || '').slice(0, 220).trim(),
+      hashtags: Array.isArray(s.hashtags) ? s.hashtags.slice(0, 6).map(h => String(h).replace(/^#/, '').trim()).filter(Boolean) : []
+    })).filter(s => s.hook.length >= 12 && s.beats.length >= 2);
+    return out.length ? out : null;
+  } catch { return null; }
+}
+
+// Deterministic scripts — the always-available baseline (template-as-b-roll).
+function fallbackVideoScripts(product, niche) {
+  const name = String(product && product.name || 'This digital download').slice(0, 60);
+  const tag = String(niche || 'smallbusiness').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'smallbusiness';
+  const price = product && product.price ? String(product.price) : '$9';
+  return [
+    {
+      style: 'problem-agitation',
+      hook: `Still doing ${niche || 'this'} paperwork by hand?`,
+      beats: [
+        'B-roll: messy desk / endless scrolling for a template',
+        `Cut to: ${name} opened on screen — fields already set up`,
+        'Show: filling one row in real time (fast, no voiceover needed)',
+        `CTA text: linked below — ${price}`
+      ],
+      caption: `Built for ${niche || 'busy owners'} who would rather execute than hunt for templates.`,
+      hashtags: [tag, 'digitaldownload', 'smallbusinesstools']
+    },
+    {
+      style: 'proof-of-speed',
+      hook: `POV: you finished a task in 10 minutes that used to take an hour`,
+      beats: [
+        'B-roll: timer starting on screen',
+        `Screen record: ${name} doing the actual work`,
+        'Timer stops — show the finished result',
+        'CTA text: get the exact template — link in bio'
+      ],
+      caption: 'Not faster because I hustle. Faster because the system exists.',
+      hashtags: [tag, 'productivity', 'template']
+    },
+    {
+      style: 'list-value',
+      hook: `3 things every ${niche || 'solo business'} owner should stop doing manually`,
+      beats: [
+        'Text overlay: 1 — tracking everything in your head',
+        `Show: ${name} replacing that (screen record, 3s per section)`,
+        'Text overlay: 3 — rebuilding docs from scratch',
+        'CTA text: the whole system is under ' + price
+      ],
+      caption: 'Save this before the next busy season.',
+      hashtags: [tag, 'businesstools', 'worksmarter']
+    }
+  ];
+}
+
+async function generateVideoScripts(product, opts = {}) {
+  const niche = String(opts.niche || (product && product.niche) || '').trim();
+  if (cfg.enabled && product) {
+    try {
+      const prompt =
+        `Product: "${product.name}" (${product.type || 'digital download'}, ${product.price || '$9'}) for ${niche || 'solo small-business owners'}. ` +
+        'Write 3 short-form video scripts (15-30s, TikTok/Reels) in template-as-b-roll format — the product is shown on screen, no talking head. ' +
+        'Styles: (1) problem-agitation, (2) proof-of-speed, (3) list-value. ' +
+        'Return ONLY JSON: {"scripts":[{"style":"...","hook":"...","beats":["b-roll/overlay direction",...],"caption":"...","hashtags":["..."]}]}. ';
+      const raw = await router.generateIdeas(
+        prompt,
+        'You are a direct-response short-form video scriptwriter for digital products. Output ONLY valid JSON.'
+      );
+      const parsed = parseScripts(raw);
+      if (parsed && parsed.length >= 2) return parsed; // 2+ solid scripts beats fallback
+    } catch (e) {
+      console.error('[CONCEPT] generateVideoScripts failed:', e.message);
+    }
+  }
+  return fallbackVideoScripts(product, niche);
+}
+
+module.exports = { generateConcept, applyConcept, enrichProduct, noveltyScore, parseConcept, generateSocialPost, generateVideoScripts };

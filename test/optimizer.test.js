@@ -94,6 +94,72 @@ test('optimizer improves SEO score and honors the origin deploy rule', async () 
   }
 });
 
+test('optimizer rollback restores previous copy and honors the deploy rule', async () => {
+  const concept = JSON.stringify({
+    name: 'Rollback Test Tool',
+    pitch: 'A pitch long enough to seed the optimized tags with real words.',
+    benefits: ['x', 'y'],
+    differentiator: 'Different on purpose.'
+  });
+  const profId = makeProfession({ services: JSON.stringify([['Consulting', 90]]), hashtags: JSON.stringify(['#consulting']) });
+  const pid = makeProduct(profId, {
+    status: 'listed', concept, origin: 'engine', marketplace: 'gumroad', marketplace_id: '__no_such_id__'
+  });
+  try {
+    const product = () => db.prepare('SELECT * FROM products WHERE id = ?').get(pid);
+
+    // Rollback before any optimization is a clean no-op.
+    const noop = await optimizer.rollback(product(), {});
+    assert.equal(noop.ok, false);
+
+    // First apply: previous snapshot is null → rollback targets the ORIGINAL copy.
+    const p1 = await optimizer.apply(product(), { deploy: false });
+    assert.equal(p1.deploy.attempted, false);
+    const optimizedTitle = JSON.parse(db.prepare('SELECT listing_json FROM products WHERE id = ?').get(pid).listing_json).title;
+    const r1 = await optimizer.rollback(product(), { deploy: false });
+    assert.equal(r1.ok, true);
+    assert.equal(r1.targetKind, 'original');
+    // The original copy (bare concept name per listingCopyFor) differs from the optimized title —
+    // rollback must put the PRE-optimization copy back, not the optimized one.
+    assert.notEqual(r1.restored.title, optimizedTitle);
+    const afterR1 = JSON.parse(db.prepare('SELECT listing_json FROM products WHERE id = ?').get(pid).listing_json);
+    assert.equal(afterR1.title, r1.restored.title);
+    assert.equal(r1.score, optimizer.scoreSeo(afterR1));
+
+    // Toggle semantics: the replaced copy becomes the new restore point (undo/redo).
+    const r2 = await optimizer.rollback(product(), { deploy: false });
+    assert.equal(r2.ok, true);
+    assert.equal(r2.targetKind, 'previous');
+    assert.equal(r2.restored.title, optimizedTitle);
+
+    // Manual products roll back LOCALLY even when listed — origin rule holds.
+    db.prepare("UPDATE products SET origin = 'manual', marketplace = 'etsy', marketplace_id = '999' WHERE id = ?").run(pid);
+    const r3 = await optimizer.rollback(product(), {});
+    assert.equal(r3.deploy.attempted, false);
+    assert.match(r3.deploy.reason, /manual/);
+  } finally {
+    db.prepare('DELETE FROM products WHERE id = ?').run(pid);
+    db.prepare('DELETE FROM professions WHERE id = ?').run(profId);
+    db.prepare('DELETE FROM automation_log WHERE product_id = ?').run(pid);
+  }
+});
+
+test('optimizer.preview exposes rollback availability', () => {
+  const profId = makeProfession({ services: '[]', hashtags: '[]' });
+  const pid = makeProduct(profId, {});
+  try {
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(pid);
+    assert.equal(optimizer.preview(product).rollback.available, false);
+    db.prepare('UPDATE products SET listing_json = ? WHERE id = ?').run(JSON.stringify({ title: 'T', description: 'D', tags: [] }), pid);
+    const p2 = optimizer.preview(db.prepare('SELECT * FROM products WHERE id = ?').get(pid));
+    assert.equal(p2.rollback.available, true);
+    assert.equal(p2.rollback.target, 'original');
+  } finally {
+    db.prepare('DELETE FROM products WHERE id = ?').run(pid);
+    db.prepare('DELETE FROM professions WHERE id = ?').run(profId);
+  }
+});
+
 test('gumroad daily cap honors gumroad_daily_cap (default 10)', () => {
   db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gumroad_daily_cap', '7')").run();
   assert.equal(mp.getGumroadQuota().limit, 7);

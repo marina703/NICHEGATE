@@ -24,6 +24,8 @@ const mp = require('./services/marketplace');
 const trends = require('./services/trendScanner');
 const notifier = require('./services/notifier');
 const vetting = require('./services/vettingEngine');
+const vettingLearner = require('./services/vettingLearner');
+const pricingEngine = require('./services/pricingEngine');
 const design = require('./services/themes');
 const seo = require('./services/seoEngine');
 const fileFactory = require('./services/fileFactory');
@@ -720,6 +722,17 @@ app.post('/api/products/:id/optimization/apply', async (req, res) => {
     }
   });
 
+app.post('/api/products/:id/optimization/rollback', async (req, res) => {
+    try {
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+      res.json(await optimizer.rollback(product, { deploy: !(req.body && req.body.deploy === false) }));
+    } catch (e) {
+      console.error('[ERROR] POST /api/products/:id/optimization/rollback -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
 app.post('/api/optimize/weak', async (req, res) => {
     try {
       const limit = Math.min(50, Math.max(1, parseInt(req.body && req.body.limit) || 20));
@@ -730,7 +743,248 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // PHASE 6 — PRICING ENGINE (launch rule · A/B tiers · elasticity)
+  // ═════════════════════════════════════════════════════════════════════════
+  app.get('/api/pricing/tests', (req, res) => {
+    try { res.json(pricingEngine.pricingSummary()); }
+    catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post('/api/pricing/tests/start', async (req, res) => {
+    try {
+      const productId = parseInt(req.body && req.body.productId);
+      if (!productId) return res.status(400).json({ error: 'productId required' });
+      res.json(pricingEngine.startPriceTest(productId, req.body.basePrice));
+    } catch (e) {
+      console.error('[ERROR] POST /api/pricing/tests/start -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/pricing/tests/:productId/end', (req, res) => {
+    try {
+      res.json(pricingEngine.endPriceTest(parseInt(req.params.productId)));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/pricing/apply', async (req, res) => {
+    try {
+      const productId = parseInt(req.body && req.body.productId);
+      const price = parseFloat(req.body && req.body.price);
+      if (!productId || !Number.isFinite(price) || price < 1 || price > 999) {
+        return res.status(400).json({ error: 'productId and price (1-999) required' });
+      }
+      const deploy = !req.body || req.body.deploy !== false;
+      res.json(await pricingEngine.applyPrice(productId, price, { deploy, reason: req.body.reason || 'manual' }));
+    } catch (e) {
+      console.error('[ERROR] POST /api/pricing/apply -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/pricing/launch/:productId', (req, res) => {
+    try {
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(parseInt(req.params.productId));
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+      res.json(pricingEngine.launchPrice(product));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // PHASE 6 — SELF-IMPROVING VETTING (learned weights from real outcomes)
+  // ═════════════════════════════════════════════════════════════════════════
+  app.get('/api/vetting/weights', (req, res) => {
+    try {
+      res.json({
+        weights: vettingLearner.getWeights(),
+        outcomes: vettingLearner.outcomeSummary({ windowDays: parseInt(req.query.windowDays) || 90 })
+      });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post('/api/vetting/refit', (req, res) => {
+    try {
+      const windowDays = Math.min(365, Math.max(14, parseInt(req.body && req.body.windowDays) || 90));
+      const result = vettingLearner.fitWeights({ windowDays });
+      if (!result.fitted) return res.status(422).json(result);
+      res.json(result);
+    } catch (e) {
+      console.error('[ERROR] POST /api/vetting/refit -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/vetting/weights/reset', (req, res) => {
+    try {
+      vettingLearner.resetWeights();
+      res.json({ ok: true, weights: vettingLearner.getWeights() });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Gap scoring visibility: incumbent weakness for a niche name.
+  app.get('/api/vetting/gap', (req, res) => {
+    try {
+      const name = String(req.query.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'name query param required' });
+      res.json({ name, gap: vetting.incumbentQuality(name) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // PHASE 6 — VIDEO HOOK SCRIPTS (3× 15-30s TikTok/Reels per product)
+  // ═════════════════════════════════════════════════════════════════════════
+  app.post('/api/products/:id/video-scripts', async (req, res) => {
+    try {
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(parseInt(req.params.id));
+      if (!product) return res.status(404).json({ error: 'Product not found' });
+      const prof = db.prepare('SELECT name FROM professions WHERE id = ?').get(product.profession_id);
+      const scripts = await conceptEngine.generateVideoScripts(product, { niche: (req.body && req.body.niche) || (prof && prof.name) });
+      res.json({ productId: product.id, niche: (prof && prof.name) || null, scripts });
+    } catch (e) {
+      console.error('[ERROR] POST /api/products/:id/video-scripts -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // PHASE 5 — DISTRIBUTION LAYER (Pin Engine · Sequences · Swipe File)
+  // ═══════════════════════════════════════════════════════════════
+  // PIN ENGINE — Tailwind-lite queue + attribution.
+  app.post('/api/pins/create', async (req, res) => {
+    try {
+      const pinEngine = require('./services/pinEngine');
+      res.json(await pinEngine.createPin({
+        productId: req.body.productId || null,
+        boardHint: req.body.boardHint || 'general',
+        when: req.body.when || null
+      }));
+    } catch (e) {
+      console.error('[ERROR] POST /api/pins/create -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/pins/schedule-batch', (req, res) => {
+    try {
+      const pinEngine = require('./services/pinEngine');
+      const limit = Math.min(50, Math.max(1, parseInt(req.body && req.body.limit) || 20));
+      res.json(pinEngine.scheduleForProducts(limit));
+    } catch (e) {
+      console.error('[ERROR] POST /api/pins/schedule-batch -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/pins', (req, res) => {
+    try {
+      const pinEngine = require('./services/pinEngine');
+      const rows = db.prepare('SELECT * FROM pins ORDER BY scheduled_for ASC LIMIT 100').all();
+      res.json({ ok: true, pins: rows, report: pinEngine.attributionReport() });
+    } catch (e) {
+      console.error('[ERROR] GET /api/pins -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/pins/drain', (req, res) => {
+    try {
+      const pinEngine = require('./services/pinEngine');
+      res.json({ ok: true, due: pinEngine.duePins(10) });
+    } catch (e) {
+      console.error('[ERROR] POST /api/pins/drain -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // SEQUENCES — Kit-lite generation + ESP handoff (never sends itself).
+  app.post('/api/sequences/generate', async (req, res) => {
+    try {
+      const seqEngine = require('./services/sequenceEngine');
+      res.json(await seqEngine.generateSequence({
+        professionId: req.body.professionId ? parseInt(req.body.professionId) : null,
+        trendKey: req.body.trendKey ? String(req.body.trendKey).slice(0, 80) : null,
+        purpose: ['welcome', 'launch', 'followup'].includes(req.body.purpose) ? req.body.purpose : 'launch'
+      }));
+    } catch (e) {
+      console.error('[ERROR] POST /api/sequences/generate -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/sequences', (req, res) => {
+    try {
+      const seqEngine = require('./services/sequenceEngine');
+      res.json({ ok: true, sequences: seqEngine.listSequences(50) });
+    } catch (e) {
+      console.error('[ERROR] GET /api/sequences -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/sequences/:id', (req, res) => {
+    try {
+      const seqEngine = require('./services/sequenceEngine');
+      const seq = seqEngine.getSequence(req.params.id);
+      if (!seq) return res.status(404).json({ error: 'Sequence not found' });
+      res.json({ ok: true, sequence: seq });
+    } catch (e) {
+      console.error('[ERROR] GET /api/sequences/:id -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/sequences/:id/export', async (req, res) => {
+    try {
+      const seqEngine = require('./services/sequenceEngine');
+      res.json(await seqEngine.exportSequence(req.params.id));
+    } catch (e) {
+      console.error('[ERROR] POST /api/sequences/:id/export -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // SWIPE FILE — Foreplay-lite ad intelligence.
+  app.post('/api/swipe/sweep', async (req, res) => {
+    try {
+      const swipe = require('./services/swipeFileEngine');
+      const q = String(req.body.query || '').trim().slice(0, 60);
+      if (!q) return res.status(400).json({ error: 'query required' });
+      const limit = Math.min(20, Math.max(1, parseInt(req.body.limit) || 10));
+      res.json(await swipe.sweepNiche(q, { limit }));
+    } catch (e) {
+      console.error('[ERROR] POST /api/swipe/sweep -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/swipe/long-runners', (req, res) => {
+    try {
+      const swipe = require('./services/swipeFileEngine');
+      const minDays = Math.min(90, Math.max(0, parseInt(req.query.minDays) || 14));
+      const nicheKey = req.query.q ? String(req.query.q) : null;
+      res.json({ ok: true, longRunners: swipe.longRunners({ minDays, nicheKey, limit: 25 }) });
+    } catch (e) {
+      console.error('[ERROR] GET /api/swipe/long-runners -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/swipe/hooks/:productId', async (req, res) => {
+    try {
+      const swipe = require('./services/swipeFileEngine');
+      res.json(await swipe.generateHooks(parseInt(req.params.productId)));
+    } catch (e) {
+      console.error('[ERROR] POST /api/swipe/hooks/:productId -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // PRODUCT PREVIEW — serve PDF for inline preview
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1357,6 +1611,41 @@ app.post('/api/discovery/serp-scan', async (req, res) => {
     res.json({ ok: true, inserted: inserted.length, items: inserted.map(t => ({ id: t.id, name: t.name, why: t.why })) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+app.post('/api/discovery/expand', async (req, res) => {
+    try {
+      const radar = require('./services/trendRadar');
+      const seeds = Array.isArray(req.body && req.body.seeds) && req.body.seeds.length
+        ? req.body.seeds.map(s => String(s).slice(0, 60)).slice(0, 12)
+        : undefined;
+      const depth = Math.min(2, Math.max(0, parseInt(req.body && req.body.depth) || 1));
+      const maxNew = Math.min(60, Math.max(1, parseInt(req.body && req.body.maxNew) || 30));
+      const r = await radar.discoverTerms({ seeds, depth, maxNew });
+      res.json(r);
+    } catch (e) {
+      console.error('[ERROR] POST /api/discovery/expand -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+app.get('/api/trends/:id/intelligence', (req, res) => {
+    try {
+      const radar = require('./services/trendRadar');
+      const t = db.prepare('SELECT * FROM trends WHERE id = ?').get(req.params.id);
+      if (!t) return res.status(404).json({ error: 'Trend not found' });
+      const key = t.trend_key || radar.normalizeNicheKey(t.name);
+      res.json({
+        ok: true,
+        trend: { id: t.id, name: t.name, phase: t.phase, velocity: t.velocity, est_revenue: t.est_revenue },
+        breakout: radar.breakoutScore(key),
+        forecast: radar.forecastTrend(key),
+        cohort: radar.cohortGrowthPercentile(key)
+      });
+    } catch (e) {
+      console.error('[ERROR] GET /api/trends/:id/intelligence -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
 app.post('/api/discovery/search-queue/drain', async (req, res) => {
   try {
     const radar = require('./services/trendRadar');
@@ -2533,6 +2822,12 @@ const consoleHandlers = {
     const inserted = await radar.scanLiveTrends(4);
     step(`inserted ${inserted.length}`, 'success');
     return { inserted: inserted.length };
+  },
+  'expand-discovery': async (input, step) => {
+    const radar = require('./services/trendRadar');
+    const r = await radar.discoverTerms({ depth: 1, maxNew: 30 });
+    step(`discovered ${r.discovered.length} new term(s) from ${r.scanned} scanned`, 'success');
+    return { discovered: r.discovered.length, scanned: r.scanned };
   },
   'drain-search-queue': async (input, step) => {
     const radar = require('./services/trendRadar');

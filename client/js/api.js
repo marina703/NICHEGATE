@@ -108,6 +108,7 @@ export const dataActions = {
   generateFromTrend: (id, payload) => api.post(`/trends/${id}/generate`, payload || {}),
   generateCustom: (payload) => api.post('/products/generate-custom', payload),
   optimizeProduct: (id) => api.post(`/products/${id}/optimization/apply`, {}),
+  rollbackOptimization: (id) => api.post(`/products/${id}/optimization/rollback`, {}),
   optimizeWeak: (limit) => api.post('/optimize/weak', { limit: limit || 20 }),
   saveCaps: (payload) => api.post('/caps', payload),
   schedulePost: (payload) => api.post('/social/schedule', payload),
