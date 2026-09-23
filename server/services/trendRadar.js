@@ -260,6 +260,90 @@ async function fetchEbayTrending(limit = 8) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// PHASE 4 — REAL SOCIAL SIGNAL SOURCES (replacing the Google-News-RSS
+// proxies). Best-effort, health-tracked, honest degradation — an
+// unavailable platform returns [] and says so in the health registry.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Pinterest Trends — the real trends surface (trends.pinterest.com) is a
+// bot-gated SPA; we hit its public resource endpoint with browser headers.
+// On gate/failure we return [] with health marked (carry no fake signal).
+async function fetchPinterestTrends(limit = 8) {
+  try {
+    const url = 'https://www.pinterest.com/resource/BaseSearchResource/get/?source_url=%2Fideas%2F&data=%7B%22options%22%3A%7B%22appliedProductFilters%22%3A%5B%5D%2C%22autoCorrectionDisabled%22%3Afalse%2C%22corpus%22%3Anull%2C%22filters%22%3Anull%2C%22query%22%3A%22digital%20download%20template%22%2C%22scope%22%3A%22pins%22%2C%22noFetchContextOnRefresh%22%3Afalse%7D%2C%22context%22%3A%7B%7D%7D';
+    const resp = await axios.get(url, { timeout: 10000, headers: BROWSER_HEADERS, validateStatus: s => s < 500 });
+    const out = [];
+    const pins = resp.data?.resource_response?.data?.results || resp.data?.resource_response?.data || [];
+    for (const p of Array.isArray(pins) ? pins : []) {
+      if (out.length >= limit) break;
+      const title = p.title || p.grid_title || p.description || '';
+      const clean = normalizeNicheName(title);
+      if (clean) out.push({ name: clean, traffic: 'Pinterest pin engagement', source: 'pinterest-trends', shoppingIntent: 0.8 });
+    }
+    markHealth('pinterest-trends', out.length > 0, out.length ? null : 'empty parse (bot-gate?)');
+    return out;
+  } catch (e) {
+    markHealth('pinterest-trends', false, e.message);
+    console.error('[RADAR] Pinterest trends unavailable:', e.message);
+    return [];
+  }
+}
+
+// TikTok — no public feed exists (Creative Center requires an authed SPA).
+// We attempt its public keyword-suggestion edge with browser headers and
+// degrade honestly. This keeps a TikTok lane open without scraping lies.
+async function fetchTikTokTrends(limit = 6) {
+  try {
+    const url = 'https://ads.tiktok.com/creative_radar/api/v1/popular_trend/keyword/list?period=7&country=US&sort_by=popularity&page=1&limit=' + encodeURIComponent(limit);
+    const resp = await axios.get(url, { timeout: 10000, headers: BROWSER_HEADERS, validateStatus: s => s < 500 });
+    const out = [];
+    const list = resp.data?.data?.list || resp.data?.data?.keyword_list || [];
+    for (const k of Array.isArray(list) ? list : []) {
+      if (out.length >= limit) break;
+      const name = typeof k === 'string' ? k : (k.keyword || k.name || '');
+      const clean = normalizeNicheName(name);
+      if (clean) out.push({ name: clean, traffic: 'TikTok Creative Center', source: 'tiktok-creative-center', shoppingIntent: 0.6 });
+    }
+    markHealth('tiktok-creative-center', out.length > 0, out.length ? null : 'auth-gated (expected from datacenter IPs)');
+    return out;
+  } catch (e) {
+    markHealth('tiktok-creative-center', false, e.message);
+    console.error('[RADAR] TikTok creative center unavailable:', e.message);
+    return [];
+  }
+}
+
+// YouTube — genuinely public RSS (channel + playlist feeds). Niche-relevant
+// creator channels surface real product demand in titles; trending-playlist
+// feed adds broad velocity. Stable, documented, no auth.
+const YOUTUBE_FEEDS = [
+  'https://www.youtube.com/feeds/videos.xml?playlist_id=PLrEnWoR732-BHrPp_Pm8_VleD68f9s14-', // YouTube Trending (US)
+  'https://www.youtube.com/feeds/videos.xml?channel_id=UCpk5rvLp8lDLz-NfWv8uvna'             // Etsy sellers / small-biz lane
+];
+async function fetchYouTubeTrends(limit = 8) {
+  const out = [];
+  let ok = 0;
+  for (const feed of YOUTUBE_FEEDS) {
+    if (out.length >= limit) break;
+    try {
+      const resp = await axios.get(feed, { timeout: 10000, headers: { 'User-Agent': UA, Accept: 'application/atom+xml, application/xml, text/xml, */*' } });
+      const $ = cheerio.load(resp.data, { xmlMode: true });
+      $('entry').each((i, el) => {
+        if (out.length >= limit) return false;
+        const title = $(el).children('title').first().text().trim();
+        const views = $(el).find('media\\:community media\\:statistics').attr('views') || $(el).find('statistics').attr('views') || '';
+        const clean = normalizeNicheName(title);
+        if (clean) out.push({ name: clean, traffic: views ? `${views} views` : 'YouTube feed', source: 'youtube-rss', shoppingIntent: 0.5 });
+      });
+      ok++;
+    } catch (e) {
+      console.error('[RADAR] youtube feed failed:', e.message);
+    }
+  }
+  markHealth('youtube-rss', ok > 0 && out.length > 0, ok ? null : 'all feeds failed');
+  return out;
+}
 // Etsy search suggestions — shopping-intent keyword expansion (best-effort, no auth)
 async function fetchEtsyAutocomplete(seeds = ['digital planner', 'invoice template', 'checklist printable', 'business toolkit'], limit = 12) {
   const out = [];
@@ -300,51 +384,6 @@ async function fetchEtsyAutocomplete(seeds = ['digital planner', 'invoice templa
   }
   return out;
 }
-
-// Pinterest ideas RSS (public, fail-safe)
-async function fetchPinterestTrends(limit = 8) {
-  try {
-    const url = 'https://www.pinterest.com/resource/BaseSearchResource/get/?source_url=/search/pins/?q=digital%20download%20template&data={}&_=1';
-    // Prefer Google News RSS filtered to Pinterest-style DIY demand as a stable public feed
-    const rss = 'https://news.google.com/rss/search?q=Pinterest+trend+DIY+printable+template&hl=en-US&gl=US&ceid=US:en';
-    const resp = await axios.get(rss, { timeout: 10000, headers: { 'User-Agent': UA } });
-    const $ = cheerio.load(resp.data, { xmlMode: true });
-    const out = [];
-    $('item').each((i, el) => {
-      if (out.length >= limit) return false;
-      const title = $(el).children('title').first().text().trim();
-      if (title) out.push({ name: title, traffic: 'Pinterest/DIY buzz', source: 'pinterest-rss', shoppingIntent: 0.75 });
-    });
-    markHealth('pinterest-rss', out.length > 0);
-    return out;
-  } catch (e) {
-    markHealth('pinterest-rss', false, e.message);
-    console.error('[RADAR] Pinterest RSS unavailable:', e.message);
-    return [];
-  }
-}
-
-// TikTok-adjacent public signal via Google News RSS (no unofficial TikTok scrape)
-async function fetchTikTokTrends(limit = 6) {
-  try {
-    const rss = 'https://news.google.com/rss/search?q=TikTok+trend+small+business+OR+printable+OR+template&hl=en-US&gl=US&ceid=US:en';
-    const resp = await axios.get(rss, { timeout: 10000, headers: { 'User-Agent': UA } });
-    const $ = cheerio.load(resp.data, { xmlMode: true });
-    const out = [];
-    $('item').each((i, el) => {
-      if (out.length >= limit) return false;
-      const title = $(el).children('title').first().text().trim();
-      if (title) out.push({ name: title, traffic: 'TikTok buzz', source: 'tiktok-rss', shoppingIntent: 0.55 });
-    });
-    markHealth('tiktok-rss', out.length > 0);
-    return out;
-  } catch (e) {
-    markHealth('tiktok-rss', false, e.message);
-    console.error('[RADAR] TikTok RSS unavailable:', e.message);
-    return [];
-  }
-}
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SERP DISCOVERY LAYERS (Serper autocomplete + ValueSERP shopping validation)
@@ -554,32 +593,426 @@ async function scoreOpportunity(phrase) {
     return null;
   }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 1 — REAL GROWTH DATA
+// Every sweep snapshots per-trend demand into trend_snapshots; velocity,
+// phase and est_revenue derive from that measured series instead of the
+// synthetic rank formula. DataForSEO Trends Explore supplies the series.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ISO-8601 week key (YYYY-Www) — one snapshot per trend per week.
+function weekKey(d = new Date()) {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const dayNum = (date.getUTCDay() + 6) % 7; // Mon=0 … Sun=6
+  date.setUTCDate(date.getUTCDate() - dayNum + 3); // this week's Thursday
+  const isoYear = date.getUTCFullYear();
+  const firstThu = new Date(Date.UTC(isoYear, 0, 4));
+  const fDay = (firstThu.getUTCDay() + 6) % 7;
+  firstThu.setUTCDate(firstThu.getUTCDate() - fDay + 3);
+  const week = 1 + Math.round((date - firstThu) / (7 * 86400000));
+  return `${isoYear}-W${String(week).padStart(2, '0')}`;
+}
+
+function snapshotTrend(trendKey, { volume = null, cpc = null, competition = null, score = null, source = null } = {}) {
+  const key = String(trendKey || '').trim();
+  if (!key) return false;
+  try {
+    db.prepare(`INSERT INTO trend_snapshots (trend_key, week, volume, cpc, competition, score, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(trend_key, week) DO UPDATE SET
+        volume = COALESCE(excluded.volume, volume),
+        cpc = COALESCE(excluded.cpc, cpc),
+        competition = COALESCE(excluded.competition, competition),
+        score = COALESCE(excluded.score, score),
+        source = COALESCE(excluded.source, source)`
+    ).run(key, weekKey(), volume, cpc, competition, score, source);
+    return true;
+  } catch (e) { console.error('[SNAPSHOT] write failed:', e.message); return false; }
+}
+
+// Measured growth from this trend's own snapshot history.
+// Returns null until at least two weekly volumes exist.
+function growthFromSnapshots(trendKey) {
+  const key = String(trendKey || '').trim();
+  if (!key) return null;
+  let rows;
+  try {
+    rows = db.prepare('SELECT week, volume FROM trend_snapshots WHERE trend_key = ? AND volume IS NOT NULL ORDER BY week ASC LIMIT 12').all(key);
+  } catch { return null; }
+  if (!rows || rows.length < 2) return null;
+  const last = rows[rows.length - 1], prev = rows[rows.length - 2];
+  if (!(prev.volume > 0)) return null;
+  const wowPct = ((last.volume - prev.volume) / prev.volume) * 100;
+  let acceleration = null;
+  if (rows.length >= 3) {
+    const p2 = rows[rows.length - 3];
+    if (p2.volume > 0) acceleration = wowPct - (((prev.volume - p2.volume) / p2.volume) * 100);
+  }
+  return { wowPct: Math.round(wowPct * 10) / 10, acceleration: acceleration == null ? null : Math.round(acceleration * 10) / 10,
+    weeks: rows.length, lastVolume: last.volume, lastWeek: last.week };
+}
+
+// Curve-derived phase from slope + acceleration (replaces static labels).
+function phaseFromGrowth(g) {
+  if (!g || g.wowPct == null) return null;
+  const s = g.wowPct, a = g.acceleration;
+  if (s >= 50 && (a == null || a >= 0)) return 'hot';
+  if (s >= 50) return 'peaking';
+  if (s >= 10) return 'rising';
+  if (s > -10) return 'emerging';
+  if (s > -50) return 'cooling';
+  return 'dormant';
+}
+
+// Data-backed revenue band: log-scaled demand proxy weighted by CPC value.
+// Output format matches parseRevenue() ("$low-high", k-suffixed).
+function fmtUsdBand(base) {
+  const low = Math.max(100, Math.round((base * 0.6) / 100) * 100);
+  const high = Math.max(low + 100, Math.round((base * 1.5) / 100) * 100);
+  const f = n => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : `${Math.round(n)}`;
+  return `$${f(low)}-${f(high)}`;
+}
+function estRevenueFromDemand(volume, cpc) {
+  const v = Number(volume) || 0;
+  if (v <= 0) return null;
+  let base = Math.log10(v + 1) * 900; // v=1k→~2.7k, v=50k→~3.9k, v=500k→~5.1k
+  const c = Number(cpc) || 0;
+  const mult = c >= 8 ? 1.5 : c >= 4 ? 1.25 : c >= 2 ? 1.1 : c >= 1 ? 1.0 : c > 0 ? 0.9 : 1;
+  return fmtUsdBand(base * mult);
+}
+
+// DataForSEO Google Trends Explore — real interest-over-time series.
+// Live endpoint, batched (5 keywords/request), throttled like the other SERP
+// sources. Returns Map<keyword, Array<{period, values[]}|values>>; best-effort.
+async function fetchDataForSEOTrendsExplore(keywords, span = '3m') {
+  const out = new Map();
+  if (!DATAFORSEO_LOGIN || !DATAFORSEO_KEY) { markHealth('dataforseo-trends', false, 'DataForSEO credentials not set'); return out; }
+  const list = (keywords || []).filter(Boolean).slice(0, 25);
+  const auth = 'Basic ' + Buffer.from(DATAFORSEO_LOGIN + ':' + DATAFORSEO_KEY).toString('base64');
+  for (let i = 0; i < list.length; i += 5) {
+    const batch = list.slice(i, i + 5);
+    try {
+      await dfThrottle();
+      const resp = await axios.post('https://api.dataforseo.com/v3/keywords_data/google_trends/explore/live',
+        [{ language_code: 'en', location_code: 2840, time_range: span, type: 'web', keywords: batch }],
+        { timeout: 30000, headers: { Authorization: auth, 'Content-Type': 'application/json' } });
+      const items = (resp.data && resp.data.tasks && resp.data.tasks[0] && resp.data.tasks[0].result) || [];
+      const first = Array.isArray(items) ? items[0] : null;
+      const series = first && Array.isArray(first.items) ? first.items : [];
+      if (series.length) {
+        batch.forEach((kw, kwIdx) => {
+          const points = series
+            .map(it => {
+              const period = it.period || it.date || it.datetime || null;
+              let v = null;
+              if (Array.isArray(it.values) && it.values.length) v = Number(it.values[kwIdx]);
+              else if (it.value != null) v = Number(it.value);
+              else if (it.data && Array.isArray(it.data)) v = Number(it.data[kwIdx]);
+              return { period, value: Number.isFinite(v) ? v : null };
+            })
+            .filter(p => p.value != null);
+          if (points.length) out.set(kw, points);
+        });
+      }
+      markHealth('dataforseo-trends', true);
+    } catch (e) {
+      const detail = e.response ? (e.response.status + ' ' + JSON.stringify(e.response.data).slice(0, 120)) : e.message;
+      markHealth('dataforseo-trends', false, detail);
+    }
+  }
+  return out;
+}
+
+// Sweep-time refresh: snapshot every tracked trend's measured volume, then
+// rewrite velocity/phase/est_revenue from the real series where available.
+// Trends Explore falls back to last DataForSEO volume when unavailable.
+// Never throws; cost-capped (≤25 keywords/sweep, batched+throttled).
+async function refreshTrendMeasurements(limit = 25) {
+  let trends;
+  try {
+    trends = db.prepare('SELECT id, name, trend_key, phase, velocity, est_revenue, last_volume, last_cpc FROM trends ORDER BY id DESC LIMIT ?').all(200);
+  } catch (e) { console.error('[MEASURE] load trends:', e.message); return { measured: 0, forecast: 0 }; }
+  if (!trends.length) return { measured: 0, forecast: 0 };
+
+  for (const t of trends) {
+    const key = t.trend_key || normalizeNicheKey(t.name);
+    if (key && !t.trend_key) {
+      try { db.prepare('UPDATE trends SET trend_key = ? WHERE id = ?').run(key, t.id); } catch { /* non-fatal */ }
+    }
+    t.trend_key = key;
+  }
+
+  // Pull real series for trends with a prior measured volume first (they're
+  // already tracked), then newest — capped by `limit`.
+  const withSeries = trends.filter(t => t.trend_key).slice(0, limit);
+  const seriesMap = await fetchDataForSEOTrendsExplore(withSeries.map(t => t.trend_key));
+
+  let measured = 0;
+  for (const t of withSeries) {
+    const key = t.trend_key;
+    const series = seriesMap.get(key);
+    let snapVolume = null;
+    if (series && series.length) {
+      // Trends values are 0–100 relative interest; persist the latest point.
+      const latest = series[series.length - 1];
+      snapVolume = latest.value;
+    } else if (t.last_volume != null) {
+      snapVolume = t.last_volume; // keep the last absolute volume observed
+    }
+    if (snapVolume != null) {
+      snapshotTrend(key, { volume: snapVolume, cpc: t.last_cpc, source: series ? 'dataforseo-trends' : 'carry-forward' });
+    }
+    const g = growthFromSnapshots(key);
+    if (!g || g.wowPct == null) continue;
+    const phase = phaseFromGrowth(g);
+    const sign = g.wowPct > 0 ? '+' : '';
+    const velocityStr = `${sign}${Math.round(g.wowPct)}%`;
+    const rev = estRevenueFromDemand(g.lastVolume >= 100 ? g.lastVolume : (t.last_volume || g.lastVolume), t.last_cpc);
+    try {
+      db.prepare(`UPDATE trends SET measured_velocity = ?, phase = COALESCE(?, phase),
+          velocity = ?, est_revenue = COALESCE(?, est_revenue) WHERE id = ?`)
+        .run(g.wowPct, phase, velocityStr, rev, t.id);
+      measured++;
+    } catch (e) { console.error('[MEASURE] update failed:', e.message); }
+  }
+  return { measured, seriesPulled: seriesMap.size };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 2 — OPEN-ENDED TERM DISCOVERY
+// Recursive autocomplete expansion: seed → suggestions → new seeds, using the
+// shopping-intent-heavy sources (Serper + Etsy). Every discovered term gets
+// first_seen tracking (its own snapshot row doubles as the discovery record)
+// so growth is measured from first observation — not from when a trend row
+// happened to be created.
+// Cost model: capped breadth/depth per run, throttled calls, durable queue
+// records for observability. Unknown terms are returned to the caller (they
+// are NOT auto-inserted as trends — vetting stays the gate).
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DISCOVERY_SEEDS = [
+  'digital planner', 'invoice template', 'checklist printable', 'business toolkit',
+  'wedding sign', 'budget spreadsheet', 'meal planner', 'resume template',
+  'party game printable', 'garden planner', 'fitness tracker', 'pet planner'
+];
+
+// A term is worth keeping when it looks like a productizable search phrase:
+// short, no junk verbs, not already tracked.
+function isDiscoverableTerm(term) {
+  const t = String(term || '').trim();
+  if (t.length < 4 || t.length > 60) return false;
+  if (REJECT_RE.test(t)) return false;
+  if (STOP_WORDS.has(t.toLowerCase())) return false;
+  return true;
+}
+
+async function expandTerm(term, depth = 0, maxTerms = 40) {
+  const found = [];
+  // Called through module.exports so tests can stub the network fetchers.
+  const [serper, etsy] = await Promise.allSettled([
+    module.exports.fetchSerperAutocomplete([term]),
+    module.exports.fetchEtsyAutocomplete([term], 8)
+  ]);
+  const collect = (r, fallbackIntent) => {
+    if (r.status !== 'fulfilled' || !Array.isArray(r.value)) return;
+    for (const item of r.value) {
+      if (found.length >= maxTerms) break;
+      if (item && item.name && isDiscoverableTerm(item.name)) {
+        found.push({ term: item.name, source: item.source, shoppingIntent: item.shoppingIntent ?? fallbackIntent });
+      }
+    }
+  };
+  collect(serper, 0.9);
+  collect(etsy, 1.0);
+  return found;
+}
+
+// Breadth-first expansion from seeds. depth 0 = the seed list itself;
+// each level's suggestions become the next level's frontier. Throttling is
+// handled inside the fetchers (serpThrottle / per-request politeness), and
+// every unknown term is recorded as a first-seen snapshot row.
+async function discoverTerms({ seeds = DISCOVERY_SEEDS, depth = 1, perSeed = 6, maxNew = 30 } = {}) {
+  const known = new Set();
+  try {
+    for (const r of db.prepare('SELECT DISTINCT trend_key FROM trends').all()) known.add(r.trend_key);
+    for (const r of db.prepare('SELECT DISTINCT trend_key FROM trend_snapshots').all()) known.add(r.trend_key);
+  } catch { /* empty DB is fine */ }
+
+  const seen = new Set();
+  const queue = [];
+  for (const s of seeds) {
+    const key = normalizeNicheKey(s);
+    if (key && !known.has(key) && !seen.has(key)) { seen.add(key); queue.push({ term: s, depth: 0 }); }
+  }
+
+  const discovered = [];
+  let level = 0;
+  while (queue.length && level <= depth && discovered.length < maxNew) {
+    const frontier = queue.splice(0, queue.length);
+    for (const { term } of frontier) {
+      if (discovered.length >= maxNew) break;
+      const children = await expandTerm(term, level, perSeed);
+      for (const c of children) {
+        const key = normalizeNicheKey(c.term);
+        if (!key || known.has(key) || seen.has(key)) continue;
+        seen.add(key);
+        // First-seen record: one snapshot row per new term this week.
+        snapshotTrend(key, { volume: null, source: `discovery:${c.source}` });
+        discovered.push({ term: c.term, key, from: term, depth: level + 1, source: c.source, shoppingIntent: c.shoppingIntent });
+        if (level + 1 <= depth) queue.push({ term: c.term, depth: level + 1 });
+      }
+    }
+    level++;
+  }
+  return { ok: true, discovered, scanned: seen.size };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 3 — INTELLIGENCE LAYER (all derived from the snapshot series)
+// · breakoutScore: z-score of the latest week vs the term's own history
+// · forecastTrend: least-squares exponential fit → 12-week projection
+// · cohortGrowthPercentile: this term's growth vs every other tracked term
+// All sync (SQLite reads), no-throw, honest about insufficient data.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function seriesFor(trendKey, maxWeeks = 12) {
+  const key = String(trendKey || '').trim();
+  if (!key) return [];
+  try {
+    return db.prepare('SELECT week, volume FROM trend_snapshots WHERE trend_key = ? AND volume IS NOT NULL ORDER BY week ASC LIMIT ?').all(key, maxWeeks);
+  } catch { return []; }
+}
+
+// A breakout = the latest week is ≥2σ above the term's own prior history.
+// Needs ≥4 weekly volumes. Flat history followed by any jump counts (std=0
+// clamps to z=3); flat-forever never breaks out.
+function breakoutScore(trendKey) {
+  const rows = seriesFor(trendKey);
+  if (rows.length < 4) return { z: null, weeks: rows.length, breakout: false, reason: 'need ≥4 weekly volumes' };
+  const hist = rows.slice(0, -1).map(r => Number(r.volume));
+  const latest = Number(rows[rows.length - 1].volume);
+  const mean = hist.reduce((a, b) => a + b, 0) / hist.length;
+  const variance = hist.reduce((a, b) => a + (b - mean) ** 2, 0) / hist.length;
+  const std = Math.sqrt(variance);
+  let z;
+  if (std <= 0) z = latest > mean ? 3 : null; // flat-then-jump vs flat-forever
+  else z = (latest - mean) / std;
+  return {
+    z: z == null ? null : Math.round(z * 100) / 100,
+    weeks: rows.length,
+    breakout: z != null && z >= 2,
+    latest,
+    mean: Math.round(mean * 10) / 10
+  };
+}
+
+// Exponential fit: least squares on ln(volume+1) vs week index; project
+// `horizonWeeks` ahead as relative week offsets. ok:false until 3 weeks.
+function forecastTrend(trendKey, horizonWeeks = 12) {
+  const rows = seriesFor(trendKey);
+  if (rows.length < 3) return { ok: false, reason: 'need ≥3 weekly volumes', weeks: rows.length };
+  const n = rows.length;
+  const ys = rows.map(r => Math.log((Number(r.volume) || 0) + 1));
+  const mx = (n - 1) / 2;
+  const my = ys.reduce((a, b) => a + b, 0) / n;
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < n; i++) { sxy += (i - mx) * (ys[i] - my); sxx += (i - mx) ** 2; }
+  const slope = sxx > 0 ? sxy / sxx : 0;
+  const intercept = my - slope * mx;
+  const projections = [];
+  for (let h = 1; h <= horizonWeeks; h++) {
+    const v = Math.exp(intercept + slope * (n - 1 + h)) - 1;
+    projections.push({ weekOffset: h, volume: Math.max(0, Math.round(v)) });
+  }
+  const weeklyGrowthPct = (Math.exp(slope) - 1) * 100;
+  return {
+    ok: true,
+    weeklyGrowthPct: Math.round(weeklyGrowthPct * 10) / 10,
+    projections,
+    basedOnWeeks: n,
+    lastVolume: rows[n - 1].volume,
+    lastWeek: rows[n - 1].week
+  };
+}
+
+// Where does this term's latest WoW growth sit vs every other tracked term?
+// Returns null when either side lacks ≥2 weekly volumes.
+function cohortGrowthPercentile(trendKey) {
+  let rows;
+  try {
+    rows = db.prepare('SELECT trend_key, week, volume FROM trend_snapshots WHERE volume IS NOT NULL ORDER BY trend_key, week ASC').all();
+  } catch { return null; }
+  const key = String(trendKey || '').trim();
+  const byKey = new Map();
+  for (const r of rows) {
+    if (!byKey.has(r.trend_key)) byKey.set(r.trend_key, []);
+    byKey.get(r.trend_key).push(Number(r.volume));
+  }
+  const wow = (arr) => {
+    if (!arr || arr.length < 2) return null;
+    const a = arr[arr.length - 2], b = arr[arr.length - 1];
+    return a > 0 ? (b - a) / a : null;
+  };
+  const mine = byKey.get(key);
+  const myG = wow(mine);
+  if (myG == null) return null;
+  const others = [];
+  for (const [k, v] of byKey) {
+    if (k === key) continue;
+    const g = wow(v);
+    if (g != null) others.push(g);
+  }
+  if (!others.length) return null;
+  const below = others.filter(g => g < myG).length;
+  return {
+    percentile: Math.round((below / others.length) * 100),
+    cohortSize: others.length,
+    myGrowthPct: Math.round(myG * 1000) / 10
+  };
+}
+
 function insertLiveTrend(item, rank) {
   if (!isProductizableCandidate(item)) return null;
   item.shoppingIntent = fuseShoppingIntent(item);
   if (trendNameExists(item.name)) return null;
 
   const k = parseTraffic(item.traffic);
-  const velocityPct = Math.max(90, 320 - rank * 20);
+  const trendKey = normalizeNicheKey(item.name);
+  // Data-backed revenue when validation data exists (DataForSEO seeds), else
+  // the traffic-tier heuristic for sources without absolute volume.
+  const validation = item.validation || null;
+  const est = (validation && validation.volume > 0)
+    ? (estRevenueFromDemand(validation.volume, validation.cpc) || est)
+    : null;
+  const velocityPct = Math.max(90, 320 - rank * 20); // pre-measurement baseline; refreshTrendMeasurements() replaces it
   const shopBoost = item.shoppingIntent >= 0.8;
-  const est = shopBoost
+  const estFinal = est || (shopBoost
     ? (k >= 100000 ? '$3k-8k' : '$1.5k-5k')
-    : (k >= 200000 ? '$4k-9k' : k >= 100000 ? '$2k-6k' : k >= 50000 ? '$1k-4k' : '$500-2k');
+    : (k >= 200000 ? '$4k-9k' : k >= 100000 ? '$2k-6k' : k >= 50000 ? '$1k-4k' : '$500-2k'));
   const velocity = `+${velocityPct}%`;
   const phase = phaseForVelocity(velocityPct);
   const intentTag = ` · intent=${item.shoppingIntent.toFixed(2)}`;
 
+  if (trendKey && validation && validation.volume > 0) {
+    snapshotTrend(trendKey, { volume: validation.volume, cpc: validation.cpc, competition: validation.difficulty, source: item.source });
+  }
+
   db.prepare(`
-    INSERT INTO trends (name, emoji, phase, velocity, window, est_revenue, why, activated, detected_at)
-    VALUES (?, '🛰️', ?, ?, ?, ?, ?, 0, ?)
+    INSERT INTO trends (name, emoji, phase, velocity, window, est_revenue, why, activated, detected_at,
+      trend_key, first_seen_at, last_volume, last_cpc)
+    VALUES (?, '🛰️', ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
   `).run(
     item.name,
     phase,
     velocity,
     shopBoost ? 21 : 10,
-    est,
+    estFinal,
     `${item.source} · ${item.traffic || 'trending now'}${intentTag}`,
-    new Date().toISOString()
+    new Date().toISOString(),
+    trendKey,
+    new Date().toISOString(),
+    validation ? validation.volume : null,
+    validation ? validation.cpc : null
   );
   return db.prepare('SELECT * FROM trends WHERE name = ? ORDER BY id DESC LIMIT 1').get(item.name);
 }
@@ -599,13 +1032,17 @@ async function scanLiveTrends(max = 5) {
   await pull('google-trends', () => fetchGoogleTrends(10));
   await pull('reddit', () => fetchRedditRising());
   await pull('etsy-autocomplete', () => fetchEtsyAutocomplete());
-  await pull('pinterest-rss', () => fetchPinterestTrends(6));
-  await pull('tiktok-rss', () => fetchTikTokTrends(5));
+  await pull('pinterest-trends', () => fetchPinterestTrends(6));
+  await pull('tiktok-creative-center', () => fetchTikTokTrends(5));
+  await pull('youtube-rss', () => fetchYouTubeTrends(8));
   await pull('amazon-movers', () => fetchAmazonMovers(8));
   await pull('ebay-trending', () => fetchEbayTrending(8));
   // SERP discovery layers (Serper autocomplete + ValueSERP shopping validation)
   await pull('serper-autocomplete', () => fetchSerperAutocomplete());
   await pull('dataforseo', () => fetchDataForSEO());
+
+  // PHASE 1: refresh measured velocity/phase/revenue from real series.
+  try { await refreshTrendMeasurements(); } catch (e) { console.error('[RADAR] measure refresh:', e.message); }
 
 
   // Prefer shopping-intent sources when ranking
@@ -637,6 +1074,7 @@ module.exports = {
   fetchEtsyAutocomplete,
   fetchPinterestTrends,
   fetchTikTokTrends,
+  fetchYouTubeTrends,
   scanLiveTrends,
   insertLiveTrend,
   parseTraffic,
@@ -656,5 +1094,21 @@ module.exports = {
   drainSearchQueue,
   fetchEtsySaturation,
 
-  markHealth
+  markHealth,
+
+  weekKey,
+  snapshotTrend,
+  growthFromSnapshots,
+  phaseFromGrowth,
+  estRevenueFromDemand,
+  fmtUsdBand,
+  fetchDataForSEOTrendsExplore,
+  refreshTrendMeasurements,
+  discoverTerms,
+  isDiscoverableTerm,
+  DISCOVERY_SEEDS,
+  seriesFor,
+  breakoutScore,
+  forecastTrend,
+  cohortGrowthPercentile
 };

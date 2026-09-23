@@ -108,8 +108,8 @@ async function refreshEtsyToken() {
     refresh_token: token.refresh_token
   });
   
-  db.prepare('UPDATE marketplace_tokens SET access_token = ?, expires_at = ? WHERE platform = ?')
-    .run(resp.data.access_token, new Date(Date.now() + resp.data.expires_in * 1000).toISOString(), 'etsy');
+  db.prepare('UPDATE marketplace_tokens SET access_token = ?, refresh_token = ?, expires_at = ? WHERE platform = ?')
+    .run(resp.data.access_token, resp.data.refresh_token || token.refresh_token, new Date(Date.now() + resp.data.expires_in * 1000).toISOString(), 'etsy');
   
   return resp.data;
 }

@@ -383,6 +383,7 @@ async function openProduct(id) {
       <button class="btn sm" data-action="edit-product" data-id="${id}">${icon('pencil')} Edit</button>
       <button class="btn sm" data-action="seo-load" data-id="${id}">${icon('search')} SEO</button>
       <button class="btn sm" data-action="optimize-product" data-id="${id}">${icon('sparkles')} Optimize listing</button>
+      <button class="btn amber sm" data-action="rollback-optimization" data-id="${id}">${icon('history')} Rollback copy</button>
       <button class="btn sm" data-action="cover-generate" data-id="${id}">${icon('sparkles')} New cover</button>
       <a class="btn sm" href="/api/export/product/${id}" download>${icon('download')} File</a>
       <button class="btn red sm" data-action="confirm" data-confirm="delete:${id}" data-message="Delete this product permanently?">${icon('trash')} Delete</button>
@@ -582,6 +583,7 @@ document.addEventListener('click', async (e) => {
       case 'make-this': openMakeThis({}); break;
       case 'make-this-run': await makeThisRun(); break;
       case 'optimize-product': await optimizeProduct(id); break;
+      case 'rollback-optimization': await rollbackOptimization(id); break;
       case 'optimize-weak': await optimizeAllWeak(); break;
       case 'cap-save': await saveCaps(); break;
       case 'trend-vet':
@@ -809,6 +811,16 @@ async function optimizeProduct(id) {
   const d = r.deploy || {};
   const tail = d.ok ? 'New copy pushed to the live listing.' : (d.reason || d.error || 'Copy stored locally.');
   toast('success', 'Listing optimized', `score ${r.scoreBefore} → ${r.scoreAfter} · ${tail}`);
+  await loadCore(); render();
+}
+
+async function rollbackOptimization(id) {
+  const r = await safe(() => dataActions.rollbackOptimization(id));
+  if (!r) return;
+  if (!r.ok) { toast('warn', 'Nothing to roll back', r.reason || 'No optimization applied yet.'); return; }
+  const d = r.deploy || {};
+  const tail = d.ok ? ' · restored copy pushed to live listing' : (d.reason ? ' · copy restored locally' : '');
+  toast('success', 'Copy rolled back', `restored ${r.targetKind} listing copy (score ${r.score})${tail}`);
   await loadCore(); render();
 }
 

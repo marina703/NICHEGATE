@@ -105,14 +105,18 @@ function preview(product) {
     name: product.name,
     origin: product.origin || 'engine',
     ...built,
+    rollback: { available: !!product.listing_json, target: product.previous_listing_json ? 'previous' : 'original' },
     policy: deployPolicy(product)
   };
 }
 
 async function apply(product, opts = {}) {
   const built = optimizeCopy(product, profFor(product));
-  db.prepare('UPDATE products SET listing_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(JSON.stringify(built.optimized).slice(0, 20000), product.id);
+  // Save the pre-apply copy as the rollback restore point (null on first
+  // optimization — rollback then recomputes the original listing copy).
+  const previous = product.listing_json || null;
+  db.prepare('UPDATE products SET listing_json = ?, previous_listing_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(JSON.stringify(built.optimized).slice(0, 20000), previous, product.id);
 
   const policy = deployPolicy(product);
   let deploy;
@@ -143,6 +147,60 @@ async function apply(product, opts = {}) {
   };
 }
 
+// One-click rollback (audit follow-up): restore the copy that was in effect
+// before the last optimization — the saved previous_listing_json, or the
+// original computed copy when the first optimization is reverted. Same deploy
+// rule as apply(): engine + listed pushes the restored copy live; manual
+// products stay local. Toggle semantics: the replaced copy becomes the new
+// restore point, so rollback is undo/redo.
+async function rollback(product, opts = {}) {
+  if (!product || !product.listing_json) {
+    return { ok: false, reason: 'No optimization applied to this product yet — nothing to roll back' };
+  }
+  const prof = profFor(product);
+  let target = null;
+  let targetKind = 'original';
+  if (product.previous_listing_json) {
+    try {
+      const parsed = JSON.parse(product.previous_listing_json);
+      if (parsed && parsed.title) { target = parsed; targetKind = 'previous'; }
+    } catch { /* corrupted snapshot — fall through to the original copy */ }
+  }
+  if (!target) target = optimizeCopy(product, prof).current;
+
+  const policy = deployPolicy(product);
+  let deploy;
+  if (opts.deploy !== false && policy.autoDeploy) {
+    try {
+      await mp.updateListingCopy(product, target);
+      deploy = { attempted: true, ok: true, platform: policy.platform };
+    } catch (e) {
+      deploy = { attempted: true, ok: false, error: e.message };
+    }
+  } else {
+    deploy = { attempted: false, reason: policy.reason };
+  }
+
+  const replaced = product.listing_json;
+  db.prepare('UPDATE products SET listing_json = ?, previous_listing_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(JSON.stringify(target).slice(0, 20000), replaced, product.id);
+  const deployNote = deploy.attempted ? (deploy.ok ? ` and pushed to live ${policy.platform}` : ` (live push failed: ${deploy.error})`) : '';
+  db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+    .run('optimize_rollback', product.id, `Restored ${targetKind} listing copy${deployNote}`,
+      deploy.attempted && !deploy.ok ? 'warning' : 'success');
+
+  return {
+    ok: true,
+    productId: product.id,
+    name: product.name,
+    targetKind,
+    restored: target,
+    score: scoreSeo(target),
+    deploy,
+    policy
+  };
+}
+
 // Bulk pass over the weak-listing set the BI service already computes.
 // Never throws as a whole: one bad listing is recorded, the run continues.
 async function optimizeWeak(limit = 20) {
@@ -165,4 +223,4 @@ async function optimizeWeak(limit = 20) {
   return { ok: true, scanned: weak.length, optimized, deployed, results };
 }
 
-module.exports = { preview, apply, optimizeWeak, deployPolicy, scoreSeo, optimizeCopy };
+module.exports = { preview, apply, rollback, optimizeWeak, deployPolicy, scoreSeo, optimizeCopy };
