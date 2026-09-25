@@ -9,8 +9,8 @@ import {
   debounce, fmtNum, fmtMoney,  timeAgo, clockTime, titleCase, statusPillClass, thumbFallback, reviewPage, reviewQueue,
   barRow, gauge
 } from './ui.js';
-import { consoleApi, dataApi, dataActions, connectStream, renderExport } from './api.js';
-import { NAV, CRUMBS, VIEWS } from './views.js';
+import { consoleApi, dataApi, dataActions, workerApi, connectStream, renderExport } from './api.js';
+import { NAV, CRUMBS, VIEWS, pickPriority } from './views.js';
 import { createCoverRebuild } from './rebuild.js';
 
 const state = {
@@ -29,8 +29,17 @@ const state = {
   reviewPage: 1,
   reviewIndex: 0,
   selected: new Set(),
+  selectedTrends: new Set(),
+  // string keys "kind:id" for non-product rows: social posts, ad runs, niches
+  selectedMisc: new Set(),
+  aiRef: null,
+  asks: [],
+  memories: [],
+  workerStatus: {},
   lastSocialContent: null,
   caps: null,
+  since: null,
+  pendingAgentConfirm: null,
   busy: false
 };
 
@@ -51,9 +60,10 @@ async function safe(fn, label) {
 
 // ── data loading ───────────────────────────────────────────────────────
 async function loadCore() {
-  const [overview, products, trends, activity, smart, actions] = await Promise.all([
+  const [overview, products, trends, activity, smart, actions, asks, ws] = await Promise.all([
     safe(() => consoleApi.overview()), safe(() => dataApi.products()), safe(() => dataApi.trends()),
-    safe(() => dataApi.activity()), safe(() => dataApi.smartActions()), safe(() => consoleApi.actions())
+    safe(() => dataApi.activity()), safe(() => dataApi.smartActions()), safe(() => consoleApi.actions()),
+    safe(() => workerApi.asks('pending')), safe(() => workerApi.status())
   ]);
   if (overview) state.overview = overview;
   if (products) state.products = products;
@@ -61,6 +71,8 @@ async function loadCore() {
   if (activity) state.activity = activity;
   if (smart) state.smartActions = smart.actions || [];
   if (actions) state.actions = actions.actions || [];
+  if (asks) state.asks = asks.asks || [];
+  if (ws) state.workerStatus = ws;
 }
 
 async function loadViewData(view) {
@@ -94,6 +106,7 @@ async function loadViewData(view) {
       if (products) state.products = products;
       if (activity) state.activity = activity;
       if (bi) state.bi = bi;
+      if (state.view === 'home') computeSince();
       break;
     }
     case 'analytics': {
@@ -110,20 +123,58 @@ async function loadViewData(view) {
     }
     case 'marketplace': { const r = await safe(() => dataApi.setup()); if (r) state.setup = r; break; }
     case 'system': {
-      const [rd, ms, pay, br, runs] = await Promise.all([
+      const [rd, ms, pay, br, runs, mem, allAsks, ws] = await Promise.all([
         safe(() => dataApi.readiness()), safe(() => dataApi.modelStatus()),
-        safe(() => dataApi.payments()), safe(() => dataApi.branding()), safe(() => consoleApi.runs(20))
+        safe(() => dataApi.payments()), safe(() => dataApi.branding()), safe(() => consoleApi.runs(20)),
+        safe(() => workerApi.memory()), safe(() => workerApi.asks()), safe(() => workerApi.status())
       ]);
       if (rd) state.readiness = rd;
       if (ms) state.modelStatus = ms;
       if (pay) state.payments = pay;
       if (br) state.branding = br;
       if (runs) state.runs = runs.runs || [];
+      if (mem) state.memories = mem.memories || [];
+      if (allAsks) state.asks = allAsks.asks || [];
+      if (ws) state.workerStatus = ws;
       break;
     }
     default: break;
   }
 }
+
+// ── since-your-last-visit ──────────────────────────────────────────────
+// Diffs REAL timestamps against the last session: new drafts (products),
+// sales + revenue (bi.series days after the visit), trend activations.
+const LAST_SEEN_KEY = 'ng_lastseen';
+let sinceTimer = null;
+function lastSeenMs() {
+  try { return Number(localStorage.getItem(LAST_SEEN_KEY)) || 0; } catch { return 0; }
+}
+function saveLastSeen() {
+  try { localStorage.setItem(LAST_SEEN_KEY, String(Date.now())); } catch { /* private mode */ }
+}
+function computeSince() {
+  const at = lastSeenMs();
+  if (!at) { state.since = { first: true }; return; }
+  const since = { first: false, at: new Date(at).toISOString(), newDrafts: 0, newSales: 0, newRevenue: 0, newActivations: 0 };
+  const when = v => { const t = new Date(String(v || '').replace(' ', 'T') + 'Z').getTime(); return Number.isFinite(t) ? t : 0; };
+  for (const p of state.products) {
+    if ((p.status === 'draft' || p.status === 'pending-review') && when(p.created_at) > at) since.newDrafts++;
+  }
+  const afterDay = new Date(at).toISOString().slice(0, 10);
+  for (const d of ((state.bi && state.bi.series) || [])) {
+    if (String(d.date) > afterDay) {
+      since.newSales += Number(d.sales) || 0;
+      since.newRevenue += Number(d.revenue) || 0;
+    }
+  }
+  for (const t of (state.trends || [])) if (when(t.activated_at) > at) since.newActivations++;
+  state.since = since;
+  // Mark the visit "seen" shortly after — a quick reload still shows the diff.
+  clearTimeout(sinceTimer);
+  sinceTimer = setTimeout(saveLastSeen, 30000);
+}
+window.addEventListener('beforeunload', saveLastSeen);
 
 // ── rendering ──────────────────────────────────────────────────────────
 function railExpanded() {
@@ -194,6 +245,9 @@ function renderTopbar() {
       AI ${o.model.enabled ? 'on' : 'off'}</button>` : '',
     `<button class="chip ${state.live === 'live' ? 'live' : ''}" data-action="runs-open" title="Live run stream">
       <span class="dot"></span>${esc(state.live === 'live' ? 'streaming' : state.live)}</button>`,
+    (state.asks || []).filter(x => x.status === 'pending').length
+      ? `<button class="chip warn" data-action="go" data-view="home" title="Your worker/surrogate has questions">🔔 Boss (${(state.asks || []).filter(x => x.status === 'pending').length})</button>`
+      : '',
     `<button class="chip" data-action="palette" title="Command palette (Ctrl/Cmd+K)">${icon('command')} ⌘K</button>`
   ].join('');
   document.getElementById('status').innerHTML = chips;
@@ -209,14 +263,17 @@ function render() {
 }
 
 function afterRender() {
-  if (state.view === 'review') {
-    const rows = document.querySelectorAll('.rrow');
+  // The J/K cursor highlights triage rows on BOTH work surfaces: the Review
+  // table and the Home work-now card show the same queue in the same order.
+  if (state.view === 'review' || state.view === 'home') {
+    const rows = document.querySelectorAll('.rrow[data-review-id]');
     rows.forEach((r, i) => r.classList.toggle('hl', i === state.reviewIndex));
   }
 }
 
 async function go(view) {
   if (!VIEWS[view]) view = 'home';
+  if (state.view === 'home' && view !== 'home') saveLastSeen();
   state.view = view;
   state.reviewIndex = 0;
   render();
@@ -224,12 +281,19 @@ async function go(view) {
   render();
 }
 
+// The rows the keyboard cursor walks: the Review table's page, or the Home
+// work-now card's top slice (same queue, same order).
+function triageItems() {
+  if (state.view === 'home') return reviewPage(state.products, 1).slice.slice(0, 6);
+  return reviewPage(state.products, state.reviewPage).slice;
+}
+
 // Clamp the cursor and the page against the queue that actually exists, so
 // approving the last row on page 3 lands on page 2 instead of a blank table.
 function clampReviewCursor() {
-  const { page, slice } = reviewPage(state.products, state.reviewPage);
+  const { page } = reviewPage(state.products, state.reviewPage);
   state.reviewPage = page;
-  state.reviewIndex = Math.max(0, Math.min(state.reviewIndex, slice.length - 1));
+  state.reviewIndex = Math.max(0, Math.min(state.reviewIndex, triageItems().length - 1));
 }
 
 // ── actions ────────────────────────────────────────────────────────────
@@ -397,6 +461,7 @@ async function openProduct(id) {
       <button class="btn primary sm" data-action="publish" data-id="${id}">${icon('rocket')} Publish</button>
       <button class="btn sm" data-action="push-etsy" data-id="${id}">${icon('marketplace')} Push to Etsy</button>
       <button class="btn amber sm" data-action="better-idea" data-id="${id}">${icon('brain')} Better Idea</button>
+      <button class="btn amber sm" data-action="ai-ref" data-kind="product" data-id="${id}">💡 Ask AI</button>
       <button class="btn sm" data-action="edit-product" data-id="${id}">${icon('pencil')} Edit</button>
       <button class="btn sm" data-action="seo-load" data-id="${id}">${icon('search')} SEO</button>
       <button class="btn sm" data-action="optimize-product" data-id="${id}">${icon('sparkles')} Optimize listing</button>
@@ -480,18 +545,19 @@ function toggleTheme() {
   toast('info', `Theme → ${dark ? 'light' : 'dark'}`, 'Preference saved in this browser.');
 }
 
-// ── command bar / chat ────────────────────────────────────────────────
-// One always-visible prompt bar: understands plain intents and routes them to
-// the existing pipeline. Everything the bar can do maps to a registered
-// action or an existing view — no new server code, no direct SQL from UI.
+// ── command bar / AI worker chat ──────────────────────────────────────
+// One always-visible prompt bar in front of the in-app AI WORKER. Quick
+// intents (nav, help, questions) resolve locally; everything actionable goes
+// to POST /api/console/agent, which executes real tasks through the same
+// action spine as the console and reports each tool call here as a step.
 const CMD_SUGGESTIONS = [
+  'what should I do now?',
   'make a dog bakery price list',
   "what's trending?",
-  'run a discovery sweep',
-  'what needs review?',
+  'optimize my weak listings',
   'show sales',
   'sync sales',
-  'Which niche should I double down on next?',
+  'publish my approved bundles',
   'Why did sales dip this week?'
 ];
 let cmdLog = [];
@@ -506,8 +572,9 @@ function cmdPush(role, text) {
 function drawCmdLog() {
   const log = document.getElementById('cmd-log');
   if (!log) return;
-  log.innerHTML = cmdLog.map(m => `
-    <div class="cmd-msg ${m.role === 'you' ? 'you' : 'ng'}">
+  log.innerHTML = cmdLog.map(m => m.role === 'step'
+    ? `<div class="cmd-msg step"><span class="who">worker</span><div class="bubble">${esc(m.text)}</div></div>`
+    : `<div class="cmd-msg ${m.role === 'you' ? 'you' : 'ng'}">
       <span class="who">${m.role === 'you' ? 'You' : 'NicheGate'}</span>
       <div class="bubble">${esc(m.text)}</div>
     </div>`).join('') || '<div class="cmd-chips" style="padding:6px">' +
@@ -523,9 +590,10 @@ function ensureCmdBar() {
   bar.id = 'cmdbar';
   bar.innerHTML = `
     <div class="cmd-log" id="cmd-log"></div>
+    <div class="cmd-ctx" id="cmd-ctx"></div>
     <div class="cmdbar-input">
       <span class="ic">${icon('sparkles')}</span>
-      <input id="cmd-input" placeholder="Try: make a dog bakery price list · what's trending? · sync sales" aria-label="Command NicheGate" autocomplete="off">
+      <input id="cmd-input" placeholder="Ask the AI worker: make a dog bakery price list · clear my review queue · what should I do?" aria-label="Command NicheGate" autocomplete="off">
       <button class="btn primary sm" data-action="cmd-run">Send</button>
       <button class="btn ghost sm" data-action="cmd-close" title="Close chat" aria-label="Close chat">✕</button>
     </div>
@@ -542,6 +610,7 @@ function ensureCmdBar() {
   }));
   try { cmdLog = JSON.parse(localStorage.getItem('ng_cmdlog') || '[]'); } catch { cmdLog = []; }
   drawCmdLog();
+  drawCmdCtx();
 }
 
 async function runCommand() {
@@ -552,25 +621,83 @@ async function runCommand() {
   const log = document.getElementById('cmd-log');
   if (log) log.classList.add('open');
   cmdPush('you', q);
+
+  // A pending destructive worker call is confirmed by replying "confirm".
+  if (state.pendingAgentConfirm) {
+    if (/^(confirm|yes|do it|go ahead|yep|y|proceed)[.!]?$/i.test(q)) {
+      const call = state.pendingAgentConfirm;
+      state.pendingAgentConfirm = null;
+      cmdPush('step', `confirmed · executing ${call.tool}`);
+      const res = await safe(() => consoleApi.agent('', { confirmCall: call }));
+      for (const st of ((res && res.steps) || [])) cmdPush('step', stepLine(st));
+      cmdPush('ng', (res && res.answer) || 'The worker did not respond.');
+      await loadCore(); await loadViewData(state.view); render();
+    } else {
+      state.pendingAgentConfirm = null;
+      cmdPush('ng', 'Cancelled the pending operation.');
+    }
+    return;
+  }
+
   const reply = await routeCommand(q);
+  for (const st of (reply.steps || [])) cmdPush('step', stepLine(st));
   cmdPush('ng', reply.text);
+  if (reply.needsConfirm) state.pendingAgentConfirm = reply.needsConfirm;
   if (reply.goTo) await go(reply.goTo);
+  if (reply.ran) { await loadCore(); await loadViewData(state.view); render(); }
 }
 
-// Intent router — order matters: most specific first.
+// One transcript line per executed worker tool call.
+function stepLine(st) {
+  const label = (state.actions.find(a => a.name === ((st.args || {}).name)) || {}).label || st.tool;
+  const r = st.result || {};
+  const detail = r.error ? `✕ ${String(r.error).slice(0, 90)}` : summarize(r);
+  return `${st.ok === false ? '✕' : '✓'} ${label}${detail ? ' — ' + detail : ''}`;
+}
+
+// Intent router — order matters: most specific first. Quick intents answer
+// locally (nav, help, questions); EVERYTHING actionable goes to the AI worker
+// (POST /api/console/agent), which executes real tasks through the same
+// action registry as the console and reports each tool call back as a step.
 async function routeCommand(q) {
   const t = q.toLowerCase();
   const has = (...ws) => ws.some(w => t.includes(w));
 
-  // make … → product generation (the Make-This pipeline)
-  if (has('make ', 'create ', 'generate ')) {
-    const idea = q.replace(/^(please\s+)?(make|create|generate)\s+(me\s+)?(a|an|some)?\s*/i, '').trim() || q;
-    const r = await safe(() => dataActions.generateCustom({ idea, count: 1 }));
-    if (!r) return { text: 'Generation failed — check the System view for the engine status.' };
-    const n = (r.created || []).length;
-    await loadCore();
-    return { text: `Drafted ${n} product${n === 1 ? '' : 's'} from "${idea}" — waiting in the Review queue for your approval.`, goTo: 'review' };
+  // what should I do? → the same priority brain Home renders
+  if (has('what should i do', 'what now', 'priorit', 'next step')) {
+    const p = pickPriority(state)[0];
+    return { text: p.kind === 'growth'
+      ? 'Nothing urgent — keep the flywheel moving: publish bundles, run a sweep, or sync sales.'
+      : `Highest leverage right now: ${p.label} (${fmtNum(p.count)} waiting).`, goTo: p.view };
   }
+
+  // what needs review? → the queue count + where to go
+  if (has('needs review', 'review queue', 'awaiting review')) {
+    const n = reviewQueue(state.products).length;
+    return { text: `${fmtNum(n)} product${n === 1 ? '' : 's'} awaiting review. J/K move · A approve · R reject.`, goTo: 'review' };
+  }
+
+  // help
+  if (has('help', 'what can you do')) {
+    return { text: 'I am the NicheGate AI worker — I execute, not just chat:\n• make <thing> — draft a product\n• sweep / full cycle / sync sales — run the engine\n• approve all · optimize my weak listings · publish bundles\n• what should I do? — the current priority\n• show sales / what\'s trending? — real numbers\n• anything else — I use tools to act on the answer.' };
+  }
+
+  // navigation
+  if (has('open ', 'show me', 'go to', 'take me')) {
+    const NAV_INTENTS = [
+      [['review', 'pending', 'queue'], 'review'], [['catalog', 'products'], 'catalog'],
+      [['discover', 'niche'], 'discovery'], [['trend'], 'trends'], [['analytic'], 'analytics'],
+      [['automation', 'engine'], 'automation'], [['marketplace', 'etsy', 'gumroad'], 'marketplace'],
+      [['social'], 'social'], [['ad spend', 'ads', 'budget'], 'ads'], [['calendar'], 'calendar'],
+      [['system', 'readiness'], 'system'], [['home', 'briefing'], 'home']
+    ];
+    for (const [words, view] of NAV_INTENTS) {
+      if (words.some(w => t.includes(w))) return { text: `Opening ${CRUMBS[view] || view}.`, goTo: view };
+    }
+  }
+
+  // make … / sweeps / automation / approvals → the AI worker below executes
+  // them through the same action registry (it works with the AI layer off).
 
   // trends / discovery questions
   if (has('trend', 'what\'s hot', 'whats hot', 'trending')) {
@@ -579,57 +706,41 @@ async function routeCommand(q) {
     return { text: 'Top trends right now:\n' + rows.map(x => `• ${x.name} — ${x.phase || 'rising'}${x.velocity_pct != null ? ` (+${x.velocity_pct}% WoW)` : ''}`).join('\n'), goTo: 'trends' };
   }
 
-  // sweeps / automation
-  if (has('sweep', 'discovery', 'scan')) {
-    await runAction('sweep', {});
-    return { text: 'Discovery sweep started — live radar, niche universe and seasonal scan are running. Results land in Discovery.' };
-  }
-  if (has('full cycle', 'full-cycle', 'run everything')) {
-    await runAction('full-cycle', {});
-    return { text: 'Full automation cycle started: sales sync → review gate → generate → publish.' };
-  }
-  if (has('sync sales', 'sync the sales')) {
-    await runAction('sync-sales', {});
-    return { text: 'Gumroad sales sync started — new sales will appear in Analytics.' };
-  }
-  if (has('approve')) {
-    await runAction('approve-all', {});
-    return { text: 'Approving all pending drafts…', goTo: 'review' };
-  }
-  if (has('dedupe', 'dedupe queue')) {
-    await runAction('dedupe-queue', {});
-    return { text: 'Deduplicating the review queue…', goTo: 'review' };
+  // sales / analytics questions → real BI deltas (state.bi, not overview.bi)
+  if (has('sale', 'revenue', 'money', 'analytics')) {
+    const d = (state.bi && state.bi.deltas) || {};
+    const rev = d.revenue || {}; const sales = d.sales || {};
+    const o = state.overview || {};
+    const pct = v => (typeof v === 'number' ? `${v >= 0 ? '+' : ''}${v}%` : 'n/a');
+    return {
+      text: `Revenue 7d: $${(rev.value || 0).toFixed(2)} (${pct(rev.deltaPct)} vs prior week)\nSales 7d: ${sales.value || 0} (${pct(sales.deltaPct)})\nLifetime real revenue: ${fmtMoney((o.revenue || {}).realRevenue || 0, true)} · catalog: ${(state.products || []).length} products.`,
+      goTo: 'analytics'
+    };
   }
 
-  // sales / analytics questions
-  if (has('sale', 'revenue', 'analytics')) {
-    const bi = state.overview && state.overview.bi ? state.overview.bi : {};
-    const rev = bi.revenue || {};
-    const sales = bi.sales || {};
-    return { text: `Real revenue (7d): $${(rev.value || 0).toFixed(2)} (${rev.deltaPct >= 0 ? '+' : ''}${rev.deltaPct || 0}% vs prior week)\nSales (7d): ${sales.value || 0} (${sales.deltaPct >= 0 ? '+' : ''}${sales.deltaPct || 0}%)\nTotal catalog: ${(state.products || []).length} products.`, goTo: 'analytics' };
-  }
-
-  // anything conversational → AI assistant with live ops context
-  const ai = await safe(() => consoleApi.assistant(q));
-  if (ai && ai.answer) return { text: ai.answer };
-
-  // assistant unreachable: honest deterministic fallback (no fake AI)
-  return { text: 'I could not reach the AI layer. Try: "help" for commands, "make <thing>" to draft a product, or "show sales" for numbers.' };
-  if (has('review', 'pending', 'queue')) return { text: 'Opening the Review queue.', goTo: 'review' };
-  if (has('catalog', 'products')) return { text: 'Opening the catalog.', goTo: 'catalog' };
-  if (has('discover', 'niches')) return { text: 'Opening Discovery.', goTo: 'discovery' };
-  if (has('automation', 'engine')) return { text: 'Opening Automation.', goTo: 'automation' };
-  if (has('marketplace', 'etsy', 'gumroad')) return { text: 'Opening Marketplace connections.', goTo: 'marketplace' };
-  if (has('help', 'what can you do')) {
-    return { text: 'I can:\n• make <thing> — draft a product ("make a dog bakery price list")\n• what\'s trending? — top rising trends\n• run a discovery sweep / full cycle\n• sync sales — pull Gumroad orders\n• show sales — revenue summary\n• what needs review? — open the approval queue\n• open <catalog / discovery / trends / analytics / marketplace>' };
-  }
-
-  // fallback: treat the whole line as a product idea
-  const r = await safe(() => dataActions.generateCustom({ idea: q, count: 1 }));
-  if (!r) return { text: 'I did not catch that — try "help" to see what I understand, or rephrase as "make …".' };
-  const n = (r.created || []).length;
-  await loadCore();
-  return { text: `Treated "${q}" as a product idea and drafted ${n} — it is in the Review queue.`, goTo: 'review' };
+  // everything else → the AI worker. It executes real tasks (run_action,
+  // generate, publish, optimize, trend ops) via the server-side tool loop and
+  // still works with the AI layer off through its deterministic planner.
+  // 💡 context handoff: whatever the operator pointed at or selected rides
+  // along, so "fix this one" needs no further identification.
+  const ref = state.aiRef;
+  const res = await safe(() => consoleApi.agent(q, {
+    history: cmdLog.filter(m => m.role === 'you' || m.role === 'ng').slice(-6)
+      .map(m => ({ role: m.role, text: m.text })),
+    productRef: ref && ref.id ? { id: ref.id, kind: ref.kind, label: ref.name } : null,
+    selection: [...state.selected]
+  }));
+  state.aiRef = null;
+  drawCmdCtx();
+  if (!res) return { text: 'The AI worker is unreachable. Try "help" for the commands that always work.' };
+  const steps = res.steps || [];
+  return {
+    text: res.answer || 'Done.',
+    steps,
+    needsConfirm: res.needsConfirm || null,
+    goTo: res.nav || (steps.some(s => s.tool === 'generate' || s.tool === 'generate_for_trend') ? 'review' : null),
+    ran: steps.length > 0
+  };
 }
 
 // ── command palette ────────────────────────────────────────────────────
@@ -725,7 +836,18 @@ document.addEventListener('click', async (e) => {
       case 'rail-toggle': toggleRail(); break;
       case 'palette': openPalette(); break;
       case 'runs-open': openRuns(); break;
-      case 'run': await runAction(el.dataset.name); break;
+      case 'run': {
+        // Actions with required input ask for it here (same as ⌘K does).
+        const runName = el.dataset.name;
+        if (runName === 'generate-for-niche') {
+          const niche = prompt('Which niche?');
+          if (!niche) break;
+          await runAction(runName, { niche, count: 3 });
+        } else {
+          await runAction(runName);
+        }
+        break;
+      }
       case 'rebuild-covers': rebuildCovers(); break;
       case 'edit-product': await openEditor(id); break;
       case 'editor-save': await editorSave(); break;
@@ -766,6 +888,52 @@ document.addEventListener('click', async (e) => {
       }
       case 'clear-selection': state.selected.clear(); render(); break;
       case 'batch': await batchStatus(el.dataset.status); break;
+      case 'batch-covers': await batchCovers(); break;
+      case 'ai-ref': setAiRef(el.dataset.kind, Number(id)); break;
+      case 'ai-clear': setAiRef(null); break;
+      case 'ai-ask': aiAskSelection(el.dataset.kind); break;
+      case 'trend-toggle-select': {
+        const tn = Number(id);
+        state.selectedTrends.has(tn) ? state.selectedTrends.delete(tn) : state.selectedTrends.add(tn);
+        render(); break;
+      }
+      case 'trend-select-all': {
+        const ids = String(el.dataset.ids || '').split(',').filter(Boolean).map(Number);
+        const every = ids.length && ids.every(n => state.selectedTrends.has(n));
+        ids.forEach(n => every ? state.selectedTrends.delete(n) : state.selectedTrends.add(n));
+        render(); break;
+      }
+      case 'trend-clear': state.selectedTrends.clear(); render(); break;
+      case 'trend-batch': await trendBatch(el.dataset.do); break;
+      case 'misc-toggle-select': {
+        const k = decodeURIComponent(el.dataset.key || '');
+        if (k) {
+          state.selectedMisc.has(k) ? state.selectedMisc.delete(k) : state.selectedMisc.add(k);
+          render();
+        }
+        break;
+      }
+      case 'misc-select-all': {
+        const keys = String(el.dataset.keys || '').split(',').filter(Boolean).map(decodeURIComponent);
+        const every = keys.length && keys.every(k => state.selectedMisc.has(k));
+        keys.forEach(k => every ? state.selectedMisc.delete(k) : state.selectedMisc.add(k));
+        render(); break;
+      }
+      case 'misc-clear': {
+        const kind = el.dataset.kind;
+        [...state.selectedMisc].forEach(k => { if (!kind || k.startsWith(kind + ':')) state.selectedMisc.delete(k); });
+        render(); break;
+      }
+      case 'misc-batch': await miscBatch(el.dataset.kind, el.dataset.do); break;
+      case 'ask-answer': await askAnswer(el.dataset.id, el.dataset.opt != null ? Number(el.dataset.opt) : null, el.dataset.free === '1'); break;
+      case 'ask-dismiss': await askDismiss(el.dataset.id); break;
+      case 'memory-add': await memoryAdd(); break;
+      case 'memory-pin': await memoryPin(el.dataset.id, el.dataset.pinned === '1'); break;
+      case 'memory-del': await memoryDel(el.dataset.id); break;
+      case 'webhook-save': await webhookSave(); break;
+      case 'notify-test': await notifyTest(); break;
+      case 'steward-run': await stewardRun(); break;
+      case 'steward-toggle': await stewardToggle(); break;
       case 'cat-page': state.filters.page = Number(el.dataset.page); render(); break;
       case 'review-page': state.reviewPage = Number(el.dataset.page); render(); break;
       case 'approve': await setStatus(id, 'approved'); break;
@@ -832,8 +1000,8 @@ document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); return; }
   if (e.key === 'Escape') { closePalette(); closeDrawer(); closeModal(); return; }
   if (typing) return;
-  if (state.view === 'review') {
-    const { slice: pageItems } = reviewPage(state.products, state.reviewPage);
+  if (state.view === 'review' || state.view === 'home') {
+    const pageItems = triageItems();
     if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); state.reviewIndex = Math.min(state.reviewIndex + 1, Math.max(0, pageItems.length - 1)); afterRender(); }
     else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); state.reviewIndex = Math.max(0, state.reviewIndex - 1); afterRender(); }
     else {
@@ -841,10 +1009,211 @@ document.addEventListener('keydown', (e) => {
       if (!cur) return;
       if (e.key === 'a') { e.preventDefault(); setStatus(cur.id, 'approved'); }
       else if (e.key === 'r') { e.preventDefault(); setStatus(cur.id, 'rejected'); }
+      else if (e.key === 'x') { e.preventDefault(); state.selected.has(cur.id) ? state.selected.delete(cur.id) : state.selected.add(cur.id); render(); }
+      else if (e.key === 'l') { e.preventDefault(); setStatus(cur.id, 'listed'); }
       else if (e.key === 'Enter') { e.preventDefault(); openProduct(cur.id); }
     }
   }
 });
+
+// ── AI spark + selection + boss channel ops ───────────────────────────────
+// 💡 spark: point the worker at "this product/trend" without typing it.
+function findRefItem(kind, id) {
+  if (kind === 'trend') return (state.trends || []).find(x => Number(x.id) === Number(id));
+  if (kind === 'post') return (state.social || []).find(x => String(x.id) === String(id));
+  if (kind === 'ad') return ((state.ads && state.ads.recentRuns) || []).find(x => String(x.id) === String(id));
+  if (kind === 'niche') return (state.passionNiches || []).find(x => String(x) === String(id));
+  return (state.products || []).find(x => Number(x.id) === Number(id));
+}
+function refLabel(kind, item, id) {
+  if (!item) return `#${id}`;
+  if (kind === 'post') return String(item.content || '').slice(0, 48) || `post #${item.id}`;
+  if (kind === 'ad') return item.name || `campaign #${item.id}`;
+  if (kind === 'niche') return String(item);
+  return item.name || `#${item.id}`;
+}
+function setAiRef(kind, id) {
+  if (!kind) { state.aiRef = null; drawCmdCtx(); return; }
+  const item = findRefItem(kind, id);
+  state.aiRef = { kind, id, name: refLabel(kind, item, id) };
+  ensureCmdBar();
+  const log = document.getElementById('cmd-log');
+  if (log) log.classList.add('open');
+  drawCmdCtx();
+  const input = document.getElementById('cmd-input');
+  if (input) input.focus();
+  toast('success', 'AI context set', `The worker knows you mean "${state.aiRef.name}".`);
+}
+
+function drawCmdCtx() {
+  const host = document.getElementById('cmd-ctx');
+  if (!host) return;
+  const r = state.aiRef;
+  host.innerHTML = r
+    ? `<span class="ctx-chip">💡 ${esc(r.kind)}: <b>${esc(r.name)}</b><button class="x" data-action="ai-clear" aria-label="Clear AI context">✕</button></span>`
+    : '';
+  host.style.display = host.innerHTML ? 'flex' : 'none';
+}
+
+function aiAskSelection(kind) {
+  const misc = kind !== 'product' && kind !== 'trend';
+  const ids = misc
+    ? [...(state.selectedMisc || [])].filter(k => k.startsWith(kind + ':')).map(k => k.slice(kind.length + 1))
+    : kind === 'trend' ? [...state.selectedTrends] : [...state.selected];
+  if (!ids.length) return;
+  ensureCmdBar();
+  const log = document.getElementById('cmd-log');
+  if (log) log.classList.add('open');
+  const input = document.getElementById('cmd-input');
+  if (!input) return;
+  const labels = misc ? ids.map(id => `"${refLabel(kind, findRefItem(kind, id), id)}"`) : [];
+  input.value = kind === 'trend' ? `My selected trends (#${ids.join(', #')}) — which should I commit to and why?`
+    : kind === 'product' ? `Look at my selected products (#${ids.join(', #')}) and tell me what to do with them`
+    : kind === 'post' ? `Review my selected social posts (${labels.join(', ')}) — what should I improve?`
+    : kind === 'ad' ? `Look at my selected ad campaigns (${labels.join(', ')}) — which is working and what should I change?`
+    : `Of my selected niches (${labels.join(', ')}) — which should I generate from first and why?`;
+  input.focus();
+}
+
+// Batch ops over the misc selection (social posts, ad runs, passion niches).
+// Niche "Generate" drafts one product per niche through the same custom
+// generator the "Make this…" modal uses.
+async function miscBatch(kind, op) {
+  const keys = [...(state.selectedMisc || [])].filter(k => k.startsWith(kind + ':'));
+  if (!keys.length) return;
+  const ids = keys.map(k => k.slice(kind.length + 1));
+  if (op === 'generate') {
+    toast('warning', 'Generating', `${ids.length} niche(s) queued…`);
+    let made = 0;
+    for (const n of ids) {
+      const r = await safe(() => dataActions.generateCustom({ idea: n, count: 1 }));
+      if (r && (r.created || []).length) made += r.created.length;
+    }
+    state.selectedMisc.clear();
+    toast('success', 'Drafted', `${made} product(s) in the review queue.`);
+    await loadCore(); render(); return;
+  }
+  let done = 0;
+  for (const id of ids) {
+    const r = await safe(() =>
+      kind === 'post' ? dataActions.cancelPost(Number(id))
+      : kind === 'ad' ? dataActions.cancelAd(Number(id))
+      : dataActions.removePassionNiche(id));
+    if (r !== null && r !== undefined) done++;
+  }
+  state.selectedMisc.clear();
+  toast('info', op === 'remove' ? 'Removed' : 'Cancelled', `${done}/${ids.length} done.`);
+  if (kind === 'post') await loadViewData('social');
+  else if (kind === 'ad') await loadViewData('ads');
+  else await loadViewData('discovery');
+  render();
+}
+
+async function batchCovers() {
+  const ids = [...state.selected];
+  if (!ids.length) return;
+  toast('warning', 'Generating covers', `${ids.length} covers queued…`);
+  const r = await safe(() => dataActions.generateCovers({ ids }));
+  if (r) {
+    const okCount = (r.results || []).filter(x => x.ok !== false).length;
+    toast('success', 'Covers done', `${okCount}/${ids.length} generated`);
+  }
+  await refreshAfterMutation();
+}
+
+async function trendBatch(op) {
+  const ids = [...state.selectedTrends];
+  if (!ids.length) return;
+  let done = 0;
+  for (const id of ids) {
+    const r = await safe(() => op === 'generate' ? dataActions.generateFromTrend(id, { count: 3 })
+      : op === 'activate' ? dataActions.activateTrend(id) : dataActions.dismissTrend(id));
+    if (r) done++;
+  }
+  state.selectedTrends.clear();
+  toast('success', `Trends ${op === 'generate' ? 'generated' : op + 'd'}`, `${done}/${ids.length} done`);
+  await refreshAfterMutation();
+}
+
+// Boss answers. An option with an action replays it through the confirmed
+// tool path (the answer IS the approval); free text goes back to the worker.
+async function askAnswer(id, optIndex, free) {
+  let text = '';
+  if (free) {
+    text = (prompt('Your answer to the worker:') || '').trim();
+    if (!text) return;
+  }
+  const r = await safe(() => workerApi.answer(id, { answer: text, optionIndex: optIndex }));
+  if (!r) return;
+  if (r.action) {
+    toast('success', 'Decision accepted', 'Executing your decision…');
+    cmdPush('step', `boss decided · executing ${r.action.tool}`);
+    const res = await safe(() => consoleApi.agent('', { confirmCall: r.action }));
+    for (const st of ((res && res.steps) || [])) cmdPush('step', stepLine(st));
+    cmdPush('ng', (res && res.answer) || 'Decision executed.');
+  } else if (text) {
+    const ask = r.ask || {};
+    const res = await safe(() => consoleApi.agent(`Boss answered your ask #${id} ("${ask.question}"): "${text}" — act on it.`));
+    if (res && res.answer) cmdPush('ng', res.answer);
+  } else {
+    toast('success', 'Answer sent', 'The worker will pick it up.');
+  }
+  await loadCore(); render();
+}
+
+async function askDismiss(id) {
+  await safe(() => workerApi.dismiss(id));
+  await loadCore(); render();
+}
+
+async function memoryAdd() {
+  const input = document.getElementById('mem-input');
+  const kind = (document.getElementById('mem-kind') || {}).value || 'note';
+  const content = ((input || {}).value || '').trim();
+  if (!content) return;
+  await safe(() => workerApi.remember(kind, content, false));
+  if (input) input.value = '';
+  toast('success', 'Remembered', 'It rides in every AI turn from now on.');
+  await loadViewData('system'); render();
+}
+
+async function memoryPin(id, pinned) {
+  await safe(() => workerApi.pin(id, pinned));
+  await loadViewData('system'); render();
+}
+
+async function memoryDel(id) {
+  await safe(() => workerApi.forget(id));
+  await loadViewData('system'); render();
+}
+
+async function webhookSave() {
+  const v = ((document.getElementById('hook-input') || {}).value || '').trim();
+  if (!v) return;
+  await safe(() => dataActions.saveSettings({ webhook_url: v }));
+  toast('success', 'Saved', 'Discord webhook stored — try a test ping.');
+  await loadViewData('system'); render();
+}
+
+async function notifyTest() {
+  const r = await safe(() => workerApi.notifyTest());
+  if (r && r.sent) toast('success', '🤖 Ping sent', 'Check Discord — the boss has been notified.');
+}
+
+async function stewardRun() {
+  const r = await safe(() => workerApi.stewardRun());
+  if (!r) return;
+  if (r.skipped) toast('warning', 'Nothing to ask', r.skipped);
+  else toast('success', '🤖 Asked the boss', (r.ask && r.ask.question) || 'Question posted.');
+  await loadCore(); render();
+}
+
+async function stewardToggle() {
+  const on = !(state.workerStatus || {}).stewardEnabled;
+  await safe(() => dataActions.saveSettings({ steward_enabled: on ? 'true' : 'false' }));
+  state.workerStatus = { ...(state.workerStatus || {}), stewardEnabled: on };
+  render();
+}
 
 // ── individual operations ──────────────────────────────────────────────
 async function setStatus(id, status) {
@@ -903,6 +1272,9 @@ async function batchStatus(status) {
 }
 async function refreshAfterMutation() {
   await loadCore();
+  // Reload the view's data too (BI especially) — otherwise Shop Health and
+  // the briefing keep stale numbers after an approve/reject on the same page.
+  await loadViewData(state.view);
   render();
 }
 async function dispatchSmart(name) {

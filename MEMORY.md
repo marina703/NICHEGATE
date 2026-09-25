@@ -177,3 +177,55 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
 - Command bar: conversational input now routes to the AI assistant instead of silently becoming a product draft; keyword intents unchanged; 2 new suggestion chips.
 - metrics table has recorded_at (not created_at) — assistant SQL uses recorded_at.
 - Command-center UX pass (2026-09-23): chat log got a ✕ close button; Home header got an "Update listings" button (runs optimize-weak); KPI cards on Home are now clickable buttons navigating to their view (catalog/review/analytics/system, with status preset for Approved/Draft); rail nav text bumped .55rem→.72rem with brighter color, and the rail is expandable — click the NG mark to expand to 168px (full labels, badges inline), persisted in localStorage ng_rail. All verified live in browser DOM at 1440px.
+
+# ── 2026-09-23: Briefing UX + in-app AI worker ──────────────────────────
+- Home is now a real "Operator briefing": BI insights triad (what's working /
+  needs attention / highest-leverage move) + since-last-visit diff strip +
+  work-now ladder from ONE shared brain `pickPriority(state)` in views.js
+  (review queue → trend windows → weak listings → growth moves). Command bar
+  "what should I do?" uses the same brain. Never show "nothing to do".
+- Trend windows are time-boxed (trends.detected_at + window days):
+  trendWindow(t) in views.js → "closes in Nd" chips on Home + Trends.
+- AI WORKER: server/services/agentWorker.js + POST /api/console/agent. JSON
+  tool protocol {"tool","args"} or {"say"}; parseToolCall extracts the first
+  object from prose/fences (handles the bare {"say": "..."} form — a test
+  caught that gap). Tools wrap actionRegistry.execute + the same service calls
+  as the REST routes. DANGER GATE: delete_product + run_action:reject-trash
+  return needsConfirm; client round-trips them via {confirmCall} after the
+  operator replies "confirm" (state.pendingAgentConfirm in console.js).
+  MODEL_ENABLED=false → planDeterministic still EXECUTES; model prose on a
+  deterministic intent executes the plan anyway. /api/console/assistant kept.
+- Command bar routes: quick intents (nav/help/what-should-i-do/needs-review/
+  trends/sales questions) are local + instant; everything else → the worker,
+  and its tool calls render as monospace "worker" step lines (cmdLog role
+  'step'). Sales answers now read state.bi.deltas (old code read
+  state.overview.bi which does not exist).
+- Keyboard triage (J/K/A/R/Enter) works on Home's work-now card too — shared
+  triageItems() in console.js; rows carry data-review-id so only triage rows
+  get the cursor highlight. refreshAfterMutation reloads loadViewData(view)
+  so BI never goes stale mid-page.
+- Nav: Briefing pinned as its own 'top' group above work/research/ops.
+- BOOT QUIRK (this dev box): shell env exports PORT=0 and dotenv never
+  overrides existing env → `node server/index.js` binds a RANDOM port and logs
+  "Port: 0". Always boot with `PORT=5000 BIND_HOST=127.0.0.1` prefixed.
+  `kill <pid>` from Git Bash did NOT kill a Windows node process — use
+  `taskkill //PID <pid> //F`.
+- Tests: test/agent.test.js (16 hermetic tests, no db/network). Suite:
+  132 tests / 128 pass / 0 fail / 4 model-skips.
+- SURROGATE STACK (2026-09-23): server/services/{workerMemory,bossInbox,steward}.js
+  feed the agent (remember/recall/forget, ask_boss) + Brainstorm decision inbox +
+  hourly steward cron. Discord via notifier.sendDiscord(DISCORD_WEBHOOK_URL).
+- selBar multi-select is GLOBAL across kinds but batch ops act per-kind; the misc
+  Set keys are `kind:id` — always filter by kind prefix when counting/clearing.
+- Row select/spark controls are <button data-action="misc-toggle-select"
+  data-key="ENCODED"> (not <input>); probing the DOM needs re-query after click
+  because render() replaces nodes (stale refs read old ☐ state).
+- Tests: test/worker-store.test.js (18 hermetic). Suite 150/146/0 fail/4 skips.
+
+## Production guardrails added 2026-09-24 (local-only, not deployed)
+- server/services/runtimeConfig.js enforces a 16+ char ADMIN_PASSWORD and syntactically valid HTTPS Discord webhook in production; on Railway it requires a writable Railway mount and disallows DB_PATH escapes. `server/database.js` checks config before opening SQLite, so maintenance entry points can't silently initialize an ephemeral production DB.
+- Railway SQLite + generated/uploads/previews/AI cover cache/backups resolve inside `RAILWAY_VOLUME_MOUNT_PATH`. Old generated paths whose files vanished can rebuild from stored product records; guard does not claim to restore absent old artifacts.
+- Discord notifier returns boolean status, redacts error details so tokens cannot leak, and the surrogate creates pending boss asks only after successful Discord delivery; failures are surfaced and dismissed.
+- AUTO_START_ENABLED controls production scheduler boot; production cycle publishing also requires AUTO_PUBLISH_ENABLED and DB auto_list. Manual operator-driven marketplace actions remain intentionally distinct from unattended cycle publishing.
+- Railway Volume attachment and host variables are dashboard-only. Never say production is fixed until owner configures/validates Railway and deploys the reviewed code.
+- New focused tests cover runtime config, traversal guard, delivery redaction, and pending asks; last verification: focused 32/32; full suite 164 tests / 160 pass / 0 fail / 4 skips; edited JS syntax checks passed.

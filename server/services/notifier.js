@@ -1,14 +1,19 @@
 const axios = require('axios');
 
 async function sendDiscord(webhookUrl, message) {
-  if (!webhookUrl) return;
+  if (!webhookUrl) return false;
   try {
     await axios.post(webhookUrl, {
       content: message,
       username: 'NicheGate'
     }, { timeout: 5000 });
+    return true;
   } catch (e) {
-    console.error('[NOTIFY] Discord failed:', e.message);
+    // Axios includes the full webhook URL (including its secret token) in some
+    // error messages. Never log the raw error or webhook URL.
+    const status = e.response && e.response.status;
+    console.error('[NOTIFY] Discord failed' + (status ? ` (HTTP ${status})` : ' (network/timeout)'));
+    return false;
   }
 }
 

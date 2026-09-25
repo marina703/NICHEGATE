@@ -1,4 +1,7 @@
 require('dotenv').config({ quiet: true }); // quiet: dotenv@17 prints rotating promo "tips" to stdout
+const runtimeConfig = require('./services/runtimeConfig');
+// Enforce fail-closed production configuration before opening SQLite or starting HTTP.
+if (require.main === module) runtimeConfig.assertProductionConfig();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -43,7 +46,10 @@ const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const GENERATED_DIR = path.resolve(path.join(__dirname, '..', 'generated'));
+const GENERATED_DIR = runtimeConfig.resolvePersistentDir('generated');
+const UPLOAD_DIR = runtimeConfig.resolvePersistentDir('uploads');
+fs.mkdirSync(GENERATED_DIR, { recursive: true });
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const MAX_SPREADSHEET_PREVIEW_BYTES = 20 * 1024 * 1024;
 
 // -- MIDDLEWARE --
@@ -123,8 +129,8 @@ app.use((req, res, next) => {
   return auth.requireAuth()(req, res, next);
 });
 
-app.use('/generated', express.static(path.join(__dirname, '..', 'generated')));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/generated', express.static(GENERATED_DIR));
+app.use('/uploads', express.static(UPLOAD_DIR));
 // covers/ holds brand + product cover art referenced by the storefront;
 // read-only and cache-friendly.
 app.use('/covers', express.static(path.join(__dirname, '..', 'covers'), { maxAge: '1d' }));
@@ -1324,7 +1330,7 @@ initDefaultSettings();
 brand.syncDesignsToCovers(); // keep covers/ in sync with the nichegate designs folder
 
 // -- MULTER --
-const upload = multer({ dest: path.join(__dirname, '..', 'uploads') });
+const upload = multer({ dest: UPLOAD_DIR });
 
 // ------------------------------------------------------------------------
 // API: PROFESSIONS
@@ -2214,7 +2220,7 @@ app.post('/api/settings/batch', (req, res) => {
 function initDefaultSettings() {
   const defaults = {
     auto_generate: 'true',
-    auto_list: 'true',
+    auto_list: runtimeConfig.isProduction() ? 'false' : 'true',
     review_interval: '2',
     last_review: new Date().toISOString(),
     notify_email: '',
@@ -2428,7 +2434,11 @@ app.get('/api/products/:id/lifestyle-image', async (req, res) => {
 app.post('/api/covers/generate', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '10', 10) || 10, 100);
   const status = String(req.query.status || 'approved');
-  const rows = db.prepare(`SELECT * FROM products WHERE status = ? ORDER BY id LIMIT ?`).all(status, limit);
+  const body = req.body || {};
+  const ids = (Array.isArray(body.ids) ? body.ids : (body.productId ? [body.productId] : [])).map(Number).filter(Boolean);
+  const rows = ids.length
+    ? db.prepare(`SELECT * FROM products WHERE id IN (${ids.map(() => '?').join(',')})`).all(...ids)
+    : db.prepare(`SELECT * FROM products WHERE status = ? ORDER BY id LIMIT ?`).all(status, limit);
   const coverArt = require('./services/coverArt');
   let generated = 0, failed = 0;
   const items = [];
@@ -2515,8 +2525,8 @@ app.get('/api/export/profession/:id/zip', (req, res) => {
 // CRON: Scheduled Automation
 // ------------------------------------------------------------------------
 let cronJob = null;
-
 let discoveryCron = null;
+let stewardCron = null;
 let cycleLock = false;
 let discoveryLock = false;
 
@@ -2540,7 +2550,7 @@ function startCron() {
     try {
       const found = await discovery.sweep(6);
       const fresh = discovery.freshnessPass();
-      const fads = discovery.autoActivateHotFads();
+      const fads = await discovery.autoActivateHotFads();
       if (found.length || fresh || fads) {
         db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
           .run('discovery_auto', `Sweep: ${found.length} new niche(s), ${fresh} fresh product(s), ${fads} auto-activated fad(s)`, 'success');
@@ -2554,7 +2564,12 @@ function startCron() {
   
   cronJob.start();
   discoveryCron.start();
-  console.log('[CRON] Automation scheduler started (every 6h) + discovery sweep (every 2h)');
+  if (!stewardCron) {
+    // The surrogate pass: pings the boss (Discord + inbox) at most every 6h.
+    stewardCron = cron.schedule('23 */3 * * *', () => { if (stewardEnabled()) runStewardPass().catch(() => {}); });
+    stewardCron.start();
+  }
+  console.log('[CRON] Automation scheduler started (every 6h) + discovery sweep (every 2h) + steward pings (every 3h, cooldown 6h)');
 }
 
 app.post('/api/automation/scheduler/start', (req, res) => {
@@ -2567,6 +2582,7 @@ app.post('/api/automation/scheduler/start', (req, res) => {
 app.post('/api/automation/scheduler/stop', (req, res) => {
   if (cronJob) { cronJob.stop(); cronJob = null; }
   if (discoveryCron) { discoveryCron.stop(); discoveryCron = null; }
+  if (stewardCron) { stewardCron.stop(); stewardCron = null; }
   db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
     .run('scheduler_stop', 'Cron scheduler stopped', 'info');
   res.json({ success: true, message: 'Scheduler stopped' });
@@ -2611,6 +2627,10 @@ function checkIsReviewDay() {
 // AUTO-START: On server boot
 // ------------------------------------------------------------------------
 function autoStart() {
+  if (runtimeConfig.isProduction() && String(process.env.AUTO_START_ENABLED || '').toLowerCase() !== 'true') {
+    console.log('[AUTO] Production auto-start is safety-locked; set AUTO_START_ENABLED=true after reviewing production settings.');
+    return;
+  }
   // Check if auto-start is disabled
   const autoGen = db.prepare('SELECT * FROM settings WHERE key = ?').get('auto_generate');
   if (autoGen && autoGen.value === 'false') {
@@ -2634,7 +2654,7 @@ function autoStart() {
 
 function getWebhookUrl() {
   const stored = db.prepare('SELECT value FROM settings WHERE key = ?').get('webhook_url')?.value || '';
-  return stored || process.env.DISCORD_WEBHOOK_URL || '';
+  return [stored, process.env.DISCORD_WEBHOOK_URL].find(runtimeConfig.isDiscordWebhookUrl) || '';
 }
 
 async function runAutoCycle() {
@@ -2826,7 +2846,7 @@ function rejectTrashDrafts(q) {
 }
 
 function backupDatabase() {
-  const dir = path.join(__dirname, '..', 'runtime', 'backups');
+  const dir = runtimeConfig.resolvePersistentDir('backups');
   fs.mkdirSync(dir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const dest = path.join(dir, `profession-box-${stamp}.db`);
@@ -3079,6 +3099,348 @@ app.post('/api/console/run', async (req, res) => {
 });
 
 // ------------------------------------------------------------------------
+// ── WORKER MEMORY + BOSS CHANNEL (persistent surrogate state) ────────────
+const workerStore = require('./services/workerMemory').createWorkerStore(db);
+const bossChannel = require('./services/bossChannel');
+const steward = require('./services/steward');
+
+// "Hey boss" Discord ping — one-way webhook; the boss answers in the console.
+async function pingBoss(ask) {
+  const url = getWebhookUrl();
+  if (!url || !ask) return false;
+  return notifier.sendDiscord(url, steward.formatAskMessage(ask));
+}
+
+function stewardEnabled() {
+  const s = db.prepare('SELECT value FROM settings WHERE key = ?').get('steward_enabled');
+  return s ? s.value !== 'false' : true; // on by default — the surrogate should speak up
+}
+
+function buildStewardBrief() {
+  const brief = {
+    queue: db.prepare(`SELECT COUNT(*) c FROM products WHERE status IN ('draft', 'pending-review')`).get().c,
+    approved: db.prepare(`SELECT COUNT(*) c FROM products WHERE status = 'approved'`).get().c,
+    products: db.prepare(`SELECT COUNT(*) c FROM products`).get().c,
+    weak: 0, revenue7d: null, sales7d: null,
+    pendingAsks: workerStore.pendingCount(),
+    lastAskAtMs: workerStore.lastAskAtMs(),
+    trends: db.prepare('SELECT * FROM trends ORDER BY velocity_pct DESC LIMIT 8').all()
+  };
+  try {
+    const bi = biService.build();
+    brief.weak = (bi.listing.weakestSeo.length || 0) + (bi.listing.zeroSale.length || 0);
+    brief.revenue7d = bi.deltas.revenue.value;
+    brief.sales7d = bi.deltas.sales.value;
+  } catch (e) { /* brief stays partial */ }
+  return brief;
+}
+
+// The surrogate pass: look at real state, and if something is worth the
+// boss's eyes, ask — with a Discord ping and a Boss-inbox card.
+async function runStewardPass({ force = false } = {}) {
+  try {
+    if (!getWebhookUrl()) return { error: 'No valid Discord webhook configured; no pending decision was created.' };
+    const proposal = steward.planAsk(buildStewardBrief(), Date.now(), { force });
+    if (!proposal) return { skipped: 'nothing worth pinging about' };
+    const result = await bossChannel.createNotifiedAsk({
+      store: workerStore,
+      input: { question: proposal.question, detail: proposal.detail, options: proposal.options, source: 'steward' },
+      notify: pingBoss
+    });
+    if (result.error) return result;
+    db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)').run('steward_ask', result.ask.question, 'info');
+    return result;
+  } catch (e) {
+    console.error('[STEWARD]', e.message);
+    return { error: e.message };
+  }
+}
+
+app.get('/api/worker/status', (req, res) => {
+  res.json({
+    discordConfigured: !!getWebhookUrl(),
+    stewardEnabled: stewardEnabled(),
+    pendingAsks: workerStore.pendingCount(),
+    memories: workerStore.listMemories(200).length
+  });
+});
+
+app.get('/api/worker/memory', (req, res) => res.json({ memories: workerStore.listMemories(req.query.limit) }));
+app.post('/api/worker/memory', (req, res) => {
+  const b = req.body || {};
+  const m = workerStore.remember({ kind: b.kind, content: b.content, pinned: !!b.pinned });
+  if (!m) return res.status(400).json({ error: 'content is required' });
+  res.json({ memory: m });
+});
+app.post('/api/worker/memory/:id/pin', (req, res) => {
+  const m = workerStore.pinMemory(req.params.id, !!(req.body || {}).pinned);
+  if (!m) return res.status(404).json({ error: 'not found' });
+  res.json({ memory: m });
+});
+app.delete('/api/worker/memory/:id', (req, res) => {
+  res.json({ ok: workerStore.forgetMemory(req.params.id) });
+});
+
+app.get('/api/worker/asks', (req, res) => {
+  res.json({ asks: workerStore.listAsks(req.query.status || null, parseInt(req.query.limit, 10) || 20) });
+});
+// The boss's answer. If the chosen option carries an action, it is returned
+// and replayed by the client through the confirmed-tool path (same spine).
+app.post('/api/worker/asks/:id/answer', (req, res) => {
+  const b = req.body || {};
+  const r = workerStore.answerAsk(req.params.id, { answer: b.answer || '', optionIndex: b.optionIndex != null ? Number(b.optionIndex) : null });
+  if (!r) return res.status(404).json({ error: 'ask not found' });
+  res.json(r);
+});
+app.post('/api/worker/asks/:id/dismiss', (req, res) => {
+  const a = workerStore.dismissAsk(req.params.id);
+  if (!a) return res.status(404).json({ error: 'ask not found' });
+  res.json({ ask: a });
+});
+app.post('/api/worker/notify-test', async (req, res) => {
+  const url = getWebhookUrl();
+  if (!url) return res.status(400).json({ error: 'No Discord webhook configured (System → Boss channel).' });
+  const ok = await notifier.sendDiscord(url, '🤖 **Hey boss** — test ping from your NicheGate surrogate. The channel works.');
+  res.status(ok ? 200 : 502).json({ sent: ok, error: ok ? null : 'Discord delivery failed; check the webhook configuration and service logs.' });
+});
+app.post('/api/worker/steward/run', async (req, res) => {
+  if (!stewardEnabled()) return res.json({ skipped: 'steward disabled' });
+  res.json(await runStewardPass({ force: true }));
+});
+
+// API: CONSOLE AGENT — the in-app AI worker.
+//
+// Executes the same tasks as the console: registered actions (via the
+// actionRegistry spine), product status/publish/Etsy push, trend ops and the
+// listing optimizer — each tool mirrors the logic of the corresponding REST
+// route above. Destructive tools (delete_product, reject-trash) are gated
+// behind an operator confirm round-trip (agentWorker.needsConfirm).
+//
+// Nothing here requires the AI layer: with MODEL_ENABLED=false the worker's
+// deterministic planner still executes real tasks. AI calls never throw.
+// ------------------------------------------------------------------------
+app.post('/api/console/agent', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const message = String(body.message || '').slice(0, 1000);
+    const history = Array.isArray(body.history) ? body.history.slice(-8) : [];
+    const confirmCall = body.confirmCall && typeof body.confirmCall === 'object' ? body.confirmCall : null;
+    const productRef = body.productRef && typeof body.productRef === 'object' ? body.productRef : null;
+    const selection = Array.isArray(body.selection) ? body.selection.map(Number).filter(Boolean).slice(0, 50) : [];
+    if (!message.trim() && !confirmCall) return res.status(400).json({ error: 'message is required' });
+
+    const agentWorker = require('./services/agentWorker');
+
+    const tools = {
+      run_action: async (a) => {
+        const name = String(a.name || '');
+        if (!actionRegistry.get(name)) return { error: `unknown action: ${name}` };
+        const r = await actionRegistry.execute(name, consoleHandlers, a.input || {}, consoleEmit);
+        return { runId: r.runId, action: r.action, status: r.status, result: r.result, error: r.error || null };
+      },
+      snapshot: async () => {
+        const o = buildOverview();
+        let bi = null;
+        try { bi = biService.build(); } catch (e) { /* degrade: counts still answer */ }
+        return {
+          counts: o.counts, revenue: o.revenue, etsy: o.etsy, engine: o.engine,
+          health: bi ? bi.health : null,
+          insights: bi ? bi.insights : null,
+          deltas: bi ? bi.deltas : null,
+          trends: trends.getAllTrends().slice(0, 5).map(t => ({
+            id: t.id, name: t.name, grade: t.grade || t.verdict || null,
+            phase: t.phase, velocity: t.velocity, activated: !!t.activated
+          }))
+        };
+      },
+      list_products: async (a) => {
+        const limit = Math.min(50, Math.max(1, parseInt(a.limit) || 10));
+        let rows = db.prepare(`
+          SELECT p.id, p.name, p.type, p.price, p.status, p.marketplace, p.created_at, pr.name AS prof_name
+          FROM products p LEFT JOIN professions pr ON p.profession_id = pr.id
+          ORDER BY p.created_at DESC LIMIT 300`).all();
+        if (a.status && agentWorker.STATUSES.has(String(a.status))) rows = rows.filter(r => r.status === a.status);
+        if (a.q) {
+          const q = String(a.q).toLowerCase();
+          rows = rows.filter(r => String(r.name || '').toLowerCase().includes(q));
+        }
+        return { total: rows.length, products: rows.slice(0, limit) };
+      },
+      list_trends: async () => ({
+        trends: trends.getAllTrends().slice(0, 30).map(t => ({
+          id: t.id, name: t.name, emoji: t.emoji, grade: t.grade || t.verdict || null,
+          phase: t.phase, velocity: t.velocity, window: t.window, est_revenue: t.est_revenue,
+          activated: !!t.activated, detected_at: t.detected_at
+        }))
+      }),
+      set_status: async (a) => {
+        const id = parseInt(a.id);
+        const status = String(a.status || '');
+        if (!id || !agentWorker.STATUSES.has(status)) return { error: 'id and a valid status are required' };
+        const p = db.prepare('SELECT id, name, status FROM products WHERE id = ?').get(id);
+        if (!p) return { error: `product ${id} not found` };
+        db.prepare('UPDATE products SET status = ? WHERE id = ?').run(status, id);
+        db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+          .run('status_change', id, `${p.status} → ${status}`, 'info');
+        return { id, name: p.name, from: p.status, to: status };
+      },
+      generate: async (a) => {
+        const idea = String(a.idea || '').trim().slice(0, 120);
+        if (!idea) return { error: 'idea is required' };
+        const count = Math.min(6, Math.max(1, parseInt(a.count) || 1));
+        const r = await generateForNiche(idea, count, () => {}, { origin: 'manual', name: idea });
+        return { niche: r.niche, created: r.created };
+      },
+      generate_for_trend: async (a) => {
+        const id = parseInt(a.trendId);
+        const trend = trends.getAllTrends().find(t => t.id == id);
+        if (!trend) return { error: `trend ${a.trendId} not found` };
+        const count = Math.min(6, Math.max(1, parseInt(a.count) || 3));
+        const r = await generateForNiche(trend.niche || trend.name, count, () => {}, { origin: 'engine' });
+        return { niche: r.niche, created: r.created };
+      },
+      publish: async (a) => {
+        const id = parseInt(a.id);
+        const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+        if (!product) return { error: `product ${a.id} not found` };
+        if (product.status !== 'approved') return { error: `product ${id} must be approved first (now: ${product.status})` };
+        try {
+          const result = await mp.publishProduct(product);
+          db.prepare('UPDATE products SET status = ?, marketplace = ?, marketplace_id = ? WHERE id = ?')
+            .run('listed', result.platform, result.listingId || null, product.id);
+          db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+            .run('published', product.id, `Listed on ${result.platform}`, 'success');
+          return { id, name: product.name, platform: result.platform, listingId: result.listingId || null };
+        } catch (e) {
+          await alertPublishError(product.id, e.message);
+          return { error: e.message };
+        }
+      },
+      push_etsy: async (a) => {
+        const id = parseInt(a.id);
+        const capRow = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
+        const pubRow = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
+        const capNum = capRow ? parseInt(capRow.value) || 20 : 20;
+        const pubNum = pubRow ? parseInt(pubRow.value) || 0 : 0;
+        if (pubNum >= capNum) return { error: `Daily Etsy limit reached (${pubNum}/${capNum}). Resets tomorrow.` };
+        const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+        if (!product) return { error: `product ${a.id} not found` };
+        const result = await mp.publishToEtsy(product);
+        if (result && result.listing_id) {
+          db.prepare("UPDATE products SET status = 'listed' WHERE id = ?").run(product.id);
+          db.prepare("UPDATE settings SET value = ? WHERE key = 'etsy_published_today'").run(String(pubNum + 1));
+          return { id, listing_id: result.listing_id, remaining: capNum - pubNum - 1 };
+        }
+        return { error: 'Failed to publish to Etsy', details: result || null };
+      },
+      activate_trend: async (a) => {
+        const id = parseInt(a.trendId);
+        const trend = trends.getAllTrends().find(t => t.id == id);
+        if (!trend) return { error: `trend ${a.trendId} not found` };
+        try { vetting.assertActivatable(trend, { force: false }); }
+        catch (e) { return { error: e.message, vet: e.vet || null }; }
+        const prof = trends.activateTrend(String(id));
+        let generated = 0;
+        if (prof) generated = await discovery.generateProductsForTrend(prof.id, trend);
+        return { activated: true, name: trend.name, productsGenerated: generated };
+      },
+      optimize: async (a) => {
+        const product = db.prepare('SELECT * FROM products WHERE id = ?').get(parseInt(a.id));
+        if (!product) return { error: `product ${a.id} not found` };
+        return await optimizer.apply(product, { deploy: true });
+      },
+      optimize_weak: async (a) => {
+        const limit = Math.min(50, Math.max(1, parseInt(a.limit) || 20));
+        return await optimizer.optimizeWeak(limit);
+      },
+      delete_product: async (a) => {
+        const id = parseInt(a.id);
+        const p = db.prepare('SELECT id, name FROM products WHERE id = ?').get(id);
+        if (!p) return { error: `product ${a.id} not found` };
+        db.prepare('DELETE FROM products WHERE id = ?').run(id);
+        return { deleted: id, name: p.name };
+      },
+      remember: async (a) => {
+        const m = workerStore.remember({ kind: a.kind, content: a.content, pinned: !!a.pinned });
+        return m ? { saved: m } : { error: 'content is required' };
+      },
+      recall: async (a) => ({ memories: workerStore.recall(String(a.query || ''), 8) }),
+      ask_boss: async (a) => {
+        const result = await bossChannel.createNotifiedAsk({
+          store: workerStore,
+          input: {
+            question: String(a.question || ''),
+            detail: String(a.detail || ''),
+            options: Array.isArray(a.options) ? a.options : null,
+            source: 'worker'
+          },
+          notify: getWebhookUrl() ? pingBoss : null
+        });
+        return result.error ? result : { askId: result.ask.id, asked: true, discord: true };
+      },
+      nav: async (a) => {
+        const view = String(a.view || '');
+        return agentWorker.NAV_VIEWS.has(view) ? { view } : { error: `unknown view: ${view}` };
+      }
+    };
+
+    // Condensed real-state context so the model never invents numbers.
+    let context = '';
+    try {
+      const o = buildOverview();
+      let bi = null;
+      try { bi = biService.build(); } catch (e) { /* optional */ }
+      context = [
+        `Catalog: ${o.counts.products} products — ${o.counts.listed} listed, ${o.counts.approved} approved, ${o.counts.draft} draft.`,
+        `Etsy quota: ${o.etsy.published}/${o.etsy.cap} published today (${o.etsy.remaining} left).`,
+        `Engine: ${o.engine.running ? 'live' : 'idle'}; auto-generate ${o.engine.autoGenerate ? 'on' : 'OFF'}; auto-list ${o.engine.autoList ? 'on' : 'off'}.`,
+        bi ? `Shop health ${bi.health.score}/100 (${bi.health.grade}); 7d revenue $${Number(bi.deltas.revenue.value || 0).toFixed(2)}, ${bi.deltas.sales.value || 0} sales.` : ''
+      ].filter(Boolean).join('\n');
+    } catch (e) { /* context stays empty */ }
+
+    // What the operator is pointing at (💡 spark) or has selected — so the
+    // worker knows "this product" without being told twice.
+    try {
+      const refKind = productRef && productRef.kind ? String(productRef.kind) : 'product';
+      const refId = productRef && productRef.id != null ? Number(productRef.id) || 0 : 0;
+      const refLabel = productRef && (productRef.label || productRef.name) ? String(productRef.label || productRef.name).slice(0, 120) : '';
+      if (refId && refKind === 'trend') {
+        const t = db.prepare('SELECT * FROM trends WHERE id = ?').get(refId);
+        if (t) context += `\n\nOPERATOR IS ASKING ABOUT trend #${t.id} "${t.name}" (grade ${t.grade || t.verdict || 'n/a'}, velocity ${t.velocity_pct != null ? '+' + Math.round(t.velocity_pct) + '% WoW' : 'n/a'}, ${t.activated ? 'already activated' : 'not activated'}).`;
+      } else if (refId && refKind === 'product') {
+        const p = db.prepare('SELECT * FROM products WHERE id = ?').get(refId);
+        if (p) {
+          const concept = p.concept_json ? JSON.parse(p.concept_json) : null;
+          context += `\n\nOPERATOR IS ASKING ABOUT product #${p.id} "${p.name}" (type ${p.product_type}, status ${p.status}, price ${p.price}${concept && concept.angle ? `, angle: ${concept.angle}` : ''}).`;
+        }
+      } else if (refLabel || (productRef && productRef.id)) {
+        // Non-catalog refs (social post, ad campaign, passion niche): the
+        // client hands the label — there is nothing to resolve server-side.
+        const noun = refKind === 'post' ? 'social post' : refKind === 'ad' ? 'ad campaign' : refKind === 'niche' ? 'passion niche' : refKind;
+        context += `\n\nOPERATOR IS ASKING ABOUT ${noun} "${refLabel || productRef.id}"${refId ? ` (#${refId})` : ''}.`;
+      }
+      if (selection.length) {
+        context += `\n\nOPERATOR HAS ${selection.length} PRODUCT(S) SELECTED: #${selection.slice(0, 20).join(', #')}.`;
+      }
+    } catch (e) { /* optional */ }
+
+    const out = await agentWorker.runAgentTurn(
+      { message, history, confirmCall, context, memory: workerStore.buildMemoryContext() },
+      (tool, args) => {
+        const fn = tools[tool];
+        if (!fn) return { error: `unknown tool: ${tool}` };
+        return fn(args || {});
+      }
+    );
+    try { if (out && out.answer) workerStore.logTurn({ message: message || '(confirmed call)', answer: out.answer }); } catch (e) { /* non-fatal */ }
+    res.json({ ok: true, ...out });
+  } catch (e) {
+    console.error('[ERROR] POST /api/console/agent -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ------------------------------------------------------------------------
 // SERVE CLIENT
 // ------------------------------------------------------------------------
 app.get('/', (req, res) => {
@@ -3119,6 +3481,7 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 // ------------------------------------------------------------------------
 const BIND_HOST = process.env.BIND_HOST || (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT ? '0.0.0.0' : '127.0.0.1');
 function startServer() {
+  runtimeConfig.assertProductionConfig();
   const server = app.listen(PORT, BIND_HOST, () => {
   console.log(`+------------------------------------------------------------+`);
   console.log(`  NicheGate  |  Full Stack Server`);
@@ -3130,6 +3493,7 @@ function startServer() {
   console.log(`API docs available at endpoints under /api/*\n`);
   
   // Surface launch-readiness issues in the console on boot
+  runtimeConfig.logIntegrationWarnings();
   readiness.logReadinessIssues();
 
   // Seed the flagship "outcome tool" products (idempotent)

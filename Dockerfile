@@ -23,7 +23,8 @@ ENV PORT=5000 \
 
 EXPOSE 5000
 
-# Persistence: attach a Railway Volume at /app/data in the dashboard/CLI
-# (Railway does not support the docker VOLUME directive)
+# Persistence: attach a Railway Volume at /app/data in the dashboard/CLI.
+# The app refuses Railway startup unless this mount is present and writable.
+# (Railway does not support declaring service volumes in this Dockerfile).
 
 CMD ["node", "server/index.js"]

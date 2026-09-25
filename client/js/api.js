@@ -44,7 +44,33 @@ export const consoleApi = {
   actions: () => request('/console/actions'),
   runs: (limit = 20) => request(`/console/runs?limit=${limit}`),
   run: (action, input) => request('/console/run', { method: 'POST', body: JSON.stringify({ action, input: input || {} }) }),
-  assistant: (question) => request('/console/assistant', { method: 'POST', body: JSON.stringify({ question }) })
+  assistant: (question) => request('/console/assistant', { method: 'POST', body: JSON.stringify({ question }) }),
+  // The AI worker: executes real tasks through the server-side tool loop.
+  // `confirmCall` round-trips a gated destructive call after operator approval.
+  agent: (message, opts = {}) => request('/console/agent', {
+    method: 'POST',
+    body: JSON.stringify({
+      message,
+      history: opts.history || [],
+      confirmCall: opts.confirmCall || null,
+      productRef: opts.productRef || null,
+      selection: opts.selection || []
+    })
+  })
+};
+
+// ── worker memory + boss channel (surrogate) ───────────────────────────
+export const workerApi = {
+  status: () => request('/worker/status'),
+  memory: () => request('/worker/memory'),
+  remember: (kind, content, pinned) => request('/worker/memory', { method: 'POST', body: JSON.stringify({ kind, content, pinned }) }),
+  pin: (id, pinned) => request(`/worker/memory/${id}/pin`, { method: 'POST', body: JSON.stringify({ pinned }) }),
+  forget: (id) => request(`/worker/memory/${id}`, { method: 'DELETE' }),
+  asks: (status) => request(`/worker/asks${status ? '?status=' + encodeURIComponent(status) : ''}`),
+  answer: (id, payload) => request(`/worker/asks/${id}/answer`, { method: 'POST', body: JSON.stringify(payload || {}) }),
+  dismiss: (id) => request(`/worker/asks/${id}/dismiss`, { method: 'POST', body: '{}' }),
+  notifyTest: () => request('/worker/notify-test', { method: 'POST', body: '{}' }),
+  stewardRun: () => request('/worker/steward/run', { method: 'POST', body: '{}' })
 };
 
 // ── data ───────────────────────────────────────────────────────────────

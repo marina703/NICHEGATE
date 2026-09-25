@@ -1,8 +1,9 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
+const runtimeConfig = require('./runtimeConfig');
 
-const OUTPUT_DIR = path.join(__dirname, '..', '..', 'generated');
+const OUTPUT_DIR = runtimeConfig.resolvePersistentDir('generated');
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
 let browserPromise = null;

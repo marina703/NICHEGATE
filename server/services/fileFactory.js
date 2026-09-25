@@ -11,6 +11,7 @@ const ds = require('./designStudio');
 const fs = require('fs');
 const path = require('path');
 const { db } = require('../database');
+const runtimeConfig = require('./runtimeConfig');
 
 // ── WEBSITE TEMPLATE (premium, via Design Studio) ──
 function buildWebsiteHTML(prof, theme) {
@@ -155,7 +156,7 @@ async function ensureProductFile(product) {
 // so review queues and preview pages show real visual mockups, not just names.
 // Reuses the same cached Chrome instance as the PDF generator.
 // ═══════════════════════════════════════════════════════════════════════════
-const PREVIEW_DIR = path.join(__dirname, '..', '..', 'previews');
+const PREVIEW_DIR = runtimeConfig.resolvePersistentDir('previews');
 fs.mkdirSync(PREVIEW_DIR, { recursive: true });
 
 function escHtml(s) {

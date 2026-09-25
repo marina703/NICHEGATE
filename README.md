@@ -110,9 +110,12 @@ ETSY_CLIENT_ID=...
 ETSY_CLIENT_SECRET=...
 ETSY_SHARED_SECRET=...         # Etsy x-api-key (see Etsy developer console)
 GUMROAD_ACCESS_TOKEN=...
-DISCORD_WEBHOOK_URL=...        # optional sale/trend/error alerts
+DISCORD_WEBHOOK_URL=...        # Discord alerts; required in production for surrogate decisions
+ADMIN_PASSWORD=...              # >=16 characters; required in production
 NOTIFY_EMAIL=...               # optional
 MODEL_ENABLED=false            # true to switch on the AI concept layer
+AUTO_START_ENABLED=false       # production only: explicitly start scheduled automation
+AUTO_PUBLISH_ENABLED=false     # production only: explicitly permit cycle publishing
 OPENROUTER_API_KEY=...
 NODE_ENV=development
 ```
@@ -145,7 +148,7 @@ Etsy keys: etsy.com/developers/register → set the redirect URI shown at `/setu
 
 ## Data
 
-SQLite (`node:sqlite`, WAL mode) at `data/profession-box.db`:
+SQLite (`node:sqlite`, WAL mode) at `data/profession-box.db` locally and `RAILWAY_VOLUME_MOUNT_PATH/profession-box.db` on Railway:
 `professions · products · templates · trends · metrics · chat_history · inspiration_photos · automation_log · settings · sales_seen · marketplace_tokens · search_queue · action_runs · action_run_steps`
 
 **Back this file up — it's the business.**
@@ -176,7 +179,9 @@ Recovery journals (AA, SMART, Refuge, WFS, Secular, Faith-Based) are 30-day guid
 
 ## Railway deployment
 
-Set these as **project variables** in your Railway dashboard (values never belong in the repo):
+Production startup is deliberately fail-closed. In any production environment, the server refuses to start unless `ADMIN_PASSWORD` is at least 16 characters and `DISCORD_WEBHOOK_URL` is a valid HTTPS Discord webhook. On Railway it also requires the Railway-provided mount path to exist and be writable. The app uses that path for SQLite, generated deliverables, uploads, previews, and generated cover art, so missing persistent storage cannot silently create ephemeral production data.
+
+Attach a Railway Volume to the application service at **`/app/data`**. The app uses Railway's actual mount path for the database and persistent assets. Then set these as **project variables** in your Railway dashboard (values never belong in the repo):
 
 ```
 ETSY_SHARED_SECRET=<your Etsy x-api-key / shared secret>
@@ -185,6 +190,10 @@ ETSY_CLIENT_SECRET=<your Etsy client secret>
 GUMROAD_ACCESS_TOKEN=<your Gumroad token>
 OPENROUTER_API_KEY=<your OpenRouter key>
 MODEL_ENABLED=true
+ADMIN_PASSWORD=<at least 16 random characters>
+DISCORD_WEBHOOK_URL=<your Discord webhook URL>
 ```
 
-Attach a volume at `/app/data` so the SQLite database survives redeploys.
+On production, automation does not auto-start and automatic marketplace publishing is blocked by default. Publishing through an automated cycle requires both `AUTO_START_ENABLED=true` and `AUTO_PUBLISH_ENABLED=true`, plus the app's `auto_list` setting; omitting either environment flag keeps cycle publishing safe. Direct/manual publish actions remain available to an authenticated operator. Set the flags only after checking the live database, marketplace credentials, and daily limits.
+
+Before first deployment, back up any existing Railway data and verify the volume is attached at `/app/data`; Railway volumes are configured on the service and cannot be attached by this repository's `railway.json`. Discord delivery failures are reported as failures (and webhook secrets are never logged); a surrogate question is not left silently pending if its notification fails. Missing optional marketplace/model credentials are announced once at boot without exposing secret values. Existing generated files previously stored outside the Railway Volume are not migrated by the code; missing deliverables are regenerated on demand from product records where possible, but pre-existing external marketplace files cannot be reconstructed from an absent local copy.

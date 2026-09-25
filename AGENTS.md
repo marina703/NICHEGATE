@@ -48,7 +48,7 @@ There are **no 35 pending files** in any working tree. The "35" corresponds to:
 - **AI layer:** `server/services/modelRouter.js` + `modelConfig.js` + `conceptEngine.js` + `contentLibrary.js`. OpenRouter primary (scan=gemini-flash-1.5, judge=claude-3.5-haiku, ideation=deepseek-chat). `MODEL_ENABLED` master switch.
 - **Product types:** `server/services/productTypes.js` is the single registry.
 - **Covers:** `server/services/coverArt.js` + `previewBatch.js` + `cf-worker/src/index.js`. `COVER_ART_PROVIDER=cloudflare`.
-- **Auth:** `server/services/auth.js` (optional; `ADMIN_PASSWORD` → `ng_session` httpOnly cookie).
+- **Auth:** `server/services/auth.js` (`ADMIN_PASSWORD` → `ng_session` httpOnly cookie); production startup now requires a 16+ character password, while local development can keep auth optional.
 
 ---
 
@@ -74,13 +74,13 @@ The dashboard was rebuilt as a no-bundler ES-module console. Follow these invari
 - Keys/secrets only from `.env`, never committed or logged.
 - Adding a product type = one additive entry in `productTypes.js` (+ a `build*HTML` builder if it needs a custom layout). Never change existing type keys/prices.
 - Bundles are `products` rows with `type='bundle'` (no separate `bundle` table).
-- Auth is a no-op until `ADMIN_PASSWORD` is set — never block the autonomous engine.
+- Local auth remains optional, but production must have a strong `ADMIN_PASSWORD`; production automation and auto-publishing also require explicit environment opt-ins.
 
 ---
 
 ## Known open items (next 3 steps — see TASK.md for full detail)
 
-1. Set `MODEL_ENABLED=true` in `.env` (key already present) to switch on the concept engine; add `DISCORD_WEBHOOK_URL` for alerts.
+1. Set `MODEL_ENABLED=true` in `.env` (key already present) to switch on the concept engine; the Railway production service must also have a valid `DISCORD_WEBHOOK_URL` or startup fails closed.
 2. Verify `ETSY_CLIENT_SECRET` is **distinct** from `ETSY_CLIENT_ID` (readiness checker flags `id === secret`); reconnect Etsy at `/setup`.
 3. Start server → approve Review Queue + Deploy Bundles (Gumroad 10/day limit; re-run daily).
 
@@ -89,7 +89,7 @@ The dashboard was rebuilt as a no-bundler ES-module console. Follow these invari
 - `OPENROUTER_API_KEY` set; `MODEL_ENABLED` **NOT set → AI concept layer OFF**.
 - `COVER_ART_PROVIDER=cloudflare`; `COVER_WORKER_URL`/`COVER_WORKER_KEY` set.
 - `GUMROAD_ACCESS_TOKEN` set; `ETSY_CLIENT_ID` set.
-- `DISCORD_WEBHOOK_URL` **empty**; `FAL_API_KEY` not set (fal unused while on Cloudflare).
+- Historical local snapshot: `DISCORD_WEBHOOK_URL` was empty; production startup now rejects this configuration. `FAL_API_KEY` not set (fal unused while on Cloudflare).
 
 ## Tests
 

@@ -5,6 +5,7 @@ const seasonal = require('./seasonalEngine');
 const notifier = require('./notifier');
 const mp = require('./marketplace');
 const { validatePublishResult } = require('./pipelineSchemas');
+const runtimeConfig = require('./runtimeConfig');
 const { draftProduct } = require('./productDraft');
 
 // Prices imported from single source of truth (productTypes.js)
@@ -14,7 +15,7 @@ const VARY_TYPES = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social'];
 
 function getWebhookUrl() {
   const stored = db.prepare('SELECT value FROM settings WHERE key = ?').get('webhook_url');
-  return (stored && stored.value) || process.env.DISCORD_WEBHOOK_URL || '';
+  return [stored && stored.value, process.env.DISCORD_WEBHOOK_URL].find(runtimeConfig.isDiscordWebhookUrl) || '';
 }
 
 async function taskScan(ctx) {
@@ -128,6 +129,16 @@ function taskSeasonal(ctx) {
 }
 
 async function taskPublishQueue(ctx) {
+  if (runtimeConfig.isProduction()) {
+    const autoStartEnabled = String(process.env.AUTO_START_ENABLED || '').toLowerCase() === 'true';
+    const autoPublishEnabled = String(process.env.AUTO_PUBLISH_ENABLED || '').toLowerCase() === 'true';
+    if (!autoStartEnabled || !autoPublishEnabled) {
+      ctx.listed = 0;
+      ctx.publishSkipped = 'production publishing is safety-locked; both AUTO_START_ENABLED=true and AUTO_PUBLISH_ENABLED=true are required';
+      console.log('[AUTO] Publishing skipped — production automation and publishing must both be explicitly enabled');
+      return ctx;
+    }
+  }
   const autoList = db.prepare('SELECT * FROM settings WHERE key = ?').get('auto_list');
   if (!autoList || autoList.value !== 'true') return ctx;
 

@@ -1,8 +1,12 @@
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
+const runtimeConfig = require('./services/runtimeConfig');
 
-const DB_PATH = path.join(__dirname, '..', 'data', 'profession-box.db');
+// Keep every entry point (including setup/maintenance scripts) from opening a
+// production database outside its required persistent storage or without auth.
+runtimeConfig.assertProductionConfig();
+const DB_PATH = runtimeConfig.resolveDatabasePath();
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new DatabaseSync(DB_PATH);
@@ -403,5 +407,5 @@ function seedProfessions() {
   }
 }
 
-module.exports = { db, init };
+module.exports = { db, init, DB_PATH };
 

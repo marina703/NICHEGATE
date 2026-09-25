@@ -13,8 +13,9 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const runtimeConfig = require('./runtimeConfig');
 
-const OUT_DIR = path.join(__dirname, '..', '..', 'covers', 'ai');
+const OUT_DIR = path.join(runtimeConfig.resolvePersistentDir('covers'), 'ai');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 function provider() {

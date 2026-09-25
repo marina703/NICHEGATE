@@ -12,25 +12,30 @@ import {
 } from './ui.js';
 
 export const NAV = [
-  { group: 'operate', view: 'home', label: 'Home', icon: 'home' },
-  { group: 'operate', view: 'catalog', label: 'Catalog', icon: 'catalog' },
-  { group: 'operate', view: 'review', label: 'Review', icon: 'review', badge: 'review' },
-  { group: 'discover', view: 'discovery', label: 'Discovery', icon: 'discovery' },
-  { group: 'discover', view: 'trends', label: 'Trends', icon: 'trends' },
-  { group: 'grow', view: 'social', label: 'Social', icon: 'social' },
-  { group: 'grow', view: 'ads', label: 'Ads', icon: 'ads' },
-  { group: 'grow', view: 'calendar', label: 'Calendar', icon: 'calendar' },
-  { group: 'grow', view: 'analytics', label: 'Analytics', icon: 'analytics' },
-  { group: 'system', view: 'automation', label: 'Automation', icon: 'automation', badge: 'busy' },
-  { group: 'system', view: 'marketplace', label: 'Market', icon: 'marketplace' },
-  { group: 'system', view: 'system', label: 'System', icon: 'system', badge: 'blockers' }
+  // The landing page is pinned above the job groups — the session starts
+  // here, so it should never hide at the bottom of a group.
+  { group: 'top', view: 'home', label: 'Briefing', icon: 'home' },
+
+  { group: 'work', view: 'review', label: 'Review', icon: 'review', badge: 'review' },
+  { group: 'work', view: 'catalog', label: 'Catalog', icon: 'catalog' },
+
+  { group: 'research', view: 'trends', label: 'Trends', icon: 'trends' },
+  { group: 'research', view: 'discovery', label: 'Discovery', icon: 'discovery' },
+  { group: 'research', view: 'analytics', label: 'Analytics', icon: 'analytics' },
+
+  { group: 'ops', view: 'automation', label: 'Automation', icon: 'automation', badge: 'busy' },
+  { group: 'ops', view: 'marketplace', label: 'Market', icon: 'marketplace' },
+  { group: 'ops', view: 'system', label: 'System', icon: 'system', badge: 'blockers' },
+  { group: 'ops', view: 'social', label: 'Social', icon: 'social' },
+  { group: 'ops', view: 'ads', label: 'Ads', icon: 'ads' },
+  { group: 'ops', view: 'calendar', label: 'Calendar', icon: 'calendar' }
 ];
 
 export const CRUMBS = {
-  home: 'Command Center', catalog: 'Product Catalog', review: 'Review Queue',
-  discovery: 'Discovery & Opportunity', trends: 'Trend Radar', social: 'Social Scheduler',
-  ads: 'Ad Spend Ledger', calendar: 'Content Calendar', analytics: 'Sales Analytics',
-  automation: 'Automation', marketplace: 'Marketplace', system: 'System & Readiness'
+  home: 'Briefing', catalog: 'Catalog', review: 'Review',
+  discovery: 'Discovery', trends: 'Trends', social: 'Social',
+  ads: 'Ads', calendar: 'Calendar', analytics: 'Analytics',
+  automation: 'Automation', marketplace: 'Market', system: 'System'
 };
 
 // ── shared fragments ───────────────────────────────────────────────────
@@ -80,8 +85,162 @@ function activityRows(rows, limit) {
   </div>`).join('');
 }
 
+// ── priority brain (shared: home cards + command bar answers) ─────────────
+function parseWhen(v) {
+  const t = new Date(String(v || '').replace(' ', 'T') + 'Z').getTime();
+  return Number.isFinite(t) ? t : null;
+}
+// A trend window is time-boxed: detected_at + `window` days. Returns the
+// remaining days (null when the trend carries no window data) so cards can
+// show real urgency instead of an unbounded list item.
+export function trendWindow(t) {
+  const total = Number(t && t.window) || 0;
+  const start = parseWhen(t && (t.first_seen_at || t.detected_at));
+  if (!total || !start) return null;
+  const end = start + total * 24 * 60 * 60 * 1000;
+  return { total, daysLeft: Math.ceil((end - Date.now()) / (24 * 60 * 60 * 1000)) };
+}
+export function activeTrendWindows(s) {
+  return (s.trends || [])
+    .filter(t => (t.grade || t.verdict) === 'ACTIVATE')
+    .sort((a, b) => (Number(b.velocity_pct) || 0) - (Number(a.velocity_pct) || 0));
+}
+// The ordered answer to "what should I work on now?". home() renders the
+// first cards; the command bar answers "what should I do?" from the same
+// list — one brain, so the two can never disagree.
+export function pickPriority(s) {
+  const out = [];
+  const queue = reviewQueue(s.products || []);
+  if (queue.length) out.push({ kind: 'review', count: queue.length, label: 'clear the review queue', view: 'review' });
+  const windows = activeTrendWindows(s);
+  if (windows.length) out.push({ kind: 'trends', count: windows.length, label: 'commit to an open trend window', view: 'trends' });
+  const lh = (s.bi && s.bi.listing) || {};
+  const weak = (lh.weakestSeo || []).length + (lh.zeroSale || []).length;
+  if (weak) out.push({ kind: 'weak', count: weak, label: 'fix weak / zero-view listings', view: 'analytics' });
+  out.push({ kind: 'growth', count: 0, label: 'keep the flywheel moving', view: 'marketplace' });
+  return out;
+}
+
+// ── shared UI atoms: AI spark + multi-select bars + boss channel ────────
+// The 💡 spark hands the AI worker the exact product/trend the operator
+// means ("this one"), so they never have to name it in the prompt.
+export function sparkBtn(kind, id, label = '') {
+  return `<button class="btn ghost sm ai-spark" data-action="ai-ref" data-kind="${kind}" data-id="${esc(String(id))}" title="💡 Ask the AI about this${label ? ' — ' + esc(label) : ''}">💡</button>`;
+}
+
+// One selection bar for every list surface (home, review, catalog, trends,
+// social, ads, discovery). Product/trend selection is global per kind; post/
+// ad/niche rows share one misc set keyed "kind:id". Pick anywhere, act anywhere.
+export function selBar(s, kind = 'product', allIds = []) {
+  const isTrend = kind === 'trend';
+  const isProduct = kind === 'product';
+  const set = isTrend ? (s.selectedTrends || new Set()) : isProduct ? (s.selected || new Set()) : (s.selectedMisc || new Set());
+  const keys = allIds.map(id => (isProduct || isTrend) ? Number(id) : `${kind}:${id}`);
+  // misc kinds share one set across kinds — count only this kind's rows
+  const n = (isProduct || isTrend) ? set.size : [...set].filter(k => k.startsWith(kind + ':')).length;
+  const allSel = keys.length && keys.every(k => set.has(k));
+  const dis = n ? '' : 'disabled';
+  const acts = isTrend
+    ? `<button class="btn green sm" data-action="trend-batch" data-do="generate" ${dis}>${icon('sparkles')} Generate (${n})</button>
+       <button class="btn sm" data-action="trend-batch" data-do="activate" ${dis}>Activate (${n})</button>
+       <button class="btn red sm" data-action="trend-batch" data-do="dismiss" ${dis}>Dismiss (${n})</button>`
+    : isProduct
+    ? `<button class="btn sm" data-action="batch-covers" ${dis}>${icon('sparkles')} Covers (${n})</button>
+       <button class="btn green sm" data-action="batch" data-status="approved" ${dis}>Approve (${n})</button>
+       <button class="btn primary sm" data-action="batch" data-status="listed" ${dis}>List (${n})</button>
+       <button class="btn red sm" data-action="batch" data-status="rejected" ${dis}>Reject (${n})</button>`
+    : kind === 'niche'
+    ? `<button class="btn green sm" data-action="misc-batch" data-kind="niche" data-do="generate" ${dis}>${icon('sparkles')} Generate (${n})</button>
+       <button class="btn red sm" data-action="misc-batch" data-kind="niche" data-do="remove" ${dis}>Remove (${n})</button>`
+    : `<button class="btn red sm" data-action="misc-batch" data-kind="${kind}" data-do="cancel" ${dis}>Cancel (${n})</button>`;
+  const allAct = isTrend ? 'trend-select-all' : isProduct ? 'select-all' : 'misc-select-all';
+  const clearAct = isTrend ? 'trend-clear' : isProduct ? 'clear-selection' : 'misc-clear';
+  return `<div class="selbar">
+    <button class="btn ghost sm" data-action="${allAct}" data-kind="${kind}" data-ids="${esc(allIds.join(','))}" data-keys="${keys.map(k => encodeURIComponent(String(k))).join(',')}">${allSel ? 'Deselect all' : 'Select all'}</button>
+    <button class="btn ghost sm" data-action="${clearAct}" data-kind="${kind}" ${dis}>Clear (${n})</button>
+    ${acts}
+    <button class="btn amber sm" data-action="ai-ask" data-kind="${kind}" ${dis}>💡 Ask AI (${n})</button>
+  </div>`;
+}
+
+// Boss inbox — the worker/surrogate asks, the boss answers, and an answer
+// that carries an action executes through the confirmed-tool path.
+export function askCard(a) {
+  const opts = a.options || [];
+  return `<div class="ask-card mb10">
+    <div class="flex-between"><b style="font-size:.85rem">🤖 ${esc(a.question)}</b>
+      <span class="hint">${a.source === 'steward' ? 'surrogate' : 'worker'} · ${esc(timeAgo(a.created_at))}</span></div>
+    ${a.detail ? `<div class="hint mt8">${esc(a.detail)}</div>` : ''}
+    <div class="btn-row mt8" style="margin-bottom:0">
+      ${opts.map((o, i) => `<button class="btn ${o.action ? 'green' : ''} sm" data-action="ask-answer" data-id="${a.id}" data-opt="${i}">${esc(o.label)}</button>`).join('')}
+      <button class="btn ghost sm" data-action="ask-answer" data-id="${a.id}" data-free="1">Reply…</button>
+      <button class="btn ghost sm" data-action="ask-dismiss" data-id="${a.id}">Dismiss</button>
+    </div>
+  </div>`;
+}
+
+export function bossInbox(s) {
+  const asks = (s.asks || []).filter(a => a.status === 'pending');
+  if (!asks.length) return '';
+  return `<div class="panel mb14" style="border-left:3px solid var(--amber)">
+    <div class="panel-head" style="padding-left:14px">${icon('bell')} Boss inbox <span class="sp"></span>
+      <span class="hint">your worker/surrogate is asking — answering runs the decision</span></div>
+    <div class="panel-body">${asks.map(askCard).join('')}</div>
+  </div>`;
+}
+
+export function bossChannelPanel(s) {
+  const ws = s.workerStatus || {};
+  return `<div class="panel"><div class="panel-head">${icon('bell')} Boss channel &amp; surrogate</div>
+    <div class="panel-body">
+      <div class="flex-between mb8"><span class="hint">Discord webhook</span><b style="color:var(--${ws.discordConfigured ? 'green' : 'amber'})">${ws.discordConfigured ? 'connected' : 'not set'}</b></div>
+      <div class="flex-between mb8"><span class="hint">Proactive surrogate</span><b style="color:var(--${ws.stewardEnabled ? 'green' : 'amber'})">${ws.stewardEnabled ? 'on · pings at most 1/6h' : 'off'}</b></div>
+      <div class="flex-between mb8"><span class="hint">Stored memories</span><b>${fmtNum(ws.memories || 0)}</b></div>
+      <div class="flex mt8" style="gap:6px">
+        <input id="hook-input" placeholder="https://discord.com/api/webhooks/…" style="flex:1" aria-label="Discord webhook URL">
+        <button class="btn sm" data-action="webhook-save">Save</button>
+      </div>
+      <div class="btn-row mt8" style="margin-bottom:0">
+        <button class="btn primary sm" data-action="notify-test">Test ping</button>
+        <button class="btn sm" data-action="steward-run">Run surrogate pass</button>
+        <button class="btn ghost sm" data-action="steward-toggle">${ws.stewardEnabled ? 'Pause surrogate' : 'Enable surrogate'}</button>
+      </div>
+      <div class="hint mt8">"Hey boss…" lands on Discord when the engine has an idea — a closing trend window, a queue backup, a product run worth building. Answers land in the Boss inbox.</div>
+    </div></div>`;
+}
+
+export function memoryPanel(s) {
+  const mems = s.memories || [];
+  return `<div class="panel"><div class="panel-head">${icon('brain')} Worker memory <span class="sp"></span>
+      <span class="hint">persistent — rides in every AI turn</span></div>
+    <div class="panel-body tight">
+      <div class="flex mb10" style="gap:6px">
+        <input id="mem-input" placeholder="Teach the worker: “boss prefers wellness niches”…" style="flex:1" aria-label="New memory">
+        <select id="mem-kind" aria-label="Memory kind">${['note', 'fact', 'preference', 'decision'].map(k => `<option value="${k}">${k}</option>`).join('')}</select>
+        <button class="btn green sm" data-action="memory-add">Remember</button>
+      </div>
+      ${mems.length ? mems.slice(0, 20).map(m => `<div class="mem-row">
+        <span class="hint mono">${esc(m.kind)}</span>
+        <span style="flex:1;font-size:.78rem">${m.pinned ? '📌 ' : ''}${esc(m.content)}</span>
+        <button class="btn ghost sm" data-action="memory-pin" data-id="${m.id}" data-pinned="${m.pinned ? 0 : 1}" title="${m.pinned ? 'Unpin' : 'Pin (always in the prompt)'}">${m.pinned ? '📌' : '📍'}</button>
+        <button class="btn ghost sm" data-action="memory-del" data-id="${m.id}" title="Forget">✕</button>
+      </div>`).join('') : '<div class="empty">No memories yet — the worker learns as it works; teach it anything here.</div>'}
+    </div></div>`;
+}
+
+export function askPanel(s) {
+  const asks = s.asks || [];
+  return `<div class="panel mb14"><div class="panel-head">${icon('list')} Boss inbox — all asks <span class="sp"></span>
+      <span class="hint">worker &amp; surrogate questions, newest first</span></div>
+    <div class="panel-body">${asks.length ? asks.map(a => a.status === 'pending' ? askCard(a)
+      : `<div class="mem-row"><span class="hint mono">${esc(a.status)}</span>
+          <span style="flex:1;font-size:.78rem">${esc(a.question)}</span>
+          <span class="hint">${esc(a.answer || '')}</span></div>`).join('')
+      : '<div class="empty">Nothing asked yet.</div>'}</div></div>`;
+}
+
 // ═══════════════════════════════════════════════════════════════════════
-// 1 · HOME / COMMAND CENTER
+// 1 · HOME — briefing + work now
 // ═══════════════════════════════════════════════════════════════════════
 export function home(s) {
   const o = s.overview || {};
@@ -92,114 +251,224 @@ export function home(s) {
   const ready = o.readiness || { issues: [], ok: false };
   const engine = o.engine || {};
 
-  // "Awaiting review" means the same thing everywhere in the console: the set
-  // the Review Queue lists (drafts + pending-review). The server's narrower
-  // `review` bucket excludes drafts, so deriving these from the loaded products
-  // keeps the badge, the funnel, the KPI and the queue itself in agreement.
   const queued = reviewQueue(s.products).length;
+  const queue = reviewPage(s.products, 1);
+  const topReview = queue.slice.slice(0, 6);
+  const windows = activeTrendWindows(s).slice(0, 4);
+  const priorities = pickPriority(s);
 
-  // BI aggregates (health / deltas / insights) — real numbers from the BI
-  // service; the view degrades silently to "—" until the first fetch lands.
   const bi = s.bi || {};
   const bh = bi.health || {};
   const ins = bi.insights || {};
   const bdl = bi.deltas || {};
   const pctText = d => (typeof d === 'number' ? (d > 0 ? '+' : '') + d + '% vs prior 7d' : 'no prior data');
-  const funnelStages = [
-    ['Discover', f.discover || 0, 'discover'],
-    ['Generate', f.generate || 0, 'generate'],
-    ['Review', queued, 'review'],
-    ['Approve', f.approve || 0, 'approve'],
-    ['Publish', f.publish || 0, 'publish']
-  ];
-  const funnel = funnelStages.map(([label, n, stage]) =>
-    `<button class="st ${n > 0 ? 'on' : ''}" data-action="funnel" data-stage="${stage}" title="Filter catalog: ${esc(label)}">
-      <span class="ring">${fmtNum(n)}</span><span class="l">${esc(label)}</span></button>`).join('<span class="ar">→</span>');
-
-  const smart = (s.smartActions || []).map(a =>
-    `<button class="btn ghost" data-action="smart" data-name="${esc(a.action)}" style="border-left:3px solid ${esc(a.color || 'var(--teal)')}">
-      ${esc(a.icon || '⚡')} ${esc(a.title)}</button>`).join('');
 
   const blockers = (ready.issues || []).filter(i => i.severity === 'error');
   const warns = (ready.issues || []).filter(i => i.severity === 'warning');
-
   const capPct = etsy.cap > 0 ? Math.round((etsy.published / etsy.cap) * 100) : 0;
 
-  return head('🚀 Command Center', 'Discover → generate → review → publish. Everything the engine is doing, live.',
-    `<button class="btn green" data-action="make-this">${icon('sparkles')} Make this…</button>
-     <button class="btn ghost" data-action="optimize-weak" title="Run the listing optimizer across weak listings">${icon('bolt')} Update listings</button>
-     <button class="btn primary" data-action="palette">${icon('command')} Run a command <kbd>⌘K</kbd></button>`)
-  + `<div class="kpis mb14">
-      ${kpi('Products', fmtNum(c.products), `${fmtNum(c.listed)} listed · ${pctText(bdl.products && bdl.products.deltaPct)}`, 'tc', 'catalog')}
-      ${kpi('Shop Health', typeof bh.score === 'number' ? String(bh.score) : '—', bh.grade || 'computing…', bh.score >= 80 ? 'gn' : 'am', 'system')}
-      ${kpi('In Review', fmtNum(queued), 'awaiting you', 'am', 'review')}
-      ${kpi('Approved', fmtNum(c.approved), 'ready to publish', 'bl', 'catalog', 'approved')}
-      ${kpi('Draft', fmtNum(c.draft), `${fmtNum(c.professions)} niches`, '', 'catalog', 'draft')}
-      ${kpi('Est. Revenue', fmtMoney(rev.estimated), `${fmtNum(rev.realSales)} real sales`, 'gn', 'analytics')}
-      ${kpi('Real Revenue', fmtMoney(rev.realRevenue, true), 'synced from Gumroad', 'gn', 'analytics')}
-    </div>
-    <div class="panel mb14"><div class="panel-head">${icon('bolt')} Insights <span class="sp"></span>
-      <span class="hint">opportunity · risk · action — rule-based on live state</span></div>
+  // The work area leads with the two things the app is actually for day to day:
+  // clearing the review queue, then riding an activate-grade trend window.
+  const reviewWork = topReview.length ? {
+    title: `${fmtNum(queue.items.length)} awaiting review`,
+    sub: 'Jump straight to the next product to triage.',
+    body: `<div class="rows">${topReview.map(p => `
+      <div class="rrow" data-review-id="${p.id}">
+        <div class="rt">${img(p)}</div>
+        <div>
+          <div class="nm">${esc(p.name)}</div>
+          <div class="mt">${esc(p.prof_name || '')} · ${esc(titleCase(p.type))} · ${esc(p.price || '')}</div>
+        </div>
+        <div class="acts">
+          <button class="btn ghost sm" data-action="toggle-select" data-id="${p.id}" title="Select">${s.selected.has(p.id) ? '☑' : '☐'}</button>
+          ${sparkBtn('product', p.id, p.name)}
+          <button class="btn green sm" data-action="approve" data-id="${p.id}">${icon('check')} Approve</button>
+          <button class="btn primary sm" data-action="publish" data-id="${p.id}">${icon('rocket')} Publish</button>
+          <button class="btn red sm" data-action="reject" data-id="${p.id}">${icon('x')} Reject</button>
+        </div>
+      </div>`).join('')}</div>${selBar(s, 'product', topReview.map(p => p.id))}`,
+    right: `<button class="btn primary" data-action="go" data-view="review">Open review queue</button>`
+  } : null;
+
+  const trendWork = windows.length ? {
+    title: `${windows.length} trend window${windows.length > 1 ? 's' : ''} open`,
+    sub: `Highest velocity first · Etsy quota ${fmtNum(etsy.remaining)} left today.`,
+    body: `<div class="rows">${windows.map(t => {
+      const w = trendWindow(t);
+      const grade = String(t.grade || t.verdict || 'ACTIVATE').toUpperCase();
+      const safeGrade = ['ACTIVATE', 'WATCH', 'SKIP'].includes(grade) ? grade : 'ACTIVATE';
+      const win = w ? (w.daysLeft > 0 ? `closes in ${w.daysLeft}d` : 'window closed') : '';
+      return `
+      <div class="rrow" style="grid-template-columns:62px 1fr auto">
+        <div class="rt"><span style="font-size:1.6rem">${esc(t.emoji || '🔥')}</span></div>
+        <div>
+          <div class="nm">${esc(t.name)}</div>
+          <div class="mt">${esc([t.phase || t.velocity || 'rising', win, t.est_revenue].filter(Boolean).join(' · '))}</div>
+        </div>
+        <div class="acts">
+          <span class="grade ${safeGrade}">${t.activated ? 'locked' : esc(safeGrade)}</span>
+          <button class="btn green sm" data-action="trend-generate" data-id="${t.id}" ${t.activated ? 'disabled' : ''}>${icon('sparkles')} Generate</button>
+          <button class="btn primary sm" data-action="go" data-view="trends">Trend</button>
+        </div>
+      </div>`;
+    }).join('')}</div>`,
+    right: `<button class="btn primary" data-action="go" data-view="trends">Open trends</button>`
+  } : null;
+
+  // Fallback ladder (priority brain): weak/zero-view listings, then growth
+  // moves. The work area NEVER shows "nothing to do" — an empty queue is the
+  // moment to sell, not to stop.
+  const lh = (s.bi && s.bi.listing) || {};
+  const weakSeo = lh.weakestSeo || [];
+  const zeroView = lh.zeroSale || [];
+  const weakRow = (name, meta, id) => `<div class="rrow" style="grid-template-columns:1fr auto">
+      <div><div class="nm">${esc(name)}</div><div class="mt">${esc(meta)}</div></div>
+      <div class="acts"><button class="btn green sm" data-action="optimize-product" data-id="${id}">${icon('sparkles')} Optimize</button></div>
+    </div>`;
+  const weakWork = (weakSeo.length || zeroView.length) ? {
+    title: `${fmtNum(weakSeo.length + zeroView.length)} listing${weakSeo.length + zeroView.length > 1 ? 's' : ''} need attention`,
+    sub: 'Weak SEO or zero views — retitle and re-tag them.',
+    body: `<div class="rows">${[
+      ...weakSeo.slice(0, 4).map(w => weakRow(w.name, `SEO ${fmtNum(w.score)}/100 · ${fmtNum(w.tagCount)}/13 tags`, w.id)),
+      ...zeroView.slice(0, 4).map(z => weakRow(z.name, `listed ${fmtNum(z.daysListed)}d · 0 views`, z.id))
+    ].join('')}</div>`,
+    right: `<button class="btn primary" data-action="optimize-weak">${icon('sparkles')} Optimize all weak</button>`
+  } : null;
+  const growthWork = {
+    title: 'Queue clear — keep the flywheel moving',
+    sub: 'Nothing urgent is pending. Push inventory live and pull fresh demand in.',
+    body: `<div class="btn-row" style="flex-direction:column;align-items:stretch;margin-bottom:0">
+      <button class="btn green" data-action="run" data-name="push-bundles">${icon('box')} Publish Bundles → Gumroad</button>
+      <button class="btn primary" data-action="run" data-name="sweep">${icon('discovery')} Discover New Niches</button>
+      <button class="btn" data-action="run" data-name="sync-sales">${icon('refresh')} Sync Sales</button>
+    </div>`,
+    right: ''
+  };
+  const cards = { review: reviewWork, trends: trendWork, weak: weakWork, growth: growthWork };
+  const workItems = priorities.map(p => cards[p.kind]).filter(Boolean).slice(0, 2);
+
+  // Briefing triad — the BI insights engine already computes opportunities,
+  // risks and next actions from real tables; present them as ONE briefing
+  // instead of burying the narrative in a side panel.
+  const insList = (arr, mark, color) => ((arr && arr.length)
+    ? arr.map(x => `<div class="mb8" style="font-size:.78rem;color:${color}">${mark} ${esc(x)}</div>`).join('')
+    : '<div class="hint">Nothing flagged.</div>');
+  const moves = (ins && ins.actions) || [];
+  const triad = `<div class="panel mb14" style="border-left:3px solid var(--teal)">
+      <div class="panel-head" style="padding-left:14px">${icon('bullseye')} Operator briefing <span class="sp"></span>
+        <span class="hint">what's working · what needs you · the next move</span></div>
       <div class="panel-body"><div class="grid g3">
-        <div>
-          <div class="hint mb8">✅ Opportunities</div>
-          ${(ins.opportunities || []).map(t => `<div class="mt8" style="font-size:.78rem;line-height:1.45">${esc(t)}</div>`).join('') || '<div class="hint">—</div>'}
+        <div><div class="hint mb8">What's working</div>${insList(ins.opportunities, '▲', 'var(--green)')}</div>
+        <div><div class="hint mb8">Needs attention</div>${insList(ins.risks, '●', 'var(--amber)')}</div>
+        <div><div class="hint mb8">Highest-leverage move</div>
+          ${moves.length
+            ? `<button class="btn primary" style="width:100%" data-action="run" data-name="${esc(moves[0].run)}">${icon('bolt')} ${esc(moves[0].label)}</button>` +
+              moves.slice(1, 3).map(a => `<button class="btn sm mt8" style="width:100%" data-action="run" data-name="${esc(a.run)}">${esc(a.label)}</button>`).join('')
+            : '<div class="hint">No suggested moves — run a sweep to find some.</div>'}
         </div>
-        <div>
-          <div class="hint mb8">⚠️ Risks</div>
-          ${(ins.risks || []).map(t => `<div class="mt8" style="font-size:.78rem;line-height:1.45;color:var(--amber)">${esc(t)}</div>`).join('') || '<div class="hint">no active risks</div>'}
-        </div>
-        <div>
-          <div class="hint mb8">🎯 Do this next</div>
-          ${(ins.actions || []).map(a => `<button class="btn sm mb8" style="width:100%" data-action="run" data-name="${esc(a.run)}">${icon('bolt')} ${esc(a.label)}</button>`).join('') || '<div class="hint">—</div>'}
-        </div>
-      </div></div></div>
-    <div class="grid g2 mb14">
+      </div></div></div>`;
+
+  // Since your last visit — the daily question is "what changed?", not "what
+  // are the totals?". console.js diffs real timestamps and passes the result.
+  const sc = s.since;
+  const sinceHtml = (sc && !sc.first) ? `<div class="panel mb14"><div class="panel-body" style="padding:10px 15px">
+      <span class="hint">Since your last visit (${esc(timeAgo(sc.at))}):</span>
+      ${(sc.newDrafts || sc.newSales || sc.newRevenue || sc.newActivations)
+        ? `<b style="margin-left:6px">${[
+            sc.newDrafts ? `+${fmtNum(sc.newDrafts)} draft${sc.newDrafts > 1 ? 's' : ''}` : '',
+            sc.newRevenue ? `+${fmtMoney(sc.newRevenue, true)}` : '',
+            sc.newSales ? `+${fmtNum(sc.newSales)} sale${sc.newSales > 1 ? 's' : ''}` : '',
+            sc.newActivations ? `${fmtNum(sc.newActivations)} trend${sc.newActivations > 1 ? 's' : ''} activated` : ''
+          ].filter(Boolean).join(' · ')}</b>`
+        : '<b style="margin-left:6px">nothing changed.</b>'}
+    </div></div>` : '';
+
+  return head('🎯 Briefing', 'Shop state first. What needs your attention right now.',
+    `<button class="btn green" data-action="make-this">${icon('sparkles')} Make this…</button>
+     <button class="btn ghost" data-action="palette">${icon('command')} Run a command <kbd>⌘K</kbd></button>`)
+  + triad
+  + sinceHtml
+  + bossInbox(s)
+  + `<div class="grid g2 mb14">
       <div class="panel">
-        <div class="panel-head">${icon('layers')} Pipeline <span class="sp"></span>
-          <span class="hint">${engine.isReviewDay ? 'review gate UP' : 'review gate open'}</span></div>
-        <div class="panel-body"><div class="funnel">${funnel}</div></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head">${icon('marketplace')} Etsy Quota <span class="sp"></span>
-          <span class="hint">resets daily</span></div>
+        <div class="panel-head">${icon('bullseye')} Shop state <span class="sp"></span>
+          <span class="hint">what the dashboard thinks about the shop right now</span></div>
         <div class="panel-body">
-          ${gauge(capPct, `${etsy.published} / ${etsy.cap}`, capPct >= 100 ? 'var(--red)' : capPct >= 70 ? 'var(--amber)' : 'var(--teal)')}
-          <div class="hint mt8">${fmtNum(etsy.remaining)} remaining today · cap ${fmtNum(etsy.cap)}/day (editable in Automation)</div>
-        </div>
-      </div>
-    </div>
-    <div class="grid g2">
-      <div>
-        <div class="panel mb14">
-          <div class="panel-head">${icon('bolt')} Quick Actions</div>
-          <div class="panel-body">
-            ${smart ? `<div class="btn-row">${smart}</div>` : ''}
-            <div class="btn-row" style="flex-direction:column;align-items:stretch">
-              <button class="btn primary" data-action="run" data-name="sweep">${icon('discovery')} Discover New Niches</button>
-              <button class="btn primary" data-action="run" data-name="full-cycle">${icon('play')} Run Full Automation Cycle</button>
-              <button class="btn green" data-action="run" data-name="push-bundles">${icon('box')} Publish Bundles → Gumroad</button>
-              <button class="btn green" data-action="run" data-name="lead-magnet">${icon('rocket')} Publish Lead Magnet</button>
-              <button class="btn" data-action="run" data-name="sync-sales">${icon('refresh')} Sync Sales</button>
-              <button class="btn" data-action="rebuild-covers">${icon('sparkles')} Rebuild Covers</button>
+          <div class="kpis" style="grid-template-columns:repeat(2,1fr)">
+            <button class="kpi tc clickable" data-action="go" data-view="catalog">
+              <div class="lb">Products</div><div class="num">${fmtNum(c.products)}</div>
+              <div class="sb">${fmtNum(c.listed)} listed · ${pctText(bdl.products && bdl.products.deltaPct)}</div></button>
+            <button class="kpi ${bh.score >= 80 ? 'gn' : bh.score >= 45 ? 'am' : 'am'} clickable" data-action="go" data-view="system">
+              <div class="lb">Shop Health</div><div class="num">${typeof bh.score === 'number' ? String(bh.score) : '—'}</div>
+              <div class="sb">${bh.grade || 'computing…'}</div></button>
+            <button class="kpi am clickable" data-action="go" data-view="review">
+              <div class="lb">In Review</div><div class="num">${fmtNum(queued)}</div>
+              <div class="sb">awaiting you</div></button>
+            <button class="kpi gn clickable" data-action="go" data-view="analytics">
+              <div class="lb">Real Revenue</div><div class="num">${fmtMoney(rev.realRevenue, true)}</div>
+              <div class="sb">${fmtNum(rev.realSales)} real sales</div></button>
+            <button class="kpi bl clickable" data-action="go" data-view="catalog">
+              <div class="lb">Approved</div><div class="num">${fmtNum(c.approved)}</div>
+              <div class="sb">ready to publish</div></button>
+            <div class="panel" style="border:1px solid var(--border);border-radius:var(--radius);padding:11px 13px;background:var(--panel)">
+              <div class="lb">Etsy quota</div>
+              <div class="num" style="margin-top:2px">${esc(etsy.published)} / ${esc(etsy.cap)}</div>
+              <div class="sb">${fmtNum(etsy.remaining)} remaining · ${capPct >= 100 ? 'full' : capPct >= 70 ? 'filling up' : 'open'}</div>
             </div>
           </div>
         </div>
-        <div class="panel">
-          <div class="panel-head">${icon('shield')} Launch Readiness</div>
-          <div class="panel-body">
-            ${blockers.length === 0 && warns.length === 0
-              ? '<div class="hint" style="color:var(--green)">No blockers. Everything configured.</div>'
-              : [...blockers.map(i => `<div class="mb8" style="font-size:.78rem;color:var(--red)">✕ ${esc(i.message)}</div>`),
-                 ...warns.slice(0, 4).map(i => `<div class="mb8" style="font-size:.78rem;color:var(--amber)">⚠ ${esc(i.message)}</div>`)].join('')}
-            <button class="btn ghost sm mt8" data-action="go" data-view="system">Open System →</button>
+      </div>
+      <div class="panel">
+        <div class="panel-head">${icon('shield')} Readiness <span class="sp"></span>
+          <span class="hint">blockers first, then warnings</span></div>
+        <div class="panel-body">
+          ${blockers.length === 0 && warns.length === 0
+            ? '<div class="hint" style="color:var(--green)">No blockers. Everything configured.</div>'
+            : [...blockers.map(i => `<div class="mb8" style="font-size:.78rem;color:var(--red)">✕ ${esc(i.message)}</div>`),
+               ...warns.slice(0, 4).map(i => `<div class="mb8" style="font-size:.78rem;color:var(--amber)">⚠ ${esc(i.message)}</div>`)].join('')}
+          <button class="btn ghost sm mt8" data-action="go" data-view="system">Open System →</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel mb14" style="border-left:3px solid var(--teal)">
+      <div class="panel-head" style="padding-left:14px">${icon('list')} Work now <span class="sp"></span>
+        <span class="hint">priority order: review queue → trend windows → weak listings → growth moves</span></div>
+      <div class="panel-body">
+        <div class="grid g2">
+          ${workItems.map(item => `<div class="panel" style="border:1px solid var(--border);border-radius:var(--radius)">
+            <div class="panel-head">${esc(item.title)}</div>
+            <div class="panel-body" style="padding:8px 12px 12px">
+              <div class="hint mb8">${esc(item.sub)}</div>
+              ${item.body}
+              ${item.right ? '<div class="btn-row mt8" style="margin-bottom:0">' + item.right + '</div>' : ''}
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="grid g2 mb14">
+      <div class="panel">
+        <div class="panel-head">${icon('lightning')} Other jobs <span class="sp"></span>
+          <span class="hint">one click each, full views below</span></div>
+        <div class="panel-body">
+          <div class="btn-row" style="flex-direction:column;align-items:stretch">
+            <button class="btn primary" data-action="run" data-name="sweep">${icon('discovery')} Discover New Niches</button>
+            <button class="btn primary" data-action="run" data-name="full-cycle">${icon('play')} Run Full Automation Cycle</button>
+            <button class="btn green" data-action="run" data-name="push-bundles">${icon('box')} Publish Bundles → Gumroad</button>
+            <button class="btn green" data-action="run" data-name="lead-magnet">${icon('rocket')} Publish Lead Magnet</button>
+            <button class="btn" data-action="run" data-name="sync-sales">${icon('refresh')} Sync Sales</button>
+            <button class="btn" data-action="rebuild-covers">${icon('sparkles')} Rebuild Covers</button>
           </div>
+          ${ins.actions && ins.actions.length ? `<div class="btn-row mt14" style="flex-direction:column;align-items:stretch">
+            <div class="hint mb8">Suggested by the system</div>
+            ${(ins.actions || []).map(a => `<button class="btn sm mb8" style="width:100%" data-action="run" data-name="${esc(a.run)}">${icon('bolt')} ${esc(a.label)}</button>`).join('') || ''}
+          </div>` : ''}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head">${icon('clock')} Live Activity <span class="sp"></span>
+        <div class="panel-head">${icon('clock')} Recent activity <span class="sp"></span>
           <span class="hint">${s.live === 'live' ? 'streaming' : s.live}</span></div>
-        <div class="panel-body"><div class="logs">${activityRows(o.activity, 16)}</div></div>
+        <div class="panel-body"><div class="logs">${activityRows(o.activity, 12)}</div></div>
       </div>
     </div>`;
 }
@@ -237,6 +506,7 @@ export function catalog(s) {
         <div class="flex mt8" style="gap:5px">
           <button class="btn ghost sm" data-action="toggle-select" data-id="${p.id}" title="Select">${s.selected.has(p.id) ? '☑' : '☐'}</button>
           <button class="btn ghost sm" data-action="open" data-id="${p.id}" title="Open">${icon('eye')}</button>
+          ${sparkBtn('product', p.id, p.name)}
           <button class="btn ghost sm" data-action="edit-product" data-id="${p.id}" title="Edit document">${icon('pencil')}</button>
         </div>
       </div>
@@ -254,13 +524,9 @@ export function catalog(s) {
         <option value="all">All types</option>
         ${types.map(t => `<option value="${esc(t)}" ${f.type === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
       </select>
-      <button class="btn ghost sm" data-action="select-all" data-ids="${list.map(p => p.id).join(',')}" ${list.length ? '' : 'disabled'}>${sel && list.length && list.every(p => s.selected.has(p.id)) ? 'Deselect all' : 'Select all'}</button>
-      <button class="btn ghost sm" data-action="clear-selection" ${sel ? '' : 'disabled'}>Clear (${sel})</button>
-      <button class="btn green sm" data-action="batch" data-status="approved" ${sel ? '' : 'disabled'}>Approve</button>
-      <button class="btn sm" data-action="batch" data-status="listed" ${sel ? '' : 'disabled'}>Mark listed</button>
-      <button class="btn red sm" data-action="batch" data-status="rejected" ${sel ? '' : 'disabled'}>Reject</button>
       <span class="hint">${fmtNum(list.length)} shown · ${types.length} types</span>
     </div>
+    ${selBar(s, 'product', list.map(p => p.id))}
     ${slice.length ? `<div class="cards">${cards}</div>${pager(list.length, page, per, 'cat-page')}`
       : empty('No products match. Adjust filters or run a discovery sweep.')}`;
 }
@@ -285,6 +551,8 @@ export function review(s) {
         </div>
       </div>
       <div class="acts">
+        <button class="btn ghost sm" data-action="toggle-select" data-id="${p.id}" title="Select">${s.selected.has(p.id) ? '☑' : '☐'}</button>
+        ${sparkBtn('product', p.id, p.name)}
         <button class="btn ghost sm" data-action="open" data-id="${p.id}">${icon('eye')} Open</button>
         <button class="btn sm" data-action="edit-product" data-id="${p.id}">${icon('pencil')} Edit</button>
         <button class="btn amber sm" data-action="better-idea" data-id="${p.id}" title="Ask the concept engine for a more differentiated angle">${icon('brain')} Better Idea</button>
@@ -294,7 +562,7 @@ export function review(s) {
       </div>
     </div>`).join('');
 
-  return head('✅ Review Queue', `${fmtNum(items.length)} awaiting review. Keyboard: J/K move · A approve · R reject · Enter open.`,
+  return head('✅ Review Queue', `${fmtNum(items.length)} awaiting review. Keyboard: J/K move · A approve · R reject · X select · Enter open.`,
     `<button class="btn ghost" data-action="go" data-view="catalog">All Products →</button>`)
   + `<div class="btn-row">
       <button class="btn" data-action="run" data-name="dedupe-queue">${icon('broom')} Dedupe Clones</button>
@@ -302,6 +570,7 @@ export function review(s) {
       <button class="btn red" data-action="confirm" data-confirm="run:reject-trash" data-message="Reject ALL pending drafts? Approved and listed products are safe.">${icon('trash')} Reject All Trash</button>
       <button class="btn green" data-action="confirm" data-confirm="run:approve-all" data-message="Approve every pending product?">${icon('check')} Approve All</button>
     </div>
+    ${selBar(s, 'product', items.map(p => p.id))}
     ${slice.length ? `<div class="rows">${rows}</div>${pager(items.length, page, per, 'review-page')}`
       : empty('✅ Review queue is clear.')}`;
 }
@@ -387,9 +656,13 @@ export function discovery(s) {
             <button class="btn primary sm" data-action="passion-add">${icon('plus')} Add</button>
           </div>
           <div class="flex" style="flex-wrap:wrap;gap:6px">
-            ${niches.length ? niches.map(n => `<span class="tag">${esc(n)} <button class="btn ghost sm" style="padding:0 4px;border:none;background:none" data-action="passion-remove" data-niche="${esc(n)}" title="Remove">✕</button></span>`).join('')
+            ${niches.length ? niches.map(n => {
+              const on = (s.selectedMisc || new Set()).has(`niche:${n}`);
+              return `<span class="tag${on ? ' sel' : ''}"><button class="btn ghost sm" style="padding:0 4px;border:none;background:none" data-action="misc-toggle-select" data-key="${encodeURIComponent(`niche:${n}`)}" title="Select">${on ? '☑' : '☐'}</button>${esc(n)} ${sparkBtn('niche', n, n)} <button class="btn ghost sm" style="padding:0 4px;border:none;background:none" data-action="passion-remove" data-niche="${esc(n)}" title="Remove">✕</button></span>`;
+            }).join('')
               : '<span class="hint">No passion niches yet. Adding one biases generation toward it.</span>'}
           </div>
+          ${niches.length ? selBar(s, 'niche', niches) : ''}
           <button class="btn ghost sm mt14" data-action="run" data-name="sweep">${icon('refresh')} Sweep now</button>
         </div></div>
     </div>`;
@@ -406,13 +679,18 @@ export function trends(s) {
   const list = rows.map(t => {
     const grade = String(t.grade || t.verdict || 'WATCH').toUpperCase();
     const safeGrade = ['ACTIVATE', 'WATCH', 'SKIP'].includes(grade) ? grade : 'WATCH';
-    return `<div class="trend">
+    const w = trendWindow(t);
+    const win = w ? (w.daysLeft > 0 ? `closes in ${w.daysLeft}d` : 'window closed') : (t.window ? `win ${t.window}d` : '');
+    const on = s.selectedTrends ? s.selectedTrends.has(t.id) : false;
+    return `<div class="trend ${on ? 'sel' : ''}">
+      <button class="btn ghost sm" data-action="trend-toggle-select" data-id="${t.id}" title="Select">${on ? '☑' : '☐'}</button>
       <span style="font-size:1.3rem">${esc(t.emoji || '🔥')}</span>
       <div style="flex:1;min-width:0">
         <div class="nm">${esc(t.name)}</div>
-        <div class="mt">${esc([t.source, t.velocity, t.window ? `win ${t.window}d` : '', t.est_revenue].filter(Boolean).join(' · '))}</div>
+        <div class="mt">${esc([t.source, t.velocity, win, t.est_revenue].filter(Boolean).join(' · '))}</div>
       </div>
       <span class="grade ${safeGrade}">${esc(safeGrade)}</span>
+      ${sparkBtn('trend', t.id, t.name)}
       <button class="btn ghost sm" data-action="trend-vet" data-id="${t.id}">${icon('eye')} Vet</button>
       <button class="btn ghost sm" data-action="trend-dismiss" data-id="${t.id}" title="Dismiss">${icon('x')}</button>
       <button class="btn ghost sm" data-action="trend-archive" data-id="${t.id}" title="Archive">${icon('box')}</button>
@@ -429,7 +707,7 @@ export function trends(s) {
       ${kpi('ACTIVATE', fmtNum(act), 'ready to commit', 'gn')}
       ${kpi('WATCH', fmtNum(watch), 'monitor', 'am')}
     </div>
-    ${rows.length ? list : empty('No trends yet — run a sweep or SERP scan.')}`;
+    ${rows.length ? selBar(s, 'trend', rows.map(t => t.id)) + list : empty('No trends yet — run a sweep or SERP scan.')}`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -442,12 +720,15 @@ export function social(s) {
 
   const postRows = posts.map(p => {
     const color = p.status === 'posted' ? 'var(--green)' : p.status === 'cancelled' ? 'var(--red)' : 'var(--amber)';
-    return `<div class="flex" style="padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px">
+    const on = (s.selectedMisc || new Set()).has(`post:${p.id}`);
+    return `<div class="flex${on ? ' sel' : ''}" style="padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px">
+      <button class="btn ghost sm" data-action="misc-toggle-select" data-key="${encodeURIComponent(`post:${p.id}`)}" title="Select">${on ? '☑' : '☐'}</button>
       <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0"></span>
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(String(p.content || '').slice(0, 70))}…</div>
         <div class="hint">${esc(p.platform)} · ${esc(timeAgo(p.scheduledAt))} · ${esc(p.status)}</div>
       </div>
+      ${sparkBtn('post', p.id, String(p.content || '').slice(0, 40))}
       ${p.status === 'scheduled' ? `<button class="btn red sm" data-action="social-cancel" data-id="${p.id}">Cancel</button>` : ''}
     </div>`;
   }).join('');
@@ -457,7 +738,7 @@ export function social(s) {
   + `<div class="grid g2">
       <div class="panel"><div class="panel-head">${icon('calendar')} Scheduled Posts</div>
         <div class="panel-body" style="max-height:520px;overflow:auto">
-          ${posts.length ? postRows : '<div class="empty">No posts scheduled yet.</div>'}
+          ${posts.length ? selBar(s, 'post', posts.map(p => p.id)) + postRows : '<div class="empty">No posts scheduled yet.</div>'}
         </div></div>
       <div>
         <div class="panel mb14"><div class="panel-head">${icon('sparkles')} Generate A Post</div>
@@ -494,12 +775,16 @@ export function ads(s) {
   const pct = Math.min(100, a.percentUsed || 0);
   const color = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--amber)' : 'var(--teal)';
 
-  const runs = (a.recentRuns || []).map(r => {
+  const runList = a.recentRuns || [];
+  const runs = runList.map(r => {
     const c = r.status === 'active' ? 'var(--green)' : r.status === 'cancelled' ? 'var(--red)' : 'var(--muted)';
-    return `<div class="flex" style="padding:8px 11px;background:var(--surface);border-radius:var(--radius-xs);margin-bottom:6px">
+    const on = (s.selectedMisc || new Set()).has(`ad:${r.id}`);
+    return `<div class="flex${on ? ' sel' : ''}" style="padding:8px 11px;background:var(--surface);border-radius:var(--radius-xs);margin-bottom:6px">
+      <button class="btn ghost sm" data-action="misc-toggle-select" data-key="${encodeURIComponent(`ad:${r.id}`)}" title="Select">${on ? '☑' : '☐'}</button>
       <span style="width:8px;height:8px;border-radius:50%;background:${c}"></span>
       <div style="flex:1"><div style="font-weight:600;font-size:.8rem">${esc(r.name || 'Campaign')}</div>
       <div class="hint">${esc(r.platform)} · ${fmtMoney(r.amount)} · ${esc(r.status)}</div></div>
+      ${sparkBtn('ad', r.id, r.name || 'Campaign')}
       ${r.status === 'active' ? `<button class="btn red sm" data-action="ad-cancel" data-id="${r.id}">Cancel</button>` : ''}
     </div>`;
   }).join('');
@@ -526,7 +811,7 @@ export function ads(s) {
         <div class="panel-body">
           <div class="flex mb14"><input id="budget-input" type="number" min="0" step="1" value="${esc(a.budget || 0)}" style="flex:1">
             <button class="btn" data-action="ad-budget">${icon('check')} Save budget</button></div>
-          ${runs || '<div class="empty">No campaigns yet.</div>'}
+          ${runs ? selBar(s, 'ad', runList.map(r => r.id)) + runs : '<div class="empty">No campaigns yet.</div>'}
         </div></div>
     </div>`;
 }
@@ -807,6 +1092,8 @@ export function system(s) {
           <div class="hint mt8">${esc(payments.note || 'Set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET to enable direct checkout.')}</div>
         </div></div>
     </div>
+    <div class="grid g2 mb14">${bossChannelPanel(s)}${memoryPanel(s)}</div>
+    ${askPanel(s)}
     <div class="panel"><div class="panel-head">${icon('command')} Run History</div>
         <div class="panel-body tight">
           ${(s.runs || []).length ? `<table class="data"><thead><tr><th>Action</th><th>Status</th><th>Started</th><th>Result</th></tr></thead><tbody>

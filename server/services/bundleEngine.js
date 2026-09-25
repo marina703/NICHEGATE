@@ -9,8 +9,9 @@ const path = require('path');
 const AdmZip = require('adm-zip');
 const { db } = require('../database');
 const { ensureProductFile } = require('./fileFactory');
+const runtimeConfig = require('./runtimeConfig');
 
-const OUTPUT_DIR = path.join(__dirname, '..', '..', 'generated');
+const OUTPUT_DIR = runtimeConfig.resolvePersistentDir('generated');
 
 const MEMBER_TYPES = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social', 'brand', 'website', 'tool', 'planner', 'wall-art'];
 const RECOVERY_SLUGS = ['aa-recovery', 'smart-recovery', 'refuge-recovery', 'womens-recovery', 'secular-recovery', 'faith-recovery'];
