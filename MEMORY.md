@@ -236,3 +236,9 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
 - First durable DB backup on the volume: data/backups/profession-box-2026-09-26T09-39-21-061Z.db (6.0 MB) — the old build's backup action wrote to ephemeral runtime/backups only.
 - AUTO_START_ENABLED / AUTO_PUBLISH_ENABLED intentionally left unset (scheduler + unattended publishing stay off until the owner reviews live inventory/limits).
 - DEFERRED BY OWNER (still open): Etsy key rotation + git-history purge of the leaked keys; owner will fix once the project is fully complete.
+
+# ── 2026-09-26: MCP SETUP (Etsy) ──
+- mcp_servers.json (repo root, committed f7142d8) registers the official Etsy Dev MCP (https://mcp.api.etsycloud.com/mcp — docs-only, 8 tools, no auth). mcp-cli/Freebuff reads ./mcp_servers.json then ~/.config/mcp/mcp_servers.json.
+- Global ~/.config/mcp/mcp_servers.json adds `etsy-shop` = aserper/etsy-mcp (41 tools, real Etsy API calls, own PKCE auth + auto token refresh). Built at ~/.config/mcp/servers/etsy-mcp (tsc). Secrets enter via ~/.config/mcp/servers/etsy-mcp-env.js wrapper which loads the project .env (ETSY_CLIENT_ID→ETSY_API_KEY) and SPAWNS dist/index.js — its entry has an isDirectRun guard, so import()-ing it silently never starts the server (lesson).
+- Deliberately NOT installed: georgejeffers/avlihachev etsy servers (strict subsets of aserper: duplicate tools + extra token exposure).
+- Etsy token health (2026-09-26): prod chain healthy (token present, not expired, connected as user 1286002574). Official rules (via Dev MCP guide): access token 1h, refresh token 90d SINGLE-USE rotating — refreshEtsyToken rotation-persist fix is live in prod (4f107bf), which was the historical "can't refresh" root cause.

@@ -344,3 +344,4 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
 - Owner decision on record: the leaked Etsy keys in git history (audit CRITICAL) are NOT rotated/purged yet — owner will address when the project is fully complete. Repo is private. Treat as STILL OPEN, not resolved.
 - What shipped: 4f107bf (safeguarded AI worker + production persistence) to GitHub main and Railway production, with ADMIN_PASSWORD rotated first so the new startup guard passes.
 - Deliberately NOT pushed: WIP snapshot commit 462c2ef (~22 MB of .audit-tmp binaries incl. gumroad.exe) stays local on its freebuff branch; uncommitted UI edits in sibling worktrees left untouched. Exclude .audit-tmp from any future history purge/commit.
+- MCP (2026-09-26): committed mcp_servers.json (official Etsy Dev MCP); installed aserper/etsy-mcp as `etsy-shop` globally (own OAuth + auto-refresh). Full details in MEMORY.md "MCP SETUP".
