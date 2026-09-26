@@ -229,3 +229,10 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
 - AUTO_START_ENABLED controls production scheduler boot; production cycle publishing also requires AUTO_PUBLISH_ENABLED and DB auto_list. Manual operator-driven marketplace actions remain intentionally distinct from unattended cycle publishing.
 - Railway Volume attachment and host variables are dashboard-only. Never say production is fixed until owner configures/validates Railway and deploys the reviewed code.
 - New focused tests cover runtime config, traversal guard, delivery redaction, and pending asks; last verification: focused 32/32; full suite 164 tests / 160 pass / 0 fail / 4 skips; edited JS syntax checks passed.
+
+# ── 2026-09-26: SHIPPED TO PRODUCTION (push + deploy, owner-approved) ──
+- 4f107bf (AI worker + runtime guardrails) is LIVE on Railway (deploy 7e40ee64, auto-deploy on push to main). New build confirmed via /api/worker/memory 200; DB survived rollout on nichegate-volume (/app/data, 353 products).
+- ADMIN_PASSWORD rotated (owner approved "rotate it now"): fresh 24-char value set via `railway variable set ADMIN_PASSWORD --stdin`; same value in the main workspace's local .env (never printed/logged/committed). Login verified 200 in prod.
+- First durable DB backup on the volume: data/backups/profession-box-2026-09-26T09-39-21-061Z.db (6.0 MB) — the old build's backup action wrote to ephemeral runtime/backups only.
+- AUTO_START_ENABLED / AUTO_PUBLISH_ENABLED intentionally left unset (scheduler + unattended publishing stay off until the owner reviews live inventory/limits).
+- DEFERRED BY OWNER (still open): Etsy key rotation + git-history purge of the leaked keys; owner will fix once the project is fully complete.
