@@ -86,10 +86,31 @@ app.use(helmet({
 // page load. Anonymous public traffic is still capped hard.
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: (req) => (auth.enabled() && auth.isValidToken(auth.tokenFrom(req)) ? 1200 : 200),
+  // /api/health* and /api/auth/* never share this counter: a burst of anonymous
+  // traffic must not 429 Railway's healthcheck or the login that recovers a
+  // session (that was a full-lockout path). The public storefront feed and its
+  // preview images are customer traffic, so they get a higher anon bucket.
+  max: (req) => {
+    if (auth.enabled() && auth.isValidToken(auth.tokenFrom(req))) return 1200;
+    if (req.path.startsWith('/store') || req.path.endsWith('/preview-image')) return 600;
+    return 200;
+  },
+  skip: (req) => req.path.startsWith('/health') || req.path.startsWith('/auth'),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' }
+});
+
+// Brute-force guard for the login endpoint alone: small window caps password
+// guessing without ever locking the rest of the API. Successful logins don't
+// count against the budget.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts, please try again later.' }
 });
 
 if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) app.set('trust proxy', 1);
@@ -117,7 +138,12 @@ const auth = require('./services/auth');
 // /api/health* stay open so login + Railway's healthcheck keep working.
 app.use('/api', apiLimiter);
 app.use('/api', (req, res, next) => {
+  // /api/auth/* and /api/health* stay open (login + Railway healthcheck).
+  // The public storefront (feed + showcase) and product preview images are
+  // anonymous customer traffic — exempting them is what makes GET /store
+  // actually render for buyers instead of an empty 401 shell.
   if (req.path.startsWith('/auth') || req.path.startsWith('/health')) return next();
+  if (req.path.startsWith('/store') || /^\/products\/\d+\/preview-image$/.test(req.path)) return next();
   return auth.requireAuth({ json: true })(req, res, next);
 });
 
@@ -135,7 +161,7 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 // read-only and cache-friendly.
 app.use('/covers', express.static(path.join(__dirname, '..', 'covers'), { maxAge: '1d' }));
 app.use(express.static(path.join(__dirname, '..', 'client'), { extensions: ['html'] }));
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try { await auth.login(req, res); } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.post('/api/auth/logout', (req, res) => auth.logout(req, res));
@@ -292,7 +318,10 @@ app.get('/api/etsy/cap', (req, res) => {
 
 app.post('/api/etsy/cap', (req, res) => {
     try {
-      const cap = Math.min(50, Math.max(1, parseInt(req.body.cap) || 20)); // default 20/day, clamp 1–50
+      // Explicit cap required — an empty body is a 400, not a silent default.
+      const capIn = parseInt(req.body && req.body.cap);
+      if (!Number.isFinite(capIn)) return res.status(400).json({ error: 'cap (1-50) required' });
+      const cap = Math.min(50, Math.max(1, capIn)); // clamp 1-50
       db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_daily_cap', ?)").run(String(cap));
       res.json({ ok: true, cap });
     } catch (e) {
@@ -320,8 +349,13 @@ app.get('/api/caps', (req, res) => {
 
 app.post('/api/caps', (req, res) => {
     try {
-      const etsy = Math.min(50, Math.max(1, parseInt(req.body && req.body.etsy) || 20));
-      const gumroad = Math.min(50, Math.max(1, parseInt(req.body && req.body.gumroad) || 10));
+      const etsyIn = parseInt(req.body && req.body.etsy);
+      const gumroadIn = parseInt(req.body && req.body.gumroad);
+      if (!Number.isFinite(etsyIn) && !Number.isFinite(gumroadIn)) {
+        return res.status(400).json({ error: 'etsy and/or gumroad cap required' });
+      }
+      const etsy = Math.min(50, Math.max(1, Number.isFinite(etsyIn) ? etsyIn : 20));
+      const gumroad = Math.min(50, Math.max(1, Number.isFinite(gumroadIn) ? gumroadIn : 10));
       db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_daily_cap', ?)").run(String(etsy));
       db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gumroad_daily_cap', ?)").run(String(gumroad));
       // Clear a stale "exhausted" latch so a raised cap applies immediately.
@@ -479,7 +513,8 @@ app.get('/api/social/calendar', (req, res) => {
 
 app.post('/api/social/schedule', (req, res) => {
     try {
-      const { productId, platform, content, scheduledAt } = req.body;
+      const { productId, platform, content, scheduledAt } = req.body || {};
+      if (!productId || !platform) return res.status(400).json({ error: 'productId and platform are required' });
       const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
       const posts = scheduled ? JSON.parse(scheduled.value || '[]') : [];
       
@@ -515,7 +550,11 @@ app.post('/api/social/cancel', (req, res) => {
 
 app.post('/api/social/post-now', async (req, res) => {
     try {
-      const { productId, platform } = req.body;
+      // node:sqlite cannot bind undefined — reject malformed bodies with 400
+      // instead of a 500 "Provided value cannot be bound" crash.
+      const productId = parseInt(req.body && req.body.productId);
+      const platform = req.body && req.body.platform;
+      if (!productId) return res.status(400).json({ error: 'productId required' });
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
       if (!product) return res.status(404).json({ error: 'Product not found' });
       
@@ -753,12 +792,12 @@ app.post('/api/optimize/weak', async (req, res) => {
   // ═════════════════════════════════════════════════════════════════════════
   // PHASE 6 — PRICING ENGINE (launch rule · A/B tiers · elasticity)
   // ═════════════════════════════════════════════════════════════════════════
-  app.get('/api/pricing/tests', (req, res) => {
+app.get('/api/pricing/tests', (req, res) => {
     try { res.json(pricingEngine.pricingSummary()); }
     catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.post('/api/pricing/tests/start', async (req, res) => {
+app.post('/api/pricing/tests/start', async (req, res) => {
     try {
       const productId = parseInt(req.body && req.body.productId);
       if (!productId) return res.status(400).json({ error: 'productId required' });
@@ -769,15 +808,16 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.post('/api/pricing/tests/:productId/end', (req, res) => {
+app.post('/api/pricing/tests/:productId/end', (req, res) => {
     try {
       res.json(pricingEngine.endPriceTest(parseInt(req.params.productId)));
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      // "No price test for product N" is a client error, not a 500.
+      res.status(/No price test/.test(e.message) ? 404 : 500).json({ error: e.message });
     }
   });
 
-  app.post('/api/pricing/apply', async (req, res) => {
+app.post('/api/pricing/apply', async (req, res) => {
     try {
       const productId = parseInt(req.body && req.body.productId);
       const price = parseFloat(req.body && req.body.price);
@@ -792,7 +832,7 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.get('/api/pricing/launch/:productId', (req, res) => {
+app.get('/api/pricing/launch/:productId', (req, res) => {
     try {
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(parseInt(req.params.productId));
       if (!product) return res.status(404).json({ error: 'Product not found' });
@@ -805,7 +845,7 @@ app.post('/api/optimize/weak', async (req, res) => {
   // ═════════════════════════════════════════════════════════════════════════
   // PHASE 6 — SELF-IMPROVING VETTING (learned weights from real outcomes)
   // ═════════════════════════════════════════════════════════════════════════
-  app.get('/api/vetting/weights', (req, res) => {
+app.get('/api/vetting/weights', (req, res) => {
     try {
       res.json({
         weights: vettingLearner.getWeights(),
@@ -814,7 +854,7 @@ app.post('/api/optimize/weak', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.post('/api/vetting/refit', (req, res) => {
+app.post('/api/vetting/refit', (req, res) => {
     try {
       const windowDays = Math.min(365, Math.max(14, parseInt(req.body && req.body.windowDays) || 90));
       const result = vettingLearner.fitWeights({ windowDays });
@@ -826,7 +866,7 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.post('/api/vetting/weights/reset', (req, res) => {
+app.post('/api/vetting/weights/reset', (req, res) => {
     try {
       vettingLearner.resetWeights();
       res.json({ ok: true, weights: vettingLearner.getWeights() });
@@ -834,7 +874,7 @@ app.post('/api/optimize/weak', async (req, res) => {
   });
 
   // Gap scoring visibility: incumbent weakness for a niche name.
-  app.get('/api/vetting/gap', (req, res) => {
+app.get('/api/vetting/gap', (req, res) => {
     try {
       const name = String(req.query.name || '').trim();
       if (!name) return res.status(400).json({ error: 'name query param required' });
@@ -845,11 +885,12 @@ app.post('/api/optimize/weak', async (req, res) => {
   // ═════════════════════════════════════════════════════════════════════════
   // PHASE 6 — VIDEO HOOK SCRIPTS (3× 15-30s TikTok/Reels per product)
   // ═════════════════════════════════════════════════════════════════════════
-  app.post('/api/products/:id/video-scripts', async (req, res) => {
+app.post('/api/products/:id/video-scripts', async (req, res) => {
     try {
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(parseInt(req.params.id));
       if (!product) return res.status(404).json({ error: 'Product not found' });
       const prof = db.prepare('SELECT name FROM professions WHERE id = ?').get(product.profession_id);
+      const conceptEngine = require('./services/conceptEngine');
       const scripts = await conceptEngine.generateVideoScripts(product, { niche: (req.body && req.body.niche) || (prof && prof.name) });
       res.json({ productId: product.id, niche: (prof && prof.name) || null, scripts });
     } catch (e) {
@@ -863,7 +904,7 @@ app.post('/api/optimize/weak', async (req, res) => {
   // PHASE 5 — DISTRIBUTION LAYER (Pin Engine · Sequences · Swipe File)
   // ═══════════════════════════════════════════════════════════════
   // PIN ENGINE — Tailwind-lite queue + attribution.
-  app.post('/api/pins/create', async (req, res) => {
+app.post('/api/pins/create', async (req, res) => {
     try {
       const pinEngine = require('./services/pinEngine');
       res.json(await pinEngine.createPin({
@@ -877,7 +918,7 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.post('/api/pins/schedule-batch', (req, res) => {
+app.post('/api/pins/schedule-batch', (req, res) => {
     try {
       const pinEngine = require('./services/pinEngine');
       const limit = Math.min(50, Math.max(1, parseInt(req.body && req.body.limit) || 20));
@@ -888,7 +929,7 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.get('/api/pins', (req, res) => {
+app.get('/api/pins', (req, res) => {
     try {
       const pinEngine = require('./services/pinEngine');
       const rows = db.prepare('SELECT * FROM pins ORDER BY scheduled_for ASC LIMIT 100').all();
@@ -899,7 +940,7 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.post('/api/pins/drain', (req, res) => {
+app.post('/api/pins/drain', (req, res) => {
     try {
       const pinEngine = require('./services/pinEngine');
       res.json({ ok: true, due: pinEngine.duePins(10) });
@@ -910,7 +951,7 @@ app.post('/api/optimize/weak', async (req, res) => {
   });
 
   // SEQUENCES — Kit-lite generation + ESP handoff (never sends itself).
-  app.post('/api/sequences/generate', async (req, res) => {
+app.post('/api/sequences/generate', async (req, res) => {
     try {
       const seqEngine = require('./services/sequenceEngine');
       res.json(await seqEngine.generateSequence({
@@ -924,7 +965,7 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.get('/api/sequences', (req, res) => {
+app.get('/api/sequences', (req, res) => {
     try {
       const seqEngine = require('./services/sequenceEngine');
       res.json({ ok: true, sequences: seqEngine.listSequences(50) });
@@ -934,7 +975,7 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.get('/api/sequences/:id', (req, res) => {
+app.get('/api/sequences/:id', (req, res) => {
     try {
       const seqEngine = require('./services/sequenceEngine');
       const seq = seqEngine.getSequence(req.params.id);
@@ -946,18 +987,20 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.post('/api/sequences/:id/export', async (req, res) => {
+app.post('/api/sequences/:id/export', async (req, res) => {
     try {
       const seqEngine = require('./services/sequenceEngine');
       res.json(await seqEngine.exportSequence(req.params.id));
     } catch (e) {
-      console.error('[ERROR] POST /api/sequences/:id/export -> 500:', e.message);
-      res.status(500).json({ error: e.message });
+      // "Sequence not found" is a 404, not a 500.
+      const code = /Sequence not found/.test(e.message) ? 404 : 500;
+      console.error('[ERROR] POST /api/sequences/:id/export -> ' + code + ':', e.message);
+      res.status(code).json({ error: e.message });
     }
   });
 
   // SWIPE FILE — Foreplay-lite ad intelligence.
-  app.post('/api/swipe/sweep', async (req, res) => {
+app.post('/api/swipe/sweep', async (req, res) => {
     try {
       const swipe = require('./services/swipeFileEngine');
       const q = String(req.body.query || '').trim().slice(0, 60);
@@ -970,7 +1013,7 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.get('/api/swipe/long-runners', (req, res) => {
+app.get('/api/swipe/long-runners', (req, res) => {
     try {
       const swipe = require('./services/swipeFileEngine');
       const minDays = Math.min(90, Math.max(0, parseInt(req.query.minDays) || 14));
@@ -982,7 +1025,7 @@ app.post('/api/optimize/weak', async (req, res) => {
     }
   });
 
-  app.post('/api/swipe/hooks/:productId', async (req, res) => {
+app.post('/api/swipe/hooks/:productId', async (req, res) => {
     try {
       const swipe = require('./services/swipeFileEngine');
       res.json(await swipe.generateHooks(parseInt(req.params.productId)));
@@ -1296,7 +1339,11 @@ app.get('/api/products/:id/preview-html', (req, res) => {
   });
 app.post('/api/social/generate', async (req, res) => {
     try {
-      const { productId, platform } = req.body;
+      // node:sqlite cannot bind undefined — reject malformed bodies with 400
+      // instead of a 500 "Provided value cannot be bound" crash.
+      const productId = parseInt(req.body && req.body.productId);
+      const platform = req.body && req.body.platform;
+      if (!productId) return res.status(400).json({ error: 'productId required' });
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
       if (!product) return res.status(404).json({ error: 'Product not found' });
       
@@ -1447,9 +1494,11 @@ app.post('/api/products/:id/regenerate-idea', async (req, res) => {
 // API: TEMPLATES (Mockup generation) — Returns 5 theme variations
 // ------------------------------------------------------------------------
 app.post('/api/templates/generate', async (req, res) => {
-  try {
-    const { profession_id, type } = req.body;
-    const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(profession_id);
+  try {      // node:sqlite cannot bind undefined — reject malformed bodies with 400.
+      const profession_id = parseInt(req.body && req.body.profession_id);
+      const type = req.body && req.body.type ? String(req.body.type).toLowerCase().slice(0, 40) : '';
+      if (!profession_id || !type) return res.status(400).json({ error: 'profession_id and type are required' });
+      const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(profession_id);
     if (!prof) return res.status(404).json({ error: 'Profession not found' });
     
     // Design engine: pick the 5 best themes for this profession's tier
@@ -1501,7 +1550,12 @@ app.get('/api/design/preference/:profId', (req, res) => {
   res.json({ theme: design.getDesignPreference(req.params.profId) });
 });
 app.post('/api/design/preference/:profId', (req, res) => {
-  design.setDesignPreference(req.params.profId, req.body.theme);
+  const profId = parseInt(req.params.profId);
+  const theme = req.body && typeof req.body.theme === 'string' ? req.body.theme : '';
+  if (!profId || !design.getAllThemes().some(t => t.name === theme)) {
+    return res.status(400).json({ error: 'profId and a known theme name are required' });
+  }
+  design.setDesignPreference(profId, theme);
   res.json({ success: true });
 });
 

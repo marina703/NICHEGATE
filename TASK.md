@@ -345,3 +345,80 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
 - What shipped: 4f107bf (safeguarded AI worker + production persistence) to GitHub main and Railway production, with ADMIN_PASSWORD rotated first so the new startup guard passes.
 - Deliberately NOT pushed: WIP snapshot commit 462c2ef (~22 MB of .audit-tmp binaries incl. gumroad.exe) stays local on its freebuff branch; uncommitted UI edits in sibling worktrees left untouched. Exclude .audit-tmp from any future history purge/commit.
 - MCP (2026-09-26): committed mcp_servers.json (official Etsy Dev MCP); installed aserper/etsy-mcp as `etsy-shop` globally (own OAuth + auto-refresh). Full details in MEMORY.md "MCP SETUP".
+
+# ── 2026-09-26: DASHBOARD FONT CHANGE + FULL E2E AUDIT (feature/button/AI/health) ──
+# Scope: owner asked for a stronger/narrow dashboard font, then a complete end-to-end
+# audit with a fix list. Font SHIPPED (2 files). Audit findings below were REPORTED,
+# then ALL FIXED the same day (2026-09-26) — see FIX LIST for per-item status.
+- [x] FONT: UI sans Oswald -> Saira Condensed (weights 400-800). Saira is a solid
+  grotesque with a tall x-height that keeps the narrow/condensed look but with much
+  thicker even strokes than Oswald. Changed: client/css/flightdeck.css (--sans token)
+  + client/index.html (Google Fonts link). Headings/numbers keep Space Grotesk (--mono).
+  Verified: document.fonts.check('600 14px "Saira Condensed"') true, before/after
+  screenshots reviewed. Full suite still green: 164 tests / 160 pass / 0 fail / 4 skipped.
+- [x] AUDIT: 153 routes swept with auth (marketplace-mutating POSTs deliberately NOT
+  invoked); all 12 views rendered in a real browser (0 console errors post-login);
+  buttons verified (theme toggle, ⌘K palette + filter, command-bar AI worker, catalog
+  checkbox toggle, J/K triage cursor); AI layer verified both ON and OFF; health +
+  readiness verified locally and in production (read-only).
+
+## FIX LIST (complete, ordered by severity — ALL APPLIED 2026-09-26)
+## Fixes verified two ways: (a) full suite `ADMIN_PASSWORD= node --test` = 164 tests /
+## 160 pass / 0 fail / 4 skipped (baseline held, no new failures); (b) live smoke on the
+## restarted audit instance (127.0.0.1:5090, throwaway password): anonymous storefront
+## now 200/200/200 (/api/store/products, /api/store/showcase, /api/products/:id/preview-image
+## serving image/jpeg) while console APIs stay 401; video-scripts 200 with real scripts;
+## all six empty-body POSTs now 400; pricing/end + sequences/export now 404; a 210-request
+## anonymous burst no longer locks out login (200) or /api/health (200); dark pre-paint
+## works CSP-clean (0 console errors after reload); row thumbs render 56x70 object-fit:cover.
+- [x] HIGH — Review/Home row thumbnails EXPLODE to natural size: `.rrow .rt{width:58px;height:72px;object-fit:cover}` (flightdeck.css:230) styles the DIV wrapper (`<div class="rt">${img(p)}</div>`, views.js:277/544), but object-fit does nothing on a div and NO rule sizes the inner <img> (.card .thumb img is the only img rule and does not match .rt). Any product WITH preview_path renders its preview-image at natural size (verified: 1200x1500 image covering the whole Review view at a 583px viewport). Products without previews use the emoji fallback and look fine — which masks the bug. Fix: add `.rrow .rt img{width:100%;height:100%;object-fit:cover;display:block}`. Unrelated to the font change (diff touches only the font string).
+- [x] CRITICAL — Public storefront API is auth-gated in PRODUCTION: /api/store/products
+  and /api/store/showcase return 401 to anonymous customers (verified live on Railway),
+  while GET /store (the page) is public. Every visitor sees an empty store. Root cause:
+  the auth guard exempts only /auth and /health prefixes — it needs /store + the
+  product preview-image endpoints exempted too (store.js fetches both).
+- [x] HIGH — POST /api/products/:id/video-scripts 500s on EVERY call: line 853 calls
+  conceptEngine.generateVideoScripts but conceptEngine is never required in that
+  handler (other handlers require it inline). ReferenceError -> 500. One-line fix.
+- [x] MEDIUM — CSP blocks the theme pre-paint inline script: index.html line 9
+  (sha256-CPsPjv/wS3JrXzfE2rcsdb1d9fS8dA9cl1Cdcz4VgwQ=) violates script-src 'self'
+  on every load. Dark-mode users get a light flash + the color-scheme meta never
+  renders. Fix: extract to /js/theme-init.js (external = CSP-clean, survives future
+  edits) or add the hash to the CSP.
+- [x] MEDIUM — Rate limiter can lock out login AND health: apiLimiter covers ALL /api
+  (including /api/auth/login and /api/health) with a SHARED per-IP counter
+  (200 anon / 1200 authed per 15min). Reproduced: a probe burst exhausted the counter
+  -> login 429'd -> no session -> every endpoint incl. /api/health 429'd for the rest
+  of the window. In prod this can 429 Railway's healthcheck (restart flapping) and
+  lock the operator out of login. Fix: exempt /api/health* from the limiter (keep it
+  auth-open), give /api/auth/login its own small brute-force limiter.
+- [x] MEDIUM — Three input-validation 500s (should be 400): POST /api/social/generate
+  binds undefined productId straight into SQLite ("cannot be bound to parameter 1");
+  POST /api/templates/generate same for type (parameter 2); POST /api/design/preference/:profId
+  same for theme (themes.setDesignPreference binds themeName unvalidated, no try/catch).
+  All work fine with valid bodies — they just crash on missing/mistyped fields.
+- [x] LOW — Error-shape inconsistencies: POST /api/pricing/tests/:productId/end returns
+  500 "No price test for product" (expected 404/400); POST /api/sequences/:id/export
+  returns 500 "Sequence not found" (expected 404). Expected conditions must not be 500s.
+- [x] LOW — test/smoke.test.js assumes auth is OFF: it fetches /api/professions and
+  /api/health/readiness unauthenticated, so the suite fails 2 tests whenever
+  ADMIN_PASSWORD is set in the env (401 vs 200). APPLIED: the workaround is now documented
+  in the test/smoke.test.js header comment — run `ADMIN_PASSWORD= node --test`.
+- [x] LOW — POST /api/etsy/cap, /api/caps, /api/social/schedule accept empty {} bodies
+  and return 200 (no-op or silent default writes). APPLIED: all three now 400 on empty
+  bodies (cap required; etsy and/or gumroad required; productId + platform required).
+  Same SQLite-bind 500 fixed in social/post-now too (was the identical bug).
+- [x] HYGIENE — Phase 6 routes (index.js ~756-993: pricing/vetting/pins/sequences/swipe)
+  were indented one level (leading whitespace) while every other route is top-level.
+  APPLIED: all 21 route declarations de-indented to top level — the MEMORY.md tripwire
+  regex `^\s+app\.` now counts 0 nested registrations.
+- [x] HYGIENE — /api/design/preference/:profId (GET+POST) has no client callers (orphan).
+  RESOLVED: kept in place (removal risk without a caller inventory) — POST now validates
+  profId + theme name against getAllThemes() and 400s on junk. Wiring into the Design DNA
+  UI remains an optional future task.
+
+# Verified healthy (no action): all 12 views render (0 console errors), auth gate holds
+# on every console API (local + prod), AI layer real (ai:true, grounded answers), the
+# MODEL_ENABLED=false invariant holds (deterministic fallback + worker still executes),
+# J/K triage + catalog checkboxes + ⌘K palette + theme toggle all work, /api/health +
+# readiness truthful, prod healthy (353 products, volume intact).

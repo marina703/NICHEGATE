@@ -15,7 +15,7 @@
   --amber-dim:rgba(180,83,9,.10); --red-dim:rgba(220,38,38,.08); --violet-dim:rgba(124,58,237,.10);
   --grad:linear-gradient(90deg,#0d9488,#2563eb 55%,#7c3aed);
   --radius:14px; --radius-sm:10px; --radius-xs:7px;
-  --mono:'Space Grotesk','Consolas',monospace; --sans:'Oswald','Barlow Semi Condensed','Inter',system-ui,sans-serif;
+  --mono:'Space Grotesk','Consolas',monospace; --sans:'Saira Condensed','Barlow Semi Condensed','Inter',system-ui,sans-serif;
   --shadow:0 18px 50px rgba(15,23,42,.22);
   --elev1:0 1px 2px rgba(15,23,42,.05),0 8px 24px rgba(15,23,42,.07);
   --elev2:0 14px 40px rgba(15,23,42,.16);
@@ -228,7 +228,8 @@ table.data tr:hover td{background:rgba(127,142,166,.07)}
 .rrow:hover{border-color:var(--border-hi)}
 .rrow.hl{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal),var(--elev1)}
 .rrow .rt{width:58px;height:72px;object-fit:cover;border-radius:8px;background:var(--inset-bg);border:1px solid var(--border);
-  display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+  display:flex;align-items:center;justify-content:center;font-size:1.5rem;overflow:hidden}
+.rrow .rt img{width:100%;height:100%;object-fit:cover;display:block}
 .rrow .nm{font-weight:700;font-size:.84rem}
 .rrow .mt{color:var(--text3);font-size:.72rem;margin-top:3px}
 .rrow .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}

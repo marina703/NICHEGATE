@@ -2,6 +2,10 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { app } = require('../server/index');
 
+// NOTE: these requests run without a session. When .env sets ADMIN_PASSWORD,
+// the dashboard + console API are gated and these tests fail — run the suite
+// with the password cleared:  ADMIN_PASSWORD= node --test
+
 let server;
 
 test.before(async () => {

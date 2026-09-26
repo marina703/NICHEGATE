@@ -242,3 +242,54 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
 - Global ~/.config/mcp/mcp_servers.json adds `etsy-shop` = aserper/etsy-mcp (41 tools, real Etsy API calls, own PKCE auth + auto token refresh). Built at ~/.config/mcp/servers/etsy-mcp (tsc). Secrets enter via ~/.config/mcp/servers/etsy-mcp-env.js wrapper which loads the project .env (ETSY_CLIENT_ID→ETSY_API_KEY) and SPAWNS dist/index.js — its entry has an isDirectRun guard, so import()-ing it silently never starts the server (lesson).
 - Deliberately NOT installed: georgejeffers/avlihachev etsy servers (strict subsets of aserper: duplicate tools + extra token exposure).
 - Etsy token health (2026-09-26): prod chain healthy (token present, not expired, connected as user 1286002574). Official rules (via Dev MCP guide): access token 1h, refresh token 90d SINGLE-USE rotating — refreshEtsyToken rotation-persist fix is live in prod (4f107bf), which was the historical "can't refresh" root cause.
+
+# ── 2026-09-26: Dashboard font swap + full e2e audit ──
+- Font swap (2026-09-26): UI sans Oswald -> Saira Condensed (400-800). Owner found
+  Oswald "not solid/strong enough to read" while wanting to KEEP the narrow/tall look.
+  Saira Condensed = solid grotesque, tall x-height, genuinely condensed. Tokens only:
+  --sans in flightdeck.css + the Google Fonts link in index.html. --mono (Space Grotesk
+  headings/numbers) unchanged. Verify with document.fonts.check('600 14px "Saira Condensed"').
+  Font history: Barlow Semi Condensed -> Oswald (2026-09-23) -> Saira Condensed (2026-09-26).
+- AUDIT ROOT CAUSES (fix list in TASK.md, owner has it): (1) auth guard exempts only
+  /auth+/health prefixes -> /api/store/* is 401 for anonymous customers = EMPTY PUBLIC
+  STORE in prod (store.js fetches /api/store/products + /api/products/:id/preview-image).
+  (2) /api/products/:id/video-scripts calls conceptEngine WITHOUT requiring it -> 500
+  every call. (3) index.html theme pre-paint inline script is blocked by CSP
+  script-src 'self' (hash sha256-CPsPjv...) -> dark-mode FOUC + missing color-scheme.
+  (4) apiLimiter covers /api/auth/login + /api/health with a shared per-IP counter ->
+  a burst 429s login AND health (Railway healthcheck flapping risk; lockout loop).
+  (5b) review/Home row thumbs: .rrow .rt object-fit is on the DIV wrapper, inner <img> unsized
+  -> preview-image renders at natural size and covers the whole view. Add
+  .rrow .rt img{width:100%;height:100%;object-fit:cover;display:block}. (5) SQLite bind crashes on missing fields -> 500s in social/generate, templates/generate,
+  design/preference (validate before binding; expected conditions must be 4xx not 500).
+- Test-suite quirk: smoke.test.js assumes auth is OFF (unauthenticated fetches) —
+  `ADMIN_PASSWORD= node --test` for a clean 164/160/0/4 run when .env sets a password.
+- Phase 6 routes in index.js (~756-993) are indented one level; they register fine but
+  the MEMORY.md nesting-tripwire regex counts them as "nested". Normalize indentation
+  before trusting that check again. [DONE 2026-09-26 — see next section]
+
+# ── 2026-09-26: AUDIT FIX LIST APPLIED (all 11 findings fixed + verified) ──
+- All audit findings fixed in one pass, verified (a) by full suite `ADMIN_PASSWORD=
+  node --test` = 164/160 pass/0 fail/4 skipped (baseline held) and (b) live smoke on a
+  restarted audit instance: anon storefront 200 (feed/showcase/preview-image) with
+  console APIs still 401, video-scripts 200 with real scripts, empty-body POSTs -> 400,
+  pricing-end + sequences-export -> 404, 210-req anon burst no longer locks out login
+  or /api/health, dark pre-paint CSP-clean (0 console errors), row thumbs 56x70 cover.
+- What changed: (1) auth guard exempts /store + /products/:id/preview-image (regex, so
+  only the preview-image route is public). (2) .rrow .rt img{100%/cover} in
+  flightdeck.css. (3) video-scripts handler now requires conceptEngine inline.
+  (4) theme pre-paint moved to external /js/theme-init.js (no inline script, no hash;
+  color-scheme meta injected via DOM instead of document.write).
+  (5) apiLimiter: skip /health+/auth paths, store+preview-image get a 600/15min anon
+  bucket (they're public customer traffic now), and /api/auth/login has its own
+  20/15min brute-force limiter with skipSuccessfulRequests — the burst->429->login
+  lockout->everything-429 loop is closed. (6) social/generate + social/post-now +
+  templates/generate + design/preference + etsy/cap + caps + social/schedule validate
+  before SQLite binds (400 not 500). (7) "not found" errors mapped to 404 in pricing
+  end + sequences export. (8) all 21 indented Phase 5/6 app.* declarations de-indented
+  — tripwire `^\s+app\.` now counts 0.
+- GOTCHA: getTheme(name) in themes.js falls back to THEMES[0] for unknown names (never
+  falsy) — validate theme names with getAllThemes().some(t => t.name === x), not truthiness.
+- REMINDER (re-confirmed this session): every edit needs a grep/read-back verification —
+  and note /api/health/readiness 401s by DESIGN when auth is on (READYNESS_PUBLIC=true
+  to expose); don't "fix" that one.
