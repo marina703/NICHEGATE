@@ -417,6 +417,15 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
   profId + theme name against getAllThemes() and 400s on junk. Wiring into the Design DNA
   UI remains an optional future task.
 
+- [x] DEPLOY: SHIPPED 2026-09-26 — commit 519aa6d ("fix: open the public storefront and
+  fix rate-limit, CSP and validation failures") pushed fast-forward 0e6f1fe..519aa6d to
+  origin/main; Railway auto-deployed (new build live in ~30s). Verified live on
+  nichegate-production.up.railway.app: anonymous /api/store/products + /api/store/showcase
+  + product preview-image all 200 (was 401 — empty-store bug gone in prod), /store 200,
+  console APIs still 401 anon, login 200 with the rotated password, console shell serves
+  /js/theme-init.js with 0 inline scripts (CSP clean), video-scripts 200 with 3 scripts
+  (was 500 every call), /api/health ok with 353 products + 33 professions (volume intact).
+
 # Verified healthy (no action): all 12 views render (0 console errors), auth gate holds
 # on every console API (local + prod), AI layer real (ai:true, grounded answers), the
 # MODEL_ENABLED=false invariant holds (deterministic fallback + worker still executes),

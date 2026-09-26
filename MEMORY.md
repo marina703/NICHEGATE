@@ -293,3 +293,8 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
 - REMINDER (re-confirmed this session): every edit needs a grep/read-back verification —
   and note /api/health/readiness 401s by DESIGN when auth is on (READYNESS_PUBLIC=true
   to expose); don't "fix" that one.
+- SHIPPED to production 2026-09-26: 519aa6d fast-forwarded to origin/main, Railway
+  auto-deployed in ~30s. Live proof set for "is the new build serving?": GET
+  /js/theme-init.js (200 only on the new build — it's a new file) + anon GET
+  /api/store/products (200 new / 401 old). Prod verified: storefront 200 anon, console
+  APIs 401 anon, login 200, video-scripts 200×3 scripts, 353 products intact.
