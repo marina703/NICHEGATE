@@ -437,8 +437,15 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
 # and /store + /store.html are on the ADMIN_PAGES gate. Etsy/Gumroad remain the only
 # sales surfaces — this app never serves customers.
 - [x] LOCKDOWN (2026-09-26): store API exemptions removed from the auth guard,
-  /store + /store.html added to ADMIN_PAGES, limiter store bucket reverted. Suite green
-  164/160/0/4. Verified live on Railway: anon /api/store/products -> 401 again.
+  /store + /store.html added to ADMIN_PAGES, limiter store bucket reverted (1f8492f).
+  PLUS the /generated, /uploads and /covers asset mounts are now requireAuth-gated —
+  internal deliverables were anonymously fetchable by URL (cdf408f). Suite green
+  164/160/0/4 after each. FINAL anonymous surface on Railway (verified 2026-09-26):
+  302 for /, /store, /store.html, /setup; 200 for /login + login-shell static assets +
+  /api/health + /api/auth/status; 401 for EVERY API and asset route incl. preview-image.
+  Console verified intact behind login (overview 200, store API 200 with session, 353
+  products). Note: prod runs READYNESS_PUBLIC=true so /api/health/readiness answers
+  anonymously there (pre-existing config; posture only, no secrets) — flip it if wanted.
 
 # Verified healthy (no action): all 12 views render (0 console errors), auth gate holds
 # on every console API (local + prod), AI layer real (ai:true, grounded answers), the

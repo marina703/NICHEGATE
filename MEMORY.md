@@ -304,6 +304,11 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
   to expose); don't "fix" that one.
 - CORRECTION: item (1) of that fix pass (store/storefront exemptions) was WRONG and was
   reverted the same day — see PRODUCT INTENT RULING above. The other 10 fixes stand.
+- LOCKDOWN shipped 2026-09-26: 1f8492f (store exemptions reverted, /store+store.html on
+  ADMIN_PAGES) + cdf408f (/generated /uploads /covers static mounts behind requireAuth —
+  they were anonymous-readable). Verified live: only /login + its shell assets +
+  /api/health* + /api/auth/* are public; everything else 302/401. Prod note:
+  READYNESS_PUBLIC=true there, so /api/health/readiness is anon on prod by config.
 - SHIPPED to production 2026-09-26: 519aa6d fast-forwarded to origin/main, Railway
   auto-deployed in ~30s. Live proof set for "is the new build serving?": GET
   /js/theme-init.js (200 only on the new build — it's a new file) + anon GET
