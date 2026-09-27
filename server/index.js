@@ -151,11 +151,13 @@ app.use((req, res, next) => {
   return auth.requireAuth()(req, res, next);
 });
 
-app.use('/generated', express.static(GENERATED_DIR));
-app.use('/uploads', express.static(UPLOAD_DIR));
-// covers/ holds brand + product cover art referenced by the storefront;
-// read-only and cache-friendly.
-app.use('/covers', express.static(path.join(__dirname, '..', 'covers'), { maxAge: '1d' }));
+// Asset mounts are console-only: deliverables, uploads and cover art are
+// internal files, not a public CDN. requireAuth passes through when auth is
+// disabled (dev/tests); console browsers send the session cookie with these.
+app.use('/generated', auth.requireAuth({ json: true }), express.static(GENERATED_DIR));
+app.use('/uploads', auth.requireAuth({ json: true }), express.static(UPLOAD_DIR));
+// covers/ holds brand + product cover art; read-only and cache-friendly.
+app.use('/covers', auth.requireAuth({ json: true }), express.static(path.join(__dirname, '..', 'covers'), { maxAge: '1d' }));
 app.use(express.static(path.join(__dirname, '..', 'client'), { extensions: ['html'] }));
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try { await auth.login(req, res); } catch (e) { res.status(500).json({ error: e.message }); }
