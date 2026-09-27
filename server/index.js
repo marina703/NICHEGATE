@@ -88,13 +88,8 @@ const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   // /api/health* and /api/auth/* never share this counter: a burst of anonymous
   // traffic must not 429 Railway's healthcheck or the login that recovers a
-  // session (that was a full-lockout path). The public storefront feed and its
-  // preview images are customer traffic, so they get a higher anon bucket.
-  max: (req) => {
-    if (auth.enabled() && auth.isValidToken(auth.tokenFrom(req))) return 1200;
-    if (req.path.startsWith('/store') || req.path.endsWith('/preview-image')) return 600;
-    return 200;
-  },
+  // session (that was a full-lockout path).
+  max: (req) => (auth.enabled() && auth.isValidToken(auth.tokenFrom(req)) ? 1200 : 200),
   skip: (req) => req.path.startsWith('/health') || req.path.startsWith('/auth'),
   standardHeaders: true,
   legacyHeaders: false,
@@ -139,17 +134,18 @@ const auth = require('./services/auth');
 app.use('/api', apiLimiter);
 app.use('/api', (req, res, next) => {
   // /api/auth/* and /api/health* stay open (login + Railway healthcheck).
-  // The public storefront (feed + showcase) and product preview images are
-  // anonymous customer traffic — exempting them is what makes GET /store
-  // actually render for buyers instead of an empty 401 shell.
+  // EVERYTHING else requires the admin session — including /api/store/* and
+  // product preview images. This is a strict command center / automation
+  // engine, NOT a customer-facing site: the 401s are the correct behavior.
   if (req.path.startsWith('/auth') || req.path.startsWith('/health')) return next();
-  if (req.path.startsWith('/store') || /^\/products\/\d+\/preview-image$/.test(req.path)) return next();
   return auth.requireAuth({ json: true })(req, res, next);
 });
 
-// -- ADMIN PAGE GATE -- runs BEFORE static, so the console shell can never be
-// fetched directly. /login and the public /store stay open on purpose.
-const ADMIN_PAGES = new Set(['/', '/index.html', '/setup', '/setup.html']);
+// -- ADMIN PAGE GATE -- runs BEFORE static, so no console page can ever be
+// fetched directly. Only /login (and /setup for first-run bootstrapping) stay
+// open. /store is gated too: there is NO public storefront — this deployment is
+// a strict command center; sales happen on the marketplaces (Etsy/Gumroad).
+const ADMIN_PAGES = new Set(['/', '/index.html', '/setup', '/setup.html', '/store', '/store.html']);
 app.use((req, res, next) => {
   if (!auth.enabled() || !ADMIN_PAGES.has(req.path)) return next();
   return auth.requireAuth()(req, res, next);

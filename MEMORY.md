@@ -268,6 +268,15 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
   the MEMORY.md nesting-tripwire regex counts them as "nested". Normalize indentation
   before trusting that check again. [DONE 2026-09-26 — see next section]
 
+# ── 2026-09-26: PRODUCT INTENT RULING (owner, emphatic — overrides audit findings) ──
+- NicheGate is NOT a customer-facing site. It is a strict command center / flight deck /
+  AI automation engine. NOTHING is public except /login, /api/auth/* and /api/health*.
+  The audit's "public storefront 401 = CRITICAL bug" was a WRONG assumption — those 401s
+  are BY DESIGN. A fix exempting /api/store/* + preview-image reached production and was
+  reverted within the hour. NEVER add public/customer-facing pages or API exemptions;
+  sales happen on Etsy/Gumroad marketplaces, not on this app. When an audit flags gated
+  things as "broken for visitors", check product intent FIRST — there are no visitors.
+
 # ── 2026-09-26: AUDIT FIX LIST APPLIED (all 11 findings fixed + verified) ──
 - All audit findings fixed in one pass, verified (a) by full suite `ADMIN_PASSWORD=
   node --test` = 164/160 pass/0 fail/4 skipped (baseline held) and (b) live smoke on a
@@ -293,6 +302,8 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
 - REMINDER (re-confirmed this session): every edit needs a grep/read-back verification —
   and note /api/health/readiness 401s by DESIGN when auth is on (READYNESS_PUBLIC=true
   to expose); don't "fix" that one.
+- CORRECTION: item (1) of that fix pass (store/storefront exemptions) was WRONG and was
+  reverted the same day — see PRODUCT INTENT RULING above. The other 10 fixes stand.
 - SHIPPED to production 2026-09-26: 519aa6d fast-forwarded to origin/main, Railway
   auto-deployed in ~30s. Live proof set for "is the new build serving?": GET
   /js/theme-init.js (200 only on the new build — it's a new file) + anon GET

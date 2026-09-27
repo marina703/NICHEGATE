@@ -377,6 +377,8 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
   while GET /store (the page) is public. Every visitor sees an empty store. Root cause:
   the auth guard exempts only /auth and /health prefixes — it needs /store + the
   product preview-image endpoints exempted too (store.js fetches both).
+  ⚠ REVERTED SAME DAY — this finding was WRONG: the 401s are BY DESIGN. See the
+  PRODUCT INTENT correction below.
 - [x] HIGH — POST /api/products/:id/video-scripts 500s on EVERY call: line 853 calls
   conceptEngine.generateVideoScripts but conceptEngine is never required in that
   handler (other handlers require it inline). ReferenceError -> 500. One-line fix.
@@ -425,6 +427,18 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
   console APIs still 401 anon, login 200 with the rotated password, console shell serves
   /js/theme-init.js with 0 inline scripts (CSP clean), video-scripts 200 with 3 scripts
   (was 500 every call), /api/health ok with 353 products + 33 professions (volume intact).
+
+# ── 2026-09-26 CORRECTION (owner ruling): THIS APP IS NOT CUSTOMER-FACING ──
+# NicheGate is a strict command center / flight deck / AI automation engine. There is NO
+# public storefront. The audit's "CRITICAL storefront 401" finding was a wrong assumption
+# — those 401s are the correct, intended behavior. The exemption fix (519aa6d) briefly
+# exposed /store + /api/store/* publicly and has been REVERTED within the hour.
+# Everything except /login, /api/auth/* and /api/health* now requires the admin session,
+# and /store + /store.html are on the ADMIN_PAGES gate. Etsy/Gumroad remain the only
+# sales surfaces — this app never serves customers.
+- [x] LOCKDOWN (2026-09-26): store API exemptions removed from the auth guard,
+  /store + /store.html added to ADMIN_PAGES, limiter store bucket reverted. Suite green
+  164/160/0/4. Verified live on Railway: anon /api/store/products -> 401 again.
 
 # Verified healthy (no action): all 12 views render (0 console errors), auth gate holds
 # on every console API (local + prod), AI layer real (ai:true, grounded answers), the
