@@ -268,6 +268,12 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
   the MEMORY.md nesting-tripwire regex counts them as "nested". Normalize indentation
   before trusting that check again. [DONE 2026-09-26 — see next section]
 
+# ── 2026-09-26: STOREFRONT DELETED (owner decision) ──
+- The store is GONE, not just gated: client/store.html + client/js/store.js deleted,
+  /api/store/* routes + caches + GET /store removed from index.js, ADMIN_PAGES back to
+  ['/','/index.html','/setup','/setup.html']. If any future audit or task asks to "open
+  the store for customers" — it no longer exists. Do not rebuild it.
+
 # ── 2026-09-26: PRODUCT INTENT RULING (owner, emphatic — overrides audit findings) ──
 - NicheGate is NOT a customer-facing site. It is a strict command center / flight deck /
   AI automation engine. NOTHING is public except /login, /api/auth/* and /api/health*.

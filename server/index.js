@@ -134,18 +134,19 @@ const auth = require('./services/auth');
 app.use('/api', apiLimiter);
 app.use('/api', (req, res, next) => {
   // /api/auth/* and /api/health* stay open (login + Railway healthcheck).
-  // EVERYTHING else requires the admin session — including /api/store/* and
-  // product preview images. This is a strict command center / automation
-  // engine, NOT a customer-facing site: the 401s are the correct behavior.
+  // EVERYTHING else requires the admin session. This is a strict command
+  // center / automation engine, NOT a customer-facing site: there is no public
+  // storefront at all — sales happen on the marketplaces (Etsy/Gumroad).
   if (req.path.startsWith('/auth') || req.path.startsWith('/health')) return next();
   return auth.requireAuth({ json: true })(req, res, next);
 });
 
 // -- ADMIN PAGE GATE -- runs BEFORE static, so no console page can ever be
 // fetched directly. Only /login (and /setup for first-run bootstrapping) stay
-// open. /store is gated too: there is NO public storefront — this deployment is
-// a strict command center; sales happen on the marketplaces (Etsy/Gumroad).
-const ADMIN_PAGES = new Set(['/', '/index.html', '/setup', '/setup.html', '/store', '/store.html']);
+// open. There is NO public storefront (the store pages were removed entirely):
+// this deployment is a strict command center; sales happen on the marketplaces
+// (Etsy/Gumroad).
+const ADMIN_PAGES = new Set(['/', '/index.html', '/setup', '/setup.html']);
 app.use((req, res, next) => {
   if (!auth.enabled() || !ADMIN_PAGES.has(req.path)) return next();
   return auth.requireAuth()(req, res, next);
@@ -2057,101 +2058,6 @@ app.post('/api/marketplace/publish/:productId', async (req, res) => {
   }
 });
 
-// Storefront feed — live products with real Gumroad buy links (cached 5 min)
-let storeFeedCache = { at: 0, data: null };
-app.get('/api/store/products', async (req, res) => {
-  if (storeFeedCache.data && Date.now() - storeFeedCache.at < 300000) {
-    return res.json(storeFeedCache.data);
-  }
-  try {
-    // Reconcile stale marketplace ids against the live Gumroad catalog
-    const cat = await mp.refreshGumroadCatalog();
-
-    const rows = db.prepare(`
-      SELECT p.id, p.name, p.type, p.price, p.theme, p.marketplace, p.marketplace_id, p.preview_path,
-             pr.name as prof_name, pr.emoji as prof_emoji
-      FROM products p JOIN professions pr ON p.profession_id = pr.id
-      WHERE p.status = 'listed' ORDER BY p.created_at DESC
-    `).all();
-
-    const products = rows.map(p => ({
-      id: p.id,
-      name: p.name,
-      type: p.type,
-      price: p.price,
-      theme: p.theme,
-      category: p.prof_name,
-      emoji: p.prof_emoji,
-      marketplace: p.marketplace,
-      buyUrl: cat.urlFor[p.id] || null,
-      previewUrl: `/api/products/${p.id}/preview-image`
-    }));
-
-    // Explicit store link (settings) > Gumroad origin derived from live URLs
-    const leadmagnetUrl = db.prepare("SELECT value FROM settings WHERE key = 'leadmagnet_url'").get()?.value || null;
-
-    // Warm previews in the background (never blocks the feed)
-    for (const p of rows) {
-      if (!p.preview_path) { fileFactory.ensureProductThumbnail(p).catch(() => {}); }
-    }
-
-    storeFeedCache = { at: Date.now(), data: { products, storeUrl: cat.storeUrl, leadmagnetUrl, reconciled: cat.matched } };
-    res.json(storeFeedCache.data);
-  } catch (e) {
-    console.error('[STORE] feed error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// Design showcase — the premium template designs currently in the catalog
-// (pending drafts that haven't shipped yet) plus the live bundles. Used by the
-// storefront to show what buyers get before they buy.
-let showcaseCache = { at: 0, data: null };
-app.get('/api/store/showcase', async (req, res) => {
-  if (showcaseCache.data && Date.now() - showcaseCache.at < 600000) {
-    return res.json(showcaseCache.data);
-  }
-  try {
-    const groups = db.prepare(`
-      SELECT type, COUNT(*) AS n,
-             SUM(CASE WHEN preview_path IS NOT NULL AND length(preview_path) > 0 THEN 1 ELSE 0 END) AS previews
-      FROM products WHERE status IN ('draft','pending-review')
-      GROUP BY type ORDER BY n DESC
-    `).all();
-
-    const best = [];
-    for (const g of groups) {
-      const items = db.prepare(`
-        SELECT p.id, p.name, p.type, p.price, p.theme, p.preview_path,
-               pr.name AS prof_name, pr.emoji AS prof_emoji
-        FROM products p JOIN professions pr ON p.profession_id = pr.id
-        WHERE p.status IN ('draft','pending-review') AND p.type = ?
-        ORDER BY length(p.preview_path) DESC LIMIT 3
-      `).all(g.type);
-      for (const it of items) {
-        best.push({
-          id: it.id, name: it.name, type: it.type, price: it.price, theme: it.theme,
-          prof: it.prof_name, emoji: it.prof_emoji,
-          previewUrl: `/api/products/${it.id}/preview-image`
-        });
-      }
-    }
-
-    // Pull in 2 live bundles so the showcase also proves the paid products
-    const bundles = db.prepare(`
-      SELECT p.id, p.name, p.type, p.price, p.theme, pr.name AS prof_name, pr.emoji AS prof_emoji
-      FROM products p JOIN professions pr ON p.profession_id = pr.id
-      WHERE p.status = 'listed' AND p.type = 'bundle' LIMIT 2
-    `).all();
-
-    showcaseCache = { at: Date.now(), data: { groups, designs: best, bundles } };
-    res.json(showcaseCache.data);
-  } catch (e) {
-    console.error('[STORE] showcase error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
 // ------------------------------------------------------------------------
 // STORE BRANDING — deploy the nichegate-designs logo/banner to marketplaces
 // ------------------------------------------------------------------------
@@ -3501,10 +3407,6 @@ app.get('/', (req, res) => {
 
 app.get('/setup', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'setup.html'));
-});
-
-app.get('/store', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'client', 'store.html'));
 });
 
 // ------------------------------------------------------------------------

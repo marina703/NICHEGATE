@@ -446,6 +446,11 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
   Console verified intact behind login (overview 200, store API 200 with session, 353
   products). Note: prod runs READYNESS_PUBLIC=true so /api/health/readiness answers
   anonymously there (pre-existing config; posture only, no secrets) — flip it if wanted.
+- [x] STOREFRONT DELETED (2026-09-26, owner decision "delete entirely"): client/store.html
+  + client/js/store.js removed, /api/store/products + /api/store/showcase routes and
+  their caches deleted from index.js, GET /store route removed, '/store'+'/store.html'
+  struck from ADMIN_PAGES. Zero references remain (grep-verified across client/server/
+  test/scripts). Suite green 164/160/0/4. Sales surfaces remain Etsy/Gumroad only.
 
 # Verified healthy (no action): all 12 views render (0 console errors), auth gate holds
 # on every console API (local + prod), AI layer real (ai:true, grounded answers), the
