@@ -268,6 +268,23 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
   the MEMORY.md nesting-tripwire regex counts them as "nested". Normalize indentation
   before trusting that check again. [DONE 2026-09-26 — see next section]
 
+# ── 2026-09-26: HARDENING PASS — lessons ──
+- Tripwire tests beat review: test/lockdown.test.js PARSES the route registrations
+  out of server/index.js and probes them anonymously — new public routes fail CI
+  automatically, no list to keep in sync.
+- `node --test` runs test FILES in PARALLEL processes sharing one SQLite DB: never
+  blanket-WIPE shared tables (auth_sessions) in a fixture — scope deletes to the rows
+  the file created or you race other workers' sessions.
+- SheetJS: the npm `xlsx` package is abandoned at 0.18.5 with HIGH vulns and "no fix
+  available"; fixed builds ship ONLY as tarballs from cdn.sheetjs.com
+  (`npm i https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`). Drop-in API.
+- CSS grid gotcha: media-query `grid-template-columns:1fr` is `minmax(auto,1fr)` —
+  wide tables blow out the track. Use `minmax(0,1fr)`; pair with `overflow-x:auto` on
+  the panel body. Was the cause of narrow-viewport horizontal overflow.
+- The preview webview (incognito) can be RECREATED between navigations with a fresh
+  cookie jar + "produced no frames" — a browser reload landing on /login is a tool
+  artifact, not a session bug (verify with curl -c/-b jar before blaming the server).
+
 # ── 2026-09-26: STOREFRONT DELETED (owner decision) ──
 - The store is GONE, not just gated: client/store.html + client/js/store.js deleted,
   /api/store/* routes + caches + GET /store removed from index.js, ADMIN_PAGES back to

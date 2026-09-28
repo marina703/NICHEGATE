@@ -7,7 +7,6 @@
 //   • Gumroad product covers  → logo / logo-on-black
 //   • Etsy shop icon          → logo mark (square)
 //   • Etsy shop banner        → nichegate_etsy_banner
-//   • Storefront nav          → logo-on-black
 //   • Lead magnet / bundle    → logo-on-black cover
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -20,7 +19,7 @@ const COVERS_DIR = path.join(ROOT, 'covers');
 
 // Canonical map: source file (in designs) → canonical copy (in covers)
 const ASSETS = {
-  'nichegate_logo_on_black.png': 'nichegate_logo_on_black.png',   // 1600x700 logo (dark) — covers + storefront
+  'nichegate_logo_on_black.png': 'nichegate_logo_on_black.png',   // 1600x700 logo (dark) — covers + console
   'nichegate_profile_icon.png':  'nichegate_profile_icon.png',    // 1920x1920 square icon — Etsy icon / Gumroad profile
   'nichegate_social_icon.png':   'nichegate_social_icon.png',     // 1920x1920 square social avatar
   'nichegate_etsy_banner.png':   'nichegate_etsy_banner.png',     // 2304x1536 Etsy hero/announcement banner

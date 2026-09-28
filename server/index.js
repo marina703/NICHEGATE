@@ -14,10 +14,6 @@ const XLSX = require('xlsx');
 const AdmZip = require('adm-zip');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const pino = require('pino');
-
-// -- STRUCTURED LOGGER (pino) --
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 const { db, init } = require('./database');
 const pdfGen = require('./services/pdfGenerator');
@@ -84,12 +80,15 @@ app.use(helmet({
 // The authenticated console batches many API calls per view (12 views × 4-6
 // endpoints), so the limit must sit above a full session sweep, not just a
 // page load. Anonymous public traffic is still capped hard.
+// Caps are env-tunable for load tests / large sessions (defaults unchanged).
+const API_LIMIT_AUTHED = Number(process.env.API_RATE_LIMIT_AUTHED_MAX || 1200);
+const API_LIMIT_ANON = Number(process.env.API_RATE_LIMIT_ANON_MAX || 200);
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   // /api/health* and /api/auth/* never share this counter: a burst of anonymous
   // traffic must not 429 Railway's healthcheck or the login that recovers a
   // session (that was a full-lockout path).
-  max: (req) => (auth.enabled() && auth.isValidToken(auth.tokenFrom(req)) ? 1200 : 200),
+  max: (req) => (auth.enabled() && auth.isValidToken(auth.tokenFrom(req)) ? API_LIMIT_AUTHED : API_LIMIT_ANON),
   skip: (req) => req.path.startsWith('/health') || req.path.startsWith('/auth'),
   standardHeaders: true,
   legacyHeaders: false,
@@ -1542,20 +1541,6 @@ app.get('/api/seo/:productId', (req, res) => {
   if (!product) return res.status(404).json({ error: 'Product not found' });
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
   res.json(seo.generateSEO(prof, product.type, product.theme));
-});
-
-// Design preference for a profession
-app.get('/api/design/preference/:profId', (req, res) => {
-  res.json({ theme: design.getDesignPreference(req.params.profId) });
-});
-app.post('/api/design/preference/:profId', (req, res) => {
-  const profId = parseInt(req.params.profId);
-  const theme = req.body && typeof req.body.theme === 'string' ? req.body.theme : '';
-  if (!profId || !design.getAllThemes().some(t => t.name === theme)) {
-    return res.status(400).json({ error: 'profId and a known theme name are required' });
-  }
-  design.setDesignPreference(profId, theme);
-  res.json({ success: true });
 });
 
 app.get('/api/templates/:profession_id', (req, res) => {

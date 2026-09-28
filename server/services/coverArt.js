@@ -26,7 +26,7 @@ function provider() {
 // ═══════════════════════════════════════════════════════════════════════════
 // NICHE-SPECIFIC COVER ART PROMPTS — each profession category gets unique
 // visual scenes, props, and mood. The AI generates photo-only backgrounds
-// (no text — it garbles). Title composites happen in the storefront UI.
+// (no text — it garbles). Title text is composited separately.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const designDNA = require('./designStyles');

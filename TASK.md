@@ -446,6 +446,37 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
   Console verified intact behind login (overview 200, store API 200 with session, 353
   products). Note: prod runs READYNESS_PUBLIC=true so /api/health/readiness answers
   anonymously there (pre-existing config; posture only, no secrets) — flip it if wanted.
+# ── 2026-09-26: FOLLOW-UP HARDENING + FULL AUDIT/POLISH PASS ──
+- [x] LOCKDOWN TRIPWIRE TEST: test/lockdown.test.js (6 tests) parses every route
+  registered in server/index.js and asserts none answers an anonymous request with
+  200 outside /login + /api/auth/* + /api/health*; also asserts the storefront stays
+  DELETED (404s), asset mounts stay 401, and the console works behind the session.
+  Any future "open this for customers" change fails CI first. API limiter caps made
+  env-tunable (API_RATE_LIMIT_ANON_MAX / API_RATE_LIMIT_AUTHED_MAX, defaults 200/1200).
+- [x] HERMETIC TESTS: smoke.test.js now logs in when ADMIN_PASSWORD is set (cookie
+  attached to all requests) — `ADMIN_PASSWORD= node --test` workaround is dead.
+  auth.test.js cleanup scoped to its own session tokens (a blanket DELETE FROM
+  auth_sessions raced parallel test workers sharing the DB).
+- [x] LANGUAGE PURGE: stale storefront references removed from brandAssets.js +
+  coverArt.js comments. Marketplace-domain language (buyers, Etsy/Gumroad stores)
+  intentionally kept — that is where the money happens.
+- [x] ORPHANS REMOVED: /api/design/preference/:profId (GET+POST) deleted — zero
+  client/test callers confirmed (service functions stay; used internally by themes).
+- [x] DEAD CODE/DEPS: unused pino logger removed; pino, pino-pretty, zod dropped from
+  package.json. npm audit: xlsx had 2 HIGH vulns with no npm fix -> upgraded to
+  SheetJS 0.20.3 from the official CDN tarball. `npm audit --omit=dev` = 0 vulnerabilities.
+- [x] RESPONSIVE POLISH: at 324px width, 6 of 12 views overflowed horizontally.
+  Fixed: #topbar/.panel-head/.view-head flex-wrap, .panel-body overflow-x, .panel
+  min-width, and the <=860px grid used plain 1fr (=minmax(auto,1fr)) -> minmax(0,1fr).
+  Verified: 0px overflow on all 12 views, 0 JS errors.
+- [x] HYGIENE: .gitignore now covers previews/ + covers/ai/ (regenerable caches that
+  kept polluting git status after test runs).
+- VERIFIED: suite green in BOTH modes (170 tests / 166 pass / 0 fail / 4 skipped);
+  live e2e sweep on port 5092 = 21/21 expectations (anon surface sealed, deleted
+  store stays deleted, all domain APIs 200 behind session, readiness works with
+  session); browser pass over all 12 views: 0 console errors, sessions survive
+  repeated reloads (curl-verified 3x).
+
 - [x] STOREFRONT DELETED (2026-09-26, owner decision "delete entirely"): client/store.html
   + client/js/store.js removed, /api/store/products + /api/store/showcase routes and
   their caches deleted from index.js, GET /store route removed, '/store'+'/store.html'
