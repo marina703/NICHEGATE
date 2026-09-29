@@ -903,6 +903,7 @@ export function analytics(s) {
       const bi = s.bi || {};
       const row = bi.series || [];
       const lh = bi.listing || {};
+      const pnl = bi.pnl || {};
       const revVals = row.map(d => d.revenue);
       const revTotal = revVals.reduce((a, b) => a + (Number(b) || 0), 0);
       const badges = lh.badges || {};
@@ -910,9 +911,15 @@ export function analytics(s) {
       const zero = lh.zeroSale || [];
       const badgeChip = (label, n, color) => `<span class="chip" style="border-color:${color};color:${color}">${esc(label)} ${fmtNum(n)}</span>`;
       return `
-    <div class="panel mb14"><div class="panel-head">${icon('trends')} Real Revenue <span class="sp"></span>
-      <span class="hint">${fmtMoney(revTotal)} across last 14 days · ${fmtNum(lh.sales7d || 0)} sales this week</span></div>
+    <div class="panel mb14"><div class="panel-head">${icon('trends')} Real Revenue & Net P&L <span class="sp"></span>
+      <span class="hint">${fmtMoney(revTotal)} gross 14d · ${fmtMoney(pnl.netProfit || 0)} true net (${fmtNum(pnl.netMarginPct || 0)}% margin)</span></div>
       <div class="panel-body">${row.length ? sparkline(revVals) : '<div class="empty">not enough data yet</div>'}
+        <div class="flex mt8" style="gap:14px;flex-wrap:wrap;font-size:0.8rem">
+          <div><b>Fees:</b> ${fmtMoney(pnl.marketplaceFees || 0)}</div>
+          <div><b>AI Spend:</b> ${fmtMoney(pnl.aiCost || 0)}</div>
+          <div><b>Net Profit:</b> <b style="color:var(--green)">${fmtMoney(pnl.netProfit || 0)}</b></div>
+          <div><b>Avg Net/Unit:</b> ${fmtMoney((pnl.unitEconomics && pnl.unitEconomics.avgNetPerUnit) || 0)}</div>
+        </div>
         <div class="flex mt8" style="gap:8px;flex-wrap:wrap">
           ${badgeChip('Hot', badges.hot || 0, 'var(--green)')}
           ${badgeChip('Rising', badges.rising || 0, 'var(--teal)')}

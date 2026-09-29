@@ -148,11 +148,49 @@ function buildBookingSheet(prof) {
   return coerceFormulas(ws);
 }
 
+function buildHighTicketRoiSheet(prof) {
+  const ws = XLSX.utils.aoa_to_sheet([
+    [prof.name + ' — High-Ticket Client ROI & Value Pricing Model'],
+    ['Show high-end clients the exact return on investment from hiring your service'],
+    ['Client Metric / Value Lever', 'Current Baseline', 'With Our Service', 'Financial Impact ($)', 'Annual Benefit ($)'],
+    ['Monthly revenue or throughput', 50000, 62500, '=C4-B4', '=D4*12'],
+    ['Lost deals / lead leakage', 8000, 2000, '=B5-C5', '=D5*12'],
+    ['Wasted labor / inefficiency', 4500, 1200, '=B6-C6', '=D6*12'],
+    ['Direct cost savings', 0, 3000, '=C7-B7', '=D7*12'],
+    [],
+    ['Total Client Value Created (Annual)', '', '', '', '=SUM(E4:E7)'],
+    ['Recommended Premium Service Fee (10% of Value)', '', '', '', '=E9*0.10'],
+    ['Client Net Value Realized', '', '', '', '=E9-E10'],
+    ['Client 1-Year ROI Multiple', '', '', '', '=E11/E10']
+  ]);
+  styleSheet(ws, 3, [36, 18, 18, 22, 22]);
+  return coerceFormulas(ws);
+}
+
+function buildCashFlowForecastSheet(prof) {
+  const ws = XLSX.utils.aoa_to_sheet([
+    [prof.name + ' — 12-Month Rolling Cash Flow Forecast'],
+    ['Track liquidity, runway, and tax holdbacks month-by-month'],
+    ['Month', 'Inflow (Cash Collected)', 'COGS / Direct Costs', 'Fixed Overhead', 'Tax Reserve (25%)', 'Net Cash Flow', 'Ending Cash Balance'],
+    ['Starting Cash', '', '', '', '', '', 25000],
+    ['Month 1', 12000, 3200, 2500, '=B5*0.25', '=B5-C5-D5-E5', '=G4+F5'],
+    ['Month 2', 14500, 3800, 2500, '=B6*0.25', '=B6-C6-D6-E6', '=G5+F6'],
+    ['Month 3', 18000, 4600, 2500, '=B7*0.25', '=B7-C7-D7-E7', '=G6+F7'],
+    ['Month 4', 21000, 5200, 2600, '=B8*0.25', '=B8-C8-D8-E8', '=G7+F8'],
+    ['Month 5', 24000, 6000, 2600, '=B9*0.25', '=B9-C9-D9-E9', '=G8+F9'],
+    ['Month 6', 26000, 6500, 2600, '=B10*0.25', '=B10-C10-D10-E10', '=G9+F10']
+  ]);
+  styleSheet(ws, 3, [16, 24, 20, 16, 18, 16, 20]);
+  return coerceFormulas(ws);
+}
+
 function generateXLSX(type, prof, filename) {
   const wb = XLSX.utils.book_new();
-  if (type === 'spreadsheet' || type === 'pricing') {
+  if (type === 'spreadsheet' || type === 'pricing' || type === 'high-ticket') {
     XLSX.utils.book_append_sheet(wb, buildPricingSheet(prof), safeSheetName('Pricing'));
     XLSX.utils.book_append_sheet(wb, buildPnLSheet(prof), safeSheetName('P&L'));
+    XLSX.utils.book_append_sheet(wb, buildHighTicketRoiSheet(prof), safeSheetName('Client ROI'));
+    XLSX.utils.book_append_sheet(wb, buildCashFlowForecastSheet(prof), safeSheetName('Cash Flow'));
     XLSX.utils.book_append_sheet(wb, buildScenariosSheet(prof), safeSheetName('Scenarios'));
     XLSX.utils.book_append_sheet(wb, buildInstructionsSheet(prof, type), safeSheetName('Instructions'));
   } else if (type === 'booking') {
@@ -191,4 +229,12 @@ function generateXLSX(type, prof, filename) {
   return outputPath;
 }
 
-module.exports = { generateXLSX, OUTPUT_DIR, buildPricingSheet, buildPnLSheet, buildScenariosSheet };
+module.exports = {
+  generateXLSX,
+  OUTPUT_DIR,
+  buildPricingSheet,
+  buildPnLSheet,
+  buildScenariosSheet,
+  buildHighTicketRoiSheet,
+  buildCashFlowForecastSheet
+};

@@ -122,7 +122,7 @@ function pricingSummary() {
     const product = db.prepare('SELECT id, name, price, marketplace, marketplace_id, created_at FROM products WHERE id = ?').get(Number(pid));
     if (!product) { out.push({ productId: Number(pid), ...t, missing: true }); continue; }
     const m = db.prepare(
-      `SELECT COUNT(*) AS units, COALESCE(SUM(revenue), 0) AS revenue
+      `SELECT COALESCE(SUM(sales), COUNT(*)) AS units, COALESCE(SUM(revenue), 0) AS revenue
          FROM metrics WHERE product_id = ? AND sales > 0`
     ).get(Number(pid));
     const daysLive = Math.max(1, (Date.now() - new Date(String(product.created_at).replace(' ', 'T') + 'Z').getTime()) / 86400000);
@@ -164,6 +164,52 @@ function endPriceTest(productId, { adoptWinner = true } = {}) {
   return { ok: true, productId: Number(productId), test: t, note: adoptWinner ? 'check /api/pricing/tests for the winning variant' : undefined };
 }
 
+/**
+ * Autonomous Yield Management:
+ * Evaluates running price tests and automatically adopts/deploys statistically
+ * validated winning prices to live marketplaces.
+ */
+async function autoPromoteWinners() {
+  const summary = pricingSummary();
+  const winners = summary.filter(s => s.winner === true && s.status === 'running');
+  const promoted = [];
+
+  for (const w of winners) {
+    try {
+      const applyRes = await applyPrice(w.productId, w.testPrice, {
+        deploy: true,
+        reason: `auto_pricing_winner (${w.variant} variant, ${w.units} units @ ${w.unitsPerDay}/day)`
+      });
+
+      // Mark the test as concluded with winner adopted
+      const tests = readTests();
+      if (tests[w.productId]) {
+        tests[w.productId].status = 'promoted_winner';
+        tests[w.productId].promotedAt = new Date().toISOString();
+        tests[w.productId].winningPrice = w.testPrice;
+        writeTests(tests);
+      }
+
+      promoted.push({
+        productId: w.productId,
+        name: w.name,
+        variant: w.variant,
+        winningPrice: w.testPrice,
+        deployed: applyRes.deployed
+      });
+    } catch (e) {
+      console.error(`[PRICING] Failed to auto-promote winner for product ${w.productId}:`, e.message);
+    }
+  }
+
+  if (promoted.length > 0) {
+    db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+      .run('auto_pricing_promoted', `Auto-promoted ${promoted.length} winning price tier(s) to live listings`, 'success');
+  }
+
+  return promoted;
+}
+
 module.exports = {
   toCharmPrice,
   isLaunchWindow,
@@ -173,6 +219,7 @@ module.exports = {
   applyPrice,
   pricingSummary,
   endPriceTest,
+  autoPromoteWinners,
   LAUNCH_DAYS,
   LAUNCH_DISCOUNT,
   PRICE_FLOOR

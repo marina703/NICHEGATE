@@ -116,6 +116,84 @@ function revenueSeries() {
   return out;
 }
 
+// ── 3b · Net Unit-Economics & P&L Engine ────────────────────────────────────
+// Real financial model deducting channel fees (Etsy: 6.5% + $0.20 listing + 3% + $0.25 payment proc;
+// Gumroad: 10% flat + 2.9% + $0.30 credit card fee), AI token expenses, and computing true net profit and margin.
+function calculateNetUnitEconomics() {
+  // 1. Channel gross revenue by platform
+  const rows = db.prepare(`
+    SELECT m.sales, m.revenue, p.marketplace
+    FROM metrics m
+    LEFT JOIN products p ON m.product_id = p.id
+    WHERE m.sales > 0
+  `).all();
+
+  let grossRevenue = 0;
+  let totalSalesUnits = 0;
+  let marketplaceFees = 0;
+  let gumroadRevenue = 0;
+  let etsyRevenue = 0;
+
+  for (const r of rows) {
+    const sales = Number(r.sales) || 0;
+    const rev = Number(r.revenue) || 0;
+    grossRevenue += rev;
+    totalSalesUnits += sales;
+
+    const mp = (r.marketplace || 'gumroad').toLowerCase();
+    if (mp === 'etsy') {
+      etsyRevenue += rev;
+      // Etsy fee: 6.5% transaction + $0.20 listing renewal per sale + 3% payment proc + $0.25 order fee
+      marketplaceFees += (rev * 0.095) + (sales * 0.45);
+    } else {
+      gumroadRevenue += rev;
+      // Gumroad fee: 10% platform fee + (2.9% + $0.30) payment processing
+      marketplaceFees += (rev * 0.129) + (sales * 0.30);
+    }
+  }
+
+  // 2. AI Token Expenses from ai_usage table
+  const aiRow = db.prepare(`
+    SELECT COALESCE(SUM(cost_usd), 0) AS total_cost,
+           COALESCE(SUM(total_tokens), 0) AS total_tokens,
+           COUNT(*) AS total_calls
+    FROM ai_usage
+  `).get() || { total_cost: 0, total_tokens: 0, total_calls: 0 };
+  const aiCost = Number(aiRow.total_cost) || 0;
+
+  // 3. Ad Spend from settings table
+  const adSpendRow = db.prepare("SELECT value FROM settings WHERE key = 'ad_spend_this_month'").get();
+  const adSpend = parseFloat(adSpendRow?.value) || 0;
+
+  const totalCost = marketplaceFees + aiCost + adSpend;
+  const netProfit = grossRevenue - totalCost;
+  const netMarginPct = grossRevenue > 0 ? Math.round((netProfit / grossRevenue) * 100) : 0;
+  const avgUnitRevenue = totalSalesUnits > 0 ? grossRevenue / totalSalesUnits : 0;
+  const avgUnitNet = totalSalesUnits > 0 ? netProfit / totalSalesUnits : 0;
+
+  return {
+    grossRevenue: +grossRevenue.toFixed(2),
+    totalSalesUnits,
+    marketplaceFees: +marketplaceFees.toFixed(2),
+    aiCost: +aiCost.toFixed(4),
+    aiTokens: aiRow.total_tokens,
+    aiCalls: aiRow.total_calls,
+    adSpend: +adSpend.toFixed(2),
+    totalCost: +totalCost.toFixed(2),
+    netProfit: +netProfit.toFixed(2),
+    netMarginPct,
+    unitEconomics: {
+      avgPrice: +avgUnitRevenue.toFixed(2),
+      avgNetPerUnit: +avgUnitNet.toFixed(2),
+      avgFeePerUnit: totalSalesUnits > 0 ? +(marketplaceFees / totalSalesUnits).toFixed(2) : 0
+    },
+    channels: {
+      gumroadRevenue: +gumroadRevenue.toFixed(2),
+      etsyRevenue: +etsyRevenue.toFixed(2)
+    }
+  };
+}
+
 // ── 4 · Listing health ─────────────────────────────────────────────────────
 // Zero-sale listings + keyword/SEO weakness + velocity badges from REAL data.
 // SEO is scored from the engine's generated bundle (title/tag heuristics),
@@ -251,10 +329,11 @@ function build() {
     health,
     deltas: deltas(),
     series: revenueSeries(),
+    pnl: calculateNetUnitEconomics(),
     listing,
     insights: insights(health, listing, readiness, engine),
     engine
   };
 }
 
-module.exports = { build };
+module.exports = { build, calculateNetUnitEconomics };

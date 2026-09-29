@@ -61,6 +61,23 @@ const ACTIONS = {
     description: 'Pull Gumroad sales into metrics.',
     input: {}, singleton: true
   },
+  'amplify-winners': {
+    label: 'Amplify Winners',
+    description: 'Auto-generate sequels, bundles, and sibling formats for best-selling products.',
+    input: { minSales: { type: 'number', min: 1, max: 20, default: 2 } },
+    singleton: true
+  },
+  'promote-pricing-winners': {
+    label: 'Promote Pricing Winners',
+    description: 'Auto-adopt statistically winning price variants and deploy to live listings.',
+    input: {}, singleton: true
+  },
+  'scrape-competitor': {
+    label: 'Scrape Competitor & Counter',
+    description: 'Analyze competitor listing URL or query and generate counter-positioned products.',
+    input: { target: { type: 'string', required: true }, count: { type: 'number', min: 1, max: 5, default: 2 } },
+    singleton: false
+  },
   'rebuild-covers': {
     label: 'Rebuild Covers',
     description: 'Regenerate product preview covers in batches.',

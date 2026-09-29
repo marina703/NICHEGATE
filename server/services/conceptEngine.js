@@ -50,10 +50,41 @@ function parseConcept(text) {
   } catch { return null; }
 }
 
+// Retrieve high-performing existing concepts as dynamic few-shot examples
+function getFewShotExamples(limit = 2) {
+  try {
+    const winners = db.prepare(`
+      SELECT p.name, p.concept
+      FROM products p
+      JOIN metrics m ON p.id = m.product_id
+      WHERE p.concept IS NOT NULL AND m.sales >= 2
+      ORDER BY m.sales DESC
+      LIMIT ?
+    `).all(limit);
+
+    if (winners.length > 0) {
+      return winners.map(w => {
+        try {
+          const parsed = JSON.parse(w.concept);
+          return JSON.stringify(parsed);
+        } catch {
+          return null;
+        }
+      }).filter(Boolean);
+    }
+  } catch {}
+
+  // High-converting baseline few-shots
+  return [
+    '{"name":"Snap-Sign Profit Predictor","pitch":"Stop guessing your next loan signing income. This spreadsheet crunches mileage, time, and signing service fees to forecast your exact profit for any job before you accept it.","benefits":["Calculate net profit per signing","Spot underpriced offers before committing","Track income trends by service type"],"differentiator":"Predictive, not just a tracker: projects profitability for new opportunities using built-in rate cards."}',
+    '{"name":"PyroSpec Shell Cost & Firing Ledger","pitch":"Build custom fireworks shows without blowing your event margins. Calculates exact lift powder ratios, fuse timing, and per-shot unit costs instantly.","benefits":["Accurate per-shot pyrotechnic budgeting","Hazard and batch safety verification","Exportable shoot-day safety logs"],"differentiator":"Built specifically for licensed display operators with chemistry safety rules encoded into the formula cells."}'
+  ];
+}
+
 // Generate a differentiated concept for a (prof, type). Returns concept or null.
 // `brief` is optional buyer-supplied detail (from Make-this / trend generation)
 // that the concept must honor; `existing` carries the dedupe angle.
-async function generateConcept(prof, type, existing, brief) {
+async function generateConcept(prof, type, existing, brief, options = {}) {
   if (!cfg.enabled || !prof || !type) return null;
   // Tolerate a bare niche string (older call sites) instead of rendering
   // "Niche: undefined (undefined)" into the prompt.
@@ -61,6 +92,9 @@ async function generateConcept(prof, type, existing, brief) {
   prof = p;
   const avoid = existing && existing.concept ? `Avoid repeating this existing angle: "${existing.concept}"` : '';
   const guidance = brief ? `Buyer-supplied details to honor: ${String(brief).slice(0, 600)}` : '';
+  const fewShots = (options.fewShots && options.fewShots.length) ? options.fewShots : getFewShotExamples();
+  const fewShotText = fewShots.map((ex, i) => `Example ${i + 1}:\n${ex}`).join('\n\n');
+
   const prompt = [
     `Niche: ${prof.name} (${prof.slug}).`,
     `Product type: ${type}.`,
@@ -70,13 +104,13 @@ async function generateConcept(prof, type, existing, brief) {
     'Ground it in the niche\'s real workflows: regulations, seasonal cycles, pricing quirks, jargon buyers actually use. The artifact should encode niche expertise (e.g. built-in IRS mileage rules, breed-safe ingredient checks, permit deadlines) so it could only have been made by an insider.',
     avoid,
     guidance,
+    'Proven winning concept structures to model:',
+    fewShotText,
     'Reply with ONLY valid JSON, no markdown:',
     '{"name":"Short, specific, sellable product title (max 10 words, no "template/kit/pack")",',
     '"pitch":"2-3 sentence buyer-facing pitch naming the exact pain (max 60 words)",',
     '"benefits":["specific benefit 1","benefit 2","benefit 3"],',
-    '"differentiator":"Why this is NOT a generic template. What makes it novel for this niche. (max 45 words)"}',
-    'Example of the quality bar (different niche, do not copy):',
-    '{"name":"Snap-Sign Profit Predictor","pitch":"Stop guessing your next loan signing income. This spreadsheet crunches mileage, time, and signing service fees to forecast your exact profit for any job before you accept it.","benefits":["Calculate net profit per signing","Spot underpriced offers before committing","Track income trends by service type"],"differentiator":"Predictive, not just a tracker: projects profitability for new opportunities using built-in rate cards."}',
+    '"differentiator":"Why this is NOT a generic template. What makes it novel for this niche. (max 45 words)"}'
   ].join('\n');
   const raw = await router.generateIdeas(prompt, 'You are a ruthless product strategist for Etsy/Gumroad digital goods. You reject generic, saturated concepts. You find the specific, differentiated, sellable one.');
   const concept = parseConcept(raw);
@@ -248,4 +282,5 @@ async function generateVideoScripts(product, opts = {}) {
   return fallbackVideoScripts(product, niche);
 }
 
-module.exports = { generateConcept, applyConcept, enrichProduct, noveltyScore, parseConcept, generateSocialPost, generateVideoScripts };
+module.exports = { generateConcept, applyConcept,  enrichProduct,
+  getFewShotExamples, noveltyScore, parseConcept, generateSocialPost, generateVideoScripts };

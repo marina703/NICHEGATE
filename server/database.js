@@ -140,6 +140,17 @@ function init() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       expires_at DATETIME
     );
+
+    CREATE TABLE IF NOT EXISTS ai_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      model TEXT,
+      prompt_tokens INTEGER DEFAULT 0,
+      completion_tokens INTEGER DEFAULT 0,
+      total_tokens INTEGER DEFAULT 0,
+      cost_usd REAL DEFAULT 0,
+      action TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
 
@@ -263,6 +274,9 @@ function init() {
   try { db.exec('ALTER TABLE products ADD COLUMN previous_listing_json TEXT'); } catch (e) { /* column already exists */ }
   // Buyer-supplied details/prompts captured at generation time.
   try { db.exec('ALTER TABLE products ADD COLUMN brief TEXT'); } catch (e) { /* column already exists */ }
+  // Winner Amplification genealogy: parent product ID and amplified flag.
+  try { db.exec('ALTER TABLE products ADD COLUMN parent_product_id INTEGER'); } catch (e) { /* column already exists */ }
+  try { db.exec('ALTER TABLE products ADD COLUMN amplified INTEGER DEFAULT 0'); } catch (e) { /* column already exists */ }
 
   // ── PHASE 1: real growth data ────────────────────────────────────────────
   // Per-trend measured history. Every discovery sweep writes one row per

@@ -7,6 +7,8 @@ const mp = require('./marketplace');
 const { validatePublishResult } = require('./pipelineSchemas');
 const runtimeConfig = require('./runtimeConfig');
 const { draftProduct } = require('./productDraft');
+const winnerEngine = require('./winnerEngine');
+const pricingEngine = require('./pricingEngine');
 
 // Prices imported from single source of truth (productTypes.js)
 const productTypes = require('./productTypes');
@@ -38,9 +40,28 @@ function taskFreshness(ctx) {
 }
 
 async function taskSalesSync(ctx) {
+  // Self-Healing OAuth: Proactively check Etsy token expiry and refresh before publish/sync
+  try {
+    if (typeof mp.autoRefreshEtsyTokenIfExpiring === 'function') {
+      ctx.etsyRefreshed = await mp.autoRefreshEtsyTokenIfExpiring(45);
+    }
+  } catch (e) {
+    console.error('[AUTO] etsy proactive token refresh:', e.message);
+  }
+
   if (typeof ctx.syncGumroadSales === 'function') {
     try { ctx.sales = await ctx.syncGumroadSales(); }
     catch (e) { console.error('[AUTO] sales sync:', e.message); }
+  }
+  // Autonomous Yield Management: auto-promote winning price tests post-sync
+  try {
+    const promoted = await pricingEngine.autoPromoteWinners();
+    ctx.promotedPrices = promoted;
+    if (promoted.length > 0) {
+      console.log(`[AUTO] Auto-promoted ${promoted.length} winning price tier(s) to live listings`);
+    }
+  } catch (e) {
+    console.error('[AUTO] auto-promote pricing winners:', e.message);
   }
   return ctx;
 }
@@ -55,12 +76,17 @@ function taskRetire(ctx) {
   return ctx;
 }
 
-function taskScale(ctx) {
+async function taskScale(ctx) {
   try {
-    ctx.scaled = discovery.scaleWinners();
-    if (ctx.scaled > 0) console.log('[AUTO] Scaled ' + ctx.scaled + ' sibling product(s) for winners');
+    const ampResult = await winnerEngine.amplifyWinners({ minSales: 2 });
+    ctx.amplified = ampResult;
+    ctx.scaled = ampResult.amplified || discovery.scaleWinners();
+    if (ctx.scaled > 0) {
+      console.log(`[AUTO] Amplified winners: ${ampResult.amplified} generated (${ampResult.bundles} bundles, ${ampResult.sequels} sequels, ${ampResult.siblings} siblings)`);
+    }
   } catch (e) {
-    console.error('[AUTO] scale winners:', e.message);
+    console.error('[AUTO] scale/amplify winners:', e.message);
+    try { ctx.scaled = discovery.scaleWinners(); } catch {}
   }
   return ctx;
 }
@@ -229,7 +255,7 @@ async function runFullCycle(deps) {
   safeTask(ctx, 'freshness', () => taskFreshness(ctx));
   await safeTask(ctx, 'sales-sync', () => taskSalesSync(ctx));
   safeTask(ctx, 'retire', () => taskRetire(ctx));
-  safeTask(ctx, 'scale', () => taskScale(ctx));
+  await safeTask(ctx, 'scale', () => taskScale(ctx));
   safeTask(ctx, 'review-gate', () => taskReviewGate(ctx));
   await safeTask(ctx, 'notify-review-day', () => notifyReviewDay(ctx));
   if (!ctx.reviewDay) {

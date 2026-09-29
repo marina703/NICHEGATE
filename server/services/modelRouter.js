@@ -9,6 +9,7 @@
 
 const axios = require('axios');
 const cfg = require('./modelConfig');
+const { db } = require('../database');
 
 const TIMEOUT_MS = () => cfg.limits.timeoutMs;
 const MAX_RETRIES = () => cfg.limits.maxRetries;
@@ -68,6 +69,23 @@ async function callModel({ model, messages, temperature = 0.7, maxTokens }) {
       });
       const text = res.data && res.data.choices && res.data.choices[0] &&
         res.data.choices[0].message && res.data.choices[0].message.content;
+      
+      // Track AI token usage and estimated cost into ai_usage ledger
+      if (res.data && res.data.usage) {
+        try {
+          const u = res.data.usage;
+          const promptTokens = u.prompt_tokens || 0;
+          const compTokens = u.completion_tokens || 0;
+          const totalTokens = u.total_tokens || (promptTokens + compTokens);
+          // Pricing estimate (default ~$0.20/1M tokens prompt, $0.80/1M comp for Gemini Flash/Claude Haiku scale)
+          const costEst = (promptTokens * 0.0000002) + (compTokens * 0.0000008);
+          db.prepare('INSERT INTO ai_usage (model, prompt_tokens, completion_tokens, total_tokens, cost_usd, action) VALUES (?, ?, ?, ?, ?, ?)')
+            .run(model || 'unknown', promptTokens, compTokens, totalTokens, costEst, 'chat_completion');
+        } catch (ue) {
+          // Non-blocking
+        }
+      }
+
       return text ? String(text).trim() : null;
     } catch (e) {
       lastErr = e;

@@ -1482,6 +1482,205 @@ function buildPlainCover(product, prof, theme) {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(title)} cover</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#e7e5e1;display:flex;justify-content:center;font-family:'Space Grotesk','Inter',system-ui,sans-serif}.thumbcover{width:1200px;min-height:1500px;background:#f8f7f4;color:#14110f;display:flex;flex-direction:column;overflow:hidden}</style></head><body><div class="thumbcover"><div style="display:flex;justify-content:space-between;align-items:center;padding:44px 64px 0;font-size:22px;font-weight:800;letter-spacing:3px"><span>NICHEGATE</span><span style="background:#14110f;color:#fff;font-size:20px;padding:10px 22px;border-radius:999px">${esc(format)}</span></div><div style="margin:36px 64px 0;align-self:flex-start;font-size:24px;font-weight:800;letter-spacing:3px;color:#fff;background:${kc};padding:12px 26px;border-radius:999px">${esc(prof.emoji || '')} ${esc(prof.name || '').toUpperCase()}</div><h1 style="margin:30px 64px 0;font-size:100px;font-weight:900;line-height:.98;letter-spacing:-3px">${esc(title)}</h1><div style="margin:24px 64px 0;font-size:32px;color:#57534e;max-width:920px">${esc(sub)}</div><div style="margin:44px 64px 0;background:#fff;border-radius:32px;box-shadow:0 30px 60px -30px rgba(20,17,15,.25);padding:48px">${hero}</div><div style="margin:40px 64px 0;display:flex;flex-direction:column;gap:18px">${benefits.slice(0, 3).map((b) => `<div style="display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700"><span style="width:52px;height:52px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900">✓</span>${esc(b)}</div>`).join('')}</div><div style="margin-top:auto;padding:44px 64px 54px;display:flex;justify-content:space-between;align-items:flex-end"><div><div style="font-size:76px;font-weight:900">${esc(price)}</div><div style="font-size:22px;color:#78716c;font-weight:600">Instant download · Lifetime updates</div></div><div style="text-align:right"><div style="font-size:30px;letter-spacing:4px">★★★★★</div><div style="font-size:22px;color:#78716c">Editable · Commercial use</div></div></div></div></body></html>`;
 }
 
+/**
+ * Multi-device lifestyle mockup studio:
+ * Renders realistic workspace/desk environments with tablet, laptop, and phone views,
+ * drop shadows, ambient lighting, and high-converting trust badges.
+ */
+function buildLifestyleMockupHTML(product, prof, theme = {}) {
+  const p = product || {};
+  const pr = prof || { name: 'Professional Services', emoji: '✨' };
+  const th = theme.primary ? theme : { primary: '#0f172a', accent: '#0d9488', bg: '#f8fafc' };
+  const title = esc(p.name || 'Professional Digital Toolkit');
+  const price = esc(p.price || '$29');
+  const type = esc((p.type || 'Toolkit').toUpperCase());
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${title} Lifestyle Mockup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 20%, #1e293b 0%, #0f172a 60%, #020617 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .studio-stage {
+      position: relative;
+      width: 1100px;
+      max-width: 100%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 28px;
+      padding: 50px 40px;
+      box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+    .ambient-glow {
+      position: absolute;
+      top: -120px;
+      right: -100px;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, ${th.accent}33, transparent 70%);
+      pointer-events: none;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 20px;
+    }
+    .brand-tag {
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+    .format-pill {
+      background: ${th.accent};
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .desk-composition {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 30px;
+      margin: 40px 0;
+      position: relative;
+    }
+    .laptop-frame {
+      width: 560px;
+      height: 350px;
+      background: #1e293b;
+      border-radius: 16px 16px 4px 4px;
+      border: 2px solid #334155;
+      padding: 12px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);
+      position: relative;
+    }
+    .screen-content {
+      background: #ffffff;
+      border-radius: 8px;
+      height: 100%;
+      padding: 24px;
+      color: #0f172a;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .tablet-frame {
+      width: 240px;
+      height: 310px;
+      background: #0f172a;
+      border-radius: 20px;
+      border: 3px solid #475569;
+      padding: 10px;
+      box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6);
+      transform: rotate(3deg);
+    }
+    .tablet-screen {
+      background: #f8fafc;
+      border-radius: 12px;
+      height: 100%;
+      padding: 16px;
+      color: #1e293b;
+      font-size: 0.75rem;
+    }
+    .desk-shadow {
+      position: absolute;
+      bottom: -15px;
+      width: 90%;
+      height: 30px;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0.6) 0%, transparent 70%);
+      filter: blur(8px);
+    }
+    .info-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 35px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .item-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.5px;
+    }
+    .item-badges {
+      display: flex;
+      gap: 12px;
+      margin-top: 6px;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .item-price {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #2dd4bf;
+    }
+  </style>
+</head>
+<body>
+  <div class="studio-stage">
+    <div class="ambient-glow"></div>
+    <div class="top-bar">
+      <div class="brand-tag">NICHEGATE LIFESTYLE STUDIO · ${esc(pr.name)}</div>
+      <div class="format-pill">${type}</div>
+    </div>
+    <div class="desk-composition">
+      <div class="laptop-frame">
+        <div class="screen-content">
+          <div style="font-size:0.8rem;font-weight:800;color:${th.accent}">${esc(pr.emoji)} ${esc(pr.name).toUpperCase()}</div>
+          <div style="font-size:1.6rem;font-weight:900;margin:12px 0">${title}</div>
+          <div style="font-size:0.85rem;color:#64748b;line-height:1.5">Complete plug-and-play solution engineered specifically for high-ticket service operations.</div>
+          <div style="display:flex;gap:8px;margin-top:auto">
+            <span style="background:#f1f5f9;padding:4px 10px;border-radius:6px;font-size:0.75rem;font-weight:600">✓ Excel & Sheets</span>
+            <span style="background:#f1f5f9;padding:4px 10px;border-radius:6px;font-size:0.75rem;font-weight:600">✓ Instant Delivery</span>
+            <span style="background:#f1f5f9;padding:4px 10px;border-radius:6px;font-size:0.75rem;font-weight:600">✓ Commercial License</span>
+          </div>
+        </div>
+      </div>
+      <div class="tablet-frame">
+        <div class="tablet-screen">
+          <div style="font-weight:800;margin-bottom:8px">Quick Field Guide</div>
+          <div style="color:#64748b;line-height:1.4">Mobile-optimized reference cards & formulas ready for client jobs.</div>
+          <div style="margin-top:20px;font-size:1.2rem;font-weight:900;color:${th.accent}">★★★★★</div>
+        </div>
+      </div>
+      <div class="desk-shadow"></div>
+    </div>
+    <div class="info-footer">
+      <div>
+        <div class="item-title">${title}</div>
+        <div class="item-badges">
+          <span>Editable Template</span> · <span>Zero Subscriptions</span> · <span>Instant Setup</span>
+        </div>
+      </div>
+      <div class="item-price">${price}</div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 /** Legacy device-frame kept for the in-app visual editor only. NOT used for covers. */
 function wrapMarketplaceMockup(innerHtml, opts) {
   const o = opts || {};
@@ -1601,6 +1800,7 @@ module.exports = {
   buildPlannerHTML, buildWallArtHTML, buildWorksheetHTML, buildPartyPrintableHTML,
   buildPyroBatchHTML, buildPyroLiftFuseHTML, buildPyroShootLogHTML,
   thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover,
+  buildLifestyleMockupHTML,
   wrapMarketplaceMockup
 ,
   shellDNA, buildDNAHTML, dnaCSS, dnaHeadExtras, designDNA ,

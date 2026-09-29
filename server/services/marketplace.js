@@ -114,6 +114,31 @@ async function refreshEtsyToken() {
   return resp.data;
 }
 
+/**
+ * Self-healing proactive Etsy OAuth refresh:
+ * Checks whether token is expiring within the next 30 minutes, and refreshes it
+ * to ensure uninterrupted API operations.
+ */
+async function autoRefreshEtsyTokenIfExpiring(leadMinutes = 30) {
+  const token = db.prepare('SELECT * FROM marketplace_tokens WHERE platform = ?').get('etsy');
+  if (!token || !token.expires_at) return { refreshed: false, reason: 'no_token' };
+  
+  const expiryTime = new Date(token.expires_at).getTime();
+  const bufferMs = leadMinutes * 60 * 1000;
+  if (Date.now() + bufferMs >= expiryTime) {
+    try {
+      const refreshed = await refreshEtsyToken();
+      db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+        .run('etsy_token_refresh', `Proactively refreshed Etsy OAuth token (expires in ${Math.round((expiryTime - Date.now())/60000)}m)`, 'success');
+      return { refreshed: true, token: refreshed };
+    } catch (e) {
+      console.error('[ETSY] Proactive token refresh failed:', e.message);
+      return { refreshed: false, error: e.message };
+    }
+  }
+  return { refreshed: false, reason: 'not_expiring_soon' };
+}
+
 async function listOnEtsy(product, shopId) {
   const token = db.prepare('SELECT * FROM marketplace_tokens WHERE platform = ?').get('etsy');
   if (!token) throw new Error('Etsy not connected. Visit /setup to connect.');
@@ -782,6 +807,7 @@ module.exports = {
   getEtsyAuthUrl,
   exchangeEtsyToken,
   refreshEtsyToken,
+  autoRefreshEtsyTokenIfExpiring,
   listOnEtsy,
   uploadGumroadFile,
   getMarketplaceStatus,

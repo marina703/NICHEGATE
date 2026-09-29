@@ -840,6 +840,15 @@ app.get('/api/pricing/launch/:productId', (req, res) => {
     }
   });
 
+  // Net Unit-Economics & P&L Analysis (Gross revenue, Etsy/Gumroad fees, AI token costs, Net Profit & Margin)
+app.get('/api/pricing/pnl', (req, res) => {
+    try {
+      res.json({ ok: true, pnl: biService.calculateNetUnitEconomics() });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
   // ═════════════════════════════════════════════════════════════════════════
   // PHASE 6 — SELF-IMPROVING VETTING (learned weights from real outcomes)
   // ═════════════════════════════════════════════════════════════════════════
@@ -2871,6 +2880,28 @@ const consoleHandlers = {
   },
   'lead-magnet': async (input, step) => { step('building starter pack'); return await deployLeadMagnet(); },
   'sync-sales': async (input, step) => { step('syncing Gumroad sales'); return await syncGumroadSales(); },
+  'amplify-winners': async (input, step) => {
+    step('amplifying proven bestsellers');
+    const winnerEngine = require('./services/winnerEngine');
+    const res = await winnerEngine.amplifyWinners({ minSales: input.minSales || 2 });
+    step(`amplified ${res.amplified} products across ${res.winnersCount} winner(s)`, 'success');
+    return res;
+  },
+  'promote-pricing-winners': async (input, step) => {
+    step('evaluating price test elasticity');
+    const res = await pricingEngine.autoPromoteWinners();
+    step(`auto-promoted ${res.length} winning price tier(s)`, 'success');
+    return { count: res.length, promoted: res };
+  },
+  'scrape-competitor': async (input, step) => {
+    step(`scraping competitor target: ${input.target}`);
+    const competitorEngine = require('./services/competitorEngine');
+    const analysis = await competitorEngine.scrapeCompetitor(input.target);
+    step(`analyzed "${analysis.title}" - generating counter products`);
+    const gen = await competitorEngine.generateCounterProducts(analysis, input.count || 2);
+    step(`generated ${gen.generated.length} counter-positioned product(s)`, 'success');
+    return gen;
+  },
   'rebuild-covers': async (input, step) => {
     const { generatePreviewBatch } = require('./services/previewBatch');
     step(`rebuilding covers (limit ${input.limit})`);
