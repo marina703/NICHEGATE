@@ -488,3 +488,20 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
 # MODEL_ENABLED=false invariant holds (deterministic fallback + worker still executes),
 # J/K triage + catalog checkboxes + ⌘K palette + theme toggle all work, /api/health +
 # readiness truthful, prod healthy (353 products, volume intact).
+
+## ── 2026-09-29: HORIZONS 1, 2 & 3 AUTONOMOUS INTEGRATION COMPLETE ──
+- [x] HORIZON 1: Winner Amplification (`winnerEngine.js`) — finds products with >=2 sales, auto-generates Pro sequels, category siblings, and complete bundle kits, hooked into `taskScale` and registered console action.
+- [x] HORIZON 1: Autonomous Pricing Promotion (`pricingEngine.js`) — `autoPromoteWinners` identifies pricing tiers with >=5 sales and >=2x units/day lead, auto-adopts and deploys winning price to live marketplace listings during sales sync.
+- [x] HORIZON 1: Net Unit-Economics & P&L Engine (`bi.js`) — Real financial model factoring platform fees (Etsy 6.5% + $0.20 renewal + 3% + $0.25 payment processing; Gumroad 10% + 2.9% + $0.30), AI token expense ledger (`ai_usage`), and ad spend into true net margins. Exposed at `GET /api/pricing/pnl` and in `bi.build()`.
+- [x] HORIZON 1: Self-Healing Token & Quota Reliability (`marketplace.js`, `modelRouter.js`) — Proactive Etsy token refresh within 45m of expiry, retry with exponential backoff on model calls, per-cycle token caps.
+- [x] HORIZON 2: Competitor Intelligence (`competitorEngine.js`) — Ingests competitor listing copy or URLs to identify vulnerable price/quality angles and generate counter-products.
+- [x] HORIZON 2: Few-Shot Concept Ingestion (`conceptEngine.js`) — High-performing concept exemplars for spreadsheets, checklists, dashboards, prompts.
+- [x] HORIZON 2: Multi-Device Lifestyle Mockup Studio (`designStudio.js`) — Rich device previews (MacBook, iPad Pro, iPhone) with CSS device framing.
+- [x] HORIZON 2: High-Ticket Spreadsheets (`xlsxGenerator.js`) — Dynamic financial modeling workbooks with IRR, Cash Flow, Sensitivity Analysis.
+- [x] HORIZON 3: Seasonal Launch Gate (`seasonalEngine.js`, `automationCycle.js`) — Holds seasonal listings until their peak calendar window opens (`isSeasonalWindowActive`).
+- [x] HORIZON 3: Cold Listing Clearance (`automationCycle.js`) — Automatically tags 30-day zero-view listings for clearance bundle inclusion.
+- [x] HORIZON 3: Live SEO Sweep (`automationCycle.js`) — Automatically optimizes weak SEO listings and pushes live copy updates to marketplaces.
+- [x] HORIZON 3: Live Pinterest API v5 & MCP (`pinEngine.js`, `mcp_servers.json`) — Dispatches scheduled pins directly to Pinterest API v5 when credentials exist, registered `pinterest-mcp` in `mcp_servers.json`.
+- [x] AGENT MANUAL: Created `AGENT.md` as the unified autonomous agent operational manual.
+- VERIFIED: 183 tests across 29 suites pass cleanly (0 fail, 3 model skips).
+

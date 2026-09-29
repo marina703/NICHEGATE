@@ -63,6 +63,19 @@ async function taskSalesSync(ctx) {
   } catch (e) {
     console.error('[AUTO] auto-promote pricing winners:', e.message);
   }
+
+  // Horizon 3 SEO Sweep: Auto-optimize weak SEO listings and deploy live to Etsy/Gumroad
+  try {
+    const optimizer = require('./listingOptimizer');
+    const optRes = await optimizer.optimizeWeak(5);
+    ctx.seoOptimized = optRes.optimized || 0;
+    ctx.seoDeployed = optRes.deployed || 0;
+    if (ctx.seoOptimized > 0) {
+      console.log(`[AUTO] Live SEO sweep: optimized ${ctx.seoOptimized} listing(s), deployed ${ctx.seoDeployed} live`);
+    }
+  } catch (e) {
+    console.error('[AUTO] live SEO sweep:', e.message);
+  }
   return ctx;
 }
 
@@ -73,6 +86,29 @@ function taskRetire(ctx) {
   } catch (e) {
     console.error('[AUTO] retire:', e.message);
   }
+
+  // Horizon 3 Autopilot: Cold Listing Clearance (tag stale zero-view listings for clearance bundles)
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().replace('T', ' ').slice(0, 19);
+    const staleListings = db.prepare(`
+      SELECT p.id, p.name FROM products p
+      WHERE p.status IN ('listed', 'published')
+        AND p.created_at <= ?
+        AND NOT EXISTS (SELECT 1 FROM metrics m WHERE m.product_id = p.id AND (m.views > 0 OR m.sales > 0))
+    `).all(thirtyDaysAgo);
+
+    ctx.coldListingsIdentified = staleListings.length;
+    if (staleListings.length > 0) {
+      console.log(`[AUTO] Identified ${staleListings.length} cold listing(s) eligible for clearance bundling`);
+      for (const s of staleListings.slice(0, 5)) {
+        db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+          .run('listing_cold_clearance', s.id, `Eligible for clearance pack: "${s.name}" (0 views/sales in 30d)`, 'info');
+      }
+    }
+  } catch (e) {
+    console.error('[AUTO] cold listing clearance:', e.message);
+  }
+
   return ctx;
 }
 
@@ -185,6 +221,13 @@ async function taskPublishQueue(ctx) {
   }
 
   for (const p of approved) {
+    // Horizon 3 Seasonal Launch Gate: Seasonal products only publish during their active peak window
+    if (typeof seasonal.isSeasonalWindowActive === 'function' && !seasonal.isSeasonalWindowActive(p)) {
+      db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+        .run('publish_seasonal_gate', p.id, `Publish held: product #${p.id} waiting for seasonal peak window`, 'info');
+      continue;
+    }
+
     // Re-check quota before each publish (in case we hit the limit mid-cycle)
     if (typeof mp.getGumroadQuota === 'function') {
       const q = mp.getGumroadQuota();

@@ -2,6 +2,13 @@
   "mcpServers": {
     "etsy": {
       "url": "https://mcp.api.etsycloud.com/mcp"
+    },
+    "pinterest": {
+      "command": "npx",
+      "args": ["-y", "pinterest-mcp@0.3.0"],
+      "env": {
+        "PINTEREST_ACCESS_TOKEN": "${PINTEREST_ACCESS_TOKEN}"
+      }
     }
   }
 }

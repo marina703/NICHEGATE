@@ -68,14 +68,14 @@ test('pinEngine: schedule batch spreads listed products across distinct slots', 
   }
 });
 
-test('pinEngine: duePins flips scheduled → posted', () => {
+test('pinEngine: duePins flips scheduled → posted', async () => {
   const profId = makeProfession();
   const pid = makeProduct(profId);
   try {
     db.prepare(
       "INSERT INTO pins (product_id, title, description, board_hint, target_url, utm, keywords, status, scheduled_for) VALUES (?, 'due test', 'd', 'general', NULL, NULL, '[]', 'scheduled', ?)"
     ).run(pid, new Date(Date.now() - 3600000).toISOString());
-    const due = pinEngine.duePins(50);
+    const due = await pinEngine.duePins(50);
     assert.ok(due.some(d => d.product_id === pid), 'due pin returned');
     const row = db.prepare('SELECT status FROM pins WHERE product_id = ?').get(pid);
     assert.equal(row.status, 'posted');

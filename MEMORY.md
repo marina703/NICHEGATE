@@ -337,3 +337,23 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
   /js/theme-init.js (200 only on the new build — it's a new file) + anon GET
   /api/store/products (200 new / 401 old). Prod verified: storefront 200 anon, console
   APIs 401 anon, login 200, video-scripts 200×3 scripts, 353 products intact.
+
+# ── 2026-09-29: HORIZONS 1, 2 & 3 AUTONOMOUS FACTORY COMPLETE ──
+- Horizon 1 (Winner Amplification, Autonomous Pricing, Net P&L, Self-Healing OAuth):
+  - `winnerEngine.js`: finds products with >= 2 sales, creates Pro sequels, siblings, and bundles; hooked to `taskScale`.
+  - `pricingEngine.js`: `autoPromoteWinners` identifies tiers with >=5 sales & >=2x velocity; auto-deploys winning prices in `taskSalesSync`.
+  - `bi.js`: `calculateNetUnitEconomics` factors Etsy fees (6.5% + $0.20 + 3% + $0.25), Gumroad fees (10% + 2.9% + $0.30), AI token expense ledger (`ai_usage`), and ad spend into true margins (`/api/pricing/pnl`).
+  - `marketplace.js`: `autoRefreshEtsyTokenIfExpiring(45)` runs proactively before cycles.
+- Horizon 2 (Competitor Scraper, Concept Few-Shot, Lifestyle Studio, High-Ticket XLSX):
+  - `competitorEngine.js`: parses competitor listings/URLs, extracts quality/pricing weaknesses, generates counter-products.
+  - `conceptEngine.js`: few-shot exemplar ingestion for spreadsheets, checklists, dashboards, and prompt packs.
+  - `designStudio.js`: multi-device lifestyle mockup studio (MacBook, iPad Pro, iPhone) with CSS device frames.
+  - `xlsxGenerator.js`: financial modeling workbooks with dynamic IRR, Cash Flow, and sensitivity models.
+- Horizon 3 (Seasonal Gate, Live SEO Sweep, Cold Listing Clearance, Pinterest Autonomous):
+  - `seasonalEngine.js`: `isSeasonalWindowActive` gates seasonal publishing until peak month.
+  - `automationCycle.js`: `taskRetire` tags 30-day zero-view listings for clearance packs; `taskSalesSync` runs live SEO sweeps (`listingOptimizer.optimizeWeak`).
+  - `pinEngine.js`: `duePins` dispatches directly to Pinterest API v5 when token is present; `mcp_servers.json` configured with `pinterest-mcp@0.3.0`.
+- Documentation & Testing:
+  - `AGENT.md`: comprehensive autonomous agent operating manual created.
+  - Suite: 183 tests across 29 test suites passing (0 fail, 3 model skips).
+

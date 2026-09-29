@@ -63,4 +63,21 @@ function generateSeasonalProduct() {
   return { profession: prof.name, type, productId };
 }
 
-module.exports = { getCurrentFocus, getFocusProfessions, generateSeasonalProduct };
+// Seasonal launch gate: verifies if a seasonal product is currently in its active peak window.
+// Returns true if the product is evergreen (not tied to a specific seasonal window) OR if its profession
+// matches this month's seasonal focus window.
+function isSeasonalWindowActive(product) {
+  if (!product || !product.profession_id) return true;
+  const prof = db.prepare('SELECT slug FROM professions WHERE id = ?').get(product.profession_id);
+  if (!prof || !prof.slug) return true;
+
+  // Check if this profession belongs to any seasonal window
+  const isSeasonalProfession = Object.values(SEASONAL).some(s => s.slugs.includes(prof.slug));
+  if (!isSeasonalProfession) return true; // Evergreen product: always active
+
+  // If seasonal, check if it matches current focus
+  const currentFocus = getCurrentFocus();
+  return currentFocus.slugs.includes(prof.slug);
+}
+
+module.exports = { getCurrentFocus, getFocusProfessions, generateSeasonalProduct, isSeasonalWindowActive };

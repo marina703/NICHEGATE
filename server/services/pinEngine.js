@@ -183,18 +183,77 @@ function createPinSync(product) {
   return { id: info.lastInsertRowid, scheduled_for: at.toISOString() };
 }
 
-// Due pins: the scheduler marks them 'posted' locally. Actual posting to
-// Pinterest's API needs an app token (Phase-5 optional upgrade); NicheGate
-// records the queue + attribution and hands copy to the poster-of-record.
-function duePins(limit = 10) {
+// Due pins: marks due pins as posted and dispatches them live to Pinterest API v5 if
+// PINTEREST_ACCESS_TOKEN is configured in settings or environment.
+async function duePins(limit = 10) {
   const now = new Date().toISOString();
   const rows = db.prepare(
     "SELECT * FROM pins WHERE status = 'scheduled' AND scheduled_for <= ? ORDER BY scheduled_for ASC LIMIT ?"
   ).all(now, limit);
+
+  const tokenRow = db.prepare("SELECT access_token FROM marketplace_tokens WHERE platform = 'pinterest'").get();
+  const token = tokenRow?.access_token || process.env.PINTEREST_ACCESS_TOKEN;
+
   for (const r of rows) {
+    let externalPinId = null;
+    if (token) {
+      try {
+        const published = await publishToPinterestApi(r, token);
+        if (published && published.id) {
+          externalPinId = published.id;
+        }
+      } catch (e) {
+        console.error(`[PINTEREST] API dispatch failed for pin #${r.id}:`, e.message);
+      }
+    }
+
     db.prepare("UPDATE pins SET status = 'posted', posted_at = ? WHERE id = ?").run(now, r.id);
+    if (externalPinId) {
+      db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+        .run('pinterest_publish', r.product_id, `Published to Pinterest API (Pin ID: ${externalPinId})`, 'success');
+    }
   }
   return rows;
+}
+
+// Live Pinterest API v5 client
+async function publishToPinterestApi(pin, accessToken) {
+  const axios = require('axios');
+  // If product has preview or cover image, attach image source
+  let imageUrl = null;
+  if (pin.product_id) {
+    const prod = db.prepare('SELECT preview_path, cover_path FROM products WHERE id = ?').get(pin.product_id);
+    if (prod && (prod.cover_path || prod.preview_path)) {
+      imageUrl = prod.cover_path || prod.preview_path;
+    }
+  }
+
+  // Find board or use default
+  const boardId = process.env.PINTEREST_BOARD_ID || 'general';
+
+  const body = {
+    title: pin.title?.slice(0, 100),
+    description: pin.description?.slice(0, 500),
+    link: pin.target_url || undefined,
+    board_id: boardId
+  };
+
+  if (imageUrl && imageUrl.startsWith('http')) {
+    body.media_source = {
+      source_type: 'image_url',
+      url: imageUrl
+    };
+  }
+
+  const res = await axios.post('https://api.pinterest.com/v5/pins', body, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    timeout: 10000
+  });
+
+  return res.data;
 }
 
 // Attribution: Gumroad's sales API does not expose referring UTMs, so exact
@@ -210,4 +269,4 @@ function attributionReport() {
   return { pins, posted, scheduled, withAttributedUrl: withUrl, note: 'click-side attribution needs the CF worker (stretch)' };
 }
 
-module.exports = { createPin, createPinSync, scheduleForProducts, duePins, nextSlot, attributionReport, pinterestKeywords, utmFor, attributedUrl, SLOT_GRID };
+module.exports = { createPin, createPinSync, scheduleForProducts, duePins, nextSlot, attributionReport, pinterestKeywords, utmFor, attributedUrl, publishToPinterestApi, SLOT_GRID };
