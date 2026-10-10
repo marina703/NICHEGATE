@@ -266,9 +266,10 @@ queue per UPGRADES.md Wave 1; finish Etsy identity verification + OAuth.
 - [x] 4. PRICING ENGINE: new `pricingEngine.js` — charm pricing ($X.99, floor $3.99), launch rule (first 14 days −30% floored, GET /api/pricing/launch/:id), A/B tiers low/base/high (−15%/base/+25%) with round-robin assignment persisted in settings (POST /api/pricing/tests/start · GET /api/pricing/tests · POST /api/pricing/tests/:id/end), applyPrice deploys via existing updateListingCopy path (POST /api/pricing/apply). Elasticity summary uses REAL sales (units/day, revenue/day); winner declared only with ≥5 sales AND ≥2× units/day lead — honest small-sample behavior.
 - [x] 5. VIDEO HOOK SCRIPTS: `generateVideoScripts` in conceptEngine (AI + deterministic fallback per repo rules) — 3× 15-30s TikTok/Reels scripts in template-as-b-roll format (problem-agitation / proof-of-speed / list-value) with hook, b-roll beats, caption, hashtags. Route: POST /api/products/:id/video-scripts
 ### Phase 6 stretch (recorded so nothing is lost — build after the top 5)
-- [ ] Ad attribution ledger + kill rules (needs Pin Engine UTMs first)
+- [x] Ad attribution ledger + kill rules (`adAttributionEngine.js` — spend, clicks, impressions, sales, ROAS, burn tripwire $15, mature pause <1.2x, winner scale >=3.0x, sweep route `GET /api/ads/attribution`) — DONE 2026-10-10
 - [ ] Programmatic SEO keyword landing pages (after catalog deepens via Phases 1–2)
-- [ ] Interactive/hosted web-tool products (biggest lift, biggest differentiation)
+- [x] Interactive/hosted web-tool products (`webToolGenerator.js` — self-contained responsive client-side profit/quote calculator micro-app, format `html`, price $29, offline-first localStorage auto-save, wired into `fileFactory` and `productTypes`) — DONE 2026-10-10
+- [x] FAANG/SpaceX Quality Assurance Gate (`qualityEngine.js` — 5-dimension rubric: deliverable integrity 25pts, content completeness 25pts, polish 20pts, commercial 15pts, defects/hallucination 15pts; FLIGHT_READY >=85pts gate; routes `GET /api/products/:id/quality` & `GET /api/quality/catalog`, action `quality-audit`) — DONE 2026-10-10
 - [ ] Sibling-seller emails (blocked on SEQUENCES — trivial once Phase 5 lands)
 - [ ] Complaint mining → conceptEngine briefs
 - [ ] Catalog diversity guard (per-niche type quotas + forced format rotation)
