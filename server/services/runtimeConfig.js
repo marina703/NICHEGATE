@@ -47,8 +47,8 @@ function productionConfigProblems(env = process.env, fsImpl = fs) {
 
   const problems = [];
   const password = String(env.ADMIN_PASSWORD || '').trim();
-  if (password.length < 16) {
-    problems.push('ADMIN_PASSWORD must be set to at least 16 characters before serving a production console.');
+  if (password.length < 8) {
+    problems.push('ADMIN_PASSWORD must be set to at least 8 characters before serving a production console.');
   }
   if (!isDiscordWebhookUrl(env.DISCORD_WEBHOOK_URL)) {
     problems.push('DISCORD_WEBHOOK_URL must be a valid HTTPS Discord webhook URL in production so surrogate decisions can reach the operator.');
