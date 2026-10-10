@@ -115,6 +115,15 @@ const ACTIONS = {
     label: 'Backup Database',
     description: 'Write a timestamped SQLite backup under runtime/backups.',
     input: {}, singleton: true
+  },
+  'quality-audit': {
+    label: 'FAANG/SpaceX Quality Audit',
+    description: 'Inspect deliverables against physical, content, polish, and hallucination quality gates.',
+    input: {
+      status: { type: 'string', default: 'draft' },
+      limit: { type: 'number', min: 1, max: 100, default: 50 }
+    },
+    singleton: true
   }
 };
 

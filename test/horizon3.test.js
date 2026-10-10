@@ -22,7 +22,14 @@ test('Horizon 3: seasonal.isSeasonalWindowActive correctly identifies active pea
   }
 
   // Evergreen profession not in SEASONAL mapping should be active
-  const evergreenProf = db.prepare("SELECT id FROM professions WHERE slug NOT IN ('aa-recovery','wedding-photography','pyrotechnics','hvac')").get();
+  const seasonalSlugs = seasonal.getAllSeasonalSlugs ? seasonal.getAllSeasonalSlugs() : [
+    'aa-recovery', 'smart-recovery', 'massage-therapy', 'mobile-notary',
+    'wedding-photography', 'tattoo-artist', 'native-landscaping', 'beekeeping',
+    'drone-surveying', 'energy-auditor', 'fishing-guide', 'pyrotechnics',
+    'air-duct-cleaning', 'hvac', 'mold-inspector', 'roofing', 'post-construction-cleaning'
+  ];
+  const placeholders = seasonalSlugs.map(() => '?').join(',');
+  const evergreenProf = db.prepare(`SELECT id FROM professions WHERE slug NOT IN (${placeholders})`).get(...seasonalSlugs);
   if (evergreenProf) {
     const evProduct = { id: 99992, profession_id: evergreenProf.id };
     assert.equal(seasonal.isSeasonalWindowActive(evProduct), true);

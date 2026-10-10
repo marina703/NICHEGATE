@@ -620,6 +620,38 @@ app.get('/api/ads/summary', (req, res) => {
     }
   });
 
+app.get('/api/ads/attribution', (req, res) => {
+    try {
+      const adAttribution = require('./services/adAttributionEngine');
+      res.json(adAttribution.runAttributionSweep());
+    } catch (e) {
+      console.error('[ERROR] GET /api/ads/attribution -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+app.post('/api/ads/attribution/record', (req, res) => {
+    try {
+      const adAttribution = require('./services/adAttributionEngine');
+      const { campaignId, channel, productId, spendDelta, clicksDelta, impressionsDelta, salesDelta, revenueDelta } = req.body || {};
+      if (!campaignId) return res.status(400).json({ error: 'campaignId is required' });
+      const record = adAttribution.recordCampaignMetrics({
+        campaignId,
+        channel,
+        productId,
+        spendDelta: parseFloat(spendDelta) || 0,
+        clicksDelta: parseInt(clicksDelta) || 0,
+        impressionsDelta: parseInt(impressionsDelta) || 0,
+        salesDelta: parseInt(salesDelta) || 0,
+        revenueDelta: parseFloat(revenueDelta) || 0
+      });
+      res.json(record);
+    } catch (e) {
+      console.error('[ERROR] POST /api/ads/attribution/record -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
 app.post('/api/ads/budget', (req, res) => {
     try {
       const { budget } = req.body;
@@ -751,6 +783,30 @@ app.get('/api/products/:id/optimization', (req, res) => {
       res.json(optimizer.preview(product));
     } catch (e) {
       console.error('[ERROR] GET /api/products/:id/optimization -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+app.get('/api/products/:id/quality', (req, res) => {
+    try {
+      const qe = require('./services/qualityEngine');
+      const audit = qe.auditProductById(req.params.id);
+      if (!audit) return res.status(404).json({ error: 'Product not found' });
+      res.json(audit);
+    } catch (e) {
+      console.error('[ERROR] GET /api/products/:id/quality -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+app.get('/api/quality/catalog', (req, res) => {
+    try {
+      const qe = require('./services/qualityEngine');
+      const status = req.query.status || 'draft';
+      const limit = parseInt(req.query.limit) || 50;
+      res.json(qe.auditCatalog(status, limit));
+    } catch (e) {
+      console.error('[ERROR] GET /api/quality/catalog -> 500:', e.message);
       res.status(500).json({ error: e.message });
     }
   });
@@ -2936,6 +2992,13 @@ const consoleHandlers = {
     const r = backupDatabase();
     step('backup written', 'success');
     return r;
+  },
+  'quality-audit': async (input, step) => {
+    const qe = require('./services/qualityEngine');
+    step(`auditing catalog (status: ${input.status || 'draft'}, limit: ${input.limit || 50})`);
+    const res = qe.auditCatalog(input.status || 'draft', input.limit || 50);
+    step(`audited ${res.totalAudited} items: ${res.flightReadyCount} FLIGHT_READY, ${res.groundedCount} GROUNDED (avg ${res.avgScore} pts)`, 'success');
+    return res;
   }
 };
 

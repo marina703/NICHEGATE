@@ -139,6 +139,9 @@ async function ensureProductFile(product) {
     filePath = await pdfGen.generatePDF(pdfGen.buildPyroLiftFuseHTML(prof, theme), `${prof.slug}-pyro-lift-fuse-${stamp}.pdf`);
   } else if (type === 'pyro-shoot-log') {
     filePath = await pdfGen.generatePDF(pdfGen.buildPyroShootLogHTML(prof, theme), `${prof.slug}-pyro-shoot-log-${stamp}.pdf`);
+  } else if (type === 'interactive-tool') {
+    const webToolGen = require('./webToolGenerator');
+    filePath = webToolGen.generateWebToolFile(prof, { title: product.name, theme }, `${prof.slug}-interactive-tool-${stamp}.html`);
   } else if (['spreadsheet', 'booking', 'pricing', 'inventory', 'shot-chart'].includes(type)) {
     filePath = xlsxGen.generateXLSX(type === 'pricing' ? 'spreadsheet' : type, prof, `${prof.slug}-${type}-${stamp}.xlsx`);
   } else if (type === 'social') {

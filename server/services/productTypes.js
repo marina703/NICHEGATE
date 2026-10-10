@@ -62,7 +62,10 @@ const TYPES = [
 
   // ── NICHE-SPECIFIC (high value, low competition) ──
   { key: 'client-emails', label: 'Client Communication Templates', emoji: '💌', price: 14, format: 'pdf', buyer: 'business', cats: ['business'] },
-  { key: 'profit-calculator', label: 'Profit & Pricing Calculator', emoji: '🧮', price: 15, format: 'xlsx', buyer: 'business', cats: ['business', 'finance'] }
+  { key: 'profit-calculator', label: 'Profit & Pricing Calculator', emoji: '🧮', price: 15, format: 'xlsx', buyer: 'business', cats: ['business', 'finance'] },
+
+  // ── INTERACTIVE WEB-TOOL PRODUCTS (Horizon stretch: highest value, interactive) ──
+  { key: 'interactive-tool', label: 'Interactive Web Calculator', emoji: '⚡', price: 29, format: 'html', buyer: 'business', cats: ['business', 'tech', 'finance'] }
 ];
 
 const byKey = new Map(TYPES.map(t => [t.key, t]));
