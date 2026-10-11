@@ -1395,9 +1395,51 @@ function thumbCoverCopy(product, prof) {
     journal: ['30-Day Guided Journal', 'Build the habit that pays', ['Daily prompts that work', 'Weekly review pages', 'Print or fill digitally'], 'PDF · 30 days'],
     bundle: ['Complete Toolkit', 'The whole business in a box', ['6 pro templates inside', 'Quote, track, get booked', 'Lifetime updates'], 'ZIP · 6 files'],
     leadmagnet: ['Free Starter Pack', 'Try the quality free', ['Invoice + checklist', 'Pricing calculator', 'Zero cost, instant'], 'FREE · ZIP'],
-    website: ['One-Page Website', 'Get booked while you sleep', ['Services + rates section', 'Book-now call to action', 'Mobile-ready layout'], 'HTML · Editable']
+    website: ['One-Page Website', 'Get booked while you sleep', ['Services + rates section', 'Book-now call to action', 'Mobile-ready layout'], 'HTML · Editable'],
+    roi: ['ROI Calculator', 'Prove what your effort is earning', ['Track cost vs return', 'Break-even built in', 'Instant projections'], 'XLSX · Formulas'],
+    'decision-matrix': ['Decision Matrix', 'Choose with confidence, not guesswork', ['Weighted scoring grid', 'Compare options side-by-side', 'Printable + reusable'], 'PDF · Printable']
   };
-  return lib[t] || [`${noun} ${product.type}`, 'Done-for-you pro template', ['Fully editable', 'Instant download', 'Commercial license'], 'Instant download'];
+  const fallback = lib[t] || [`${noun} ${product.type}`, 'Done-for-you pro template', ['Fully editable', 'Instant download', 'Commercial license'], 'Instant download'];
+
+  // Real product copy beats the generic per-type library: prefer the AI
+  // concept (when the concept layer ran) and the product's own name + brief
+  // over the canned headline — otherwise every spreadsheet says "Pricing
+  // Calculator" even when it's an income tracker.
+  let concept = null;
+  try { concept = product.concept ? JSON.parse(product.concept) : null; } catch { /* not JSON — ignore */ }
+  const brief = String(product.brief || '').trim();
+  const name = String(product.name || '').trim();
+  // Auto-draft names are just "{prof} {type}" — the kicker already shows the
+  // profession, so only a name that adds information becomes the headline.
+  const autoName = `${noun} ${String(product.type || '')}`.toLowerCase().replace(/\s+/g, ' ').trim();
+  const isGenericName = !name || name.toLowerCase().replace(/\s+/g, ' ').trim() === autoName;
+
+  let title = null, sub = null, benefits = null;
+  if (concept && concept.name) {
+    title = String(concept.name).replace(/^.*[—–]\s*/, '').trim() || null;
+    sub = concept.pitch ? String(concept.pitch).trim() : null;
+    if (Array.isArray(concept.benefits)) benefits = concept.benefits.map(String).map(s => s.trim()).filter(Boolean);
+  }
+  if (!title && !isGenericName) {
+    const dash = Math.max(name.lastIndexOf('—'), name.lastIndexOf('–'));
+    title = (dash >= 0 ? name.slice(dash + 1) : name).trim() || null;
+  }
+  if (brief) {
+    const colon = brief.indexOf(':');
+    if (colon > 0 && colon < 140) {
+      if (!sub) sub = brief.slice(0, colon).trim();
+      if (!benefits) {
+        benefits = brief.slice(colon + 1)
+          .split(/,|\band\b/i).map(s => s.trim().replace(/\.$/, ''))
+          .filter(s => s.length > 2 && s.length < 60)
+          .map(s => s.charAt(0).toUpperCase() + s.slice(1));
+      }
+    } else if (!sub) {
+      const first = brief.split(/(?<=[.!?])\s/)[0];
+      sub = first.length <= 120 ? first : brief.slice(0, 117).trim() + '…';
+    }
+  }
+  return [title || fallback[0], sub || fallback[1], (benefits && benefits.length ? benefits : fallback[2]).slice(0, 3), fallback[3]];
 }
 
 function accentForCover(prof, theme) {

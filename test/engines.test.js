@@ -119,4 +119,20 @@ describe('discovery', () => {
     );
     assert.ok(discovery.productsForTrend({ name: 'X', why: 'recovery sober' }).includes('journal'));
   });
+
+  it('ignores radar provenance labels when picking type mixes', () => {
+    // "Pinterest/DIY buzz" is a SOURCE label in `why` (radar stores
+    // "source · traffic · intent=NN"), not a craft topic — it must not type a
+    // money-making niche as wall-art.
+    const mix = discovery.productsForTrend({
+      name: 'How to Make Money From Pinterest in 2026 - shopify.com',
+      why: 'pinterest-rss · Pinterest/DIY buzz · intent=0.80'
+    });
+    assert.ok(!mix.includes('wall-art'), 'provenance label leaked into typing: ' + mix.join(','));
+    assert.ok(mix.includes('spreadsheet'));
+
+    // Substring traps: "start" is not "art".
+    const mix2 = discovery.productsForTrend({ name: 'How to Start a Tutoring Business', why: '' });
+    assert.ok(!mix2.includes('wall-art'), 'substring false-positive: ' + mix2.join(','));
+  });
 });

@@ -33,6 +33,12 @@ const designDNA = require('./designStyles');
 
 // Per-niche scene descriptions — unique props, mood, lighting per category
 const NICHE_SCENES = {
+  creator: {
+    mood: 'bright, aspirational, entrepreneurial',
+    lighting: 'warm daylight with a soft ring-light glow',
+    props: 'smartphone with a photo grid, tablet, coffee cup, notebook with colorful sticky notes, small potted plant, pastel stationery',
+    textures: 'light wood desk, matte ceramic, soft paper',
+  },
   tech: {
     mood: 'clean, modern, slightly futuristic',
     lighting: 'cool blue-white studio light, subtle screen glow',

@@ -371,6 +371,13 @@ const NICHE_LANGUAGE = {
     accentShape: 'rounded-rect',
     colorShift: { accent: (c) => c },  // no shift
   },
+  creator: {
+    pattern: 'dots',
+    bgOverlay: 'radial-gradient(ellipse at 85% 15%, rgba(236,72,153,0.06) 0%, transparent 55%)',
+    icons: ['📌', '💰', '📈', '📱'],
+    accentShape: 'rounded-rect',
+    colorShift: {},
+  },
   trades: {
     pattern: 'blueprint',
     bgOverlay: 'repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(0,163,224,0.05) 19px, rgba(0,163,224,0.05) 20px), repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(0,163,224,0.05) 19px, rgba(0,163,224,0.05) 20px)',
@@ -476,6 +483,8 @@ const STYLE_NICHE_MAP = {
   beauty:    'luxe',
   // Tech / digital → brutalist
   tech:      'brutalist',
+  // Creator / social commerce → brutalist (bold, feed-native)
+  creator:   'brutalist',
   // Craft / education → playful or organic
   craft:     'playful',
   // Pyro → heritage (vintage/industrial feel)
@@ -505,6 +514,9 @@ const STYLE_PRODUCT_OVERRIDE = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const SENTIMENT_KEYWORDS = {
+  // Creator / social-commerce niches must be tested BEFORE tech: their copy
+  // contains "digital product"/"online" and would otherwise get circuit boards.
+  creator: /pinterest|instagram|tiktok|youtube|social media|content creator|influencer|affiliate|monetiz|make money|side hustle|passive income|online business|newsletter|printable|canva|notion/i,
   tech: /tech(?!nic)|software|ai |app |digital|cyber|code|saas|data|drone|smart home|ev |battery|solar/i,
   wellness: /wellness|yoga|massage|breath|sleep|holistic|meditation|nutrition|somatic|coach/i,
   recovery: /recovery|sober|aa |smart recovery|refuge|faith|secular|therapy|counsel/i,

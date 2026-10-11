@@ -506,3 +506,32 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
 - [x] AGENT MANUAL: Created `AGENT.md` as the unified autonomous agent operational manual.
 - VERIFIED: 183 tests across 29 suites pass cleanly (0 fail, 3 model skips).
 
+
+## ── 2026-10-10: PINTEREST NICHE REPAIR + PREVIEW COPY OVERHAUL ──
+- [x] PROD DATA: profession 1000 renamed "Make Money From Pinterest" with real niche
+  services (Affiliate Pin Campaigns $500, Sponsored Pin Packages $350, …). The old
+  placeholder services ("Digital Template $15", "Complete Kit $29" — seeded by
+  trendScanner) rendered as generic filler inside deliverables; builders now emit
+  niche content (verified in XLSX + builder HTML on prod).
+- [x] PROD DATA: deleted wrong wall-art draft (#5, miscategorized money niche);
+  replaced with #9 spreadsheet Income Tracker, #10 roi ROI Calculator, #11 checklist
+  Monetization Checklist — distinct names, real briefs, real files (XLSX/PDF) +
+  regenerated previews. Zero wall-art rows remain for this niche.
+- [x] CODE FIX (designStudio.js thumbCoverCopy): covers no longer print the canned
+  per-type headline ("Pricing Calculator" on an Income Tracker, "Service Quality
+  Checklist" on a Monetization Checklist). Copy priority is now concept JSON →
+  product name tail + brief-derived sub/benefits → per-type library fallback.
+  Added missing roi + decision-matrix library entries.
+- [x] CODE FIX (designStyles.js + coverArt.js): new `creator` niche
+  (pinterest|instagram|tiktok|make money|affiliate|…) tested BEFORE tech — money
+  niches no longer render as stock-trading dashboards (circuit-board tech scene).
+  New creator scene: warm daylight desk, phone/tablet, sticky notes.
+- [x] Previews #9-11 force-regenerated on prod and visually verified: correct titles,
+  brief-derived bullets, warm creator-scene art.
+- VERIFIED: 197 tests / 29 suites — 194 pass, 0 fail, 3 skips.
+- ⚠ DEPLOY GAP: designStudio.js / designStyles.js / coverArt.js hot-patched on the
+  prod container (originals at *.bak there) + earlier discovery.js fix are LOCAL
+  ONLY — uncommitted, not pushed. A redeploy without them reverts cover copy +
+  creator art. Commit + deploy when the owner audits.
+- OPEN: trendScanner.js still seeds placeholder services into new professions
+  (root cause of generic filler for any future auto-created niche) — fix pending.
