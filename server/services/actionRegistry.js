@@ -124,6 +124,14 @@ const ACTIONS = {
       limit: { type: 'number', min: 1, max: 100, default: 50 }
     },
     singleton: true
+  },
+  'optimize-weak': {
+    label: 'Optimize Weak Listings',
+    description: 'Rewrite title/tags/description for the weakest SEO listings.',
+    input: {
+      limit: { type: 'number', min: 1, max: 50, default: 20 }
+    },
+    singleton: true
   }
 };
 

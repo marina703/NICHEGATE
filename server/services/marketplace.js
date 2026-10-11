@@ -773,10 +773,23 @@ async function updateGumroadProduct(product, copy) {
     description: String(copy.description || '').substring(0, 2000),
     price: String(priceCents)
   });
-  const resp = await axios.post(`${GUMROAD_API_BASE}/products/${encodeURIComponent(id)}`, form.toString(), {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    timeout: 30000
-  });
+  // Gumroad API v2 uses PUT for product updates; fallback to POST if PUT is rejected
+  let resp;
+  try {
+    resp = await axios.put(`${GUMROAD_API_BASE}/products/${encodeURIComponent(id)}`, form.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 30000
+    });
+  } catch (putErr) {
+    if (putErr.response?.status === 404 || putErr.response?.status === 405) {
+      resp = await axios.post(`${GUMROAD_API_BASE}/products/${encodeURIComponent(id)}`, form.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 30000
+      });
+    } else {
+      throw putErr;
+    }
+  }
   if (resp.data?.success === false) throw new Error(resp.data.message || 'Gumroad update rejected');
   return { ok: true, platform: 'gumroad', listingId: String(id) };
 }

@@ -2999,6 +2999,13 @@ const consoleHandlers = {
     const res = qe.auditCatalog(input.status || 'draft', input.limit || 50);
     step(`audited ${res.totalAudited} items: ${res.flightReadyCount} FLIGHT_READY, ${res.groundedCount} GROUNDED (avg ${res.avgScore} pts)`, 'success');
     return res;
+  },
+  'optimize-weak': async (input, step) => {
+    const optimizer = require('./services/listingOptimizer');
+    step(`optimizing weakest listings (limit: ${input.limit || 20})`);
+    const res = await optimizer.optimizeWeak(input.limit || 20);
+    step(`optimized ${res.optimized} of ${res.scanned} listings (${res.deployed} deployed)`, 'success');
+    return res;
   }
 };
 
