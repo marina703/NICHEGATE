@@ -1,13 +1,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { DatabaseSync } = require('node:sqlite');
 const recovery = require('../server/services/catalogRecovery');
+const { db, init } = require('../server/database');
+init();
 
-test('catalogRecovery: wipeCatalog snapshots items and re-seeds clean baseline', () => {
-  const db = require('../server/database').db;
+test('catalogRecovery: wipeCatalog snapshots items and restore restores them cleanly', () => {
   recovery.ensureRecoveryTable();
 
-  // Insert two test dummy products
+  // Clean snapshot fixture state
+  db.exec('DELETE FROM catalog_recovery_snapshots;');
+
+  // Insert test dummy products
   db.prepare(`
     INSERT INTO products (profession_id, name, type, price, status)
     VALUES (28, 'Pre-wipe Test Item 1', 'tool', '$19', 'approved'),
@@ -17,12 +20,16 @@ test('catalogRecovery: wipeCatalog snapshots items and re-seeds clean baseline',
   const countBefore = db.prepare('SELECT COUNT(*) as c FROM products').get().c;
   assert.ok(countBefore >= 2);
 
-  // Run wipeCatalog with 30-minute window
-  const wipeResult = recovery.wipeCatalog({ restoreWindowMinutes: 30, reseedFlagship: true });
+  // Run wipeCatalog with clean wipe (reseedFlagship: false)
+  const wipeResult = recovery.wipeCatalog({ restoreWindowMinutes: 30, reseedFlagship: false });
   assert.ok(wipeResult.ok);
   assert.equal(wipeResult.wipedCount, countBefore);
   assert.ok(wipeResult.snapshotId > 0);
   assert.equal(wipeResult.restoreWindowMinutes, 30);
+  assert.equal(wipeResult.reseededCount, 0);
+
+  // Products table is now completely empty
+  assert.equal(db.prepare('SELECT COUNT(*) as c FROM products').get().c, 0);
 
   // Check active snapshot is available
   const activeSnap = recovery.getActiveSnapshot();
@@ -30,10 +37,6 @@ test('catalogRecovery: wipeCatalog snapshots items and re-seeds clean baseline',
   assert.equal(activeSnap.id, wipeResult.snapshotId);
   assert.equal(activeSnap.itemCount, countBefore);
   assert.ok(activeSnap.remainingMinutes <= 30 && activeSnap.remainingMinutes >= 28);
-
-  // Products table now contains only the fresh flagship seeds (5 tools)
-  const countAfterWipe = db.prepare('SELECT COUNT(*) as c FROM products').get().c;
-  assert.equal(countAfterWipe, wipeResult.reseededCount);
 
   // Run restoreCatalog
   const restoreResult = recovery.restoreCatalog(wipeResult.snapshotId);
@@ -48,12 +51,12 @@ test('catalogRecovery: wipeCatalog snapshots items and re-seeds clean baseline',
   const activeAfterRestore = recovery.getActiveSnapshot();
   assert.equal(activeAfterRestore, null);
 
-  // Cleanup the test items
+  // Cleanup test items & snapshots
   db.prepare("DELETE FROM products WHERE name LIKE 'Pre-wipe Test Item%'").run();
+  db.exec('DELETE FROM catalog_recovery_snapshots;');
 });
 
 test('catalogRecovery: restoreCatalog rejects expired snapshots', () => {
-  const db = require('../server/database').db;
   recovery.ensureRecoveryTable();
 
   // Create an expired snapshot manually
