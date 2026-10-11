@@ -811,6 +811,39 @@ app.get('/api/quality/catalog', (req, res) => {
     }
   });
 
+app.get('/api/catalog/recovery-status', (req, res) => {
+    try {
+      const recovery = require('./services/catalogRecovery');
+      const snapshot = recovery.getActiveSnapshot();
+      res.json({ active: !!snapshot, snapshot });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+app.post('/api/catalog/wipe', async (req, res) => {
+    try {
+      const recovery = require('./services/catalogRecovery');
+      const windowMin = parseInt(req.body && req.body.restoreWindowMinutes) || 30;
+      const result = recovery.wipeCatalog({ restoreWindowMinutes: windowMin });
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+app.post('/api/catalog/restore', async (req, res) => {
+    try {
+      const recovery = require('./services/catalogRecovery');
+      const snapshotId = req.body && req.body.snapshotId ? parseInt(req.body.snapshotId) : null;
+      const result = recovery.restoreCatalog(snapshotId);
+      if (!result.ok) return res.status(400).json(result);
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
 app.post('/api/products/:id/optimization/apply', async (req, res) => {
     try {
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
@@ -3005,6 +3038,21 @@ const consoleHandlers = {
     step(`optimizing weakest listings (limit: ${input.limit || 20})`);
     const res = await optimizer.optimizeWeak(input.limit || 20);
     step(`optimized ${res.optimized} of ${res.scanned} listings (${res.deployed} deployed)`, 'success');
+    return res;
+  },
+  'wipe-catalog': async (input, step) => {
+    const recovery = require('./services/catalogRecovery');
+    step('taking database backup and snapshotting products for 30-min restore window');
+    const res = recovery.wipeCatalog({ restoreWindowMinutes: input.restoreWindowMinutes || 30 });
+    step(`wiped ${res.wipedCount} products (snapshot #${res.snapshotId}, expires in ${res.restoreWindowMinutes}m); re-seeded ${res.reseededCount} flagship tools`, 'success');
+    return res;
+  },
+  'restore-catalog': async (input, step) => {
+    const recovery = require('./services/catalogRecovery');
+    step('restoring products from active snapshot');
+    const res = recovery.restoreCatalog();
+    if (!res.ok) throw new Error(res.error);
+    step(`restored ${res.restoredCount} products from snapshot #${res.snapshotId}`, 'success');
     return res;
   }
 };

@@ -132,6 +132,20 @@ const ACTIONS = {
       limit: { type: 'number', min: 1, max: 50, default: 20 }
     },
     singleton: true
+  },
+  'wipe-catalog': {
+    label: 'Wipe Slate Clean',
+    description: 'Safe wipe of all catalog products with an automatic 30-minute undo restore snapshot.',
+    input: {
+      restoreWindowMinutes: { type: 'number', min: 5, max: 120, default: 30 }
+    },
+    singleton: true
+  },
+  'restore-catalog': {
+    label: 'Restore Catalog Snapshot',
+    description: 'Undo a catalog wipe within the 30-minute recovery window.',
+    input: {},
+    singleton: true
   }
 };
 
