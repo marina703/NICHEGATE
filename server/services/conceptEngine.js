@@ -50,7 +50,9 @@ function parseConcept(text) {
   } catch { return null; }
 }
 
-// Retrieve high-performing existing concepts as dynamic few-shot examples
+// Retrieve high-performing existing concepts as dynamic few-shot examples.
+// Strictly queries products that have ACTUAL proven sales (>= 2 sales in metrics).
+// Never returns generic past catalog drafts or unproven ideas.
 function getFewShotExamples(limit = 2) {
   try {
     const winners = db.prepare(`
@@ -74,11 +76,8 @@ function getFewShotExamples(limit = 2) {
     }
   } catch {}
 
-  // High-converting baseline few-shots
-  return [
-    '{"name":"Snap-Sign Profit Predictor","pitch":"Stop guessing your next loan signing income. This spreadsheet crunches mileage, time, and signing service fees to forecast your exact profit for any job before you accept it.","benefits":["Calculate net profit per signing","Spot underpriced offers before committing","Track income trends by service type"],"differentiator":"Predictive, not just a tracker: projects profitability for new opportunities using built-in rate cards."}',
-    '{"name":"PyroSpec Shell Cost & Firing Ledger","pitch":"Build custom fireworks shows without blowing your event margins. Calculates exact lift powder ratios, fuse timing, and per-shot unit costs instantly.","benefits":["Accurate per-shot pyrotechnic budgeting","Hazard and batch safety verification","Exportable shoot-day safety logs"],"differentiator":"Built specifically for licensed display operators with chemistry safety rules encoded into the formula cells."}'
-  ];
+  // If there are no real proven selling products yet, do not seed with arbitrary products
+  return [];
 }
 
 // Generate a differentiated concept for a (prof, type). Returns concept or null.
@@ -93,7 +92,9 @@ async function generateConcept(prof, type, existing, brief, options = {}) {
   const avoid = existing && existing.concept ? `Avoid repeating this existing angle: "${existing.concept}"` : '';
   const guidance = brief ? `Buyer-supplied details to honor: ${String(brief).slice(0, 600)}` : '';
   const fewShots = (options.fewShots && options.fewShots.length) ? options.fewShots : getFewShotExamples();
-  const fewShotText = fewShots.map((ex, i) => `Example ${i + 1}:\n${ex}`).join('\n\n');
+  const fewShotSection = fewShots.length > 0
+    ? `Proven winning concept structures to model (real past sellers):\n${fewShots.map((ex, i) => `Example ${i + 1}:\n${ex}`).join('\n\n')}\n`
+    : '';
 
   const prompt = [
     `Niche: ${prof.name} (${prof.slug}).`,
@@ -104,14 +105,13 @@ async function generateConcept(prof, type, existing, brief, options = {}) {
     'Ground it in the niche\'s real workflows: regulations, seasonal cycles, pricing quirks, jargon buyers actually use. The artifact should encode niche expertise (e.g. built-in IRS mileage rules, breed-safe ingredient checks, permit deadlines) so it could only have been made by an insider.',
     avoid,
     guidance,
-    'Proven winning concept structures to model:',
-    fewShotText,
+    fewShotSection,
     'Reply with ONLY valid JSON, no markdown:',
     '{"name":"Short, specific, sellable product title (max 10 words, no "template/kit/pack")",',
     '"pitch":"2-3 sentence buyer-facing pitch naming the exact pain (max 60 words)",',
     '"benefits":["specific benefit 1","benefit 2","benefit 3"],',
     '"differentiator":"Why this is NOT a generic template. What makes it novel for this niche. (max 45 words)"}'
-  ].join('\n');
+  ].filter(Boolean).join('\n');
   const raw = await router.generateIdeas(prompt, 'You are a ruthless product strategist for Etsy/Gumroad digital goods. You reject generic, saturated concepts. You find the specific, differentiated, sellable one.');
   const concept = parseConcept(raw);
   if (!concept || !concept.name || noveltyScore(concept) < 55) return null;

@@ -3584,32 +3584,6 @@ function startServer() {
   runtimeConfig.logIntegrationWarnings();
   readiness.logReadinessIssues();
 
-  // Seed the flagship "outcome tool" products (idempotent)
-  try {
-    const toolStudio = require('./services/toolStudio');
-    toolStudio.createToolProducts(toolStudio.ensureToolProfession());
-  } catch (e) { console.error('[BOOT] tool seed:', e.message); }
-
-  // Auto-migrate: assign cover images to tool products missing preview_path
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const coversDir = path.join(__dirname, '..', 'covers');
-    const coverFiles = fs.readdirSync(coversDir)
-      .filter(f => f.startsWith('tool-') && f.endsWith('.png'))
-      .sort();
-    
-    if (coverFiles.length > 0) {
-      const tools = db.prepare("SELECT id FROM products WHERE type = 'tool' AND profession_id = 28 AND (preview_path IS NULL OR preview_path = '') ORDER BY id").all();
-      for (let i = 0; i < tools.length; i++) {
-        const coverFile = coverFiles[i % coverFiles.length];
-        db.prepare('UPDATE products SET preview_path = ? WHERE id = ?')
-          .run('covers/' + coverFile, tools[i].id);
-        console.log(`[BOOT] Assigned cover ${coverFile} to tool product ${tools[i].id}`);
-      }
-    }
-  } catch (e) { console.error('[BOOT] cover migration:', e.message); }
-
   // Auto-start automation on boot
   autoStart();
   });

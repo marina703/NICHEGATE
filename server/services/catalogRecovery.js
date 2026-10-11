@@ -48,7 +48,7 @@ function backupDatabase() {
 /**
  * Wipe all products cleanly after creating a durable snapshot with a 30-minute restore window.
  */
-function wipeCatalog({ restoreWindowMinutes = DEFAULT_RESTORE_WINDOW_MINUTES, reseedFlagship = true } = {}) {
+function wipeCatalog({ restoreWindowMinutes = DEFAULT_RESTORE_WINDOW_MINUTES, reseedFlagship = false } = {}) {
   ensureRecoveryTable();
 
   // 1. Fetch current products
@@ -79,12 +79,15 @@ function wipeCatalog({ restoreWindowMinutes = DEFAULT_RESTORE_WINDOW_MINUTES, re
     db.prepare("DELETE FROM sqlite_sequence WHERE name = 'products'").run();
   } catch (_) {}
 
-  // 5. Clean up ephemeral review / publish error logs
+  // 5. Clean up ephemeral review, pins, and publish error logs
   try {
-    db.prepare("DELETE FROM automation_log WHERE action IN ('publish_error', 'gumroad_quota')").run();
+    db.prepare("DELETE FROM automation_log WHERE action IN ('publish_error', 'gumroad_quota', 'review_day', 'catalog_wipe')").run();
+  } catch (_) {}
+  try {
+    db.prepare("DELETE FROM pins WHERE status = 'scheduled'").run();
   } catch (_) {}
 
-  // 6. Optionally seed clean flagship tools with fresh factory baseline
+  // 6. Reseed only if explicitly requested (defaults to false for pure clean slate)
   let seededCount = 0;
   if (reseedFlagship) {
     try {
@@ -100,7 +103,7 @@ function wipeCatalog({ restoreWindowMinutes = DEFAULT_RESTORE_WINDOW_MINUTES, re
   // Record audit log
   try {
     db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
-      .run('catalog_wipe', `Wiped ${itemCount} products with 30-min restore window (snapshot #${snapshotId}); reseeded ${seededCount} flagship tools`, 'warning');
+      .run('catalog_wipe', `Wiped ${itemCount} products with 30-min restore window (snapshot #${snapshotId}); catalog empty and clean`, 'warning');
   } catch (_) {}
 
   return {
