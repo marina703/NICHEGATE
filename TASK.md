@@ -535,3 +535,15 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
   creator art. Commit + deploy when the owner audits.
 - OPEN: trendScanner.js still seeds placeholder services into new professions
   (root cause of generic filler for any future auto-created niche) — fix pending.
+
+## ── 2026-10-11: COMMIT + E2E AUDIT ──
+- [x] Committed as d5f2680 (local main, NOT pushed): discovery typing fix + cover
+  copy/creator-niche pipeline + tests + task log. Untracked scratch: tmp/, backups/.
+- [x] E2E audit (real surface): prod login → catalog 200 → preview-image 200
+  image/jpeg, served bytes SHA-identical to visually verified covers for #9-11;
+  anonymous /api/* 401 by design (no storefront). Boot smoke PASS (health 644ms,
+  4 probes 200, auto-cycle engaged, fresh-DB seeds 23 professions). All four
+  thumbCoverCopy branches probed. AUDIT: SPEC 8 · DESIGN 6 · CORRECTNESS 8 · QUALITY 7.
+- TOP UPGRADES (ranked): (1) cover-copy regression tests (zero coverage today),
+  (2) trendScanner placeholder-services root cause, (3) bulk preview re-skin for
+  ~350 stale canned-copy covers, (4) productCopy module unifying cover/listing copy.
