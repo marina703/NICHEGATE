@@ -2,6 +2,8 @@
 // DESIGN CHOICE ENGINE — theme library + niche-sentiment palette generation.
 // ============================================================================
 
+const demandSignals = require('./demandSignals');
+
 const THEMES = [
   {
     name: "Onyx Volt",
@@ -116,8 +118,13 @@ function themesForSentiment(sentiment) {
   return THEMES.filter(t => (t.sentiment || []).includes('default') || t.name === 'Onyx Volt');
 }
 
-function paletteForNiche(profOrTrend) {
+function paletteForNiche(profOrTrend, demandTags) {
+  // Harvested marketplace demand (demandSignals) is the strongest tell of what
+  // a product should look like. When the harvest surfaces a clear sentiment we
+  // trust it over the looser niche-name heuristics (which misfire on substrings).
+  const demandBlob = Array.isArray(demandTags) ? demandTags.join(' ') : '';
   const blob = [
+    demandBlob,
     profOrTrend && profOrTrend.name,
     profOrTrend && profOrTrend.slug,
     profOrTrend && profOrTrend.tier,
@@ -125,7 +132,8 @@ function paletteForNiche(profOrTrend) {
     profOrTrend && profOrTrend.category,
     typeof (profOrTrend && profOrTrend.services) === 'string' ? profOrTrend.services : ''
   ].filter(Boolean).join(' ');
-  const sentiment = detectSentiment(blob);
+  const demandSentiment = demandBlob ? demandSignals.designTokens(demandTags).sentiment : 'default';
+  const sentiment = demandSentiment !== 'default' ? demandSentiment : detectSentiment(blob);
   const tier = (profOrTrend && profOrTrend.tier) || 'safe';
   const sentimentThemes = themesForSentiment(sentiment);
   const tierFit = sentimentThemes.find(t => t.tier.includes(tier));
@@ -146,12 +154,12 @@ function setDesignPreference(profId, themeName) {
   db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('design_' + profId, themeName);
 }
 
-function recommendTheme(prof) {
+function recommendTheme(prof, demandTags) {
   if (prof && prof.id) {
     const pref = getDesignPreference(prof.id);
     if (pref && getTheme(pref)) return pref;
   }
-  return paletteForNiche(prof).name;
+  return paletteForNiche(prof, demandTags).name;
 }
 
 module.exports = {

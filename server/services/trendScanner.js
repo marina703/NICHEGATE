@@ -1,5 +1,6 @@
 const { db } = require('../database');
 const { computeVelocityScore, grade, scoreTrends } = require('./velocityEngine');
+const nicheServices = require('./nicheServices');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TREND SCANNER — detection, lifecycle, and scoring
@@ -94,7 +95,9 @@ function activateTrend(id) {
 
   const hashtags = `["${trend.name.toLowerCase().replace(/\s/g, '')}","#trending","#viral","#etsyshop","#digitaldownload","#smallbusiness","#etsyfinds","#printable"]`;
 
-  // Activate flag + profession create (INSERT OR IGNORE is already safe)
+  // Activate flag + profession create (INSERT OR IGNORE is already safe).
+  // Services come from the niche service plan — real, category-matched
+  // offerings, never placeholder junk that renders as generic filler.
   db.prepare('UPDATE trends SET activated = 1, activated_at = ? WHERE id = ?')
     .run(new Date().toISOString(), id);
   db.prepare(`
@@ -106,7 +109,7 @@ function activateTrend(id) {
     trend.name,
     slug,
     '{"primary":"#1e293b","secondary":"#ec4899","accent":"#f59e0b","bg":"#fafafa"}',
-    '[["Digital Template","$15"],["Complete Kit","$29"],["Trend Guide","$12"],["Social Pack","$19"],["Starter Bundle","$25"],["Pro Bundle","$39"]]',
+    nicheServices.servicesForNiche(trend.name),
     hashtags
   );
 

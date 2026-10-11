@@ -308,6 +308,28 @@ async function runFullCycle(deps) {
   }
   await safeTask(ctx, 'publish-queue', () => taskPublishQueue(ctx));
   safeTask(ctx, 'pin-drain', () => taskPinDrain(ctx));
+  await safeTask(ctx, 'design-reskin', () => taskDesignReskin(ctx));
+  return ctx;
+}
+
+// DESIGN QUALITY Phase 4: products with >= 2 sales but a weak design score
+// (< 7) get ONE automatic reskin attempt — a fresh generated brief re-rendered
+// over unchanged content. Never throws; unscored products are never touched
+// (null score ≠ weak). Owner scope: products created on/after FOCUS_SINCE.
+async function taskDesignReskin(ctx) {
+  try {
+    const critic = require('./designCritic');
+    const candidates = critic.autoReskinCandidates({ limit: 3 });
+    ctx.designReskinned = 0;
+    for (const c of candidates) {
+      const result = await critic.reskinProduct(c.productId);
+      critic.markAutoReskin(c.productId, result);
+      if (result && result.ok) ctx.designReskinned++;
+      console.log(`[AUTO] design-reskin #${c.productId} (${c.name}) score ${c.score} -> ${result && result.ok ? 'ok' : 'failed'}`);
+    }
+  } catch (e) {
+    console.error('[AUTO] design-reskin:', e.message);
+  }
   return ctx;
 }
 
@@ -338,6 +360,7 @@ module.exports = {
   taskSeasonal,
   taskPublishQueue,
   taskPinDrain,
+  taskDesignReskin,
   getWebhookUrl,
   TYPE_PRICES,
   VARY_TYPES

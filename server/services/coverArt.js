@@ -145,8 +145,25 @@ const TYPE_SCENES = {
   inventory: (niche) => `inventory tracking sheet or tablet, ${niche.props}, ${niche.lighting}`,
 };
 
-function promptFor(prof, product) {
-  const nicheName = prof.name || 'small business';
+// ── STYLE TOKEN FACTORY ── strict suffixes appended to EVERY art prompt ──────
+// photo-cover output is byte-compatible with the historical prompt string, so
+// existing art-cache hashes stay stable; vector-asset prepares flat cutouts for
+// future compositing work.
+const STYLE_PROFILES = {
+  'photo-cover': ['photorealistic', 'shallow depth of field', 'professional product photography', 'no text', 'no words', 'no letters', 'no watermark', 'no UI elements'],
+  'vector-asset': ['flat vector illustration', 'solid colors', 'clean shapes', 'asset cutout', 'transparent background', 'no text', 'no words', 'no watermark']
+};
+
+// Scene words that leak across categories — a money/creator niche must never
+// get circuit boards or trading floors (the "stock dashboard" defect class).
+const BANNED_SCENE_TERMS = {
+  creator: /circuit board patterns|holographic elements|stock market|trading floor|candlestick|ticker tape|leather portfolio/gi,
+  finance: /circuit board patterns|holographic elements|yoga mat|incense|crystals/gi,
+  wellness: /circuit board patterns|holographic elements|blueprints|hard hat/gi,
+  default: /stock market|trading floor|ticker tape/gi
+};
+
+function buildArtPrompt(prof, product, profile = 'photo-cover') {
   const t = String(product.type || '').toLowerCase();
 
   // Detect niche category from profession
@@ -155,10 +172,19 @@ function promptFor(prof, product) {
 
   // Get the type-specific scene
   const sceneFn = TYPE_SCENES[t] || ((n) => `styled workspace flat-lay with ${n.props}, ${n.lighting}`);
-  const scene = sceneFn(niche);
+  let scene = sceneFn(niche);
 
-  // Build the final prompt with niche-specific mood + anti-text tags
-  return `${scene}, ${niche.mood}, photorealistic, shallow depth of field, professional product photography, no text, no words, no letters, no watermark, no UI elements`;
+  // Quality gate: strip off-niche scene words, keep comma structure clean
+  const banned = BANNED_SCENE_TERMS[nicheKey] || BANNED_SCENE_TERMS.default;
+  if (banned) scene = scene.replace(banned, '').replace(/\s*,\s*,/g, ',').replace(/^,\s*/, '').trim();
+
+  // Build the final prompt: scene + niche mood + strict style tokens
+  const tokens = STYLE_PROFILES[profile] || STYLE_PROFILES['photo-cover'];
+  return `${scene}, ${niche.mood}, ${tokens.join(', ')}`;
+}
+
+function promptFor(prof, product) {
+  return buildArtPrompt(prof, product);
 }
 function cachePath(prof, product) {
   const h = crypto.createHash('sha1')
@@ -233,4 +259,4 @@ async function ensureCoverArt(product, prof) {
   }
 }
 
-module.exports = { promptFor, cachePath, ensureCoverArt, provider, OUT_DIR };
+module.exports = { promptFor, buildArtPrompt, STYLE_PROFILES, BANNED_SCENE_TERMS, cachePath, ensureCoverArt, provider, OUT_DIR };

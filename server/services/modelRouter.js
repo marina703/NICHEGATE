@@ -48,7 +48,9 @@ function sleep(ms) {
 }
 
 // One chat completion with retry + backoff. Returns text or null. Never throws.
-async function callModel({ model, messages, temperature = 0.7, maxTokens }) {
+// `action` labels the ai_usage ledger row (chat_completion, design_critique, …).
+// `messages` pass through verbatim, so content arrays (vision image parts) work.
+async function callModel({ model, messages, temperature = 0.7, maxTokens, action }) {
   if (!cfg.enabled) return null;
 
   const body = {
@@ -80,7 +82,7 @@ async function callModel({ model, messages, temperature = 0.7, maxTokens }) {
           // Pricing estimate (default ~$0.20/1M tokens prompt, $0.80/1M comp for Gemini Flash/Claude Haiku scale)
           const costEst = (promptTokens * 0.0000002) + (compTokens * 0.0000008);
           db.prepare('INSERT INTO ai_usage (model, prompt_tokens, completion_tokens, total_tokens, cost_usd, action) VALUES (?, ?, ?, ?, ?, ?)')
-            .run(model || 'unknown', promptTokens, compTokens, totalTokens, costEst, 'chat_completion');
+            .run(model || 'unknown', promptTokens, compTokens, totalTokens, costEst, action || 'chat_completion');
         } catch (ue) {
           // Non-blocking
         }
@@ -146,6 +148,27 @@ async function generateIdeas(prompt, system) {
   });
 }
 
+// Vision: send screenshots (data URIs or http URLs) with a text prompt.
+// Returns text or null; never throws. Used by the design critic (Phase 1).
+async function callVision({ prompt, images = [], system, temperature = 0.2, maxTokens, action = 'design_critique' }) {
+  if (!cfg.enabled) return null;
+  const content = [
+    { type: 'text', text: String(prompt || '').slice(0, 6000) },
+    ...images.filter(Boolean).slice(0, 4).map(url => ({ type: 'image_url', image_url: { url } }))
+  ];
+  if (content.length < 2) return null; // no image, nothing to look at
+  return callModel({
+    model: cfg.openrouter.visionModel,
+    messages: [
+      ...(system ? [{ role: 'system', content: String(system).slice(0, 2000) }] : []),
+      { role: 'user', content }
+    ],
+    temperature,
+    maxTokens: maxTokens || cfg.limits.maxTokens,
+    action
+  });
+}
+
 // Direct fallback provider (only used if OpenRouter is down). Returns text or null.
 async function fallbackChat({ messages, temperature = 0.7, maxTokens } = {}) {
   if (!cfg.enabled) return null;
@@ -194,6 +217,7 @@ module.exports = {
   generateIdeas,
   fallbackChat,
   callModel,
+  callVision,
   status,
   redact
 };

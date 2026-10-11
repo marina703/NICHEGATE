@@ -15,11 +15,17 @@ module.exports = {
     baseUrl: 'https://openrouter.ai/api/v1',
     // cheap, fast, reliable → routine scanning/summarizing
     defaultModel: process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash-lite',
-    // cheap + low temperature → scoring/ranking ideas
-    judgeModel: process.env.JUDGE_MODEL || 'anthropic/claude-3-haiku',
+    // cheap + low temperature → scoring/ranking ideas. NOTE: the old
+    // 'anthropic/claude-3-haiku' (and 'claude-3.5-haiku') slugs were retired on
+    // OpenRouter → 404; 'anthropic/claude-haiku-4.5' is the current cheap/strong
+    // judge (~$1/M in, $5/M out) and is verified to resolve.
+    judgeModel: process.env.JUDGE_MODEL || 'anthropic/claude-haiku-4.5',
     // strong + fast + cheap → differentiated product concepts (bake-off winner:
     // 5× faster than deepseek-chat with noticeably more original angles)
     ideationModel: process.env.IDEATION_MODEL || 'google/gemini-2.5-flash',
+    // vision-capable + cheap → design critique over rendered screenshots
+    // (Phase 1 designCritic). Same model family as ideation keeps spend simple.
+    visionModel: process.env.VISION_MODEL || 'google/gemini-2.5-flash',
     siteUrl: process.env.OPENROUTER_SITE_URL || 'https://nichegate.app',
     siteName: process.env.OPENROUTER_SITE_NAME || 'NicheGate'
   },
@@ -42,6 +48,8 @@ module.exports = {
   // Per-cycle budgets: how many model calls each stage may spend
   caps: {
     maxCallsPerScan: Number(process.env.MODEL_MAX_CALLS_PER_SCAN || 3),
-    maxCallsPerIdeaBatch: Number(process.env.MODEL_MAX_CALLS_PER_IDEA_BATCH || 4)
+    maxCallsPerIdeaBatch: Number(process.env.MODEL_MAX_CALLS_PER_IDEA_BATCH || 4),
+    // designCritic spend cap per full sweep/cycle burst
+    maxCallsPerDesignSweep: Number(process.env.MODEL_MAX_CALLS_PER_DESIGN_SWEEP || 20)
   }
 };

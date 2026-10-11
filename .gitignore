@@ -11,6 +11,8 @@ data/
 uploads/
 logs/
 runtime/
+backups/
+tmp/
 
 # ── Generated deliverables + previews ──
 generated/

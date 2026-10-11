@@ -108,7 +108,9 @@ async function generateCounterProducts(analysis, count = 2) {
   let prof = db.prepare('SELECT * FROM professions WHERE name LIKE ? LIMIT 1').get(`%${baseTitle.slice(0, 15)}%`);
   if (!prof) {
     const slug = baseTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
-    const ins = db.prepare('INSERT INTO professions (name, slug) VALUES (?, ?)').run(baseTitle.slice(0, 50), slug);
+    const nicheServices = require('./nicheServices');
+    const ins = db.prepare('INSERT INTO professions (name, slug, services) VALUES (?, ?, ?)')
+      .run(baseTitle.slice(0, 50), slug, nicheServices.servicesForNiche(baseTitle));
     prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(ins.lastInsertRowid);
   }
 

@@ -216,17 +216,19 @@ async function duePins(limit = 10) {
   return rows;
 }
 
+// Image URL for a pin: the product's raster preview (the composited cover is
+// rendered into preview_path — products have no separate cover_path column).
+function pinImageUrl(productId) {
+  if (!productId) return null;
+  const prod = db.prepare('SELECT preview_path FROM products WHERE id = ?').get(productId);
+  return (prod && prod.preview_path) || null;
+}
+
 // Live Pinterest API v5 client
 async function publishToPinterestApi(pin, accessToken) {
   const axios = require('axios');
-  // If product has preview or cover image, attach image source
-  let imageUrl = null;
-  if (pin.product_id) {
-    const prod = db.prepare('SELECT preview_path, cover_path FROM products WHERE id = ?').get(pin.product_id);
-    if (prod && (prod.cover_path || prod.preview_path)) {
-      imageUrl = prod.cover_path || prod.preview_path;
-    }
-  }
+  // If product has a preview image, attach image source
+  const imageUrl = pinImageUrl(pin.product_id);
 
   // Find board or use default
   const boardId = process.env.PINTEREST_BOARD_ID || 'general';
@@ -269,4 +271,4 @@ function attributionReport() {
   return { pins, posted, scheduled, withAttributedUrl: withUrl, note: 'click-side attribution needs the CF worker (stretch)' };
 }
 
-module.exports = { createPin, createPinSync, scheduleForProducts, duePins, nextSlot, attributionReport, pinterestKeywords, utmFor, attributedUrl, publishToPinterestApi, SLOT_GRID };
+module.exports = { createPin, createPinSync, scheduleForProducts, duePins, nextSlot, attributionReport, pinterestKeywords, utmFor, attributedUrl, publishToPinterestApi, pinImageUrl, SLOT_GRID };

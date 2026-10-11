@@ -9,28 +9,91 @@
 //   3. Typography     (matched fonts from the Google Fonts library)
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── GOOGLE FONTS LIBRARY ──
+// ── GOOGLE FONTS LIBRARY (42 families) ──
+// Curated across serif/editorial, sans, display, script and mono. The 8
+// deterministic styles use the original subset; art-director briefs may
+// propose ANY family here (or one outside the table — its name passes the
+// artDirector safety lint and rides googleFontsUrl()).
 const FONTS = {
   // Serif / Editorial
   playfair:    "'Playfair Display', 'Georgia', serif",
   dmSerif:     "'DM Serif Display', 'Georgia', serif",
   cormorant:   "'Cormorant Garamond', 'Georgia', serif",
   crimson:     "'Crimson Pro', 'Georgia', serif",
+  lora:        "'Lora', 'Georgia', serif",
+  merriweather: "'Merriweather', 'Georgia', serif",
+  libreBaskerville: "'Libre Baskerville', 'Georgia', serif",
+  spectral:    "'Spectral', 'Georgia', serif",
+  sourceSerif: "'Source Serif 4', 'Georgia', serif",
+  ebGaramond:  "'EB Garamond', 'Georgia', serif",
+  fraunces:    "'Fraunces', 'Georgia', serif",
+  newsreader:  "'Newsreader', 'Georgia', serif",
+  cardo:       "'Cardo', 'Georgia', serif",
+  bitter:      "'Bitter', 'Georgia', serif",
   // Sans / Modern
   outfit:      "'Outfit', 'Inter', system-ui, sans-serif",
   jakarta:     "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif",
   inter:       "'Inter', system-ui, sans-serif",
+  workSans:    "'Work Sans', 'Inter', system-ui, sans-serif",
+  dmSans:      "'DM Sans', 'Inter', system-ui, sans-serif",
+  manrope:     "'Manrope', 'Inter', system-ui, sans-serif",
+  publicSans:  "'Public Sans', 'Inter', system-ui, sans-serif",
+  figtree:     "'Figtree', 'Inter', system-ui, sans-serif",
+  sora:        "'Sora', 'Inter', system-ui, sans-serif",
+  urbanist:    "'Urbanist', 'Inter', system-ui, sans-serif",
+ archivo:     "'Archivo', 'Inter', system-ui, sans-serif",
+  barlow:      "'Barlow', 'Inter', system-ui, sans-serif",
+  ibmPlexSans: "'IBM Plex Sans', 'Inter', system-ui, sans-serif",
+  spaceGrotesk: "'Space Grotesk', 'Inter', system-ui, sans-serif",
   // Display / Impact
   bebas:       "'Bebas Neue', 'Impact', sans-serif",
-  // Handwritten
+  anton:       "'Anton', 'Impact', sans-serif",
+  oswald:      "'Oswald', 'Impact', sans-serif",
+  syne:        "'Syne', 'Impact', sans-serif",
+  unbounded:   "'Unbounded', 'Impact', sans-serif",
+  italiana:    "'Italiana', 'Georgia', serif",
+  // Script / Handwritten
   caveat:      "'Caveat', cursive",
   fredoka:     "'Fredoka', 'Comic Sans MS', cursive",
+  satisfy:     "'Satisfy', cursive",
+  dancingScript: "'Dancing Script', cursive",
   // Mono / Technical
   jetbrains:   "'JetBrains Mono', 'Consolas', monospace",
+  ibmPlexMono: "'IBM Plex Mono', 'Consolas', monospace",
+  spaceMono:   "'Space Mono', 'Consolas', monospace"
 };
 
-// All Google Fonts to embed in CSS <link>
+// Curated heading×body pairings for art-director briefs. Briefs may propose
+// pairings outside this table (validated by the safety lint).
+const FONT_PAIRINGS = [
+  { heading: 'Fraunces', body: 'Public Sans', mono: 'Space Mono', mood: 'warm editorial' },
+  { heading: 'Playfair Display', body: 'Work Sans', mono: 'IBM Plex Mono', mood: 'classic magazine' },
+  { heading: 'Syne', body: 'Manrope', mono: 'Space Mono', mood: 'modern art-catalog' },
+  { heading: 'DM Serif Display', body: 'DM Sans', mono: 'JetBrains Mono', mood: 'friendly premium' },
+  { heading: 'Anton', body: 'Figtree', mono: 'Space Mono', mood: 'bold poster' },
+  { heading: 'Cormorant Garamond', body: 'Inter', mono: 'IBM Plex Mono', mood: 'refined luxury' },
+  { heading: 'Archivo', body: 'IBM Plex Sans', mono: 'IBM Plex Mono', mood: 'industrial manual' },
+  { heading: 'Newsreader', body: 'Source Serif 4', mono: 'Space Mono', mood: 'broadsheet' },
+  { heading: 'Unbounded', body: 'Sora', mono: 'JetBrains Mono', mood: 'tech-forward' },
+  { heading: 'Oswald', body: 'Barlow', mono: 'IBM Plex Mono', mood: 'field guide' },
+  { heading: 'Bebas Neue', body: 'Urbanist', mono: 'Space Mono', mood: 'creator bold' },
+  { heading: 'Libre Baskerville', body: 'Lora', mono: 'IBM Plex Mono', mood: 'bookish' }
+];
+
+// Base URL with every deterministic style's fonts (original string kept).
 const GOOGLE_FONTS_URL = 'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=DM+Serif+Display&family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap';
+
+// Dynamic font URL: base library + any brief-proposed families. Family names
+// are sanitized (letters/digits/space/hyphen only) before they enter the URL,
+// so this can never inject query syntax.
+function googleFontsUrl(extraFamilies = []) {
+  const extras = (Array.isArray(extraFamilies) ? extraFamilies : [extraFamilies])
+    .map(f => String(f || '').trim().replace(/^['"]+|['"]+$/g, ''))
+    .filter(f => /^[A-Za-z0-9][A-Za-z0-9 \-]{1,39}$/.test(f))
+    .map(f => 'family=' + f.replace(/ /g, '+') + ':wght@400;600;800');
+  if (!extras.length) return GOOGLE_FONTS_URL;
+  return GOOGLE_FONTS_URL.replace('&display=swap', '') + '&' + extras.join('&') + '&display=swap';
+}
 
 // ── DESIGN STYLES ──
 // Each style is a complete design language: fonts, colors, layout rules,
@@ -627,8 +690,8 @@ function getNicheCategories() { return Object.keys(NICHE_LANGUAGE); }
 function getStyleByName(name) { return STYLES[name] || null; }
 
 module.exports = {
-  STYLES, FONTS, NICHE_LANGUAGE, STYLE_NICHE_MAP, STYLE_PRODUCT_OVERRIDE,
-  GOOGLE_FONTS_URL,
+  STYLES, FONTS, FONT_PAIRINGS, NICHE_LANGUAGE, STYLE_NICHE_MAP, STYLE_PRODUCT_OVERRIDE,
+  GOOGLE_FONTS_URL, googleFontsUrl,
   getDesignDNA, toLegacyTheme, resolveDesign,
   detectNicheCategory,
   getAllStyles, getNicheCategories, getStyleByName,

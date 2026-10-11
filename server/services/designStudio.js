@@ -539,7 +539,7 @@ function generatePlaybookChapters(prof, opts) {
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
-const { getContentFor } = require('./contentLibrary');
+const { getContentFor, checklistRowsFor, socialAngleFor } = require('./contentLibrary');
 const designDNA = require('./designStyles');
 
 function priceNum(str) {
@@ -671,6 +671,7 @@ function buildChecklistHTML(prof, theme) {
   const _sh = (theme && theme.dna) ? shellDNA : shell;
   const services = parseServices(prof);
   const groups = (services.length ? services : [["Standard Service Package", "$100"]]).map((s, g) => {
+    // Last-resort routine — only reached when the content moat has nothing.
     const routine = [
       `Confirm scope, date &amp; quoted price (${esc(s[1] || 'quote')}) with the client`,
       `Arrive prepared — tools, supplies and checklist on hand`,
@@ -678,9 +679,12 @@ function buildChecklistHTML(prof, theme) {
       `Inspect finished work against this checklist before leaving`,
       `Collect payment, send the receipt and schedule the follow-up`
     ];
+    // Content moat: trade-true, service-keyed rows — distinct per group.
+    const moatRows = checklistRowsFor(prof, s[0], g, 5);
+    const rows = moatRows ? moatRows.map((r) => esc(r)) : routine;
     return `<div class="grp">
       <div class="grp-head"><span class="grp-num">0${g + 1}</span><span class="grp-title">${esc(s[0])}</span><span class="grp-tag">${esc(s[1] || '')}</span></div>
-      ${routine.map((r) => `<div class="item"><span class="box"></span><span class="txt">${r}</span><span class="chk"><input type="checkbox"></span></div>`).join('')}
+      ${rows.map((r) => `<div class="item"><span class="box"></span><span class="txt">${r}</span><span class="chk"><input type="checkbox"></span></div>`).join('')}
     </div>`;
   }).join('');
 
@@ -844,7 +848,7 @@ function buildTablePreviewHTML(product, prof, theme, which) {
     ? `<td class="strong">${esc(s[0])}</td><td class="muted">— TBD —</td><td class="muted">— TBD —</td><td><span class="status open">Booking</span></td>`
     : `<td class="strong">${esc(s[0])}</td><td class="num">1</td><td class="num strong">${esc(s[1] || '—')}</td>`).join('');
 
-  return shell(`${prof.name} — ${isBooking ? 'Booking & Appointment Tracker' : 'Pricing Calculator'}`, `
+  return shell(`${prof.name} — ${productCopy.deriveTitle(product, prof) || (isBooking ? 'Booking & Appointment Tracker' : 'Pricing Calculator')}`, `
     .dash-head{display:flex;align-items:center;gap:16px;margin-bottom:22px}
     .dash-head .ic{width:58px;height:58px;border-radius:16px;background:${theme.primary};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.7rem;box-shadow:0 14px 28px -14px ${theme.primary}}
     .dash-head h1{font-size:1.5rem;font-weight:900;letter-spacing:-0.4px}
@@ -1067,9 +1071,12 @@ function buildSocialPostHTML(prof, theme, variant) {
     ['Professional service, every single week.', 'Professional service you can trust — booked out, every week.'],
     ['The reliable choice in your area.', 'Serving clients who value done-right work over cut-price corners.']
   ];
-  const headline = phrases[v % 2][0];
-  const sub = phrases[v % 2][1];
-  const cta = ['Book your date today →', 'DM to check availability →'][v % 2];
+  // Content moat: trade-true social angles (distinct per variant) when the
+  // niche has them; the generic phrases are only the last resort.
+  const angle = socialAngleFor(prof, v);
+  const headline = angle ? angle.hook : phrases[v % 2][0];
+  const sub = angle ? angle.sub : phrases[v % 2][1];
+  const cta = angle ? angle.cta : ['Book your date today →', 'DM to check availability →'][v % 2];
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1382,6 +1389,8 @@ function buildPyroShootLogHTML(prof, theme) {
 
 /** Thumb-stopper marketplace cover (v2). Light paper, giant title, hero visual,
  *  3 benefits, price + format badges. 1200x1500 (4:5). Dark device-frames banned. */
+const productCopy = require('./productCopy');
+
 function thumbCoverCopy(product, prof) {
   const t = String(product.type || '').toLowerCase();
   const noun = prof.name || 'Business';
@@ -1401,45 +1410,16 @@ function thumbCoverCopy(product, prof) {
   };
   const fallback = lib[t] || [`${noun} ${product.type}`, 'Done-for-you pro template', ['Fully editable', 'Instant download', 'Commercial license'], 'Instant download'];
 
-  // Real product copy beats the generic per-type library: prefer the AI
-  // concept (when the concept layer ran) and the product's own name + brief
-  // over the canned headline — otherwise every spreadsheet says "Pricing
-  // Calculator" even when it's an income tracker.
-  let concept = null;
-  try { concept = product.concept ? JSON.parse(product.concept) : null; } catch { /* not JSON — ignore */ }
-  const brief = String(product.brief || '').trim();
-  const name = String(product.name || '').trim();
-  // Auto-draft names are just "{prof} {type}" — the kicker already shows the
-  // profession, so only a name that adds information becomes the headline.
-  const autoName = `${noun} ${String(product.type || '')}`.toLowerCase().replace(/\s+/g, ' ').trim();
-  const isGenericName = !name || name.toLowerCase().replace(/\s+/g, ' ').trim() === autoName;
-
-  let title = null, sub = null, benefits = null;
-  if (concept && concept.name) {
-    title = String(concept.name).replace(/^.*[—–]\s*/, '').trim() || null;
-    sub = concept.pitch ? String(concept.pitch).trim() : null;
-    if (Array.isArray(concept.benefits)) benefits = concept.benefits.map(String).map(s => s.trim()).filter(Boolean);
-  }
-  if (!title && !isGenericName) {
-    const dash = Math.max(name.lastIndexOf('—'), name.lastIndexOf('–'));
-    title = (dash >= 0 ? name.slice(dash + 1) : name).trim() || null;
-  }
-  if (brief) {
-    const colon = brief.indexOf(':');
-    if (colon > 0 && colon < 140) {
-      if (!sub) sub = brief.slice(0, colon).trim();
-      if (!benefits) {
-        benefits = brief.slice(colon + 1)
-          .split(/,|\band\b/i).map(s => s.trim().replace(/\.$/, ''))
-          .filter(s => s.length > 2 && s.length < 60)
-          .map(s => s.charAt(0).toUpperCase() + s.slice(1));
-      }
-    } else if (!sub) {
-      const first = brief.split(/(?<=[.!?])\s/)[0];
-      sub = first.length <= 120 ? first : brief.slice(0, 117).trim() + '…';
-    }
-  }
-  return [title || fallback[0], sub || fallback[1], (benefits && benefits.length ? benefits : fallback[2]).slice(0, 3), fallback[3]];
+  // Real product copy beats the generic per-type library — single owner:
+  // productCopy derives concept → name tail → brief. The library is only the
+  // fallback for generic auto-drafts.
+  const derived = productCopy.deriveCopy(product, prof);
+  return [
+    derived.title || fallback[0],
+    derived.sub || fallback[1],
+    (derived.benefits || fallback[2]).slice(0, 3),
+    fallback[3]
+  ];
 }
 
 function accentForCover(prof, theme) {
@@ -1458,11 +1438,27 @@ function heroSnippetForCover(product, prof, theme) {
   const acc = (theme && theme.accent) || '#2dd4bf';
   const row = (a, b, hl) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:20px 6px;border-bottom:2px solid #f1efe9;font-size:30px;${hl ? 'font-weight:900;' : ''}"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`;
   if (t === 'invoice') return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-size:26px;font-weight:800;letter-spacing:2px;color:${ink}">INVOICE #1042</span><span style="background:${ink};color:#fff;font-size:22px;font-weight:800;padding:8px 20px;border-radius:999px">DUE NET 30</span></div>${row('Deep clean — 3 bed', '$189.00')}${row('Move-in detail', '$129.00')}${row('Total due', '$318.00', true)}`;
-  if (t === 'checklist') return ['Confirm scope + price with client', 'Arrive with tools + supplies', 'Walk the finish, collect 5-star review'].map((s, i) => `<div style="display:flex;gap:20px;align-items:center;padding:20px 6px;border-bottom:2px solid #f1efe9;font-size:30px;font-weight:600"><span style="width:52px;height:52px;border-radius:14px;background:${i === 2 ? acc : '#fff'};border:3px solid ${acc};display:flex;align-items:center;justify-content:center;font-weight:900;flex-shrink:0">${i === 2 ? '✓' : (i + 1)}</span>${esc(s)}</div>`).join('');
+  if (t === 'checklist') {
+    // Real checklist rows from the product's own brief — canned trade steps read
+    // wrong on e.g. a Pinterest monetization checklist.
+    const items = (productCopy.deriveCopy(product, prof).benefits || ['Confirm scope + price with client', 'Arrive with tools + supplies', 'Walk the finish, collect 5-star review']).slice(0, 3);
+    return items.map((s, i) => `<div style="display:flex;gap:20px;align-items:center;padding:20px 6px;border-bottom:2px solid #f1efe9;font-size:30px;font-weight:600"><span style="width:52px;height:52px;border-radius:14px;background:${i === items.length - 1 ? acc : '#fff'};border:3px solid ${acc};display:flex;align-items:center;justify-content:center;font-weight:900;flex-shrink:0">${i === items.length - 1 ? '✓' : (i + 1)}</span>${esc(s)}</div>`).join('');
+  }
 
-  if (['spreadsheet', 'booking'].includes(t)) return `<div style="font-size:24px;font-weight:800;letter-spacing:2px;color:${ink};margin-bottom:8px">QUOTE IT IN 60 SECONDS</div>${row('Job price', '$450')}${row('Costs', '$180')}${row('Your profit (60%)', '$270', true)}`;
+  // Data-type heroes show REAL niche service rows — never the canned quote
+  // table on a product that isn't a quote calculator.
+  const heroLabel = String(productCopy.deriveTitle(product, prof) || product.type || '').toUpperCase();
+  if (['spreadsheet', 'booking', 'pricing', 'inventory', 'shot-chart', 'roi', 'decision-matrix'].includes(t)) {
+    const services = (() => { try { return JSON.parse(prof.services || '[]'); } catch { return []; } })();
+    const rows = (services.length ? services.slice(0, 3) : [['Consultation', '$95'], ['Core Service', '$250'], ['Complete Package', '$450']]);
+    return `<div style="font-size:24px;font-weight:800;letter-spacing:2px;color:${ink};margin-bottom:8px">${esc(heroLabel)}</div>${rows.map(([n, p], i) => row(n, p, i === rows.length - 1)).join('')}`;
+  }
   if (t === 'journal') return `<div style="font-size:28px;font-weight:800;letter-spacing:2px;color:${ink}">DAY 07 — SMALL WINS</div><div style="font-size:34px;margin:14px 0">What did I handle well today?</div><div style="height:26px;background:#f1efe9;border-radius:13px;margin:12px 0"></div><div style="height:26px;background:#f1efe9;border-radius:13px;width:82%;margin:12px 0"></div>`;
   if (t === 'social') return `<div style="background:${ink};color:#fff;border-radius:20px;padding:40px"><div style="font-size:52px;font-weight:900;line-height:1.05">Booked out.<br>Every week.</div><div style="display:inline-block;margin-top:24px;background:${acc};color:${ink};font-size:26px;font-weight:900;padding:16px 34px;border-radius:999px">Book your date</div></div>`;
+  const copy = productCopy.deriveCopy(product, prof);
+  if (copy.benefits) {
+    return `<div style="font-size:24px;font-weight:800;letter-spacing:2px;color:${ink};margin-bottom:8px">${esc(heroLabel)}</div>${copy.benefits.slice(0, 3).map((b) => `<div style="padding:16px 6px;border-bottom:2px solid #f1efe9;font-size:28px;font-weight:600">✓ ${esc(b)}</div>`).join('')}`;
+  }
   return `<div style="font-size:44px;font-weight:900">${esc(prof.emoji || '')} ${esc(prof.name || '')}</div>`;
 }
 
@@ -1499,9 +1495,12 @@ body{background:#e7e5e1;font-family:'Space Grotesk','Inter',system-ui,sans-serif
 .ts-price{font-size:54px;font-weight:900;letter-spacing:-1.5px}
 .ts-note{font-size:21px;color:#a1a1aa;font-weight:600;margin-left:18px}
 .ts-format{font-size:21px;font-weight:800;letter-spacing:2px;color:#e4e4e7}
+.ts-hero{position:absolute;right:56px;top:170px;width:560px;background:#fff;border-radius:26px;box-shadow:0 44px 90px -20px rgba(0,0,0,.6);padding:30px 32px;color:#14110f;transform:rotate(-1.2deg);z-index:2;overflow:hidden}
+.ts-hero-scale{transform:scale(.62);width:161%;transform-origin:top left}
 </style></head><body>
 <div class="ts">
   ${bg}
+  <div class="ts-hero"><div class="ts-hero-scale">${heroSnippetForCover(product, prof, th)}</div></div>
   <div class="ts-inner">
     <div class="ts-top"><div class="ts-brand">NICHEGATE</div><div class="ts-kicker">${esc(prof.emoji || '')} ${esc(prof.name || '').toUpperCase()}</div></div>
     <div class="ts-mid">
@@ -1789,7 +1788,10 @@ function wrapMarketplaceMockup(innerHtml, opts) {
 
 function dnaHeadExtras(theme) {
   if (!theme || !theme.dna) return '';
-  return '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="' + designDNA.GOOGLE_FONTS_URL + '" rel="stylesheet">';
+  // Brief-driven builds carry their own font URL (base library + the brief's
+  // proposed families); deterministic builds use the fixed library URL.
+  const url = theme.dna.fontsUrl || designDNA.GOOGLE_FONTS_URL;
+  return '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="' + url + '" rel="stylesheet">';
 }
 
 function dnaBodyClass(theme) {

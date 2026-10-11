@@ -146,6 +146,32 @@ const ACTIONS = {
     description: 'Undo a catalog wipe within the 30-minute recovery window.',
     input: {},
     singleton: true
+  },
+  'design-sweep': {
+    label: 'Design Quality Sweep',
+    description: 'Score recent products with the design critic, revise the weak ones, auto-reskin the worst (recent catalog only).',
+    input: {
+      limit: { type: 'number', min: 1, max: 100, default: 25 }
+    },
+    singleton: true
+  },
+  'design-critique': {
+    label: 'Critique Product Design',
+    description: 'Render one product, score its design, and run one revision pass if it is below the bar.',
+    input: { productId: { type: 'number', required: true, min: 1 } },
+    singleton: false
+  },
+  'reskin-product': {
+    label: 'Reskin Product',
+    description: 'Re-render a product under a fresh generated design brief without regenerating its content.',
+    input: { productId: { type: 'number', required: true, min: 1 } },
+    singleton: false
+  },
+  'reskin-weak': {
+    label: 'Reskin Weak Sellers',
+    description: 'One reskin attempt for products with real sales but weak design scores (recent catalog only).',
+    input: {},
+    singleton: true
   }
 };
 

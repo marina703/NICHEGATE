@@ -797,19 +797,82 @@ app.get('/api/products/:id/quality', (req, res) => {
       console.error('[ERROR] GET /api/products/:id/quality -> 500:', e.message);
       res.status(500).json({ error: e.message });
     }
-  });
+  });app.get('/api/quality/catalog', (req, res) => {
+  try {
+    const qe = require('./services/qualityEngine');
+    const status = req.query.status || 'draft';
+    const limit = parseInt(req.query.limit) || 50;
+    res.json(qe.auditCatalog(status, limit));
+  } catch (e) {
+    console.error('[ERROR] GET /api/quality/catalog -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
 
-app.get('/api/quality/catalog', (req, res) => {
-    try {
-      const qe = require('./services/qualityEngine');
-      const status = req.query.status || 'draft';
-      const limit = parseInt(req.query.limit) || 50;
-      res.json(qe.auditCatalog(status, limit));
-    } catch (e) {
-      console.error('[ERROR] GET /api/quality/catalog -> 500:', e.message);
-      res.status(500).json({ error: e.message });
-    }
-  });
+// ── DESIGN QUALITY (render→critique→revise · art direction · reskin) ──────
+app.get('/api/products/:id/design-score', (req, res) => {
+  try {
+    const critic = require('./services/designCritic');
+    res.json({
+      productId: Number(req.params.id),
+      latest: critic.latestScore(req.params.id),
+      history: critic.scoreHistory(req.params.id)
+    });
+  } catch (e) {
+    console.error('[ERROR] GET /api/products/:id/design-score -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/products/:id/design-critique', async (req, res) => {
+  try {
+    const critic = require('./services/designCritic');
+    const result = await critic.critiqueProduct(req.params.id, {
+      force: !!(req.body && req.body.force),
+      revise: !(req.body && req.body.revise === false)
+    });
+    if (!result) return res.status(500).json({ error: 'Critique failed (see server log)' });
+    res.json(result);
+  } catch (e) {
+    console.error('[ERROR] POST /api/products/:id/design-critique -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/products/:id/reskin', async (req, res) => {
+  try {
+    const critic = require('./services/designCritic');
+    const result = await critic.reskinProduct(req.params.id, {
+      critique: req.body && req.body.critique ? String(req.body.critique).slice(0, 500) : null,
+      layout: req.body && req.body.layout ? String(req.body.layout).slice(0, 20) : null
+    });
+    if (!result.ok) return res.status(400).json(result);
+    res.json(result);
+  } catch (e) {
+    console.error('[ERROR] POST /api/products/:id/reskin -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/design/scores', (req, res) => {
+  try {
+    const critic = require('./services/designCritic');
+    res.json(critic.scoreSummary({ since: req.query.since || critic.FOCUS_SINCE }));
+  } catch (e) {
+    console.error('[ERROR] GET /api/design/scores -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/design/references', (req, res) => {
+  try {
+    const swipe = require('./services/swipeFileEngine');
+    res.json({ references: swipe.listDesignReferences(parseInt(req.query.limit) || 50) });
+  } catch (e) {
+    console.error('[ERROR] GET /api/design/references -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
 
 app.get('/api/catalog/recovery-status', (req, res) => {
     try {
@@ -1314,6 +1377,11 @@ app.get('/api/smart-actions', (req, res) => {
       if (niches.length > 0) actions.push({ icon: '🎯', title: 'Generate for passion niches (' + niches.length + ')', action: 'passion-generate', color: 'var(--purple)' });
       if (listed > 5) actions.push({ icon: '📱', title: 'Batch social posts for ' + listed + ' products', action: 'batch-social', color: 'var(--pink)' });
       if (products.length > 0) actions.push({ icon: '✨', title: 'Rebuild all covers', action: 'rebuild-all', color: 'var(--blue)' });
+      try {
+        // Design Quality (Phase 4): sellers with weak design scores deserve a reskin.
+        const weakSellers = require('./services/designCritic').autoReskinCandidates({ limit: 9 });
+        if (weakSellers.length > 0) actions.push({ icon: '🎨', title: 'Reskin ' + weakSellers.length + ' weak-selling design' + (weakSellers.length > 1 ? 's' : ''), action: 'design-reskin', color: 'var(--purple)' });
+      } catch { /* design layer is best-effort */ }
       
       res.json({ actions: actions.slice(0, 6) });
     } catch (e) {
@@ -1409,24 +1477,26 @@ app.get('/api/products/:id/preview-html', (req, res) => {
     try {
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
       if (!product) return res.status(404).json({ error: 'Product not found' });
-      
+      // Profession data lives in the professions table — products never carried
+      // prof_name/services columns (the old inline object rendered "undefined").
+      const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+      if (!prof) return res.status(404).json({ error: 'Profession not found' });
+
       const designStudio = require('./services/designStudio');
       const designStyles = require('./services/designStyles');
-      
-      const prof = { name: product.prof_name, slug: product.prof_slug, colors: product.colors, services: product.services, emoji: product.emoji || '' };
+      const fileFactory = require('./services/fileFactory');
       const theme = designStyles.resolveDesign(prof, product.type);
-      
-      // Generate HTML preview
+
+      // Legacy newsletter types keep their own builders; every catalog type
+      // delegates to buildPreviewHTML — the same source of truth the deliverable
+      // files and thumbnails are rendered from (covers spreadsheet/roi/etc.).
       let html = '';
       if (product.type === 'playbook') html = designStudio.buildPlaybookHTML(prof, theme, {});
       else if (product.type === 'pricing-bible') html = designStudio.buildPricingBibleHTML(prof, theme, {});
       else if (product.type === 'email-scripts') html = designStudio.buildEmailScriptsHTML(prof, theme, {});
       else if (product.type === 'sop-package') html = designStudio.buildSOPPackageHTML(prof, theme, {});
-      else if (product.type === 'invoice') html = designStudio.buildInvoiceHTML(prof, theme, {});
-      else if (product.type === 'checklist') html = designStudio.buildChecklistHTML(prof, theme, {});
-      else if (product.type === 'journal') html = designStudio.buildJournalHTML(prof, theme, {});
-      else html = '<div style="padding:40px;text-align:center;color:#7c8aa0">Preview not available for this type</div>';
-      
+      else html = fileFactory.buildPreviewHTML(product, prof);
+
       res.setHeader('Content-Type', 'text/html');
       res.send(html);
     } catch (e) {
@@ -2905,9 +2975,12 @@ async function generateForNiche(niche, count, step = () => {}, opts = {}) {
     || db.prepare('SELECT * FROM professions WHERE lower(name) LIKE lower(?)').get(`%${niche}%`);
   if (!prof) {
     const slug = slugifyNiche(niche) || `niche-${Date.now()}`;
+    // Real category-matched service plan — empty services rendered as generic
+    // filler inside every deliverable (the "Standard Service Package" bug).
+    const nicheServices = require('./services/nicheServices');
     const id = db.prepare('INSERT INTO professions (emoji, name, slug, status, tier, colors, services, hashtags) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run('🎯', niche, slug, 'researching', 'passion',
-        JSON.stringify({ primary: '#0f172a', secondary: '#2dd4bf', accent: '#8b5cf6', bg: '#f8fafc' }), '[]', '[]').lastInsertRowid;
+        JSON.stringify({ primary: '#0f172a', secondary: '#2dd4bf', accent: '#8b5cf6', bg: '#f8fafc' }), nicheServices.servicesForNiche(niche), '[]').lastInsertRowid;
     prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(id);
     step(`created niche "${niche}"`);
   } else {
@@ -3054,6 +3127,45 @@ const consoleHandlers = {
     if (!res.ok) throw new Error(res.error);
     step(`restored ${res.restoredCount} products from snapshot #${res.snapshotId}`, 'success');
     return res;
+  },
+  'design-sweep': async (input, step) => {
+    const critic = require('./services/designCritic');
+    step(`sweeping recent products (limit ${input.limit || 25})`);
+    const res = await critic.sweepCatalog({ limit: input.limit || 25 });
+    const scored = res.results.filter(r => Number.isFinite(r.score)).length;
+    step(`swept ${res.scanned}: ${scored} scored, ${res.results.filter(r => r.action === 'reskinned').length} reskinned`, 'success');
+    return res;
+  },
+  'design-critique': async (input, step) => {
+    const critic = require('./services/designCritic');
+    step(`critiquing product #${input.productId}`);
+    const res = await critic.critiqueProduct(input.productId, { force: true, revise: true });
+    if (!res) throw new Error('Critique failed (see server log)');
+    if (res.scores) step(`scored ${res.scores.overall}/10 (${res.status})`, 'success');
+    else step(`no score — ${res.reason || 'critique unavailable'} (unscored ≠ passed)`, 'warn');
+    return res;
+  },
+  'reskin-product': async (input, step) => {
+    const critic = require('./services/designCritic');
+    step(`reskinning product #${input.productId} (content stays untouched)`);
+    const res = await critic.reskinProduct(input.productId);
+    if (!res.ok) throw new Error(res.error || 'Reskin failed');
+    step('re-rendered under a fresh design brief', 'success');
+    return res;
+  },
+  'reskin-weak': async (input, step) => {
+    const critic = require('./services/designCritic');
+    const cycle = require('./services/automationCycle');
+    const candidates = critic.autoReskinCandidates({ limit: 5 });
+    step(`${candidates.length} weak-selling design(s) eligible for a reskin`);
+    let reskinned = 0;
+    for (const c of candidates) {
+      const result = await critic.reskinProduct(c.productId);
+      critic.markAutoReskin(c.productId, result);
+      if (result && result.ok) reskinned++;
+      step(`#${c.productId} ${String(c.name).slice(0, 40)} (score ${c.score}) → ${result && result.ok ? 'reskinned' : 'failed'}`, result && result.ok ? 'success' : 'warn');
+    }
+    return { candidates: candidates.length, reskinned };
   }
 };
 

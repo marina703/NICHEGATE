@@ -899,6 +899,27 @@ export function analytics(s) {
     <div class="panel mb14"><div class="panel-head">${icon('analytics')} Products Created Per Day <span class="sp"></span><span class="hint">last ${series.length} active days</span></div>
       <div class="panel-body">${sparkline(series)}</div></div>
     ${(() => {
+      // Design Quality (render→critique→revise). Real rows only: an unscored
+      // product is reported as unscored — never as passed (hard rule).
+      const d = s.designScores || null;
+      if (!d) return '';
+      const dist = d.distribution || {};
+      const max = Math.max(1, ...Object.values(dist).map(Number));
+      return `<div class="panel mb14"><div class="panel-head">${icon('sparkles')} Design Quality <span class="sp"></span>
+        <span class="hint">vision critique · threshold ${fmtNum(d.threshold || 6.5)}/10 · since ${esc(String(d.since || ''))}</span></div>
+        <div class="panel-body">
+          <div class="flex" style="gap:14px;flex-wrap:wrap;font-size:0.8rem">
+            <div><b>Avg score:</b> ${d.avg == null ? '—' : fmtNum(d.avg) + '/10'}</div>
+            <div><b>Scored:</b> ${fmtNum(d.scored || 0)}</div>
+            <div style="color:var(--amber)"><b>Unscored:</b> ${fmtNum(d.unscored || 0)} (not counted as passed)</div>
+            <div><b>Below bar:</b> ${fmtNum(d.belowThreshold || 0)}</div>
+            <div><b>Revised after critique:</b> ${fmtNum(d.rescoredWithRevision || 0)}</div>
+          </div>
+          <div class="mt8">${Object.entries(dist).map(([bucket, n]) => barRow(bucket, Number(n) || 0, max, 'var(--grad)')).join('')}</div>
+          <div class="mt8"><button class="btn primary sm" data-action="run" data-name="design-sweep">${icon('sparkles')} Run design sweep</button></div>
+        </div></div>`;
+    })()}
+    ${(() => {
       // Real revenue time-series + listing health from the BI service.
       const bi = s.bi || {};
       const row = bi.series || [];

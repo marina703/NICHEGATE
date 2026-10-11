@@ -118,7 +118,9 @@ export const dataApi = {
   vetTrend: (id) => request(`/trends/vet/${id}`),
   seo: (productId) => request(`/seo/${productId}`),
   caps: () => request('/caps'),
-  optimization: (id) => request(`/products/${id}/optimization`)
+  optimization: (id) => request(`/products/${id}/optimization`),
+  designScore: (id) => request(`/products/${id}/design-score`),
+  designScores: () => request('/design/scores')
 };
 
 export const dataActions = {
@@ -156,7 +158,9 @@ export const dataActions = {
   },
   generateCovers: (payload) => api.post('/covers/generate', payload || {}),
   serpScan: () => api.post('/discovery/serp-scan'),
-  drainQueue: () => api.post('/discovery/search-queue/drain')
+  drainQueue: () => api.post('/discovery/search-queue/drain'),
+  designCritique: (id, opts) => api.post(`/products/${id}/design-critique`, opts || {}),
+  reskinProduct: (id, opts) => api.post(`/products/${id}/reskin`, opts || {})
 };
 
 // ── live run stream (SSE, with polling fallback signalled to caller) ────

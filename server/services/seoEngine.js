@@ -3,6 +3,8 @@
 // for marketplace listings (Etsy 140-char title / 13 tags, Gumroad title).
 // ═══════════════════════════════════════════════════════════════════════════
 
+const demandSignals = require('./demandSignals');
+
 const PRODUCT_TERMS = {
   invoice:    ['Invoice Template', 'Editable Invoice', 'Service Invoice', 'Invoice'],
   website:    ['Website Template', 'One-Page Website', 'Business Website', 'Website'],
@@ -99,8 +101,9 @@ function buildDescription(prof, type, theme) {
   ].join('\n');
 }
 
-// Build Etsy tags (max 13, ≤20 chars each)
-function buildTags(prof, type) {
+// Build Etsy tags (max 13, ≤20 chars each). Harvested marketplace demand
+// (demandSignals) outranks our own hashtags — real shopper language wins.
+function buildTags(prof, type, demandTags) {
   const hashtags = safeJsonArray(prof.hashtags);
   const base = PRODUCT_TERMS[type] || PRODUCT_TERMS.invoice;
   const tags = [];
@@ -108,6 +111,16 @@ function buildTags(prof, type) {
   // Product type terms
   tags.push(base[0].toLowerCase().substring(0, 20));
   tags.push(base[1].toLowerCase().substring(0, 20));
+
+  // Live demand terms (explicit arg, else whatever the last harvest cached)
+  const demand = (demandTags && demandTags.length)
+    ? demandTags
+    : demandSignals.getCachedDemandTags((prof && prof.name) || '');
+  for (const d of demand) {
+    const clean = String(d).trim().toLowerCase().substring(0, 20);
+    if (clean.length >= 3 && !tags.includes(clean)) tags.push(clean);
+    if (tags.length >= 11) break; // leave ≥2 slots for hashtags/fillers
+  }
 
   // Profession hashtags (strip #, truncate to 20 chars)
   for (const h of hashtags) {
@@ -126,14 +139,15 @@ function buildTags(prof, type) {
   return tags.slice(0, 13);
 }
 
-// Full SEO bundle for a product
-function generateSEO(prof, type, theme) {
+// Full SEO bundle for a product. demandTags (optional) = harvested marketplace
+// demand; omitted → the demandSignals cache is consulted instead.
+function generateSEO(prof, type, theme, demandTags) {
   prof = prof || { name: 'Small Business', tier: 'safe' };
   return {
     title: buildTitle(prof, type),
     shortTitle: buildShortTitle(prof, type),
     description: buildDescription(prof, type, theme),
-    tags: buildTags(prof, type)
+    tags: buildTags(prof, type, demandTags)
   };
 }
 

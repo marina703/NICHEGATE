@@ -154,3 +154,19 @@ test('swipeFile: upsert + longevity + angle classification + long-runners', asyn
     db.prepare("DELETE FROM swipe_ads WHERE ad_id LIKE 'swipe-test-%'").run();
   }
 });
+
+test('pinEngine: pinImageUrl reads preview_path only (cover_path column never existed)', () => {
+  const profId = makeProfession();
+  const id = makeProduct(profId, { name: '__pin_img__' });
+  try {
+    // No preview yet → null (never throws on a missing column)
+    assert.equal(pinEngine.pinImageUrl(id), null);
+    assert.equal(pinEngine.pinImageUrl(null), null);
+    assert.equal(pinEngine.pinImageUrl(99999999), null);
+
+    db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run('/tmp/preview.jpg', id);
+    assert.equal(pinEngine.pinImageUrl(id), '/tmp/preview.jpg');
+  } finally {
+    cleanupProduct(id, profId);
+  }
+});

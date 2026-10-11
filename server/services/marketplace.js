@@ -4,7 +4,19 @@ const path = require('path');
 const crypto = require('crypto');
 const { db } = require('../database');
 const seo = require('./seoEngine');
+const demandSignals = require('./demandSignals');
 const { ensureProductFile } = require('./fileFactory');
+
+// Warm the demand-signal cache for a profession (honest no-op without SERPER key
+// or on fetch failure) so generateSEO can merge live marketplace language.
+async function warmDemand(prof) {
+  const niche = (prof && prof.name) || '';
+  if (!niche) return [];
+  try {
+    const r = await demandSignals.etsyDemandTags(niche);
+    return (r && r.tags) || [];
+  } catch { return []; }
+}
 
 const ETSY_API_BASE = 'https://openapi.etsy.com/v3';
 const GUMROAD_API_BASE = 'https://api.gumroad.com/v2';
@@ -149,7 +161,8 @@ async function listOnEtsy(product, shopId) {
   }
   
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
-  const seoData = seo.generateSEO(prof, product.type, product.theme);
+  const demandTags = await warmDemand(prof);
+  const seoData = seo.generateSEO(prof, product.type, product.theme, demandTags);
   const copy = listingCopyFor(product, prof, seoData);
 
   const listing = {
@@ -587,7 +600,8 @@ async function publishToGumroadReal(product) {
   const token = process.env.GUMROAD_ACCESS_TOKEN;
   const priceCents = Math.round((parseFloat(product.price.replace('$', '')) || 12) * 100);
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
-  const seoData = seo.generateSEO(prof, product.type, product.theme);
+  const demandTags = await warmDemand(prof);
+  const seoData = seo.generateSEO(prof, product.type, product.theme, demandTags);
   const copy = listingCopyFor(product, prof, seoData);
 
   // 1. Upload the deliverable → canonical file_url

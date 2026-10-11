@@ -533,8 +533,10 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
   prod container (originals at *.bak there) + earlier discovery.js fix are LOCAL
   ONLY — uncommitted, not pushed. A redeploy without them reverts cover copy +
   creator art. Commit + deploy when the owner audits.
-- OPEN: trendScanner.js still seeds placeholder services into new professions
-  (root cause of generic filler for any future auto-created niche) — fix pending.
+- [x] OPEN→DONE (Chunk 4, this push): trendScanner.js placeholder-services root
+  cause FIXED — all three auto-creation paths (trendScanner, competitorEngine,
+  generateForNiche) now emit real niche services via nicheServices/typePlan. See
+  the 2026-10-11 upgrade-push entry below.
 
 ## ── 2026-10-11: COMMIT + E2E AUDIT ──
 - [x] Committed as d5f2680 (local main, NOT pushed): discovery typing fix + cover
@@ -547,3 +549,235 @@ NEXT: rotate Etsy keys; UPGRADES.md Wave 1 on live store.
 - TOP UPGRADES (ranked): (1) cover-copy regression tests (zero coverage today),
   (2) trendScanner placeholder-services root cause, (3) bulk preview re-skin for
   ~350 stale canned-copy covers, (4) productCopy module unifying cover/listing copy.
+
+## ── 2026-10-11 (cont): UPGRADE PUSH — CHUNKS 4-8 (the ranked TOP UPGRADES) ──
+All work LOCAL ONLY (uncommitted) — commit + deploy when the owner audits.
+- [x] CHUNK 4 — Junk-service root cause: trendScanner / competitorEngine /
+  generateForNiche now route niche→services through nicheServices + typePlan
+  (single niche→type router). Regression: test/niche-services.test.js.
+- [x] CHUNK 5 — Cover upgrades: coverCopy branch tests (test/cover-copy.test.js),
+  cover-art prompt style-token factory (coverArt.js STYLE_PROFILES + off-niche
+  scene gate; photo profile kept byte-identical so art-cache hashes don't churn).
+  Regression: test/cover-art-prompts.test.js.
+- [x] CHUNK 6 — Design overhaul: new productCopy.js (single owner: concept → name
+  → brief derivation) + per-type cover templates/typography (product-preview hero
+  card over warm art). Covers regenerated + visually verified (1200x1500 portrait).
+- [x] CHUNK 7 — Boot smoke promoted to hermetic integration test
+  (test/integration-boot.test.js, incl. preview-html route). Bonus fix: XLSX
+  preview title no longer hardcodes "Pricing Calculator" on trackers.
+- [x] CHUNK 8 — Demand signals: new demandSignals.js mines live Etsy listing
+  titles (Serper) → real shopper tags + design tokens. Wired into seoEngine.buildTags
+  (demand outranks our own hashtags, ≤13/≤20-char Etsy rules held) and into
+  themes.paletteForNiche (demand sentiment biases the palette). Honest degradation:
+  no Serper key / fetch fail → [] + health note, never invented demand. Regression:
+  test/demand-signals.test.js.
+- VERIFIED: full suite `node --test` = 227 tests / 29 suites — 223 pass, 0 fail,
+  4 pre-existing skips. demand-signals alone 10/10 pass.
+- NEXT: Chunk 9 (prove concept path with real model, MODEL_ENABLED=true) →
+  Chunk 10 (full suite + push + deploy + prod verify, today's products only).
+
+## ── 2026-10-11 (cont 2): AGENTS.md OPEN ITEMS 1-2 DONE + JUDGE MODEL 404 FIX ──
+- [x] OPEN ITEM 1 (Chunk 9): CONCEPT PATH PROVEN WITH REAL MODEL. MODEL_ENABLED
+  already =true in .env (AGENTS.md env snapshot was STALE — it claimed OFF).
+  generateConcept end-to-end via OpenRouter → parseConcept → novelty gate:
+  returned a validated concept (noveltyScore 95/100, niche-specific diff) and
+  junk "Ultimate Template Kit" correctly rejected (score 5). Live model tests
+  (RUN_MODEL_TESTS=1) pass 6/7→7/7.
+- [x] FIX (modelConfig.js judgeModel): 'anthropic/claude-3-haiku' (and the
+  'claude-3.5-haiku' in AGENTS.md) are RETIRED on OpenRouter → HTTP 404, breaking
+  the scoreOptions/judge leg. Probed live; 'anthropic/claude-haiku-4.5' resolves
+  ($1/M) — swapped in. Verified 3/3 legs live: cheapSummarize, scoreOptions,
+  generateIdeas. Suite 227 tests / 223 pass / 0 fail (no test pins the old slug).
+- [x] OPEN ITEM 2: ETSY_CLIENT_SECRET verified DISTINCT from ETSY_CLIENT_ID
+  (readiness check passes: id!==secret, both set). AGENTS.md env snapshot was
+  stale here too (it claimed the two were identical).
+- ⚠ OPEN ITEM 3 (Start server + approve Review Queue + Deploy Bundles) NOT DONE:
+  this is real Gumroad/Etsy publishing — needs explicit owner authorization.
+  "Reconnect Etsy at /setup" is an owner-side OAuth browser flow (not scriptable).
+- 📝 AGENTS.md env snapshot + "Tests: 77 tests/18 suites" line are both STALE
+  (real: MODEL_ENABLED=true, secrets distinct, 227 tests/29 suites). Consider
+  refreshing AGENTS.md when the owner audits.
+
+## ── 2026-10-11 (cont 3): DESIGN QUALITY UPGRADE — ALL 5 PHASES ──
+Scope (owner): "do not use products created prior to yesterday" → every
+automated design path (sweep, auto-reskin, novelty lookback) is scoped to
+products created >= FOCUS_SINCE ('2026-10-10', env DESIGN_FOCUS_SINCE).
+All work LOCAL ONLY — commit + deploy when the owner audits.
+- [x] PHASE 1 — DESIGN CRITIC: server/services/designCritic.js — after a build,
+  screenshot pages (Puppeteer, shared Chrome) → vision model (new
+  modelRouter.callVision, modelConfig.visionModel, spend in ai_usage as
+  action='design_critique') → strict-JSON 6-dimension rubric parse → if overall
+  < 6.5 ONE revision pass (critique-driven brief regen → re-render → re-score →
+  keep the better variant, brief restored if original won). Persists to the new
+  design_scores table (product_id, scores, critique, revised, kept_variant).
+  NEVER throws; MODEL_ENABLED=false → skip + null (zero cost). UNSCORED ≠ PASS
+  (hard rule #4): scoreSummary() reports unscored separately. Auto-hook in
+  fileFactory.ensureProductThumbnail scores every AI-enabled build
+  (fire-and-forget; skipped under NODE_TEST_CONTEXT so the suite stays hermetic).
+- [x] PHASE 2 — ART DIRECTOR: server/services/artDirector.js — per-product
+  DESIGN BRIEF (mood/palette/fonts+reason/motif+motif_css/layout/whitespace/
+  texture/style_lineage) generated via the ideation model with mechanical
+  diversity levers: 2-of-8 style blending (seeded by product id), per-product
+  layout rotation, per-niche motif library (VISUAL_MOTIFS — note: plan said
+  nicheUniverse.js which does not exist; motifs live in artDirector + tests
+  verify each passes its own safety lint). NOVELTY GATE: role-wise CIE76 ΔE
+  over primary/secondary/accent vs recent same-niche briefs (neutrals excluded
+  — bg/surface always cluster) + repeated mood/motif words; reject → ONE
+  regen with avoidance → else fall back to deterministic styles. EDITOR-SAFETY
+  LINT (security): only hex + font declarations survive; url(/@import/
+  position:fixed/expression( stripped; font names charset-validated.
+  Builders accept briefs via applyBriefToTheme(theme, brief) — the theme/DNA
+  object every builder already consumes (fallbackTheme applies it centrally),
+  so all 33 types get brief-driven palettes/fonts/motif/layout with ZERO builder
+  rewrites and the deterministic 8-style path intact as fallback. Briefs persist
+  on products.design_brief. designStyles.js: font library 12 → 42 families +
+  FONT_PAIRINGS + googleFontsUrl() (sanitized dynamic family list).
+- [x] PHASE 3 — REFERENCE-GROUNDED TASTE: design_references table (extracted
+  DNA only: palette/fonts/layout/motif/taste_note — brief-level transfer, never
+  pixel-copy). Seeded with 15 curated public-domain print/editorial lineages
+  (Swiss poster, Bauhaus, Penguin grid, Whole Earth, riso zine, …).
+  artDirector feeds 1-2 niche-relevant references into every brief prompt;
+  WINNERS LOOP: critique score >= 8 auto-enters as source='winner' (human-
+  auditable, linked product_id + score).
+- [x] PHASE 4 — CONTENT/SKIN SEPARATION + RESKIN: content (name/concept/brief/
+  services) is untouched by design ops; the skin is design_brief → theme.
+  reskinProduct(): fresh generated brief (avoiding the previous palette/mood/
+  motif) → deterministic fallback synthesizes a brief from the current theme +
+  rotated layout + niche motif (works with AI off — verified) → regenerates file
+  + preview. Routes POST /api/products/:id/reskin + /design-critique, actions
+  'reskin-product'/'design-critique'/'reskin-weak' in the closed registry (⌘K),
+  drawer buttons "Critique design" + "Reskin" in the product/review drawer, AND
+  a Smart Actions card ("Reskin N weak-selling designs") wired to 'reskin-weak'.
+  AUTO-RESKIN RULE:
+  automationCycle.taskDesignReskin — products with >=2 sales and score < 7 get
+  ONE reskin attempt per cycle (automation_log 'design_reskin' enforces once).
+- [x] PHASE 5 — RETRO SWEEP (owner scope: recent catalog only): 'design-sweep'
+  action + critic.sweepCatalog (top by views, created >= FOCUS_SINCE) → critique
+  all, revise weak, auto-reskin score < 5 → before/after distribution. Analytics
+  view gained a Design Quality panel (GET /api/design/scores): distribution
+  bars, avg, below-bar count, revised count, and UNSCORED shown explicitly as
+  unscored. GET /api/products/:id/design-score + /api/design/references added.
+- VERIFIED: full suite `node --test` = 257 tests / 29 suites — 253 pass, 0 fail,
+  4 pre-existing skips (baseline 227/223/0/4; +30 new tests in
+  test/design-critic.test.js + test/art-director.test.js). Boot smoke on :5096:
+  health 200, /api/design/scores honest (unscored≠passed), /api/design/references
+  serves the pool, POST /api/products/:id/reskin regenerated real PDF+JPEG under
+  a rotated deterministic skin (AI off). Route tripwire holds: 160 top-level
+  routes, 0 nested. Dev DB cleaned to pre-session state (0 products).
+- COST CONTROL: max 1 critique + 1 revision + 1 brief regen per product
+  (design_scores.revised + brief-presence guards); sweep cap default 25.
+- KNOWN deviation from the plan text: the revision pass regenerates a corrected
+  DESIGN BRIEF and re-renders through the builders (safe-token pipeline) instead
+  of letting the model rewrite raw HTML — same loop semantics, but the security
+  lint can never be bypassed by model output. Also unscored products are
+  excluded from auto-reskin (null score ≠ weak design).
+- [x] LIVE VISION LEG VERIFIED 2026-10-11 (owner: "run it"): one real critique
+  via `tmp/live-critique.js` (throwaway DB via DB_PATH — dev DB untouched;
+  MODEL_ENABLED forced on for that process only, .env unchanged). Real Puppeteer
+  render → live google/gemini-2.5-flash callVision (4.6s, 1,635 tokens,
+  $0.00040 in ai_usage as action='design_critique') → strict-JSON parse →
+  design_scores row persisted. Clean exit (closeBrowser). Harness kept at
+  tmp/live-critique.js (revise:false = exactly one vision call; flip to true to
+  live-test the revision loop).
+- SIGNAL from the live critique: the deterministic 'sage' checklist skin scored
+  2.0/10 (uniqueness 1, typography 2 — "generic template feel"). Expected: it
+  is the no-brief fallback the critic exists to catch, and it confirms the
+  artDirector brief path is what moves scores. Implication: products without a
+  generated brief will land far below the 6.5 bar — once MODEL_ENABLED=true,
+  brief generation (not just critique) needs to run for new builds.
+- [x] BRIEF-BY-DEFAULT 2026-10-11 (owner: "Wire in as the default") — the
+  SIGNAL above is addressed: EVERY build now gets design DNA at birth.
+  • artDirector.synthesizeBrief(product, prof, {previous, layout}) — NEW shared
+    deterministic synthesis: rotated layout (5 families), rotated curated font
+    pairing (designStyles.FONT_PAIRINGS, was one hardcoded Fraunces trio), niche
+    motif library, theme-derived palette; per-key sanitized + full editor-safety
+    lint. Never throws.
+  • artDirector.ensureDesignBrief now falls back to synthesizeBrief when the
+    model is off or yields nothing → a brief ALWAYS exists (AI on → generated
+    brief still wins; existing briefs never regenerate — cost control intact).
+  • fileFactory.ensureBuildBrief (NEW seam) wired into ensureProductFile +
+    ensureProductThumbnail un- gated by MODEL_ENABLED (was: AI-on only). The
+    critique hook stays behind autoCritiqueAllowed() (money gate).
+  • designCritic.reskinProduct deterministic fallback now reuses
+    synthesizeBrief (dedupe; its inline copy deleted).
+  • Bug fixed on the way: fallbackTheme crashed on products without a
+    profession_id (SQLite bind of undefined) — guarded both lookups.
+- VERIFIED: suite 262 tests / 258 pass / 0 fail / 4 pre-existing skips (+5 new
+  in test/art-director.test.js: synthesis lint-safety + determinism, per-product
+  rotation, ensureDesignBrief deterministic fallback + generated-preference +
+  no-overwrite, ensureBuildBrief seam). Live one-shot smoke through the REAL
+  build path (ensureProductFile, AI OFF, throwaway DB): real PDF + brief at
+  birth (layout full-bleed, Playfair Display × Work Sans, motif dot grid,
+  _deterministic=true). Smoke residue cleaned.
+- NEXT: owner decides commit + deploy (still uncommitted per handoff rule);
+  optionally run the full live revision loop (critique → brief regen → re-score)
+  once MODEL_ENABLED=true is set in .env.
+
+## ── 2026-10-11 (cont 4): LIVE GUMROAD STORE REFRESH (cull/reskin/push) ──
+- Owner pivot: "Forget the 353 request — go with the live ones on Gumroad,
+  cull, reskin and push to those." Owner decisions (asked + answered):
+  KEEP ALL 10 (no cull), FULL REFRESH each (name + copy + deliverable + cover).
+- Live store = 10 listings on marinablow.gumroad.com (3 recovery checklists,
+  3 home-service spreadsheets, 3 social packs, 1 appliance checklist; all $12,
+  0 sales). ALL carried the doubled-name bug ("Appliance Repair Appliance
+  Repair Checklist Template"). Local rows were gone (wipes) → rebuilt 10 rows
+  in the dev DB from live data (professions 3/4/7/8/9/11/12/21/22/23 remained).
+- Harness: tmp/live-store-refresh.js (rows | reskin | push <gid|all> | verify);
+  idempotent (skips rows that exist; push skips listings already carrying the
+  current file). MODEL_ENABLED=true forced per-process for briefs + critiques.
+- RESULT — all 10 verified live: de-doubled names, regenerated copy
+  (seoEngine.generateSEO), 1 fresh deliverable each (PDF/XLSX/ZIP; files[][url]
+  on the product PUT REPLACES the old resource — pilot-verified), 1 new MAIN
+  cover each (attachGumroadCover then DELETE /products/:id/covers/:cover_id for
+  stale art — main_cover_id on update is silently IGNORED by Gumroad).
+- THREE REAL BUGS found + fixed en route (all had tests added/kept green):
+  1. artDirector.applyBriefToTheme dropped the whole DNA layer on base themes
+     without theme.dna → brief layout/motif/texture CSS AND the Google Fonts
+     <link> never rendered (fonts fell back to system). The critic's "generic
+     recolored template, 2/10" verdicts were honest for what it saw. Now a
+     briefed theme ALWAYS carries a full dna (builders flip to shellDNA).
+  2. artDirector.recentBriefs included the product's OWN brief in the novelty
+     lookback → every revision/regen brief was rejected against its predecessor
+     and the revision loop silently no-opped. excludeProductId added.
+  3. designCritic.scoreSummary counted design_scores ROWS, not scored products
+     → multi-critique products overcounted `scored` and `unscored` collapsed to
+     0 (caught by the suite). Now counts one row per product (latest verdict).
+- Judge calibration: critique prompt now carries 0-10 score anchors + "judge
+  the craft, not the genre" (checklists ARE templates). Scores moved 2→0-6 and
+  are treated as SIGNAL, not push-gate (critique was not in the owner's ask).
+- AI spend for the whole run: ~40 model calls (briefs + critiques + revisions,
+  ~$0.05) + 10 Cloudflare-worker cover renders.
+- VERIFIED: full suite 263 tests / 259 pass / 0 fail / 4 pre-existing skips
+  (exit 0; +1 regression test for the DNA-layer fix). Store state verified via
+  live API re-reads, not assumed from push responses.
+
+## ── 2026-10-11 (cont 5): CONTENT MOAT — trade-true differentiation ──
+- Owner direction: "the longer game route… I don't want any 'generic'. What makes
+  us different?" Answer = specificity at factory scale (see MOAT.md).
+- BUILT the moat (3 layers):
+  1. contentLibrary.js — trade-true, service-keyed rows / social angles / XLSX
+     columns for the live-10 niches (Buddhist/SMART/AA/faith recovery, appliance,
+     HVAC, air-duct, mold, energy-auditor, roofing, beekeeping). Real procedures,
+     not template blanks (AA 4th-step language, HVAC short-cycle + $99-bait,
+     varroa sugar-roll, etc.).
+  2. Fallback ladder niche → category → generic in every builder (checklist PDF,
+     social ZIP, spreadsheet XLSX). Generic = last resort, never default.
+  3. Filler gate (test/content-moat.test.js) — no group shares rows, the sentinel
+     filler ("Arrive prepared…") never appears when moat answers, every group
+     >= 5 distinct rows. Gate caught + split every shared-row shortcut.
+- designStudio.js: buildChecklistHTML + buildSocialPostHTML now resolve moat rows/
+  angles via checklistRowsFor / socialAngleFor (fallback ladder), else old filler.
+- Content refresh + verify (live-10): regenerated all 10 deliverables (PDF/XLSX/
+  ZIP). VERIFIED the actual buyer-facing files carry moat text (generic=false on
+  every post): HVAC "short-cycles / $99 bait", beekeeping "sugar roll / spot a
+  cluster", air-duct "duct cam footage / filter schedule by household type".
+  Checklists = 30 trade-true rows each (6 groups x 5).
+- Full suite: 272 tests / 268 pass / 0 fail / 4 pre-existing skips (exit 0).
+- GAP noted: story + carousel secondary social formats still generic; primary
+  posts are moat-true. Next depth pass.
+- PUSHED + VERIFIED LIVE (owner go 2026-10-11): re-push live-10 to Gumroad via
+  tmp/live-store-refresh.js push all (idempotent — new basenames pass the
+  "already current" guard). All 10 updated IN PLACE (new moat file + fresh cover,
+  "1 stale dropped" each), PUSH_EXIT=0, no skips/failures. Verified against the
+  live Gumroad API (not the push response): all 10 published, $12, carrying the
+  moat-content filenames. No generic content is live on the store now.

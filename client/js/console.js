@@ -21,7 +21,7 @@ const state = {
   activity: [], analytics: null, smartActions: [],
   setup: null, readiness: null, modelStatus: null, payments: null, branding: null,
   social: [], ads: null, calendarData: null, seasonal: null, passionNiches: [],
-  searchQueue: null, opportunity: null, radarHealth: null,
+  searchQueue: null, opportunity: null, radarHealth: null, designScores: null,
   bi: null,
   newsletter: null, autoStatus: null, runs: [], actions: [],
   calendarMonth: new Date().toISOString().slice(0, 7),
@@ -110,9 +110,12 @@ async function loadViewData(view) {
       break;
     }
     case 'analytics': {
-      const [r, bi] = await Promise.all([safe(() => dataApi.analytics()), safe(() => consoleApi.bi())]);
+      const [r, bi, ds] = await Promise.all([
+        safe(() => dataApi.analytics()), safe(() => consoleApi.bi()), safe(() => dataApi.designScores())
+      ]);
       if (r) state.analytics = r;
       if (bi) state.bi = bi;
+      if (ds) state.designScores = ds;
       break;
     }
     case 'automation': {
@@ -466,6 +469,8 @@ async function openProduct(id) {
       <button class="btn sm" data-action="seo-load" data-id="${id}">${icon('search')} SEO</button>
       <button class="btn sm" data-action="optimize-product" data-id="${id}">${icon('sparkles')} Optimize listing</button>
       <button class="btn amber sm" data-action="rollback-optimization" data-id="${id}">${icon('history')} Rollback copy</button>
+      <button class="btn sm" data-action="design-critique" data-id="${id}">${icon('analytics')} Critique design</button>
+      <button class="btn sm" data-action="reskin-product" data-id="${id}">${icon('layers')} Reskin</button>
       <button class="btn sm" data-action="cover-generate" data-id="${id}">${icon('sparkles')} New cover</button>
       <a class="btn sm" href="/api/export/product/${id}" download>${icon('download')} File</a>
       <button class="btn red sm" data-action="confirm" data-confirm="delete:${id}" data-message="Delete this product permanently?">${icon('trash')} Delete</button>
@@ -952,6 +957,8 @@ document.addEventListener('click', async (e) => {
       case 'make-this-run': await makeThisRun(); break;
       case 'optimize-product': await optimizeProduct(id); break;
       case 'rollback-optimization': await rollbackOptimization(id); break;
+      case 'design-critique': await designCritique(id); break;
+      case 'reskin-product': await reskinProduct(id); break;
       case 'optimize-weak': await optimizeAllWeak(); break;
       case 'cap-save': await saveCaps(); break;
       case 'trend-vet':
@@ -1285,6 +1292,7 @@ async function dispatchSmart(name) {
     'run-sweep': () => runAction('sweep'),
     'rebuild-all': () => rebuildCovers(),
     'batch-social': () => go('social'),
+    'design-reskin': () => runAction('reskin-weak'),
     'passion-generate': () => go('discovery')
   };
   if (map[name]) await map[name]();
@@ -1394,6 +1402,32 @@ async function rollbackOptimization(id) {
   const tail = d.ok ? ' · restored copy pushed to live listing' : (d.reason ? ' · copy restored locally' : '');
   toast('success', 'Copy rolled back', `restored ${r.targetKind} listing copy (score ${r.score})${tail}`);
   await loadCore(); render();
+}
+
+// ── design quality (render→critique→revise · reskin) ─────────────────────
+async function designCritique(id) {
+  toast('info', 'Critique running', 'Rendering and scoring the design…');
+  const r = await safe(() => dataActions.designCritique(id, { force: true }));
+  if (!r) return;
+  if (!r.scores) {
+    toast('warning', 'No score', `${r.reason || 'critique unavailable'} — unscored is not a pass.`);
+    return;
+  }
+  const s = r.scores;
+  const tail = r.status === 'revised' ? ` · revised (was ${Math.round((s.overall - r.improved) * 10) / 10})` : '';
+  toast(s.overall >= 6.5 ? 'success' : 'warning', `Design score ${s.overall}/10${tail}`, (r.critique || '').slice(0, 120) || 'Scored.');
+  await loadCore(); render();
+}
+
+async function reskinProduct(id) {
+  confirmAction('Re-render this product under a fresh design brief? Content stays untouched.', async () => {
+    toast('info', 'Reskinning', 'Generating a fresh design brief…');
+    const r = await safe(() => dataActions.reskinProduct(id));
+    if (!r) return;
+    if (!r.ok) { toast('error', 'Reskin failed', r.error || 'Unknown error'); return; }
+    toast('success', 'Reskinned', r.deterministic ? 'Layout rotated (deterministic — AI off).' : 'Fresh brief applied and re-rendered.');
+    await loadCore(); render();
+  });
 }
 
 async function optimizeAllWeak() {

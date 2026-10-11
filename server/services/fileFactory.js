@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const { db } = require('../database');
 const runtimeConfig = require('./runtimeConfig');
+const demandSignals = require('./demandSignals');
 
 // ── WEBSITE TEMPLATE (premium, via Design Studio) ──
 function buildWebsiteHTML(prof, theme) {
@@ -66,34 +67,88 @@ function getRecoveryPrompts(prof) {
 }
 
 // ── THEME FALLBACK ──
+// The theme is the SKIN layer: when the product carries a generated design
+// brief (artDirector), its palette/fonts/motif override theme defaults here —
+// every builder consumes this, so briefs flow everywhere without touching any
+// builder. No brief → exactly the old deterministic behavior.
 function fallbackTheme(product) {
+  let theme = null;
   // Prefer explicit product theme from the design engine library
   try {
     const design = require('./themes');
     if (product.theme && product.theme !== 'Auto Theme') {
       const named = design.getTheme(product.theme);
-      if (named && named.name === product.theme) return named;
+      if (named && named.name === product.theme) theme = named;
     }
-    const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
-    if (prof) {
-      const recommended = design.recommendTheme(prof);
-      const t = design.getTheme(recommended);
-      if (t) return t;
-      return design.paletteForNiche(prof);
+    if (!theme) {
+      const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+      if (prof) {
+        // Real marketplace demand (harvested earlier in the publish path) biases
+        // the palette/vibe toward what shoppers in this niche actually buy.
+        const demandTags = demandSignals.getCachedDemandTags(prof.name);
+        const recommended = design.recommendTheme(prof, demandTags);
+        const t = design.getTheme(recommended);
+        theme = t || design.paletteForNiche(prof, demandTags);
+      }
     }
   } catch (e) { /* fall through to colors */ }
 
-  const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
-  let colors = {};
-  try { colors = JSON.parse(prof?.colors || '{}'); } catch {}
-  return {
-    name: product.theme || 'Onyx Volt',
-    font: "'Space Grotesk','Inter',system-ui,sans-serif",
-    primary: colors.primary || '#0f172a',
-    secondary: colors.secondary || '#2dd4bf',
-    accent: colors.accent || '#2dd4bf',
-    bg: colors.bg || '#ffffff'
-  };
+  if (!theme) {
+    let prof = null;
+    try {
+      if (product && product.profession_id != null) {
+        prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+      }
+    } catch { /* fall through to colors */ }
+    let colors = {};
+    try { colors = JSON.parse(prof?.colors || '{}'); } catch {}
+    theme = {
+      name: product.theme || 'Onyx Volt',
+      font: "'Space Grotesk','Inter',system-ui,sans-serif",
+      primary: colors.primary || '#0f172a',
+      secondary: colors.secondary || '#2dd4bf',
+      accent: colors.accent || '#2dd4bf',
+      bg: colors.bg || '#ffffff'
+    };
+  }
+
+  // Design-brief override layer (Phase 2). Never throws; no brief = no-op.
+  try {
+    if (product.design_brief) {
+      const artDirector = require('./artDirector');
+      const brief = typeof product.design_brief === 'string' ? JSON.parse(product.design_brief) : product.design_brief;
+      if (brief && brief.palette) theme = artDirector.applyBriefToTheme(theme, brief);
+    }
+  } catch (e) { /* brief layer is best-effort */ }
+  return theme;
+}
+
+// True when the design-critic auto-hook may run: AI on and NOT under the test
+// runner (the suite stays hermetic/offline — NODE_TEST_CONTEXT is set by
+// node --test in every test process).
+function autoCritiqueAllowed() {
+  try {
+    return require('./modelConfig').enabled && !process.env.NODE_TEST_CONTEXT;
+  } catch {
+    return false;
+  }
+}
+
+// BRIEF-BY-DEFAULT (Phase 2): every build is born with design DNA — a
+// generated brief when the AI layer is on, a deterministic synthesis (rotated
+// layout, niche motif, curated font pairing) when off. Zero cost + fully
+// offline in the deterministic path; never throws (no brief = old theme
+// behavior). Skipped when the product already carries a brief (cost control).
+async function ensureBuildBrief(product, prof) {
+  if (!product || !prof) return null;
+  if (product.design_brief) {
+    try { return JSON.parse(product.design_brief); } catch { /* regenerate below */ }
+  }
+  try {
+    return await require('./artDirector').ensureDesignBrief(product, prof);
+  } catch {
+    return null; // deterministic theme path still renders
+  }
 }
 
 
@@ -103,6 +158,9 @@ async function ensureProductFile(product) {
 
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
   if (!prof) return null;
+  // BRIEF-BY-DEFAULT: every build gets a design brief (skin) once — generated
+  // when the AI layer is on, synthesized deterministically when off.
+  await ensureBuildBrief(product, prof);
   const theme = fallbackTheme(product);
   const type = product.type;
   const stamp = Date.now();
@@ -181,9 +239,11 @@ function buildFallbackCardHTML(product, prof) {
   </body></html>`;
 }
 
-// Pick the most representative HTML source for this product
-function buildPreviewHTML(product, prof) {
-  const theme = fallbackTheme(product);
+// Pick the most representative HTML source for this product.
+// `theme` is optional — pass a pre-built (e.g. brief-applied) theme to render
+// under a candidate skin; omitted → the product's own theme + brief.
+function buildPreviewHTML(product, prof, theme) {
+  if (!theme) theme = fallbackTheme(product);
   const raw = String(product.html_content || '').trim();
   const hasRealHtml = raw && !['<!-- auto-generated -->', '<!-- bundle -->', '<!-- leadmagnet -->'].includes(raw) && raw.length > 40;
   if (hasRealHtml) return product.html_content;
@@ -259,6 +319,8 @@ async function ensureProductThumbnail(product) {
   if (product.preview_path && fs.existsSync(product.preview_path)) return product.preview_path;
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
   if (!prof) return null;
+  // Brief hook (same rules as ensureProductFile — brief-by-default).
+  await ensureBuildBrief(product, prof);
   let html = buildPreviewHTML(product, prof);
   if (!html) return null;
   // v3: AI lifestyle photo + typography composite (falls back to the plain
@@ -296,6 +358,14 @@ async function ensureProductThumbnail(product) {
   } catch (e) {
     console.error('[THUMB] db update:', e.message);
   }
+  // Phase 1: every AI-enabled build gets a design critique (fire-and-forget —
+  // never blocks or fails the build; skipped in tests and when AI is off).
+  if (result && autoCritiqueAllowed()) {
+    try {
+      require('./designCritic').critiqueProduct(product.id, { force: false })
+        .catch(() => {});
+    } catch { /* critique is best-effort */ }
+  }
   return result;
 }
 
@@ -305,6 +375,9 @@ module.exports = {
   ensureProductThumbnail,
   buildWebsiteHTML,
   buildPreviewHTML,
+  fallbackTheme,
+  ensureBuildBrief,
+  autoCritiqueAllowed,
   getRecoveryPrompts,
   SERENITY_PRAYER_PROMPT
 };

@@ -338,6 +338,46 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
   /api/store/products (200 new / 401 old). Prod verified: storefront 200 anon, console
   APIs 401 anon, login 200, video-scripts 200×3 scripts, 353 products intact.
 
+# ── 2026-10-11: DESIGN QUALITY UPGRADE (5 phases, local-only) ──
+- New services: designCritic.js (render→critique→revise; design_scores table;
+  vision scoring via modelRouter.callVision + modelConfig.visionModel; spend
+  ledgered as ai_usage action='design_critique') and artDirector.js (per-product
+  DESIGN BRIEF → applyBriefToTheme(theme, brief); novelty gate = role-wise ΔE on
+  primary/secondary/accent + repeated words; editor-safety lint: hex+fonts only,
+  url(/@import/position:fixed stripped). products.design_brief holds the skin;
+  content (name/concept/brief/services) is never touched by design ops.
+- Builders accept briefs WITHOUT signature changes: fileFactory.fallbackTheme
+  applies the brief centrally to the theme/DNA object every builder consumes.
+- design_references table (Phase 3): 15 seeded public-domain lineages (extracted
+  DNA only — brief-level transfer, never pixel-copy) + winners auto-enter at
+  critique score >= 8 (source='winner'). swipeFileEngine owns the pool.
+- Reskin: designCritic.reskinProduct (fresh brief or deterministic rotation with
+  AI off) → regenerates file+preview. Action 'reskin-product'/'design-critique'/
+  'design-sweep' in the registry; routes /api/products/:id/{reskin,design-
+  critique,design-score} + /api/design/{scores,references}; Analytics has a
+  Design Quality panel. automationCycle.taskDesignReskin = >=2 sales & score <7
+  → ONE reskin (automation_log 'design_reskin').
+- OWNER SCOPE: automated design paths only touch products created >=
+  FOCUS_SINCE ('2026-10-10', env DESIGN_FOCUS_SINCE). Hard rule: unscored ≠
+  passed — scoreSummary reports unscored separately, auto-reskin skips them.
+- Test seam lesson: the critic accepts injected shots/renderShots — a revision
+  path that rendered unconditionally launched Chrome and hung node --test (warm
+  browser holds the event loop). Also short-lived scripts using fileFactory must
+  call pdfGenerator.closeBrowser() or they never exit.
+- Suite after landing: 257 tests / 29 suites, 253 pass / 0 fail / 4 skips.
+- LESSONS (live Gumroad store refresh, later 2026-10-11): (1) brief → theme
+  REQUIRES theme.dna — applyBriefToTheme now synthesizes the dna layer on
+  dna-less base themes; builders branch on `theme.dna` to pick shellDNA, and
+  without it briefs silently render as palette swaps with NO Google Fonts link
+  (vision critic honestly scored those 2/10). (2) The design-novelty lookback
+  must EXCLUDE the product's own briefs (recentBriefs excludeProductId) or the
+  revision loop silently no-ops against its own predecessor. (3) Analytics that
+  count design quality must count PRODUCTS (latest verdict), never score rows —
+  multi-critique products overcount and `unscored` collapses to 0. (4) Gumroad
+  API: `files[][url]` on the product PUT replaces the attached resource;
+  `main_cover_id` on update is silently ignored — delete stale art via
+  DELETE /products/:id/covers/:cover_id instead.
+
 # ── 2026-09-29: HORIZONS 1, 2 & 3 AUTONOMOUS FACTORY COMPLETE ──
 - Horizon 1 (Winner Amplification, Autonomous Pricing, Net P&L, Self-Healing OAuth):
   - `winnerEngine.js`: finds products with >= 2 sales, creates Pro sequels, siblings, and bundles; hooked to `taskScale`.
@@ -356,4 +396,20 @@ Full itemized backlog lives in TASK.md § "CONSOLIDATED 7-PHASE ROADMAP" — tha
 - Documentation & Testing:
   - `AGENT.md`: comprehensive autonomous agent operating manual created.
   - Suite: 183 tests across 29 test suites passing (0 fail, 3 model skips).
+
+# ── 2026-10-11: CONTENT MOAT — differentiation strategy ──
+- MOAT.md is the strategy note: why NicheGate beats generic digital products.
+- Thesis: specificity is the moat; specificity at FACTORY SCALE is what a generic
+  seller can't do. The product must read "made by someone who knows my job"
+  (= the $12 vs $5 justification). Don't ship commodity templates — invest in
+  per-niche depth that compounds.
+- 3 layers (all built): (1) contentLibrary.js trade-true service-keyed content,
+  (2) fallback ladder niche→category→generic in every builder, (3) filler gate
+  test/content-moat.test.js (no shared rows across groups, no sentinel filler
+  when moat answers, >= 5 distinct rows per group).
+- HARD RULE going forward: every builder + product type consumes the content
+  library + fallback ladder. NEVER hardcode a filler block (the old "Arrive
+  prepared…" routine). The gate enforces this — keep it green.
+- Gap: story/carousel secondary social formats still generic (primary posts are
+  moat-true); gate AI ideation (conceptEngine) to inherit moat framing next.
 

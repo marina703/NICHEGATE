@@ -3,6 +3,8 @@ data
 generated
 logs
 uploads
+backups
+tmp
 .env
 *.log
 .git

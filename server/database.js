@@ -277,6 +277,47 @@ function init() {
   // Winner Amplification genealogy: parent product ID and amplified flag.
   try { db.exec('ALTER TABLE products ADD COLUMN parent_product_id INTEGER'); } catch (e) { /* column already exists */ }
   try { db.exec('ALTER TABLE products ADD COLUMN amplified INTEGER DEFAULT 0'); } catch (e) { /* column already exists */ }
+  // Generative art direction: the product's design brief (the "skin" — content
+  // lives in concept/brief/services). JSON: mood, palette, fonts, motif, …
+  try { db.exec('ALTER TABLE products ADD COLUMN design_brief TEXT'); } catch (e) { /* column already exists */ }
+
+  // ── DESIGN QUALITY (Design Quality Upgrade, Phases 1-3) ───────────────────
+  // Render→critique→revise scores. `scores` is strict JSON
+  // {hierarchy, whitespace, typography, color, uniqueness, scrollStop, overall};
+  // an UNSCORED product has NO row here — never treat missing as passing.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS design_scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      scores TEXT,
+      critique TEXT,
+      revised INTEGER DEFAULT 0,
+      kept_variant TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_design_scores_product ON design_scores (product_id, id DESC)'); } catch (e) { /* exists */ }
+
+  // Curated design references (Phase 3): extracted design DNA only — palette
+  // hexes, font names, layout grid, motif, a taste note. Seed rows come from
+  // public-domain print/editorial traditions; winners auto-enter via the
+  // critique loop (source='winner'). Brief-level transfer, never pixel-copy.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS design_references (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      source TEXT DEFAULT 'seed',
+      niche_key TEXT,
+      palette TEXT,
+      fonts TEXT,
+      layout TEXT,
+      motif TEXT,
+      taste_note TEXT,
+      product_id INTEGER,
+      score REAL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
   // ── PHASE 1: real growth data ────────────────────────────────────────────
   // Per-trend measured history. Every discovery sweep writes one row per
