@@ -2132,7 +2132,8 @@ app.get('/api/buffer/status', (req, res) => {
 // unguessable per-product secret stored once in the settings table; rotating
 // that secret revokes all previously served links. Images are read-only
 // product cover previews — no customer data. Sits AFTER the auth/api guards,
-// which pass it through as a non-/api page route.
+// which pass it through as a non-/api page route. Streams manually —
+// res.sendFile has a Windows path bug (see /api/export/product).
 app.get('/pin-image/:productId/:token', (req, res) => {
   const { productId, token } = req.params;
   const bridge = require('./services/bufferBridge');
@@ -2146,9 +2147,11 @@ app.get('/pin-image/:productId/:token', (req, res) => {
     return res.status(404).send('not found');
   }
   if (token !== expected || !file) return res.status(404).send('not found');
+  const abs = path.resolve(file);
+  if (!fs.existsSync(abs)) return res.status(404).send('not found');
   res.set('Cache-Control', 'public, max-age=86400');
   res.type('image/jpeg');
-  res.sendFile(file); // sendFile itself 404s if the file vanished
+  return fs.createReadStream(abs).pipe(res);
 });
 
 app.post('/api/automation/run', async (req, res) => {
