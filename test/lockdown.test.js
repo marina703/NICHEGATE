@@ -48,7 +48,14 @@ function registeredRoutes() {
 }
 
 function isAllowlisted(p) {
-  return p.startsWith('/api/auth') || p.startsWith('/api/health');
+  if (p.startsWith('/api/auth') || p.startsWith('/api/health')) return true;
+  // Intentionally public, non-storefront surfaces: the brand logo is fetched
+  // cross-origin from third-party app-approval consoles (developer-app
+  // submissions REQUIRE a publicly reachable logo/website URL), which is why
+  // it is served anonymously with CORS headers. It exposes zero product or
+  // customer data — it is a brand asset also visible on public marketplaces.
+  if (p === '/nichegate-logo.png') return true;
+  return false;
 }
 
 async function login() {

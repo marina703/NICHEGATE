@@ -59,6 +59,9 @@ const MAX_SPREADSHEET_PREVIEW_BYTES = 20 * 1024 * 1024;
 // Etsy OAuth needs form POST + redirect, so form-action allows etsy.com.
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
+  // Brand logo is consumed cross-origin (fetch + File in third-party app
+  // consoles); default CORP 'same-origin' breaks that cross-origin read.
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
@@ -151,6 +154,20 @@ app.use((req, res, next) => {
   return auth.requireAuth()(req, res, next);
 });
 
+// The NicheGate brand logo is fetched from third-party app-approval consoles
+// (e.g. Pinterest's Connect App form) as a file upload, so it must be
+// anonymously readable WITH CORS headers — it must NOT fall through to the
+// same-origin-only client/ static mount below.
+app.get('/nichegate-logo.png', (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  // helmet sets CORP: same-origin by default, which makes cross-origin <img>
+  // and fetch() consumers fail even with ACAO '*'.
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.type('image/png');
+  res.sendFile(path.join(__dirname, '..', 'client', 'nichegate-logo.png'));
+});
+
 // Asset mounts are console-only: deliverables, uploads and cover art are
 // internal files, not a public CDN. requireAuth passes through when auth is
 // disabled (dev/tests); console browsers send the session cookie with these.
@@ -159,6 +176,7 @@ app.use('/uploads', auth.requireAuth({ json: true }), express.static(UPLOAD_DIR)
 // covers/ holds brand + product cover art; read-only and cache-friendly.
 app.use('/covers', auth.requireAuth({ json: true }), express.static(path.join(__dirname, '..', 'covers'), { maxAge: '1d' }));
 app.use(express.static(path.join(__dirname, '..', 'client'), { extensions: ['html'] }));
+
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try { await auth.login(req, res); } catch (e) { res.status(500).json({ error: e.message }); }
 });
