@@ -59,7 +59,7 @@ function resolveCoverModel(coverClass = 'standard') {
 }
 function classifyCoverError(err) {
   const msg = String((err && err.message) || err || '');
-  if (/4006|free allocation|quota/i.test(msg)) return 'quota_exhausted';
+  if (/4006|free allocation|quota|quota_exhausted|\(HTTP 429\)|\b429\b/i.test(msg)) return 'quota_exhausted';
   if (/401|403|unauthorized/i.test(msg)) return 'auth_error';
   if (/timeout|ETIMEDOUT|ECONNABORTED/i.test(msg)) return 'timeout';
   return 'upstream_error';
@@ -356,13 +356,20 @@ async function viaPollinations(prompt, outPath) {
 async function viaCloudflare(prompt, outPath, seed = undefined, model = undefined) {
   const url = process.env.COVER_WORKER_URL;
   if (!url) throw new Error('COVER_WORKER_URL missing');
-  const res = await axios.post(url, workerRequestBody(prompt, seed, model), {
-    timeout: 180000,
-    headers: { 'Content-Type': 'application/json', ...(process.env.COVER_WORKER_KEY ? { 'x-ng-key': process.env.COVER_WORKER_KEY } : {}) }
-  });
-  const b64 = res.data && res.data.image;
-  if (!b64) throw new Error(`worker returned no image: ${JSON.stringify(res.data).slice(0, 200)}`);
-  return writeNativePortrait(outPath, Buffer.from(b64, 'base64'));
+  try {
+    const res = await axios.post(url, workerRequestBody(prompt, seed, model), {
+      timeout: 180000,
+      headers: { 'Content-Type': 'application/json', ...(process.env.COVER_WORKER_KEY ? { 'x-ng-key': process.env.COVER_WORKER_KEY } : {}) }
+    });
+    return writeNativePortrait(outPath, Buffer.from(res.data.image, 'base64'));
+  } catch (e) {
+    // Preserve the worker's error body (it carries quota/model taxonomy that
+    // axios drops when it throws on non-2xx) so failures classify honestly.
+    const body = (e && e.response && e.response.data) || {};
+    const status = (e && e.response && e.response.status) || '';
+    const enriched = new Error(`${body.error || e.message}${status ? ' (HTTP ' + status + ')' : ''}`);
+    throw enriched;
+  }
 }
 
 async function viaFal(prompt, outPath, seed = undefined) {
