@@ -2119,6 +2119,31 @@ app.get('/api/automation/log', (req, res) => {
   res.json(rows);
 });
 
+// BUFFER BRIDGE — interim Pinterest publishing while our own app is
+// trial-only. Status is surfaced (no secrets) and settings live in the
+// settings table (buffer_api_token / buffer_channel_id /
+// buffer_board_service_id / public_base_url) or env.
+app.get('/api/buffer/status', (req, res) => {
+  res.json(require('./services/bufferBridge').bufferStatus());
+});
+
+// PUBLIC pin image feed for the Buffer bridge (Buffer's servers fetch the
+// image URL server-side, so it cannot be login-gated). Access is via an
+// unguessable per-product secret stored once in the settings table; rotating
+// that secret revokes all previously served links. Images are read-only
+// product cover previews — no customer data. Sits AFTER the auth/api guards,
+// which pass it through as a non-/api page route.
+app.get('/pin-image/:productId/:token', (req, res) => {
+  const { productId, token } = req.params;
+  const bridge = require('./services/bufferBridge');
+  const expected = `${bridge.shareTokenFor(0).split('-')[0]}-${productId}`;
+  const file = bridge.pinImagePublicUrl(Number(productId) || 0);
+  if (token !== expected || !file) return res.status(404).send('not found');
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.type('image/jpeg');
+  res.sendFile(file);
+});
+
 app.post('/api/automation/run', async (req, res) => {
   const profs = db.prepare("SELECT * FROM professions WHERE status != 'archived'").all();
   const results = [];
@@ -2233,6 +2258,13 @@ app.post('/api/marketplace/anchor/:gid', async (req, res) => {
         VALUES (?, ?, ?, ?, 'listed', 'engine', ?, ?)`)
         .run(a.profession_id, a.name, a.type, a.price, a.marketplace, a.marketplace_id);
       id = Number(r.lastInsertRowid); action = 'created';
+    }
+    // Stash the Gumroad-hosted public cover URL — Pinterest dispatch needs a
+    // publicly fetchable image, and our own preview endpoints are session-gated.
+    const coverUrl = gp.preview_url || (Array.isArray(gp.covers) && gp.covers[0] && gp.covers[0].url) || null;
+    if (coverUrl) {
+      db.prepare('UPDATE products SET listing_json = COALESCE(listing_json, ?) WHERE id = ?')
+        .run(JSON.stringify({ gumroadCoverUrl: coverUrl }), id);
     }
     // Physical deliverable gate: anchored rows self-heal their file on the
     // production volume (builders are moat-aware; no image quota needed).

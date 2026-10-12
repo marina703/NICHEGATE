@@ -218,8 +218,12 @@ function createPinSync(product) {
   return { id: info.lastInsertRowid, scheduled_for: at.toISOString() };
 }
 
-// Due pins: marks due pins as posted and dispatches them live to Pinterest API v5 if
-// PINTEREST_ACCESS_TOKEN is configured in settings or environment.
+// Due pins: dispatches each due pin in channel-priority order and marks it
+// posted:
+//   1. Direct Pinterest API v5 when the NicheGate app token exists
+//      (marketplace_tokens or PINTEREST_ACCESS_TOKEN) — the permanent path.
+//   2. Buffer bridge while that app is trial-only: Buffer posts through
+//      Buffer's own Standard-access app so pins are PUBLIC immediately.
 async function duePins(limit = 10) {
   const now = new Date().toISOString();
   const rows = db.prepare(
@@ -229,8 +233,13 @@ async function duePins(limit = 10) {
   const tokenRow = db.prepare("SELECT access_token FROM marketplace_tokens WHERE platform = 'pinterest'").get();
   const token = tokenRow?.access_token || process.env.PINTEREST_ACCESS_TOKEN;
 
+  // Buffer is only the interim path: once the direct token exists it wins.
+  const buffer = require('./bufferBridge');
+  const useBuffer = !token && buffer.bufferReady({ product_id: 0 });
+
   for (const r of rows) {
     let externalPinId = null;
+    let channel = 'pinterest';
     if (token) {
       try {
         const published = await publishToPinterestApi(r, token);
@@ -241,11 +250,25 @@ async function duePins(limit = 10) {
         console.error(`[PINTEREST] API dispatch failed for pin #${r.id}:`, e.message);
       }
     }
+    if (!externalPinId && useBuffer) {
+      try {
+        const published = await buffer.publishToBuffer(r);
+        if (published && published.external_post_id) {
+          externalPinId = published.external_post_id;
+          channel = 'buffer';
+        }
+      } catch (e) {
+        console.error(`[BUFFER] dispatch failed for pin #${r.id}:`, e.message);
+      }
+    }
 
     db.prepare("UPDATE pins SET status = 'posted', posted_at = ? WHERE id = ?").run(now, r.id);
     if (externalPinId) {
       db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
-        .run('pinterest_publish', r.product_id, `Published to Pinterest API (Pin ID: ${externalPinId})`, 'success');
+        .run(channel === 'buffer' ? 'buffer_publish' : 'pinterest_publish', r.product_id,
+          channel === 'buffer'
+            ? `Published via Buffer bridge (Buffer post ID: ${externalPinId})`
+            : `Published to Pinterest API (Pin ID: ${externalPinId})`, 'success');
     }
   }
   return rows;
@@ -267,11 +290,25 @@ function pinImageUrl(productId, { fullFrame = true } = {}) {
   return previewPath;
 }
 
+// PUBLIC image URL for dispatch: Pinterest fetches the image server-side, so
+// session-gated local app paths never work — use the Gumroad-hosted cover
+// stashed on the anchored row instead.
+function pinPublicImageUrl(productId) {
+  if (!productId) return null;
+  try {
+    const row = db.prepare('SELECT listing_json FROM products WHERE id = ?').get(productId);
+    if (!row || !row.listing_json) return null;
+    const li = JSON.parse(row.listing_json);
+    return (li && li.gumroadCoverUrl && /^https:\/\//.test(li.gumroadCoverUrl)) ? li.gumroadCoverUrl : null;
+  } catch { return null; }
+}
+
 // Live Pinterest API v5 client
 async function publishToPinterestApi(pin, accessToken) {
   const axios = require('axios');
-  // If product has a preview image, attach image source
-  const imageUrl = pinImageUrl(pin.product_id);
+  // Attach image source ONLY when publicly fetchable (Gumroad-hosted cover);
+  // local preview paths are session-gated and would 403 Pinterest.
+  const imageUrl = pinPublicImageUrl(pin.product_id);
 
   // Find board or use default
   const boardId = process.env.PINTEREST_BOARD_ID || 'general';
@@ -314,4 +351,4 @@ function attributionReport() {
   return { pins, posted, scheduled, withAttributedUrl: withUrl, note: 'click-side attribution needs the CF worker (stretch)' };
 }
 
-module.exports = { createPin, createPinSync, scheduleForProducts, scheduleForProductsAI, pinNewProductAsync, unpinnedListedProducts, duePins, nextSlot, attributionReport, pinterestKeywords, utmFor, attributedUrl, publishToPinterestApi, pinImageUrl, SLOT_GRID };
+module.exports = { createPin, createPinSync, scheduleForProducts, scheduleForProductsAI, pinNewProductAsync, unpinnedListedProducts, pinPublicImageUrl, duePins, nextSlot, attributionReport, pinterestKeywords, utmFor, attributedUrl, publishToPinterestApi, pinImageUrl, SLOT_GRID };
