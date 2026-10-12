@@ -1,10 +1,10 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
-## ── 2026-10-12: REAL PRODUCT COVER COMPOSITES (local branch) ──
-- [x] Owner-authorized push completed before this work: main at d08b632 and
-  origin/main synced (0 ahead / 0 behind). Production `/api/health` returned 200
-  with 11 products and 34 professions. Cover implementation is isolated on
-  `feature/product-real-covers`; not pushed or deployed.
+## ── 2026-10-12: REAL PRODUCT COVER COMPOSITES (server released; Worker pending) ──
+- [x] Cover release commit `2365987` (including feature commit `af8514f`) was
+  pushed to `origin/main`. Railway production `/api/health` subsequently returned
+  200 with `env=production`, 11 products and 34 professions. Cloudflare Worker
+  remains on its existing deployment pending Wrangler authentication.
 - [x] Cover hero uses actual `buildPreviewHTML(product, prof)` output embedded
   in a sandboxed srcdoc iframe; both photo-backed and no-art covers preserve the
   generated product title/copy/price and show the real product screen instead
@@ -64,13 +64,15 @@
 - [x] Live cover Worker `/health` returns `{"ok":true,"worker":"nichegate-covers"}`.
   Cloudflare documents Lucid Origin with width/height up to 2500 but does not
   guarantee actual image pixel dimensions; client byte inspection remains required.
-- [ ] Release blocked before push/deploy: Wrangler 4.149.0 is not authenticated
-  (`wrangler whoami` says run `wrangler login`); no Cloudflare credentials are
-  present in the shell. Do not push the Railway-triggering server changes while
-  Worker deployment is unavailable, to avoid a partial production release.
-- [x] Commit `af8514f` (`Ship real-product cover composites with crop-safe marketplace exports`)
-  exists locally on `feature/product-real-covers`; not pushed or deployed. Preview
-  cache paths for #969, #949, #965, #961 and #932 were refreshed in local DB only.
+- [ ] Cloudflare Worker deployment remains blocked: Wrangler 4.149.0 is not
+  authenticated (`wrangler whoami` requests `wrangler login`), and no credentials
+  are available in this shell. Do not deploy via temporary account. Live Worker
+  `/health` responds 200, but photo-backed generation and actual 1200×1800 output
+  have not been verified after the code change.
+- [x] Feature commit `af8514f` (`Ship real-product cover composites with crop-safe
+  marketplace exports`) and release-record commit `2365987` are on `origin/main`.
+  Preview cache paths for #969, #949, #965, #961 and #932 were refreshed in local
+  DB only.
 
 ## Regression triage detail (2026-10-12)
 - Integration duplicate slug: pre-existing in `d08b632`; static evidence was
@@ -86,9 +88,9 @@
   expected the planner result. Test disables the model for its deterministic
   assertion. No production worker-memory behavior was changed.
 - Latest native Node result: 288/4/0 (292 total), including integration boot.
-  Prior Bun result: 285/7/0. Wrangler authentication is absent; release remains
-  local-only until the owner completes `wrangler login` or configures a scoped
-  Cloudflare deploy credential. See `handoff-mail-FROM_FREEBUFF.md`.
+  Prior Bun result: 285/7/0. Release commit `2365987` is pushed to main; Railway
+  production health is 200. Worker deployment still awaits Wrangler auth. See
+  `handoff-mail-FROM_FREEBUFF.md`.
 
 
 # Complete (2026-09-15 → 09-20):

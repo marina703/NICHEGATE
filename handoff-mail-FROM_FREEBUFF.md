@@ -1,9 +1,10 @@
 # Handoff — cover aspect contract + regression triage
 
 **Branch:** `feature/product-real-covers`
-**Baseline:** `d08b632` (main/origin/main at start of branch work)
-**Commit:** `af8514f` — `Ship real-product cover composites with crop-safe marketplace exports`
-**Status:** committed locally on `feature/product-real-covers`; nothing pushed or deployed. Full release is blocked until Cloudflare Wrangler is authenticated, so the matched Worker/server release can be published together.
+**Baseline:** `d08b632` (main at start of branch work)
+**Feature commit:** `af8514f` — `Ship real-product cover composites with crop-safe marketplace exports`
+**Release record:** `2365987` — pushed to `origin/main`; Railway production health verified HTTP 200 (`env=production`, 11 products, 34 professions).
+**Status:** Server release is live. The paired Cloudflare Worker code is not deployed: Wrangler 4.149.0 is unauthenticated, and no Cloudflare credentials are available. Do not use a temporary account for production deployment.
 
 ## Aspect-ratio contract
 
@@ -28,4 +29,4 @@ All three reported failures predate this branch. Baseline source and `git blame`
 
 ## Remaining limitations / deployment gate
 
-Cloudflare Wrangler 4.149.0 reports unauthenticated and directs `wrangler login`; no Cloudflare credential environment variables are available. I did not initiate the interactive login or push either release target. To avoid deploying only the server while the paired Worker is unavailable (or vice versa), nothing was pushed and neither Railway nor the Worker was deployed. Live photo-backed 1200×1800 generation remains unverified; Worker health is live, but that does not test model generation.
+Cloudflare Wrangler 4.149.0 reports unauthenticated and directs `wrangler login`; no Cloudflare credentials are available in the shell. The authorized server push completed, and Railway `/api/health` now returns HTTP 200 with production environment and expected product/profession counts. Cloudflare was not deployed: the live `/health` endpoint only confirms the previous Worker is up, not that Lucid Origin generation works. Live photo-backed 1200×1800 generation and returned pixel dimensions remain unverified. Authenticate Wrangler with the correct production account, then deploy `cf-worker` and verify an authenticated generation response and decoded image dimensions before treating composite art as production-ready.
