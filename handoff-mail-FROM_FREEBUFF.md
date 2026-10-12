@@ -3,7 +3,7 @@
 **Branch:** `feature/product-real-covers`
 **Baseline:** `d08b632` (main at start of branch work)
 **Feature commit:** `af8514f` — `Ship real-product cover composites with crop-safe marketplace exports`
-**Release:** `6891350` — pushed to `origin/main`; Railway deployment `7ab0f252-c5c4-4556-8617-74d2bcaa8b2d` is SUCCESS for commit `6891350b4cd49796f951d4f68305a6e0c4b93827`. Production `/api/health` and `/login` return HTTP 200; `/js/console.js` serves JS; anonymous `/api/products` correctly returns 401.
+**Audit release:** `6891350` deployed successfully. Final release-note commit `697113f8b0b77de0fabc35a64bbfaa2bc306d621` is pushed to `origin/main`; Railway deployment `ce10b41a-278a-4c99-85ea-ad37536eb75e` is SUCCESS and service Online. Production `/api/health` and `/login` return HTTP 200; `/js/console.js` serves JS; anonymous `/api/products` correctly returns 401.
 **Worker deployment:** `nichegate-covers`, version `ba04520e-c7de-44d1-9d0e-eb183cd81d57`, deployed to the matching account `74d42a6784c765ed7c4276ab8d1f1c72`.
 **Status:** Server and cover Worker are live; authenticated generation smoke passed and actual JPEG bytes verified at 1200×1800.
 

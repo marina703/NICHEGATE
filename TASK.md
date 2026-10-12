@@ -87,12 +87,13 @@
   assertion. No production worker-memory behavior was changed.
 - Latest native Node result (E2E audit): 288/4/0 (292 total), including boot
   integration, route lockdown, marketplace guards, and actual preview parity.
-  Commit `6891350` is pushed to `origin/main` and Railway deployment
-  `7ab0f252-c5c4-4556-8617-74d2bcaa8b2d` is SUCCESS for that exact commit.
-  Production `/api/health` and `/login` return 200; `/js/console.js` serves JS;
-  anonymous `/api/products` remains 401 as designed. Worker version
-  `ba04520e-c7de-44d1-9d0e-eb183cd81d57` is deployed with 1200×1800 generation
-  verified. See `handoff-mail-FROM_FREEBUFF.md`.
+  Audit commit `6891350` was deployed successfully, and the final release-note
+  commit `697113f8b0b77de0fabc35a64bbfaa2bc306d621` is also deployed on Railway:
+  deployment `ce10b41a-278a-4c99-85ea-ad37536eb75e` SUCCESS, service Online.
+  Production `/api/health` returns 200 with 11 products and 34 professions;
+  `/login` and `/js/console.js` return 200; anonymous `/api/products` returns 401
+  as designed. Worker version `ba04520e-c7de-44d1-9d0e-eb183cd81d57` is live with
+  1200×1800 generation verified. See `handoff-mail-FROM_FREEBUFF.md`.
 
 
 # Complete (2026-09-15 → 09-20):
