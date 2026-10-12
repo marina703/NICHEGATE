@@ -5,6 +5,9 @@
 // injected through opts.shots).
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { db, init } = require('../server/database');
 init(); // idempotent: design_scores / design_references tables
 
@@ -21,6 +24,10 @@ function withAiOn() {
 }
 
 const SHOT = 'data:image/jpeg;base64,/9j/2Q==';
+const VALID_TEST_JPEG = Buffer.from([
+  0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x07, 0x08, 0x04, 0xb0, 0x00, 0x03,
+  0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00, 0xff, 0xd9
+]);
 
 // ── hermetic fixtures (throwaway rows, always cleaned) ──────────────────
 function makeProfession(suffix) {
@@ -35,6 +42,7 @@ function makeProduct(profId, fields = {}) {
     fields.status || 'draft', 'sage', 'engine', fields.created_at || '2026-10-11 00:00:00').lastInsertRowid;
 }
 function cleanup(productId, profId) {
+  db.prepare('DELETE FROM cover_reviews WHERE product_id = ?').run(productId);
   db.prepare('DELETE FROM design_scores WHERE product_id = ?').run(productId);
   db.prepare('DELETE FROM design_references WHERE product_id = ?').run(productId);
   db.prepare('DELETE FROM products WHERE id = ?').run(productId);
@@ -63,7 +71,30 @@ function stubVision(fn) {
   return () => { router.callVision = original; };
 }
 
+function goodCoverScores(overall = 8.5, textViolation = false) {
+  return JSON.stringify({
+    preview_composite_realism: overall,
+    focal_hierarchy: overall,
+    thumbnail_legibility: overall,
+    dna_consistency: overall,
+    zero_garbled_text: !textViolation,
+    text_violation: textViolation,
+    critique: 'The screen is well seated and copy reads at thumbnail size.'
+  });
+}
+
 // ── parseCritique ───────────────────────────────────────────────────────
+
+test('cover critic parses the cover-specific rubric and hard text fail', () => {
+  const pass = critic.parseCoverCritique(goodCoverScores(8));
+  assert.equal(pass.scores.overall, 8);
+  assert.equal(pass.zeroGarbledText, true);
+  assert.equal(pass.passed, true);
+  const fail = critic.parseCoverCritique(goodCoverScores(9, true));
+  assert.equal(fail.zeroGarbledText, false);
+  assert.equal(fail.passed, false);
+  assert.equal(critic.parseCoverCritique('{"preview_composite_realism":10}'), null);
+});
 
 test('critic: parseCritique accepts strict JSON and clamps scores', () => {
   const parsed = critic.parseCritique('```json\n' + goodScores(9) + '\n```');
@@ -92,6 +123,125 @@ test('critic: overall falls back to the rubric mean when absent', () => {
     color_harmony: 6, uniqueness: 6, scroll_stop: 6
   }));
   assert.equal(parsed.scores.overall, 6);
+});
+
+test('cover critic requires 6.5 across its dimensions and gates unscored separately', () => {
+  assert.equal(critic.coverDecision({ scores: { overall: 6.5 }, zeroGarbledText: true }).status, 'pass');
+  assert.equal(critic.coverDecision({ scores: { overall: 6.4 }, zeroGarbledText: true }).status, 'fail');
+  assert.equal(critic.coverDecision({ scores: { overall: 10 }, zeroGarbledText: false }).status, 'fail');
+  assert.equal(critic.coverDecision(null).status, 'unscored');
+  assert.equal(critic.coverDecision(null).publishAllowed, false, 'missing review cannot authorize publishing');
+});
+
+test('cover critic persists verdict against the exact current JPEG and reuses only matching hash', async () => {
+  const profId = makeProfession('cover-persist');
+  const pid = makeProduct(profId);
+  const ai = withAiOn();
+  const coverPath = path.join(os.tmpdir(), `nichegate-${pid}-cover-v5-01.jpg`);
+  fs.writeFileSync(coverPath, VALID_TEST_JPEG);
+  const fileFactory = require('../server/services/fileFactory');
+  const originalThumbnail = fileFactory.ensureProductThumbnail;
+  let calls = 0;
+  const restore = stubVision(async () => { calls++; return goodCoverScores(8.25); });
+  fileFactory.ensureProductThumbnail = async (product) => {
+    if (!product.preview_path) {
+      product.preview_path = coverPath;
+      db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(coverPath, pid);
+    }
+    return product.preview_path;
+  };
+  try {
+    db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(coverPath, pid);
+    const first = await critic.critiqueCover(pid);
+    assert.equal(first.status, 'pass');
+    assert.equal(first.publishAllowed, true);
+    assert.equal(first.reviewId > 0, true);
+    const row = critic.latestCoverScore(pid);
+    assert.equal(row.artifact_path, coverPath);
+    assert.equal(row.artifact_sha256, require('crypto').createHash('sha256').update(fs.readFileSync(coverPath)).digest('hex'));
+    assert.equal(row.status, 'pass');
+    assert.equal(calls, 1);
+
+    const cached = await critic.critiqueCover(pid);
+    assert.equal(cached.cached, true);
+    assert.equal(cached.status, 'pass');
+    assert.equal(calls, 1, 'same path and unchanged exact-image hash should reuse review');
+  } finally {
+    fileFactory.ensureProductThumbnail = originalThumbnail;
+    restore();
+    ai();
+    try { fs.unlinkSync(coverPath); } catch {}
+    cleanup(pid, profId);
+  }
+});
+
+test('cover critic stores one revised variant when the first cover fails', async () => {
+  const profId = makeProfession('cover-revise');
+  const pid = makeProduct(profId);
+  const ai = withAiOn();
+  const coverPaths = [
+    path.join(os.tmpdir(), `nichegate-${pid}-cover-v5.jpg`),
+    path.join(os.tmpdir(), `nichegate-${pid}-cover-v4-r1.jpg`)
+  ];
+  coverPaths.forEach((file, i) => fs.writeFileSync(file, Buffer.concat([VALID_TEST_JPEG, Buffer.from([i])])));
+  const fileFactory = require('../server/services/fileFactory');
+  const originalThumbnail = fileFactory.ensureProductThumbnail;
+  let renderCount = 0;
+  let visionCount = 0;
+  const restore = stubVision(async () => { visionCount++; return goodCoverScores(visionCount === 1 ? 4 : 8); });
+  fileFactory.ensureProductThumbnail = async (product, opts = {}) => {
+    const coverPath = opts.freshArtRevision ? coverPaths[1] : coverPaths[0];
+    product.preview_path = coverPath;
+    db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(coverPath, pid);
+    renderCount++;
+    return coverPath;
+  };
+  try {
+    const result = await critic.critiqueCover(pid, { force: true });
+    assert.equal(result.status, 'pass');
+    assert.equal(result.revised, true);
+    assert.equal(result.coverPath, coverPaths[1]);
+    assert.equal(renderCount, 2);
+    assert.equal(visionCount, 2);
+    const latest = critic.latestCoverScore(pid);
+    assert.equal(latest.status, 'pass');
+    assert.equal(latest.revised, 1);
+    assert.equal(latest.artifact_path, coverPaths[1]);
+  } finally {
+    fileFactory.ensureProductThumbnail = originalThumbnail;
+    restore();
+    ai();
+    coverPaths.forEach(file => { try { fs.unlinkSync(file); } catch {} });
+    cleanup(pid, profId);
+  }
+});
+
+test('cover critic fails closed when enabled review is unavailable and records unscored artifact', async () => {
+  const profId = makeProfession('cover-unscored');
+  const pid = makeProduct(profId);
+  const ai = withAiOn();
+  const coverPath = path.join(os.tmpdir(), `nichegate-${pid}-cover-v5.jpg`);
+  fs.writeFileSync(coverPath, VALID_TEST_JPEG);
+  const fileFactory = require('../server/services/fileFactory');
+  const originalThumbnail = fileFactory.ensureProductThumbnail;
+  const restore = stubVision(async () => { throw new Error('vision unavailable'); });
+  fileFactory.ensureProductThumbnail = async (product) => {
+    product.preview_path = coverPath;
+    db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(coverPath, pid);
+    return coverPath;
+  };
+  try {
+    const result = await critic.critiqueCover(pid, { force: true });
+    assert.equal(result.status, 'unscored');
+    assert.equal(result.publishAllowed, false);
+    assert.equal(critic.latestCoverScore(pid).status, 'unscored');
+  } finally {
+    fileFactory.ensureProductThumbnail = originalThumbnail;
+    restore();
+    ai();
+    try { fs.unlinkSync(coverPath); } catch {}
+    cleanup(pid, profId);
+  }
 });
 
 // ── the loop: score, revision cap, persistence, degradation ─────────────
@@ -313,12 +463,12 @@ test('critic: autoReskinCandidates honors sales, score and one-shot rules + cuto
     critic.persistScore(weakPid, { visual_hierarchy: 5, whitespace_rhythm: 5, typography_cohesion: 5, color_harmony: 5, uniqueness: 5, scroll_stop: 5, overall: 5 }, 'weak');
     critic.persistScore(oldPid, { visual_hierarchy: 4, whitespace_rhythm: 4, typography_cohesion: 4, color_harmony: 4, uniqueness: 4, scroll_stop: 4, overall: 4 }, 'weak');
 
-    let candidates = critic.autoReskinCandidates();
+    let candidates = critic.autoReskinCandidates({ limit: 10000 });
     assert.ok(candidates.some(c => c.productId === weakPid), 'selling + weak + recent → candidate');
     assert.ok(!candidates.some(c => c.productId === oldPid), 'pre-cutoff product never auto-reskinned');
 
     critic.markAutoReskin(weakPid, { ok: true });
-    candidates = critic.autoReskinCandidates();
+    candidates = critic.autoReskinCandidates({ limit: 10000 });
     assert.ok(!candidates.some(c => c.productId === weakPid), 'only ONE auto-reskin attempt per product');
   } finally {
     db.prepare('DELETE FROM metrics WHERE product_id IN (?, ?)').run(weakPid, oldPid);

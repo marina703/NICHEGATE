@@ -218,7 +218,12 @@ async function ensureProductFile(product) {
 // Reuses the same cached Chrome instance as the PDF generator.
 // ═══════════════════════════════════════════════════════════════════════════
 const PREVIEW_DIR = runtimeConfig.resolvePersistentDir('previews');
+const COVER_VERSION = 'cover-v5';
 fs.mkdirSync(PREVIEW_DIR, { recursive: true });
+
+function isCurrentCoverPath(previewPath) {
+  return !!previewPath && path.basename(previewPath).includes(`-${COVER_VERSION}-`);
+}
 
 function escHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -270,17 +275,26 @@ function buildPreviewHTML(product, prof, theme) {
   return buildFallbackCardHTML(product, prof);
 }
 
-// Screenshot a 1200x1500 thumb-stopper cover → JPEG
+// The cover master is 2:3 (1200×1800); marketplace thumbnails are a centered
+// 4:5 crop (1200×1500). Preserve the uncropped master alongside the export so
+// Pinterest can use the full-frame image without changing marketplace files.
+const COVER_EXPORT = Object.freeze({
+  master: Object.freeze({ width: 1200, height: 1800 }),
+  crop: Object.freeze({ x: 0, y: 150, width: 1200, height: 1500 })
+});
+
 async function renderCoverImage(html, outPath) {
   const browser = await pdfGen.getBrowser();
   if (!browser) return null;
   const page = await browser.newPage();
   try {
-    await page.setViewport({ width: 1200, height: 1500, deviceScaleFactor: 1 });
+    await page.setViewport({ width: COVER_EXPORT.master.width, height: COVER_EXPORT.master.height, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
     await new Promise(r => setTimeout(r, 400));
-    await page.screenshot({ path: outPath, type: 'jpeg', quality: 90, clip: { x: 0, y: 0, width: 1200, height: 1500 } });
-    return fs.existsSync(outPath) ? outPath : null;
+    const masterPath = outPath.replace(/\.jpg$/i, '.master.jpg');
+    await page.screenshot({ path: masterPath, type: 'jpeg', quality: 90, clip: { x: 0, y: 0, ...COVER_EXPORT.master } });
+    await page.screenshot({ path: outPath, type: 'jpeg', quality: 90, clip: COVER_EXPORT.crop });
+    return fs.existsSync(outPath) && fs.existsSync(masterPath) ? outPath : null;
   } catch (e) {
     console.error('[THUMB] cover render error:', e.message);
     return null;
@@ -314,39 +328,68 @@ async function renderPreviewImage(html, outPath) {
   }
 }
 
+async function renderProductCoverPreview(productHtml, title) {
+  const browser = await pdfGen.getBrowser();
+  if (!browser) return null;
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: 960, height: 1200, deviceScaleFactor: 1 });
+    await page.setJavaScriptEnabled(false);
+    await page.setRequestInterception(true);
+    page.on('request', request => {
+      const url = request.url();
+      if (url.startsWith('data:') || url === 'about:blank') request.continue();
+      else request.abort();
+    });
+    await page.setContent(String(productHtml || ''), { waitUntil: 'domcontentloaded', timeout: 10000 });
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const image = await page.screenshot({ type: 'jpeg', quality: 86, clip: { x: 0, y: 0, width: 960, height: 1200 } });
+    return `data:image/jpeg;base64,${Buffer.from(image).toString('base64')}`;
+  } catch (e) {
+    console.error(`[THUMB] product preview raster failed (${String(title || '').slice(0, 60)}):`, e.message);
+    return null;
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
 // Ensure a product has a raster preview — cached on disk + in DB; returns path or null
-async function ensureProductThumbnail(product) {
-  if (product.preview_path && fs.existsSync(product.preview_path)) return product.preview_path;
+async function ensureProductThumbnail(product, opts = {}) {
+  if (!opts.force && product.preview_path && fs.existsSync(product.preview_path) && isCurrentCoverPath(product.preview_path)) return product.preview_path;
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
   if (!prof) return null;
   // Brief hook (same rules as ensureProductFile — brief-by-default).
   await ensureBuildBrief(product, prof);
-  let html = buildPreviewHTML(product, prof);
-  if (!html) return null;
+  const theme = fallbackTheme(product);
+  let productHtml = buildPreviewHTML(product, prof, theme);
+  if (!productHtml) return null;
+  const copy = ds.thumbCoverCopy(product, prof);
+  const realPreview = await renderProductCoverPreview(productHtml, copy[0]);
+  if (realPreview) productHtml = realPreview;
+  let html = productHtml;
   // v3: AI lifestyle photo + typography composite (falls back to the plain
   // HTML cover when the free image tier is unavailable — never blocks).
   try {
     let artDataUri = null;
     try {
       const coverArt = require('./coverArt');
-      const artPath = await coverArt.ensureCoverArt(product, prof);
+      const artPath = await coverArt.ensureCoverArt(product, prof, theme, { fresh: opts.freshArt || opts.freshArtRevision === true, forceNew: opts.freshArtRevision === true });
       if (artPath && fs.existsSync(artPath)) {
-        const b64 = fs.readFileSync(artPath).toString('base64');
-        artDataUri = `data:image/jpeg;base64,${b64}`;
+        artDataUri = coverArt.imageDataUri(fs.readFileSync(artPath));
       }
     } catch (e) {
       console.error('[THUMB] cover art fetch:', e.message);
     }
     if (artDataUri && typeof ds.buildThumbStopperCover === 'function') {
-      html = ds.buildThumbStopperCover(product, prof, fallbackTheme(product), artDataUri);
+      html = ds.buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, copy);
     } else if (typeof ds.buildPlainCover === 'function') {
-      html = ds.buildPlainCover(product, prof, fallbackTheme(product));
+      html = ds.buildPlainCover(product, prof, theme, productHtml);
     }
   } catch (e) {
     console.error('[THUMB] cover build:', e.message);
   }
-  const outPath = path.join(PREVIEW_DIR, `${prof.slug}-${product.type}-${product.id}-${Date.now()}.jpg`);
-  // Thumb-stopper cover (v2) renders at 1200x1500 — screenshot exact size, no wrap.
+  const outPath = path.join(PREVIEW_DIR, `${prof.slug}-${product.type}-${product.id}-${COVER_VERSION}-${Date.now()}.jpg`);
+  // Marketplace JPEG is a centered 1200x1500 crop; renderCoverImage also retains its 1200x1800 master.
   const isCover = typeof ds.buildThumbStopperCover === 'function';
   const result = isCover
     ? await renderCoverImage(html, outPath)
@@ -360,10 +403,9 @@ async function ensureProductThumbnail(product) {
   }
   // Phase 1: every AI-enabled build gets a design critique (fire-and-forget —
   // never blocks or fails the build; skipped in tests and when AI is off).
-  if (result && autoCritiqueAllowed()) {
+  if (result && !opts.skipDesignCritique && autoCritiqueAllowed()) {
     try {
-      require('./designCritic').critiqueProduct(product.id, { force: false })
-        .catch(() => {});
+      require('./designCritic').critiqueProduct(product.id, { force: false }).catch(() => {});
     } catch { /* critique is best-effort */ }
   }
   return result;
@@ -373,6 +415,10 @@ async function ensureProductThumbnail(product) {
 module.exports = {
   ensureProductFile,
   ensureProductThumbnail,
+  isCurrentCoverPath,
+  COVER_EXPORT,
+  renderCoverImage,
+  renderProductCoverPreview,
   buildWebsiteHTML,
   buildPreviewHTML,
   fallbackTheme,

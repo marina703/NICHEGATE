@@ -201,11 +201,18 @@ describe('agentWorker integration with memory/ask tools', () => {
   it('deterministic planner turns "remember …" into a remember call', async () => {
     const calls = [];
     const exec = async (tool, args) => { calls.push({ tool, args }); return { saved: { id: 1 } }; };
-    const out = await agentWorker.runAgentTurn({ message: 'remember that the boss likes dark covers' }, exec);
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].tool, 'remember');
-    assert.equal(calls[0].args.content, 'the boss likes dark covers');
-    assert.match(out.answer, /Remembered/);
+    const modelConfig = require('../server/services/modelConfig');
+    const wasEnabled = modelConfig.enabled;
+    modelConfig.enabled = false;
+    try {
+      const out = await agentWorker.runAgentTurn({ message: 'remember that the boss likes dark covers' }, exec);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].tool, 'remember');
+      assert.equal(calls[0].args.content, 'the boss likes dark covers');
+      assert.match(out.answer, /Remembered/);
+    } finally {
+      modelConfig.enabled = wasEnabled;
+    }
   });
 
   it('ask_boss answers report back without needing the AI layer', async () => {

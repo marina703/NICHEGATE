@@ -1,6 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const mp = require('../server/services/marketplace');
+const critic = require('../server/services/designCritic');
+const { db, init } = require('../server/database');
+init();
 
 test('conceptFor returns null when no concept / not JSON / unnamed', () => {
   assert.equal(mp.conceptFor({}), null);
@@ -36,6 +39,30 @@ test('listingCopyFor uses the AI concept name + pitch + benefits when present', 
   assert.ok(out.description.includes('signed scope checklist'));
   assert.ok(out.description.includes('SEO DESC'));  // SEO base still present for keywords
   assert.ok(out.description.length <= 4999);
+});
+
+test('marketplace publish guard blocks fail, unscored, and missing persisted review before uploads', async () => {
+  const product = { id: 987654321 };
+  const original = critic.critiqueCover;
+  const outcomes = [
+    { status: 'fail', publishAllowed: false, reason: 'text violation' },
+    { status: 'unscored', publishAllowed: false, reason: 'model unavailable' },
+    null
+  ];
+  try {
+    for (const outcome of outcomes) {
+      critic.critiqueCover = async () => outcome;
+      await assert.rejects(mp.requirePublishableCover(product), error => error.code === 'COVER_REVIEW_FAILED');
+    }
+    critic.critiqueCover = async () => ({ status: 'pass', publishAllowed: true, reviewId: 11 });
+    assert.equal((await mp.requirePublishableCover(product)).reviewId, 11);
+  } finally {
+    critic.critiqueCover = original;
+  }
+});
+
+test('cover_reviews migration is available to the marketplace review flow', () => {
+  assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'cover_reviews'").get().name, 'cover_reviews');
 });
 
 test('listingCopyFor truncates long titles to 140 chars and collapses whitespace', () => {

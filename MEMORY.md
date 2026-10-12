@@ -1,5 +1,27 @@
 # MEMORY.md — persistent agent memory for NicheGate
 
+## Cover composites (2026-10-12)
+- Cover art is an atmospheric, photoreal niche background only; never ask the
+  image model to invent screens, charts, or readable product pages. The real
+  product page comes from `fileFactory.buildPreviewHTML(product, prof)` and is
+  composited in a sandboxed `srcdoc` iframe, with scripts/permissions disabled.
+- Keep both photo-backed and plain cover builders wired to that actual HTML;
+  escape the embedded document before writing it into the iframe attribute.
+  Version generated preview filenames and require the active version in both
+  the fileFactory and preview-image route cache checks, or old paths bypass the
+  new builder and products keep their generic cover.
+  Preview framing is device chrome around the page, not a replacement page;
+  tune viewport/zoom so readable details remain visible in the 1200x1500 render.
+- Native 1200x1800 backgrounds use Leonardo Lucid Origin via the cover Worker;
+  reject non-native 2:3 output rather than cropping it.
+- `cover_reviews` binds each verdict to the exact current preview path and image
+  SHA-256. AI-enabled missing/unscored/failed or unpersisted reviews block every
+  paid/free upload; MODEL_ENABLED=false persists explicit `not_required` so
+  publishing remains supported without AI.
+- Cover implementation is on local branch `feature/product-real-covers`; do
+  not assume it has been pushed/deployed. `main` was pushed first and checked
+  in sync before the cover work.
+
 ## Project: NicheGate — Autonomous Digital Product Factory
 - Stack: Node >=22, Express 5, SQLite (WAL), Puppeteer PDFs, SheetJS XLSX, adm-zip
 - Run: start-nichegate.bat → http://localhost:5000

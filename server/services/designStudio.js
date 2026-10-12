@@ -1388,12 +1388,15 @@ function buildPyroShootLogHTML(prof, theme) {
 }
 
 /** Thumb-stopper marketplace cover (v2). Light paper, giant title, hero visual,
- *  3 benefits, price + format badges. 1200x1500 (4:5). Dark device-frames banned. */
+ *  3 benefits, price + format badges. 2:3 master with 4:5 marketplace-safe composition. Dark device-frames banned. */
 const productCopy = require('./productCopy');
 
 function thumbCoverCopy(product, prof) {
   const t = String(product.type || '').toLowerCase();
   const noun = prof.name || 'Business';
+  const concept = (() => { try { return product && product.concept ? JSON.parse(product.concept) : null; } catch { return null; } })();
+  const hasConcept = !!(concept && concept.name);
+  const safeFormat = ({ invoice: 'PDF + DOCX', checklist: 'PDF · Printable', spreadsheet: 'XLSX · Formulas', booking: 'XLSX · Tracker', social: 'PNG + HTML', brand: 'PDF + PNG', journal: 'PDF · 30 days', bundle: 'ZIP · Files', leadmagnet: 'FREE · ZIP', website: 'HTML · Editable', roi: 'XLSX · Formulas', 'decision-matrix': 'PDF · Printable' })[t] || 'Instant download';
   const lib = {
     invoice: ['Professional Invoice Template', 'Get paid faster, look legit', ['Editable in Word / Google Docs', 'Auto-totals + tax line', 'Pro payment terms built in'], 'PDF + DOCX'],
     checklist: ['Service Quality Checklist', 'Never miss a step on the job', ['Step-by-step sign-off', 'Client-ready finish check', 'Printable + reusable'], 'PDF · Printable'],
@@ -1414,12 +1417,19 @@ function thumbCoverCopy(product, prof) {
   // productCopy derives concept → name tail → brief. The library is only the
   // fallback for generic auto-drafts.
   const derived = productCopy.deriveCopy(product, prof);
-  return [
-    derived.title || fallback[0],
-    derived.sub || fallback[1],
-    (derived.benefits || fallback[2]).slice(0, 3),
-    fallback[3]
+  if (hasConcept) return [
+    productCopy.deriveTitle(product, prof) || String(concept.name).trim(),
+    String(concept.pitch || '').trim(),
+    Array.isArray(concept.benefits) ? concept.benefits.map(String).map(s => s.trim()).filter(Boolean).slice(0, 3) : [],
+    safeFormat
   ];
+  const name = String(product.name || '').trim();
+  const nounNormalized = String(prof.name || '').trim().toLowerCase();
+  const genericAutoName = name.toLowerCase() === `${nounNormalized} ${t}`;
+  const explicitBrief = String(product.brief || '').trim();
+  const title = derived.title || (genericAutoName ? fallback[0] : name) || fallback[0];
+  const hasSpecificName = !!derived.title;
+  return [title, derived.sub || (genericAutoName ? fallback[1] : ''), (derived.benefits || (!hasSpecificName && (genericAutoName || explicitBrief.includes(':')) ? fallback[2] : [])).slice(0, 3), safeFormat];
 }
 
 function accentForCover(prof, theme) {
@@ -1462,65 +1472,89 @@ function heroSnippetForCover(product, prof, theme) {
   return `<div style="font-size:44px;font-weight:900">${esc(prof.emoji || '')} ${esc(prof.name || '')}</div>`;
 }
 
-function buildThumbStopperCover(product, prof, theme, artDataUri) {
+function coverPreviewStyles(labelHeight, screenHeight, fontSize) {
+  return `.product-preview-label{height:${labelHeight}px;display:flex;align-items:center;gap:12px;padding:0 12px;color:#64748b;background:#f8fafc;font:700 ${fontSize}px/1 system-ui,sans-serif;letter-spacing:1.1px}.preview-lights{display:flex;gap:5px}.preview-lights i{width:8px;height:8px;border-radius:50%;background:#f87171}.preview-lights i:nth-child(2){background:#fbbf24}.preview-lights i:nth-child(3){background:#34d399}.preview-title{margin-left:auto;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0;color:#334155}.product-preview-screen{height:${screenHeight}px;overflow:hidden;background:#fff}.product-preview-screen iframe,.product-preview-screen img{display:block;width:100%;height:100%;border:0;background:#fff;object-fit:contain}`;
+}
+
+function coverProductPreview(productHtml, title, zoom) {
+  if (/^data:image\/(?:jpeg|png|webp);base64,/i.test(String(productHtml || ''))) {
+    return `<div class="product-preview-label"><span>ACTUAL PRODUCT PAGE</span><span class="preview-title">${esc(title)}</span></div><div class="product-preview-screen"><img class="product-preview-raster" src="${esc(productHtml)}" alt="Actual rendered product page"></div>`;
+  }
+  const source = String(productHtml || '<!doctype html><html><body><main><h1>Product preview unavailable</h1><p>Regenerate this cover to include the real deliverable.</p></main></body></html>');
+  const viewport = `<meta name="viewport" content="width=700"><style>html{zoom:${zoom};transform-origin:top left;overflow:hidden}body{max-width:700px!important;overflow:hidden}</style>`;
+  const withViewport = /<head\b[^>]*>/i.test(source)
+    ? source.replace(/<head\b[^>]*>/i, (head) => `${head}${viewport}`)
+    : `<!doctype html><html><head>${viewport}</head><body>${source}</body></html>`;
+  // Escaping the full document keeps </iframe> and quotes inside the srcdoc
+  // attribute. The empty sandbox deliberately disables scripts and privileges.
+  return `<div class="product-preview-label"><span class="preview-lights"><i></i><i></i><i></i></span><span>REAL PRODUCT PREVIEW</span><span class="preview-title">${esc(title)}</span></div><div class="product-preview-screen"><iframe title="${esc(title)} — actual product preview" sandbox="" srcdoc="${esc(withViewport)}"></iframe></div>`;
+}
+
+const COVER_MASTER = Object.freeze({ width: 1200, height: 1800 });
+const MARKETPLACE_SAFE_RECT = Object.freeze({ x: 0, y: 150, width: 1200, height: 1500 });
+const DEVICE_SLOT = Object.freeze({ x: 660, y: 300, width: 480, height: 600 });
+
+function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, coverCopy = null) {
   const th = theme || {};
-  const [title, sub, benefits, format] = thumbCoverCopy(product, prof);
-  const kc = accentForCover(prof, th);
-  const price = product.price || '$12';
+  const [title, sub, benefits, format] = coverCopy || thumbCoverCopy(product, prof);
+  const realPreview = coverProductPreview(productHtml, title, 0.78);
+  const previewCss = coverPreviewStyles(40, 590, 11);
+  const kc = (th.brief && th.brief.palette && th.brief.palette.accent) || th.accent || accentForCover(prof, th);
   const hasArt = !!artDataUri;
-  // v3 composite: AI lifestyle photo full-bleed + scrim + typography on top.
-  // Watermark hiding: photo shifted up 46px + solid footer band — the free-tier
-  // pollinations mark never appears in frame.
+  const kicker = `${String(prof.name || '').toUpperCase()}`;
+  const headingFont = (th.brief && th.brief.fonts && th.brief.fonts.heading) || 'Space Grotesk';
+  const fontCss = `font-family:'${String(headingFont).replace(/[^a-zA-Z0-9 -]/g, '')}', 'Inter', system-ui, sans-serif;`;
+  // Photo remains atmospheric. The rendered product page is supplied as a
+  // separate image in the fixed composition slot; only copy gets a local scrim.
   const bg = hasArt
-    ? `<div class="ts-photo" style="background-image:url('${artDataUri}')"></div><div class="ts-scrim"></div>`
+    ? `<div class="ts-photo" style="background-image:url('${artDataUri}')"></div><div class="ts-copy-scrim"></div>`
     : `<div class="ts-fallback"></div>`;
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(title)}</title><style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#e7e5e1;font-family:'Space Grotesk','Inter',system-ui,sans-serif;-webkit-print-color-adjust:exact}
-.ts{position:relative;width:1200px;height:1500px;overflow:hidden;color:#fff}
-.ts-photo{position:absolute;left:0;top:-46px;right:0;bottom:0;background-size:cover;background-position:center 12%}
-.ts-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,10,.62) 0%,rgba(8,8,10,.30) 34%,rgba(8,8,10,.78) 68%,rgba(8,8,10,.97) 100%)}
+body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
+.ts{position:relative;width:1200px;height:1800px;overflow:hidden;color:#fff}
+.ts-photo{position:absolute;inset:0;background-size:cover;background-position:center 40%}
+.ts-copy-scrim{position:absolute;left:0;right:0;top:1080px;height:520px;background:linear-gradient(180deg,transparent 0%,rgba(12,12,13,.16) 18%,rgba(12,12,13,.72) 100%)}
 .ts-fallback{position:absolute;inset:0;background:linear-gradient(140deg,${kc} 0%,#14110f 78%)}
-.ts-inner{position:relative;z-index:2;height:1400px;display:flex;flex-direction:column;padding:56px 64px 0}
+.ts-inner{position:relative;z-index:2;height:1650px;display:flex;flex-direction:column;padding:206px 64px 0}
 .ts-top{display:flex;justify-content:space-between;align-items:center}
 .ts-brand{font-size:22px;font-weight:800;letter-spacing:4px}
-.ts-kicker{font-size:22px;font-weight:800;letter-spacing:2px;background:${kc};padding:12px 24px;border-radius:999px}
+.ts-kicker{font-size:22px;font-weight:800;letter-spacing:2px;text-transform:uppercase;background:${kc};padding:12px 24px;border-radius:0}
 .ts-mid{margin-top:auto;padding-bottom:30px}
 .ts-title{font-size:108px;font-weight:900;line-height:.97;letter-spacing:-3.5px;text-shadow:0 8px 34px rgba(0,0,0,.65)}
 .ts-sub{font-size:34px;font-weight:600;margin-top:22px;color:#f4f4f5;text-shadow:0 4px 18px rgba(0,0,0,.7)}
 .ts-bens{margin-top:34px;display:flex;flex-direction:column;gap:14px}
 .ts-ben{display:flex;align-items:center;gap:16px;font-size:28px;font-weight:700;text-shadow:0 3px 14px rgba(0,0,0,.75)}
 .ts-ben .ck{width:46px;height:46px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;flex-shrink:0}
-.ts-foot{position:relative;z-index:3;background:#0b0b0d;height:100px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:3px solid ${kc}}
-.ts-price{font-size:54px;font-weight:900;letter-spacing:-1.5px}
-.ts-note{font-size:21px;color:#a1a1aa;font-weight:600;margin-left:18px}
+.ts-foot{position:absolute;z-index:3;left:0;right:0;bottom:150px;background:rgba(12,12,13,.72);height:100px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:1px solid rgba(255,255,255,.16)}
 .ts-format{font-size:21px;font-weight:800;letter-spacing:2px;color:#e4e4e7}
-.ts-hero{position:absolute;right:56px;top:170px;width:560px;background:#fff;border-radius:26px;box-shadow:0 44px 90px -20px rgba(0,0,0,.6);padding:30px 32px;color:#14110f;transform:rotate(-1.2deg);z-index:2;overflow:hidden}
-.ts-hero-scale{transform:scale(.62);width:161%;transform-origin:top left}
+.ts-hero{position:absolute;left:${DEVICE_SLOT.x}px;top:${DEVICE_SLOT.y}px;width:${DEVICE_SLOT.width}px;height:${DEVICE_SLOT.height}px;background:#fff;border:8px solid rgba(255,255,255,.94);border-radius:10px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55);color:#14110f;transform:rotate(-2deg);z-index:2;overflow:hidden}
+.ts-hero::after{content:"";pointer-events:none;position:absolute;inset:0;background:rgba(255,248,232,.07)}
+${previewCss}
 </style></head><body>
 <div class="ts">
   ${bg}
-  <div class="ts-hero"><div class="ts-hero-scale">${heroSnippetForCover(product, prof, th)}</div></div>
+  <div class="ts-hero" data-slot-x="${DEVICE_SLOT.x}" data-slot-y="${DEVICE_SLOT.y}" data-slot-width="${DEVICE_SLOT.width}" data-slot-height="${DEVICE_SLOT.height}">${realPreview}</div>
   <div class="ts-inner">
-    <div class="ts-top"><div class="ts-brand">NICHEGATE</div><div class="ts-kicker">${esc(prof.emoji || '')} ${esc(prof.name || '').toUpperCase()}</div></div>
+    <div class="ts-top"><div class="ts-brand">NICHEGATE</div><div class="ts-kicker">${esc(kicker)}</div></div>
     <div class="ts-mid">
       <div class="ts-title">${esc(title)}</div>
       <div class="ts-sub">${esc(sub)}</div>
       <div class="ts-bens">${benefits.slice(0, 3).map((b) => `<div class="ts-ben"><span class="ck">✓</span>${esc(b)}</div>`).join('')}</div>
     </div>
   </div>
-  <div class="ts-foot"><div style="display:flex;align-items:baseline"><span class="ts-price">${esc(price)}</span><span class="ts-note">Instant download</span></div><div class="ts-format">${esc(format)}</div></div>
+  <div class="ts-foot"><div></div><div class="ts-format">${esc(format)}</div></div>
 </div></body></html>`;
 }
 
 /** HTML-only cover (used when no AI art is available — never blocks a listing). */
-function buildPlainCover(product, prof, theme) {
+function buildPlainCover(product, prof, theme, productHtml) {
   const th = theme || {};
   const [title, sub, benefits, format] = thumbCoverCopy(product, prof);
   const kc = accentForCover(prof, th);
-  const hero = heroSnippetForCover(product, prof, th);
+  const hero = coverProductPreview(productHtml, title, 1);
   const price = product.price || '$12';
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(title)} cover</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#e7e5e1;display:flex;justify-content:center;font-family:'Space Grotesk','Inter',system-ui,sans-serif}.thumbcover{width:1200px;min-height:1500px;background:#f8f7f4;color:#14110f;display:flex;flex-direction:column;overflow:hidden}</style></head><body><div class="thumbcover"><div style="display:flex;justify-content:space-between;align-items:center;padding:44px 64px 0;font-size:22px;font-weight:800;letter-spacing:3px"><span>NICHEGATE</span><span style="background:#14110f;color:#fff;font-size:20px;padding:10px 22px;border-radius:999px">${esc(format)}</span></div><div style="margin:36px 64px 0;align-self:flex-start;font-size:24px;font-weight:800;letter-spacing:3px;color:#fff;background:${kc};padding:12px 26px;border-radius:999px">${esc(prof.emoji || '')} ${esc(prof.name || '').toUpperCase()}</div><h1 style="margin:30px 64px 0;font-size:100px;font-weight:900;line-height:.98;letter-spacing:-3px">${esc(title)}</h1><div style="margin:24px 64px 0;font-size:32px;color:#57534e;max-width:920px">${esc(sub)}</div><div style="margin:44px 64px 0;background:#fff;border-radius:32px;box-shadow:0 30px 60px -30px rgba(20,17,15,.25);padding:48px">${hero}</div><div style="margin:40px 64px 0;display:flex;flex-direction:column;gap:18px">${benefits.slice(0, 3).map((b) => `<div style="display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700"><span style="width:52px;height:52px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900">✓</span>${esc(b)}</div>`).join('')}</div><div style="margin-top:auto;padding:44px 64px 54px;display:flex;justify-content:space-between;align-items:flex-end"><div><div style="font-size:76px;font-weight:900">${esc(price)}</div><div style="font-size:22px;color:#78716c;font-weight:600">Instant download · Lifetime updates</div></div><div style="text-align:right"><div style="font-size:30px;letter-spacing:4px">★★★★★</div><div style="font-size:22px;color:#78716c">Editable · Commercial use</div></div></div></div></body></html>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(title)} cover</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#e7e5e1;display:flex;justify-content:center;font-family:'Space Grotesk','Inter',system-ui,sans-serif}.thumbcover{width:1200px;height:1800px;padding:150px 0;background:#f8f7f4;color:#14110f;display:flex;flex-direction:column;overflow:hidden}${coverPreviewStyles(42, 620, 12)}</style></head><body><div class="thumbcover"><div style="display:flex;justify-content:space-between;align-items:center;padding:44px 64px 0;font-size:22px;font-weight:800;letter-spacing:3px"><span>NICHEGATE</span><span style="background:#14110f;color:#fff;font-size:20px;padding:10px 22px;border-radius:999px">${esc(format)}</span></div><div style="margin:36px 64px 0;align-self:flex-start;font-size:24px;font-weight:800;letter-spacing:3px;color:#fff;background:${kc};padding:12px 26px;border-radius:999px">${esc(prof.emoji || '')} ${esc(prof.name || '').toUpperCase()}</div><h1 style="margin:30px 64px 0;font-size:100px;font-weight:900;line-height:.98;letter-spacing:-3px">${esc(title)}</h1><div style="margin:24px 64px 0;font-size:32px;color:#57534e;max-width:920px">${esc(sub)}</div><div class="product-preview-card" style="margin:44px 64px 0;background:#fff;border-radius:24px;box-shadow:0 30px 60px -30px rgba(20,17,15,.25);overflow:hidden">${hero}</div><div style="margin:40px 64px 0;display:flex;flex-direction:column;gap:18px">${benefits.slice(0, 3).map((b) => `<div style="display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700"><span style="width:52px;height:52px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900">✓</span>${esc(b)}</div>`).join('')}</div><div style="margin-top:auto;padding:44px 64px 54px;display:flex;justify-content:space-between;align-items:flex-end"><div><div style="font-size:76px;font-weight:900">${esc(price)}</div><div style="font-size:22px;color:#78716c;font-weight:600">Instant download · Lifetime updates</div></div><div style="text-align:right"><div style="font-size:30px;letter-spacing:4px">★★★★★</div><div style="font-size:22px;color:#78716c">Editable · Commercial use</div></div></div></div></body></html>`;
 }
 
 /**
@@ -1844,6 +1878,7 @@ module.exports = {
   buildPlannerHTML, buildWallArtHTML, buildWorksheetHTML, buildPartyPrintableHTML,
   buildPyroBatchHTML, buildPyroLiftFuseHTML, buildPyroShootLogHTML,
   thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover,
+  COVER_MASTER, MARKETPLACE_SAFE_RECT, DEVICE_SLOT,
   buildLifestyleMockupHTML,
   wrapMarketplaceMockup
 ,

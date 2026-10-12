@@ -65,7 +65,7 @@ test('Worker fails closed and never invokes AI for missing/incorrect keys', asyn
   let calls = 0;
   const AI = { run: async () => { calls++; return { image: 'test-image' }; } };
   const request = key => new Request('https://worker.test/', {
-    method: 'POST', headers: key ? { 'x-ng-key': key } : {}, body: JSON.stringify({ prompt: 'blank desk' })
+    method: 'POST', headers: key ? { 'x-ng-key': key } : {}, body: JSON.stringify({ prompt: 'blank desk', width: 1200, height: 1800 })
   });
   assert.equal((await worker.fetch(request(), { AI })).status, 503);
   assert.equal((await worker.fetch(request(), { AI, SHARED_KEY: 'test-secret' })).status, 401);

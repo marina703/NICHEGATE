@@ -353,6 +353,7 @@ async function attachGumroadCover(productId, coverPath) {
 
 // Free ($0) Gumroad product for the lead magnet — PWYW fallback if $0 is rejected
 async function publishFreeGumroad(product) {
+  await requirePublishableCover(product);
   const filePath = await ensureProductFile(product);
   if (!filePath) throw new Error('Could not generate a downloadable file');
   const token = process.env.GUMROAD_ACCESS_TOKEN;
@@ -583,7 +584,19 @@ function markGumroadQuotaExhausted(reason) {
   return getGumroadQuota();
 }
 
+async function requirePublishableCover(product) {
+  const coverVerdict = await require('./designCritic').critiqueCover(product && product.id);
+  if (!coverVerdict || coverVerdict.publishAllowed !== true) {
+    const error = new Error(`Marketplace cover rejected (${(coverVerdict && coverVerdict.status) || 'unscored'}): ${(coverVerdict && coverVerdict.reason) || 'cover failed review'}`);
+    error.code = 'COVER_REVIEW_FAILED';
+    error.coverVerdict = coverVerdict || null;
+    throw error;
+  }
+  return coverVerdict;
+}
+
 async function publishToGumroadReal(product) {
+  await requirePublishableCover(product);
 
   // NEVER publish a listing without a deliverable file
   const filePath = await ensureProductFile(product);
@@ -731,7 +744,9 @@ async function attachBrandingToGumroadProducts(coverPath) {
 }
 
 async function publishToEtsyReal(product) {
-  await ensureProductFile(product);
+  await requirePublishableCover(product);
+  const filePath = await ensureProductFile(product);
+  if (!filePath) throw new Error('Could not generate a downloadable file for this product');
   const token = db.prepare('SELECT * FROM marketplace_tokens WHERE platform = ?').get('etsy');
   if (!token) throw new Error('Etsy not connected — visit /setup to authorize');
   if (new Date(token.expires_at) < new Date()) await refreshEtsyToken();
@@ -851,6 +866,7 @@ module.exports = {
   attachBrandingToGumroadProducts,
   publishFreeGumroad,
   publishProduct,
+  requirePublishableCover,
   publishToEtsy: publishToEtsyReal,
   updateListingCopy,
   updateGumroadProduct,

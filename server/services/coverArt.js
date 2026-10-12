@@ -31,7 +31,58 @@ function provider() {
 
 const designDNA = require('./designStyles');
 
-// Per-niche scene descriptions — unique props, mood, lighting per category
+const COVER_WIDTH = 1200;
+const COVER_HEIGHT = 1800;
+const COVER_PROMPT_VERSION = 'photo-cover-v2';
+// Cover art follows the same style DNA used by the product, then specializes
+// to a niche when a style family is shared. The names are art directions, not
+// generated model claims.
+const COVER_SCENES = {
+  'Ink-Trap Engineered': {
+    styles: ['technical'], niches: ['trades'],
+    scene: 'industrial workbench flat-lay, neatly arranged steel trade tools and measuring tape, cool north-window light, charcoal slate and brushed steel, restrained technical editorial styling'
+  },
+  'Grounded Organic': {
+    styles: ['organic'], niches: ['outdoor', 'food', 'home', 'wellness', 'craft'],
+    scene: 'warm wooden desk flat-lay, ceramic tea cup, folded kraft paper and one small botanical sprig, tactile oak and linen, late-morning amber daylight, grounded organic styling'
+  },
+  'Quiet Luxury': {
+    styles: ['luxe'], niches: ['beauty', 'fashion', 'spiritual'],
+    scene: 'quiet linen-covered worktable flat-lay, one polished brass pen and a small neutral ceramic dish, soft diffuse window light, ivory stone and warm taupe, quiet luxury editorial styling'
+  },
+  'Flash & Chrome': {
+    styles: ['brutalist'], niches: ['creator', 'tech', 'fitness', 'pyro'],
+    scene: 'dark leather work surface flat-lay, one chrome tool and restrained red gel-light accent, crisp hard-edged studio flash, black leather and brushed metal, bold contemporary editorial styling'
+  },
+  'Editorial Ink': {
+    styles: ['editorial', 'heritage'], niches: ['finance', 'recovery'],
+    scene: 'mahogany writing desk flat-lay, one fountain pen and a small stack of blank cream paper, directional soft window light, deep walnut and ink tones, classic editorial styling'
+  },
+  'Bold Minimalism': {
+    styles: ['minimal'], niches: ['default'],
+    scene: 'clean matte-white surface flat-lay, a single sculptural black pen as the only prop, crisp directional daylight and hard clean shadows, high-contrast bold minimal styling'
+  }
+};
+
+function sceneFor(prof, product, theme = {}) {
+  const brief = (() => {
+    try { return typeof product.design_brief === 'string' ? JSON.parse(product.design_brief) : product.design_brief; }
+    catch { return null; }
+  })();
+  const styleValue = (brief && (brief.cover_style || brief.style_lineage)) || (theme.dna && (theme.dna.styleKey || theme.dna.style)) || '';
+  const styleKey = String(styleValue).toLowerCase();
+  const normalizedStyle = Object.entries(designDNA.STYLES || {}).find(([, style]) => String(style.name || '').toLowerCase() === styleKey)?.[0] || styleKey;
+  const nicheKey = designDNA.detectNicheCategory(prof);
+  const entry = Object.entries(COVER_SCENES).find(([, spec]) => spec.styles.includes(normalizedStyle) && spec.niches.includes(nicheKey))
+    || Object.entries(COVER_SCENES).find(([, spec]) => spec.styles.includes(normalizedStyle))
+    || Object.entries(COVER_SCENES).find(([, spec]) => spec.niches.includes(nicheKey))
+    || ['Bold Minimalism', COVER_SCENES['Bold Minimalism']];
+  return { name: entry[0], ...entry[1], nicheKey, styleKey: normalizedStyle };
+
+}
+
+// Legacy per-niche product-shot prompts are retained only for vector-assets;
+// photo covers use the DNA scene library above.
 const NICHE_SCENES = {
   creator: {
     mood: 'bright, aspirational, entrepreneurial',
@@ -90,7 +141,7 @@ const NICHE_SCENES = {
   finance: {
     mood: 'trustworthy, precise, professional',
     lighting: 'clean office light, daylight through tall windows',
-    props: 'calculator, financial charts, leather portfolio, pen, glasses',
+    props: 'calculator, leather portfolio, fountain pen, glasses',
     textures: 'mahogany desk, leather, crisp paper, polished brass',
   },
   spiritual: {
@@ -121,28 +172,28 @@ const NICHE_SCENES = {
 
 // Per-product-type scene templates — uses niche props for unique visuals
 const TYPE_SCENES = {
-  invoice: (niche) => `overhead desk flat-lay with printed documents, ${niche.props}, ${niche.textures} surfaces, ${niche.lighting}`,
-  checklist: (niche) => `close-up of hands reviewing a detailed checklist with a pen, ${niche.props}, ${niche.lighting}`,
-  spreadsheet: (niche) => `laptop or tablet showing organized data on a clean desk, ${niche.props}, ${niche.lighting}`,
-  booking: (niche) => `open planner or calendar with pen on a styled surface, ${niche.props}, ${niche.lighting}`,
-  social: (niche) => `smartphone or tablet showing social media content, ${niche.props}, ${niche.lighting}`,
-  brand: (niche) => `brand stationery suite flat-lay with business cards and color swatches, ${niche.props}, ${niche.lighting}`,
-  journal: (niche) => `open journal with pen on a cozy surface, ${niche.props}, ${niche.lighting}`,
-  bundle: (niche) => `stack of printed materials and binders with ${niche.props}, styled collection, ${niche.lighting}`,
-  leadmagnet: (niche) => `fanned printables and free samples on a bright surface, ${niche.props}, ${niche.lighting}`,
-  website: (niche) => `laptop showing a clean website design, ${niche.props}, ${niche.lighting}`,
-  'wall-art': (niche) => `framed print on a wall with ${niche.props}, gallery-style display, ${niche.lighting}`,
-  worksheet: (niche) => `printed worksheet with pen on a desk, ${niche.props}, ${niche.lighting}`,
-  planner: (niche) => `open planner spread with colored pens, ${niche.props}, ${niche.lighting}`,
-  'party-printable': (niche) => `party decorations and printables styled on a surface, ${niche.props}, festive ${niche.lighting}`,
-  'pyro-batch': (niche) => `workshop table with batch mixing equipment, ${niche.props}, ${niche.lighting}`,
-  'pyro-lift-fuse': (niche) => `close-up of fuse assembly tools, ${niche.props}, ${niche.lighting}`,
-  'pyro-shoot-log': (niche) => `clipboard with log sheet near staging area, ${niche.props}, ${niche.lighting}`,
+  invoice: (niche) => `premium service-business workspace, tactile desk materials, ${niche.textures}, ${niche.lighting}`,
+  checklist: (niche) => `confident hands preparing professional tools at a job site, ${niche.props}, ${niche.lighting}`,
+  spreadsheet: (niche) => `premium desk setting with dimensional materials and niche-specific tools, ${niche.props}, ${niche.lighting}`,
+  booking: (niche) => `calm organized workspace with tactile planning accessories and niche-specific props, ${niche.props}, ${niche.lighting}`,
+  social: (niche) => `creator workspace with camera-ready styling and niche-specific physical props, ${niche.props}, ${niche.lighting}`,
+  brand: (niche) => `elegant brand-material textures and physical color samples, ${niche.props}, ${niche.lighting}`,
+  journal: (niche) => `quiet reflective setting with tactile natural materials, ${niche.props}, ${niche.lighting}`,
+  bundle: (niche) => `premium curated product collection on a styled surface, ${niche.props}, ${niche.lighting}`,
+  leadmagnet: (niche) => `bright welcoming workspace with a curated set of niche tools, ${niche.props}, ${niche.lighting}`,
+  website: (niche) => `premium studio workspace with distinctive niche-specific physical props, ${niche.props}, ${niche.lighting}`,
+  'wall-art': (niche) => `gallery-like interior with tactile materials and niche-specific decor, ${niche.props}, ${niche.lighting}`,
+  worksheet: (niche) => `professional work surface with physical tools and tactile materials, ${niche.props}, ${niche.lighting}`,
+  planner: (niche) => `beautifully styled workspace with tactile accessories, ${niche.props}, ${niche.lighting}`,
+  'party-printable': (niche) => `celebratory styled setting with physical niche-related decor, ${niche.props}, festive ${niche.lighting}`,
+  'pyro-batch': (niche) => `specialized workshop table with professional equipment, ${niche.props}, ${niche.lighting}`,
+  'pyro-lift-fuse': (niche) => `close-up of professional safety equipment and tools on a workbench, ${niche.props}, ${niche.lighting}`,
+  'pyro-shoot-log': (niche) => `professional fireworks staging area with safety equipment, ${niche.props}, ${niche.lighting}`,
   tool: (niche) => `professional toolkit or equipment display, ${niche.props}, ${niche.lighting}`,
-  'decision-matrix': (niche) => `printed decision matrix with annotations, ${niche.props}, ${niche.lighting}`,
-  roi: (niche) => `financial analysis printout with charts, ${niche.props}, ${niche.lighting}`,
-  pricing: (niche) => `pricing sheet or rate card on a clean desk, ${niche.props}, ${niche.lighting}`,
-  inventory: (niche) => `inventory tracking sheet or tablet, ${niche.props}, ${niche.lighting}`,
+  'decision-matrix': (niche) => `precise professional workspace with tactile niche-specific materials, ${niche.props}, ${niche.lighting}`,
+  roi: (niche) => `confident business workspace with polished physical materials, ${niche.props}, ${niche.lighting}`,
+  pricing: (niche) => `premium service-business workspace, ${niche.props}, ${niche.lighting}`,
+  inventory: (niche) => `well-organized professional workbench with niche-specific equipment, ${niche.props}, ${niche.lighting}`,
 };
 
 // ── STYLE TOKEN FACTORY ── strict suffixes appended to EVERY art prompt ──────
@@ -150,7 +201,7 @@ const TYPE_SCENES = {
 // existing art-cache hashes stay stable; vector-asset prepares flat cutouts for
 // future compositing work.
 const STYLE_PROFILES = {
-  'photo-cover': ['photorealistic', 'shallow depth of field', 'professional product photography', 'no text', 'no words', 'no letters', 'no watermark', 'no UI elements'],
+  'photo-cover': ['photorealistic', 'photorealistic atmospheric product photography', 'no text', 'no words', 'no letters', 'no watermark', 'no UI elements'],
   'vector-asset': ['flat vector illustration', 'solid colors', 'clean shapes', 'asset cutout', 'transparent background', 'no text', 'no words', 'no watermark']
 };
 
@@ -163,66 +214,126 @@ const BANNED_SCENE_TERMS = {
   default: /stock market|trading floor|ticker tape/gi
 };
 
-function buildArtPrompt(prof, product, profile = 'photo-cover') {
-  const t = String(product.type || '').toLowerCase();
-
-  // Detect niche category from profession
-  const nicheKey = designDNA.detectNicheCategory(prof);
-  const niche = NICHE_SCENES[nicheKey] || NICHE_SCENES.default;
-
-  // Get the type-specific scene
-  const sceneFn = TYPE_SCENES[t] || ((n) => `styled workspace flat-lay with ${n.props}, ${n.lighting}`);
-  let scene = sceneFn(niche);
-
-  // Quality gate: strip off-niche scene words, keep comma structure clean
-  const banned = BANNED_SCENE_TERMS[nicheKey] || BANNED_SCENE_TERMS.default;
-  if (banned) scene = scene.replace(banned, '').replace(/\s*,\s*,/g, ',').replace(/^,\s*/, '').trim();
-
-  // Build the final prompt: scene + niche mood + strict style tokens
-  const tokens = STYLE_PROFILES[profile] || STYLE_PROFILES['photo-cover'];
-  return `${scene}, ${niche.mood}, ${tokens.join(', ')}`;
+function buildArtPrompt(prof, product, profile = 'photo-cover', theme = {}) {
+  if (profile !== 'photo-cover') {
+    const nicheKey = designDNA.detectNicheCategory(prof);
+    const niche = NICHE_SCENES[nicheKey] || NICHE_SCENES.default;
+    const tokens = STYLE_PROFILES[profile] || STYLE_PROFILES['vector-asset'];
+    return `${niche.props}, ${niche.mood}, ${tokens.join(', ')}`;
+  }
+  const resolvedTheme = (theme && theme.dna) ? theme : designDNA.resolveDesign(prof || {}, product && product.type);
+  const direction = sceneFor(prof, product, resolvedTheme);
+  const style = (resolvedTheme.dna && resolvedTheme.dna.style) || (resolvedTheme.brief && resolvedTheme.brief.style_lineage) || direction.name;
+  const font = (theme.brief && theme.brief.fonts && theme.brief.fonts.heading) || (product.design_brief && (() => { try { return JSON.parse(product.design_brief).fonts?.heading; } catch { return null; } })());
+  const accent = theme.accent || (theme.brief && theme.brief.palette && theme.brief.palette.accent) || (product.design_brief && (() => { try { return JSON.parse(product.design_brief).palette?.accent; } catch { return null; } })());
+  return [
+    'Top-down flat-lay photograph, 2:3 portrait canvas, native 1200x1800 pixels',
+    direction.scene,
+    'one blank white tablet lying completely flat, screen is a plain matte-white blank surface with no interface',
+    'tablet fixed in the right 45% of frame, vertically centered, approximately 40% of frame width, leave the left 55% visually quiet for copy',
+    'two or three contextual physical props only, neatly spaced, no overlapping the tablet slot',
+    'photographed directly from above with parallel edges, soft realistic contact shadow, consistent physical light direction',
+    `design DNA ${direction.name}${style ? ` / ${style}` : ''}${font ? ` / ${font} typography` : ''}${accent ? ` / restrained ${accent} accent` : ''}`,
+    'photorealistic atmospheric product photography, professional product photography, subtle natural grain',
+    'no text, no letters, no words, no labels, no writing, no logos, no watermark, no screen content, no visible screens except the specified blank tablet, no interface, no UI elements, no charts, no graphs, no documents, no readable text or documents, no paper with marks'
+  ].join(', ');
 }
 
-function promptFor(prof, product) {
-  return buildArtPrompt(prof, product);
+function promptFor(prof, product, theme = {}) {
+  return buildArtPrompt(prof, product, 'photo-cover', theme);
 }
-function cachePath(prof, product) {
+
+function workerRequestBody(prompt, seed = undefined) {
+  return JSON.stringify({ prompt, width: COVER_WIDTH, height: COVER_HEIGHT, ...(Number.isInteger(seed) ? { seed } : {}) });
+}
+
+function imageDataUri(buffer) {
+  const dimensions = getImageDimensions(buffer);
+  if (!dimensions) throw new Error('unsupported image format from image provider');
+  return `data:${dimensions.mime};base64,${Buffer.from(buffer).toString('base64')}`;
+}
+
+function getImageDimensions(buffer) {
+  const b = Buffer.from(buffer || []);
+  // PNG IHDR
+  if (b.length >= 24 && b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && b.toString('ascii', 12, 16) === 'IHDR') {
+    return { width: b.readUInt32BE(16), height: b.readUInt32BE(20), mime: 'image/png' };
+  }
+  // JPEG SOF markers (skip variable-size metadata segments safely).
+  if (b.length >= 4 && b[0] === 0xff && b[1] === 0xd8) {
+    let offset = 2;
+    while (offset + 4 < b.length) {
+      if (b[offset] !== 0xff) { offset++; continue; }
+      const marker = b[offset + 1];
+      offset += 2;
+      if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+      if (offset + 2 > b.length) break;
+      const length = b.readUInt16BE(offset);
+      if (length < 2 || offset + length > b.length) break;
+      if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker)) {
+        if (length < 7) break;
+        return { height: b.readUInt16BE(offset + 3), width: b.readUInt16BE(offset + 5), mime: 'image/jpeg' };
+      }
+      offset += length;
+    }
+  }
+  return null;
+}
+
+function isNativePortraitImage(buffer) {
+  const dimensions = getImageDimensions(buffer);
+  return !!dimensions && dimensions.width >= 1024 && dimensions.height >= 1536 &&
+    dimensions.width / dimensions.height === COVER_WIDTH / COVER_HEIGHT;
+}
+
+function writeNativePortrait(outPath, buffer) {
+  const image = Buffer.from(buffer || []);
+  if (!isNativePortraitImage(image)) {
+    const dimensions = getImageDimensions(image);
+    const actual = dimensions ? `${dimensions.width}x${dimensions.height}` : 'unknown dimensions';
+    throw new Error(`image provider returned ${actual}, expected a native 2:3 portrait of at least 1024x1536; refusing to crop or cache`);
+  }
+  fs.writeFileSync(outPath, image);
+  return outPath;
+}
+
+function cachePath(prof, product, theme = {}) {
+  const prompt = promptFor(prof, product, theme);
   const h = crypto.createHash('sha1')
-    .update(`${provider()}|${prof.slug || prof.name}|${product.type}|${promptFor(prof, product)}`)
+    .update(`${COVER_PROMPT_VERSION}|${provider()}|${prof.slug || prof.name}|${product.type}|${prompt}`)
     .digest('hex').slice(0, 16);
-  return path.join(OUT_DIR, `${prof.slug || 'cover'}-${product.type || 'art'}-${h}.jpg`);
+  return path.join(OUT_DIR, `${prof.slug || 'cover'}-${product.type || 'art'}-${h}.img`);
 }
 
 async function viaPollinations(prompt, outPath) {
   const base = process.env.POLLINATIONS_BASE_URL || 'https://image.pollinations.ai/prompt';
-  const url = `${base}/${encodeURIComponent(prompt)}?width=1200&height=1500&nologo=true`;
+  const url = `${base}/${encodeURIComponent(prompt)}?width=${COVER_WIDTH}&height=${COVER_HEIGHT}&nologo=true`;
   const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 120000, maxBodyLength: Infinity });
   if (!res.data || !res.data.length) throw new Error('empty image response');
-  fs.writeFileSync(outPath, Buffer.from(res.data));
-  return outPath;
+  return writeNativePortrait(outPath, Buffer.from(res.data));
 }
 
-// Cloudflare Workers AI (FLUX.schnell) via the nichegate-covers worker.
-// Free tier: 10k neurons/day. 1024x1024 output — cover-crops into 4:5.
-async function viaCloudflare(prompt, outPath) {
+// Cloudflare Workers AI Leonardo Lucid Origin — dimensions are part of the
+// model input contract, unlike FLUX.1 schnell's fixed-size schema.
+async function viaCloudflare(prompt, outPath, seed = undefined) {
   const url = process.env.COVER_WORKER_URL;
   if (!url) throw new Error('COVER_WORKER_URL missing');
-  const res = await axios.post(url, { prompt }, {
+  const res = await axios.post(url, workerRequestBody(prompt, seed), {
     timeout: 180000,
-    headers: process.env.COVER_WORKER_KEY ? { 'x-ng-key': process.env.COVER_WORKER_KEY } : {}
+    headers: { 'Content-Type': 'application/json', ...(process.env.COVER_WORKER_KEY ? { 'x-ng-key': process.env.COVER_WORKER_KEY } : {}) }
   });
   const b64 = res.data && res.data.image;
   if (!b64) throw new Error(`worker returned no image: ${JSON.stringify(res.data).slice(0, 200)}`);
-  fs.writeFileSync(outPath, Buffer.from(b64, 'base64'));
-  return outPath;
+  return writeNativePortrait(outPath, Buffer.from(b64, 'base64'));
 }
 
-async function viaFal(prompt, outPath) {
+async function viaFal(prompt, outPath, seed = undefined) {
   const key = process.env.FAL_API_KEY;
   if (!key) throw new Error('FAL_API_KEY missing');
   const model = process.env.FAL_MODEL || 'fal-ai/flux/schnell';
   const sub = await axios.post(`https://queue.fal.run/${model}`, {
-    prompt, image_size: 'portrait_4_3', num_images: 1, enable_safety_checker: true
+    prompt, image_size: { width: COVER_WIDTH, height: COVER_HEIGHT }, num_images: 1, enable_safety_checker: true,
+    ...(Number.isInteger(seed) ? { seed } : {})
   }, { headers: { Authorization: `Key ${key}`, 'Content-Type': 'application/json' }, timeout: 60000 });
   const reqId = sub.data && sub.data.request_id;
   if (!reqId) throw new Error('fal queue rejected');
@@ -239,19 +350,20 @@ async function viaFal(prompt, outPath) {
   const imgUrl = imgs[0] && (imgs[0].url || imgs[0]);
   if (!imgUrl) throw new Error('fal returned no image');
   const bin = await axios.get(imgUrl, { responseType: 'arraybuffer', timeout: 120000, maxBodyLength: Infinity });
-  fs.writeFileSync(outPath, Buffer.from(bin.data));
-  return outPath;
+  return writeNativePortrait(outPath, Buffer.from(bin.data));
 }
 
 // Ensure a lifestyle background exists for this product. Returns path or null.
-async function ensureCoverArt(product, prof) {
+async function ensureCoverArt(product, prof, theme = {}, opts = {}) {
   try {
-    const out = cachePath(prof, product);
-    if (fs.existsSync(out) && fs.statSync(out).size > 20000) return out;
-    const prompt = promptFor(prof, product);
+    const basePath = cachePath(prof, product, theme);
+    const seed = opts.forceNew ? Math.floor(Math.random() * 2147483647) : undefined;
+    const out = seed === undefined ? basePath : basePath.replace(/\.img$/, `-r${seed}.img`);
+    if (!opts.fresh && fs.existsSync(basePath) && fs.statSync(basePath).size > 20000 && isNativePortraitImage(fs.readFileSync(basePath))) return basePath;
+    const prompt = promptFor(prof, product, theme);
     const prov = provider();
-    if (prov === 'cloudflare') return await viaCloudflare(prompt, out);
-    if (prov === 'fal') return await viaFal(prompt, out);
+    if (prov === 'cloudflare') return await viaCloudflare(prompt, out, seed);
+    if (prov === 'fal') return await viaFal(prompt, out, seed);
     return await viaPollinations(prompt, out);
   } catch (e) {
     console.error('[COVERART] failed:', e.message);
@@ -259,4 +371,8 @@ async function ensureCoverArt(product, prof) {
   }
 }
 
-module.exports = { promptFor, buildArtPrompt, STYLE_PROFILES, BANNED_SCENE_TERMS, cachePath, ensureCoverArt, provider, OUT_DIR };
+module.exports = {
+  COVER_WIDTH, COVER_HEIGHT, COVER_SCENES, sceneFor, promptFor, buildArtPrompt,
+  STYLE_PROFILES, BANNED_SCENE_TERMS, cachePath, ensureCoverArt, provider, OUT_DIR,
+  workerRequestBody, getImageDimensions, imageDataUri, isNativePortraitImage, writeNativePortrait
+};

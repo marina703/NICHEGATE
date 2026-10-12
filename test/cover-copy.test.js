@@ -4,6 +4,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const ds = require('../server/services/designStudio');
 const productCopy = require('../server/services/productCopy');
+const fileFactory = require('../server/services/fileFactory');
+const pinEngine = require('../server/services/pinEngine');
+const pdfGen = require('../server/services/pdfGenerator');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 const prof = { name: 'Make Money From Pinterest', slug: 'x', services: '[]' };
 
@@ -38,6 +44,21 @@ test('thumbCoverCopy: product name tail + colon brief become title/sub/benefits'
   assert.equal(format, 'XLSX · Formulas');
 });
 
+test('thumbCoverCopy: uses factual concept copy and never invents type benefits', () => {
+  const product = {
+    name: 'Pinterest Creator Checklist', type: 'checklist', price: '$49',
+    concept: JSON.stringify({ name: 'Pin-to-Profit Audit', benefits: ['Audit board intent', 'Map pin keywords', 'Track outbound clicks'] })
+  };
+  const [title, , benefits] = ds.thumbCoverCopy(product, prof);
+  assert.equal(title, 'Pin-to-Profit Audit');
+  assert.deepEqual(benefits, ['Audit board intent', 'Map pin keywords', 'Track outbound clicks']);
+
+  const generic = ds.thumbCoverCopy({ name: 'Pinterest Creator checklist', type: 'checklist' }, prof);
+  assert.equal(generic[0], 'Pinterest Creator checklist');
+  assert.equal(generic[1], '');
+  assert.deepEqual(generic[2], []);
+});
+
 test('thumbCoverCopy: colon-less brief falls to first sentence, library benefits', () => {
   const product = {
     name: 'Make Money From Pinterest — Keyword Tracker',
@@ -47,7 +68,7 @@ test('thumbCoverCopy: colon-less brief falls to first sentence, library benefits
   const [title, sub, benefits] = ds.thumbCoverCopy(product, prof);
   assert.equal(title, 'Keyword Tracker');
   assert.match(sub, /^Track keyword rankings/);
-  assert.deepEqual(benefits, ['Track cost vs return', 'Break-even built in', 'Instant projections']);
+  assert.deepEqual(benefits, []);
 });
 
 test('thumbCoverCopy: generic auto-name falls back to the per-type library', () => {
@@ -93,4 +114,127 @@ test('heroSnippetForCover: checklist rows come from the brief, not canned trade 
   const hero = ds.heroSnippetForCover(product, prof, {});
   assert.ok(hero.includes('Profile optimization'));
   assert.ok(!hero.includes('Arrive with tools'), 'canned trade step leaked');
+});
+
+test('composite cover uses a raster real-preview slot with DNA styling and no baked price or emoji', () => {
+  const product = {
+    name: 'Pin-to-Profit Audit', type: 'checklist', price: '$49',
+    concept: JSON.stringify({ name: 'Pin-to-Profit Audit', benefits: ['Audit board intent', 'Map pin keywords', 'Track outbound clicks'] })
+  };
+  const cover = ds.buildThumbStopperCover(product, prof, {
+    primary: '#123456', accent: '#ab7832', font: "'Fraunces'", brief: { fonts: { heading: 'Fraunces' } }
+  }, 'data:image/jpeg;base64,AAAA', 'data:image/jpeg;base64,REALPRODUCT');
+  assert.match(cover, /<img[^>]+src="data:image\/jpeg;base64,REALPRODUCT"/);
+  assert.match(cover, /rotate\(-[1-3]deg\)/);
+  assert.match(cover, /box-shadow:0 30px 60px -18px rgba\(0,0,0,.55\)/);
+  assert.match(cover, /rgba\(255,248,232,.07\)/);
+  assert.match(cover, /\.ts-hero\{[^}]*left:660px/);
+  assert.match(cover, /linear-gradient\(180deg,transparent/);
+  assert.doesNotMatch(cover, /ts-price|\$49|🎨/);
+  assert.match(cover, /font-family:'Fraunces'/);
+  assert.match(cover, /MAKE MONEY FROM PINTEREST/);
+});
+
+test('cover heroes embed the actual product HTML in a script-isolated preview', () => {
+  const product = { name: 'Pinterest Income Tracker', type: 'spreadsheet', price: '$19' };
+  const productHtml = '<!doctype html><html><body><h1>REAL PRODUCT ROW — Affiliate Pin Campaigns</h1></body></html>';
+  const covers = [
+    ds.buildThumbStopperCover(product, prof, { primary: '#123456' }, 'data:image/jpeg;base64,AAAA', productHtml),
+    ds.buildPlainCover(product, prof, { primary: '#123456' }, productHtml)
+  ];
+  for (const cover of covers) {
+    assert.match(cover, /<iframe[^>]+srcdoc=/, 'cover should render product HTML, not a hand-built substitute');
+    assert.match(cover, /REAL PRODUCT ROW — Affiliate Pin Campaigns/);
+    assert.match(cover, /sandbox=""/, 'product preview scripts and privileges must remain disabled');
+    assert.doesNotMatch(cover, /allow-scripts/);
+    assert.doesNotMatch(cover, /Booked out\.<br>Every week\./, 'generic social hero must not substitute for product');
+  }
+});
+
+test('marketplace cover uses a 4:5 safe crop that fully contains the device slot', () => {
+  const { COVER_MASTER, MARKETPLACE_SAFE_RECT, DEVICE_SLOT } = ds;
+  const { crop, master } = fileFactory.COVER_EXPORT;
+  assert.deepEqual(master, COVER_MASTER);
+  assert.equal(crop.width, 1200);
+  assert.equal(crop.height, 1500);
+  assert.equal(crop.width / crop.height, 4 / 5);
+  assert.equal(crop.x, MARKETPLACE_SAFE_RECT.x);
+  assert.equal(crop.y, MARKETPLACE_SAFE_RECT.y);
+  assert.ok(DEVICE_SLOT.x >= MARKETPLACE_SAFE_RECT.x, 'slot begins inside horizontal safe bounds');
+  assert.ok(DEVICE_SLOT.y >= MARKETPLACE_SAFE_RECT.y, 'slot begins inside vertical safe bounds');
+  assert.ok(DEVICE_SLOT.x + DEVICE_SLOT.width <= MARKETPLACE_SAFE_RECT.x + MARKETPLACE_SAFE_RECT.width, 'slot ends inside horizontal safe bounds');
+  assert.ok(DEVICE_SLOT.y + DEVICE_SLOT.height <= MARKETPLACE_SAFE_RECT.y + MARKETPLACE_SAFE_RECT.height, 'slot ends inside vertical safe bounds');
+  assert.equal(DEVICE_SLOT.y - MARKETPLACE_SAFE_RECT.y, 150, 'slot has 150px margin above crop');
+  assert.equal(MARKETPLACE_SAFE_RECT.y + MARKETPLACE_SAFE_RECT.height - DEVICE_SLOT.y - DEVICE_SLOT.height, 750, 'slot is fully retained below crop');
+});
+
+test('cover renderer retains the 2:3 JPEG master and exports an exact 1200x1500 4:5 JPEG', async () => {
+  const { COVER_MASTER, MARKETPLACE_SAFE_RECT } = ds;
+  assert.deepEqual(fileFactory.COVER_EXPORT.master, COVER_MASTER);
+  assert.deepEqual(fileFactory.COVER_EXPORT.crop, MARKETPLACE_SAFE_RECT);
+  assert.equal(COVER_MASTER.width / COVER_MASTER.height, 2 / 3);
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nichegate-cover-ratio-'));
+  const output = path.join(tmp, 'marketplace.jpg');
+  const screenshots = [];
+  const originalGetBrowser = pdfGen.getBrowser;
+  pdfGen.getBrowser = async () => ({
+    newPage: async () => ({
+      setViewport: async (viewport) => { assert.deepEqual(viewport, { width: 1200, height: 1800, deviceScaleFactor: 1 }); },
+      setContent: async () => {},
+      screenshot: async (options) => {
+        screenshots.push(options);
+        fs.writeFileSync(options.path, 'jpeg');
+      },
+      close: async () => {}
+    })
+  });
+  try {
+    assert.equal(await fileFactory.renderCoverImage('<html></html>', output), output);
+    assert.equal(screenshots.length, 2);
+    assert.deepEqual(screenshots.map(({ clip }) => clip), [
+      { x: 0, y: 0, width: 1200, height: 1800 },
+      { x: 0, y: 150, width: 1200, height: 1500 }
+    ]);
+    assert.ok(fs.existsSync(output.replace(/\.jpg$/i, '.master.jpg')));
+    assert.ok(fs.existsSync(output));
+  } finally {
+    pdfGen.getBrowser = originalGetBrowser;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('Pinterest selects the retained 2:3 master while marketplaces use 4:5', () => {
+  const db = require('../server/database').db;
+  const path = require('node:path');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nichegate-pin-master-'));
+  const marketplace = path.join(tmp, 'product-cover-v5-123.jpg');
+  const master = marketplace.replace(/\\.jpg$/i, '.master.jpg');
+  fs.writeFileSync(marketplace, '4:5');
+  fs.writeFileSync(master, '2:3');
+  const profId = db.prepare('INSERT INTO professions (name, slug) VALUES (?, ?)').run(`Cover Ratio ${Date.now()}`, `cover-ratio-${Date.now()}`).lastInsertRowid;
+  const productId = db.prepare('INSERT INTO products (profession_id, name, type, preview_path) VALUES (?, ?, ?, ?)').run(profId, 'Ratio Test', 'checklist', marketplace).lastInsertRowid;
+  try {
+    assert.equal(pinEngine.pinImageUrl(productId), master);
+    assert.equal(pinEngine.pinImageUrl(productId, { fullFrame: false }), marketplace);
+  } finally {
+    db.prepare('DELETE FROM products WHERE id = ?').run(productId);
+    db.prepare('DELETE FROM professions WHERE id = ?').run(profId);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('fileFactory invalidates prior thumbnail paths after a cover design version changes', () => {
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-previous.jpg'), false);
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v4-123.jpg'), false);
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v5-123.jpg'), true);
+  assert.equal(fileFactory.isCurrentCoverPath(null), false);
+});
+
+test('cover product previews escape iframe-breaking markup in product HTML', () => {
+  const product = { name: 'Safe Preview', type: 'tool' };
+  const hostile = '<h1>actual</h1></iframe><script>alert(1)</script>';
+  const cover = ds.buildPlainCover(product, prof, {}, hostile);
+  assert.match(cover, /&lt;\/iframe&gt;/);
+  assert.doesNotMatch(cover, /<\/iframe><script>alert\(1\)<\/script>/);
 });

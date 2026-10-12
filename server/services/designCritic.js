@@ -43,6 +43,8 @@ const RUBRIC = [
   'uniqueness',
   'scroll_stop'
 ];
+const COVER_RUBRIC = ['preview_composite_realism', 'focal_hierarchy', 'thumbnail_legibility', 'dna_consistency'];
+const COVER_THRESHOLD = 6.5;
 
 // ── parsing (defensive, mirrors conceptEngine.parseConcept) ─────────────
 
@@ -76,6 +78,58 @@ function parseCritique(text) {
 
   const critique = String(obj.critique || '').slice(0, 1200).trim();
   return { scores, critique };
+}
+
+function parseCoverCritique(text) {
+  if (!text) return null;
+  const cleaned = String(text).replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+  const start = cleaned.indexOf('{'), end = cleaned.lastIndexOf('}');
+  if (start < 0 || end < start) return null;
+  let obj;
+  try { obj = JSON.parse(cleaned.slice(start, end + 1)); } catch { return null; }
+  const scores = {};
+  for (const key of COVER_RUBRIC) {
+    const score = clampScore(obj[key]);
+    if (score === null) return null;
+    scores[key] = score;
+  }
+  scores.overall = Math.round(COVER_RUBRIC.reduce((sum, key) => sum + scores[key], 0) / COVER_RUBRIC.length * 10) / 10;
+  const zeroGarbledText = obj.zero_garbled_text === true && obj.text_violation !== true;
+  return {
+    scores,
+    zeroGarbledText,
+    passed: zeroGarbledText && scores.overall >= COVER_THRESHOLD,
+    critique: String(obj.critique || '').slice(0, 1200).trim()
+  };
+}
+
+function coverDecision(verdict) {
+  if (!verdict || !verdict.scores || !Number.isFinite(verdict.scores.overall)) return { status: 'unscored', publishAllowed: false, reason: 'cover critique unavailable' };
+  if (!verdict.zeroGarbledText || verdict.scores.overall < COVER_THRESHOLD) {
+    return { status: 'fail', publishAllowed: false, reason: verdict.zeroGarbledText ? `cover score below ${COVER_THRESHOLD}` : 'garbled or unreadable text detected' };
+  }
+  return { status: 'pass', publishAllowed: true, reason: null };
+}
+
+async function scoreCoverVariant(product, shots) {
+  if (!cfg.enabled || !shots || !shots.length) return null;
+  try {
+    const raw = await router.callVision({
+      prompt: [
+        `Critique the complete cover for ${String(product.name || '').slice(0, 100)}. Score 0-10 for preview_composite_realism (shadow, plausible placement), focal_hierarchy (real preview is hero), thumbnail_legibility at 250px, and dna_consistency with the brief.`,
+        'Hard binary verdict: zero_garbled_text is true ONLY if there is no garbled or pseudo-text anywhere in either photo or preview. Otherwise false.',
+        'JSON only: {"preview_composite_realism":0,"focal_hierarchy":0,"thumbnail_legibility":0,"dna_consistency":0,"zero_garbled_text":true,"text_violation":false,"critique":"specific notes"}'
+      ].join('\\n'),
+      images: shots,
+      system: 'Strict cover-review JSON. Inspect pixels; never assume unseen details.',
+      temperature: 0.1,
+      action: 'cover_critique'
+    });
+    return parseCoverCritique(raw);
+  } catch (e) {
+    console.error('[CRITIC] scoreCoverVariant failed:', e.message);
+    return null;
+  }
 }
 
 function overallFrom(scores) {
@@ -175,6 +229,87 @@ function persistScore(productId, scores, critique, { revised = 0, keptVariant = 
     console.error('[CRITIC] persistScore:', e.message);
     return null;
   }
+}
+
+function persistCoverVerdict(productId, verdict, { revised = false, artifactPath, reviewStatus } = {}) {
+  if (!productId || !artifactPath || !fs.existsSync(artifactPath)) return null;
+  const scores = verdict && verdict.scores ? verdict.scores : { overall: null };
+  const decision = coverDecision(verdict);
+  try {
+    const hash = require('crypto').createHash('sha256').update(fs.readFileSync(artifactPath)).digest('hex');
+    return db.prepare('INSERT INTO cover_reviews (product_id, artifact_path, artifact_sha256, scores, critique, zero_garbled_text, status, revised) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(productId, artifactPath, hash, JSON.stringify(scores), String((verdict && verdict.critique) || '').slice(0, 1200) || null,
+        verdict && verdict.scores ? (verdict.zeroGarbledText ? 1 : 0) : null, reviewStatus || decision.status, revised ? 1 : 0).lastInsertRowid;
+  } catch (e) { console.error('[CRITIC] cover verdict persistence:', e.message); return null; }
+}
+
+function latestCoverScore(productId) {
+  try { return db.prepare('SELECT * FROM cover_reviews WHERE product_id = ? ORDER BY id DESC LIMIT 1').get(productId) || null; }
+  catch { return null; }
+}
+
+async function critiqueCover(productOrId, opts = {}) {
+  try {
+    const id = Number(productOrId && productOrId.id ? productOrId.id : productOrId);
+    if (!Number.isFinite(id)) return { ...coverDecision(null), reason: 'invalid product id' };
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+    if (!product) return { ...coverDecision(null), productId: id, reason: 'product not found' };
+    const fileFactory = require('./fileFactory');
+    if (!cfg.enabled) {
+      const coverPath = await fileFactory.ensureProductThumbnail(product, { skipDesignCritique: true });
+      if (!coverPath || !fs.existsSync(coverPath)) return { ...coverDecision(null), productId: id, reason: 'cover render unavailable' };
+      const reviewId = persistCoverVerdict(id, null, { artifactPath: coverPath, reviewStatus: 'not_required' });
+      return { status: 'not_required', publishAllowed: !!reviewId, reason: reviewId ? 'AI cover review disabled' : 'cover verdict could not be persisted', productId: id, coverPath, reviewId };
+    }
+    if (!opts.force) {
+      const previous = latestCoverScore(id);
+      if (previous && ['pass', 'fail'].includes(previous.status) && previous.artifact_path === product.preview_path && fileFactory.isCurrentCoverPath(previous.artifact_path) && fs.existsSync(previous.artifact_path)) {
+        const hash = require('crypto').createHash('sha256').update(fs.readFileSync(previous.artifact_path)).digest('hex');
+        if (hash === previous.artifact_sha256) {
+          const scores = safeParse(previous.scores);
+          const decision = coverDecision({ scores, zeroGarbledText: previous.zero_garbled_text === 1 });
+          return { ...decision, status: previous.status, productId: id, scores, coverPath: previous.artifact_path, cached: true };
+        }
+      }
+    }
+    const coverPath = await fileFactory.ensureProductThumbnail(product, { force: !!opts.forceRender, skipDesignCritique: true });
+    if (!coverPath || !fs.existsSync(coverPath)) return { ...coverDecision(null), productId: id, reason: 'cover render unavailable' };
+    let bestPath = coverPath;
+    let best = await scoreCoverVariant(product, [await imageFileDataUri(coverPath)]);
+    let revised = false;
+    if (best && !coverDecision(best).publishAllowed) {
+      const nextPath = await fileFactory.ensureProductThumbnail(product, { force: true, freshArt: true, freshArtRevision: true, skipDesignCritique: true });
+      if (nextPath && fs.existsSync(nextPath)) {
+        const next = await scoreCoverVariant(product, [await imageFileDataUri(nextPath)]);
+        if (next && (coverDecision(next).publishAllowed || next.scores.overall > (best ? best.scores.overall : -1))) {
+          best = next;
+          bestPath = nextPath;
+          revised = true;
+        }
+      }
+    }
+    if (bestPath !== product.preview_path) {
+      db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(bestPath, id);
+      product.preview_path = bestPath;
+    }
+    const decision = coverDecision(best);
+    const reviewId = persistCoverVerdict(id, best, { revised, artifactPath: bestPath });
+    if (!reviewId) {
+      return { ...decision, status: 'unscored', publishAllowed: false, reason: 'cover verdict could not be persisted', productId: id, coverPath: bestPath };
+    }
+    if (!best) {
+      return { ...decision, productId: id, coverPath: bestPath, reason: 'cover critique unavailable', reviewId };
+    }
+    return { ...decision, productId: id, scores: best.scores, critique: best.critique, coverPath: bestPath, revised, reviewId };
+  } catch (e) {
+    console.error('[CRITIC] critiqueCover failed:', e.message);
+    return { ...coverDecision(null), reason: e.message };
+  }
+}
+
+async function imageFileDataUri(filePath) {
+  const data = await fs.promises.readFile(filePath);
+  return require('./coverArt').imageDataUri(data);
 }
 
 function latestScore(productId) {
@@ -505,6 +640,14 @@ function markAutoReskin(productId, result) {
 module.exports = {
   FOCUS_SINCE,
   THRESHOLD,
+  COVER_THRESHOLD,
+  COVER_RUBRIC,
+  parseCoverCritique,
+  coverDecision,
+  scoreCoverVariant,
+  critiqueCover,
+  latestCoverScore,
+  persistCoverVerdict,
   RUBRIC,
   parseCritique,
   clampScore,

@@ -218,10 +218,18 @@ async function duePins(limit = 10) {
 
 // Image URL for a pin: the product's raster preview (the composited cover is
 // rendered into preview_path — products have no separate cover_path column).
-function pinImageUrl(productId) {
+function pinImageUrl(productId, { fullFrame = true } = {}) {
   if (!productId) return null;
   const prod = db.prepare('SELECT preview_path FROM products WHERE id = ?').get(productId);
-  return (prod && prod.preview_path) || null;
+  if (!prod || !prod.preview_path) return null;
+  // New cover renders retain the uncropped 2:3 master next to the 4:5 marketplace
+  // image. Pinterest consumes that master; older preview paths remain supported.
+  const previewPath = String(prod.preview_path);
+  if (fullFrame && /-cover-v5-\d+\.jpg$/i.test(previewPath)) {
+    const masterPath = previewPath.replace(/\.jpg$/i, '.master.jpg');
+    try { if (require('node:fs').existsSync(masterPath)) return masterPath; } catch {}
+  }
+  return previewPath;
 }
 
 // Live Pinterest API v5 client

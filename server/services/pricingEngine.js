@@ -23,8 +23,8 @@ const PRICE_FLOOR = 3.99;
 
 const _testsCache = { t: 0, val: null };
 
-function readTests() {
-  if (_testsCache.val && (Date.now() - _testsCache.t) < 30000) return _testsCache.val;
+function readTests(force = false) {
+  if (!force && _testsCache.val && (Date.now() - _testsCache.t) < 30000) return _testsCache.val;
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(TESTS_KEY);
   let val = {};
   if (row) {
@@ -78,7 +78,10 @@ function startPriceTest(productId, basePrice) {
   const base = basePrice || product.price;
   const tiers = priceTiers(base);
   if (!tiers.low) throw new Error('No base price to test against');
-  const tests = readTests();
+  // A test start is an explicit state-changing boundary. Refresh persisted
+  // state so out-of-band settings edits (admin/test fixtures) cannot leave a
+  // stale 30-second cache controlling variant allocation or winner membership.
+  const tests = readTests(true);
   if (tests[productId]) return { ...tests[productId], tiers, existing: true };
 
   // Round-robin across the whole test population for balance.

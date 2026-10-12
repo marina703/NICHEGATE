@@ -297,6 +297,21 @@ function init() {
     )
   `);
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_design_scores_product ON design_scores (product_id, id DESC)'); } catch (e) { /* exists */ }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cover_reviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      artifact_path TEXT NOT NULL,
+      artifact_sha256 TEXT NOT NULL,
+      scores TEXT,
+      critique TEXT,
+      zero_garbled_text INTEGER,
+      status TEXT NOT NULL,
+      revised INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_cover_reviews_product ON cover_reviews (product_id, id DESC)'); } catch (e) { /* exists */ }
 
   // Curated design references (Phase 3): extracted design DNA only — palette
   // hexes, font names, layout grid, motif, a taste note. Seed rows come from

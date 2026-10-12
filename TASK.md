@@ -1,5 +1,96 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
+## ── 2026-10-12: REAL PRODUCT COVER COMPOSITES (local branch) ──
+- [x] Owner-authorized push completed before this work: main at d08b632 and
+  origin/main synced (0 ahead / 0 behind). Production `/api/health` returned 200
+  with 11 products and 34 professions. Cover implementation is isolated on
+  `feature/product-real-covers`; not pushed or deployed.
+- [x] Cover hero uses actual `buildPreviewHTML(product, prof)` output embedded
+  in a sandboxed srcdoc iframe; both photo-backed and no-art covers preserve the
+  generated product title/copy/price and show the real product screen instead
+  of simulated invoice/checklist/graph/social content.
+- [x] Added `cover-v4` preview filename marker + `isCurrentCoverPath` cache
+  validation in both fileFactory and `/api/products/:id/preview-image`; stale
+  existing thumbnail paths regenerate rather than bypassing the cover builder.
+  Regression test covers old/current cache paths.
+- [x] Art backgrounds follow profession + Design DNA with five distinct photo
+  directions and a native 1200×1800 blank tablet slot. Cloudflare cover Worker
+  now uses Leonardo Lucid Origin with explicit native dimensions; providers must
+  return 2:3 images or the asset is rejected (never center-cropped).
+- [x] Cover reviews persist separate cover rubric, decision, exact artifact path
+  and SHA-256; one fresh-art revision is attempted on a failing verdict. Missing
+  or unpersistable AI review fails closed before Gumroad/Etsy/free-Gumroad uploads.
+  With model AI disabled, an explicit persisted `not_required` state preserves
+  the project invariant that marketplace publishing works with `MODEL_ENABLED=false`.
+- [x] Focused verification after final edits: cover, worker, marketplace,
+  preview-surface, lockdown, and phase7 suites → 66 pass, 1 expected AI-off
+  skip, 0 fail; edited JavaScript parses and `git diff --check` is clean.
+- [x] Real render: generated `previews/roofing-checklist-969-1791767533881.jpg`
+  from product #969 (214,002 bytes, JPEG signature `ffd8ff`). Chromium preview
+  confirmed it contains the exact Roofing Contractor quality checklist page in
+  the photo-backed device frame with the niche headline/copy/price intact.
+- [x] Post-update render smoke: regenerated local covers for products #969
+  (Roofing checklist), #949 (Native Plant Landscaper spreadsheet), #965
+  (Faith-Based Recovery invoice), #961 (SMART Recovery social), and #932
+  (Wedding Photography spreadsheet). Each actual product preview rendered;
+  their configured Cloudflare endpoint still returned 1024×1024 FLUX output,
+  so the new dimension guard rejected the art and safely used the plain-cover
+  fallback. The source worker now requests Lucid Origin at 1200×1800, but was
+  not deployed per the no-deploy rule; redeploy/verify it before expecting
+  photo-backed output from the configured endpoint.
+- [x] Aspect-ratio contract: marketplace cover export is a 1200×1500 (4:5)
+  JPEG crop at `{x:0,y:150}` from the retained 1200×1800 (2:3) JPEG master.
+  Device slot `{x:660,y:300,width:480,height:600}` is fully inside the safe crop;
+  Pinterest continues to select the full-frame master. Renderer clip arguments,
+  both output paths, crop dimensions/ratio and all slot bounds are covered by
+  `test/cover-copy.test.js`.
+- [x] Regression triage + fixes (all reported causes predate this branch):
+  integration-boot's constant `boot-test-niche` slug was committed in `d08b632`
+  and collided in the shared DB; fixture now gets a unique slug. The same test
+  skips under Bun unless `NODE_BINARY` points to Node, because `process.execPath`
+  is Bun rather than the runtime required to boot Express; installed user-local
+  Node.js 24.20.0 and verified this test with `NODE_BINARY` (1 pass, 0 fail).
+  Pricing winner test dates to
+  `865c7bb`; globally shared settings and a stale 30s cache could make its
+  winner population non-hermetic. It now uses a process-specific temp DB and
+  `startPriceTest()` refreshes persisted state before allocation. Worker-memory
+  test also dates to `865c7bb`; with `MODEL_ENABLED=true`, live model output made
+  its deterministic assertion nondeterministic. It now forces AI off during that
+  test and restores the prior setting. No branch-introduced cause found.
+- [x] Verification: full native Node `node --test` run using user-local Node
+  24.20.0 → **288 pass, 4 expected skips, 0 fail** (292 total, including the
+  Node boot integration). Prior Bun suite: **285 pass, 7 skips, 0 fail**.
+  `git diff --check` passes; no credential-like strings found in staged diff.
+- [x] Live cover Worker `/health` returns `{"ok":true,"worker":"nichegate-covers"}`.
+  Cloudflare documents Lucid Origin with width/height up to 2500 but does not
+  guarantee actual image pixel dimensions; client byte inspection remains required.
+- [ ] Release blocked before push/deploy: Wrangler 4.149.0 is not authenticated
+  (`wrangler whoami` says run `wrangler login`); no Cloudflare credentials are
+  present in the shell. Do not push the Railway-triggering server changes while
+  Worker deployment is unavailable, to avoid a partial production release.
+- [x] Implementation committed locally on `feature/product-real-covers`; not
+  pushed or deployed. Preview cache paths for #969, #949, #965, #961 and #932
+  were refreshed in the local DB only.
+
+## Regression triage detail (2026-10-12)
+- Integration duplicate slug: pre-existing in `d08b632`; static evidence was
+  constant slug insertion at `test/integration-boot.test.js` against the
+  configured shared database (no throwaway `DB_PATH`). Fixed with unique fixture.
+- Pricing winner expectation: test and engine behavior pre-existing from
+  `865c7bb`. It assumes only its two variants participate, but settings state
+  is shared and `readTests()` cached for 30 seconds. Test now isolates its DB;
+  explicit `startPriceTest()` refresh prevents stale persisted settings from
+  controlling its next allocation.
+- Worker-memory wording: test pre-existing in `865c7bb`; a live model response
+  could paraphrase the deterministic intent while the exact phrase assertion
+  expected the planner result. Test disables the model for its deterministic
+  assertion. No production worker-memory behavior was changed.
+- Latest native Node result: 288/4/0 (292 total), including integration boot.
+  Prior Bun result: 285/7/0. Wrangler authentication is absent; release remains
+  local-only until the owner completes `wrangler login` or configures a scoped
+  Cloudflare deploy credential. See `handoff-mail-FROM_FREEBUFF.md`.
+
+
 # Complete (2026-09-15 → 09-20):
 - AI idea layer (OpenRouter), covers (Cloudflare FLUX), Design DNA (8 styles × 13 niches).
 - 33 product types, 16 builders, security hardening.

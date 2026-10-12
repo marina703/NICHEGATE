@@ -2510,7 +2510,7 @@ app.get('/api/products/:id/preview-image', async (req, res) => {
   try {
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
-    let previewPath = (product.preview_path && fs.existsSync(product.preview_path)) ? product.preview_path : null;
+    let previewPath = (fileFactory.isCurrentCoverPath(product.preview_path) && fs.existsSync(product.preview_path)) ? product.preview_path : null;
     if (!previewPath) previewPath = await fileFactory.ensureProductThumbnail(product);
     if (!previewPath || !fs.existsSync(previewPath)) return res.status(404).json({ error: 'Preview image unavailable for this product' });
     res.setHeader('Content-Type', 'image/jpeg');

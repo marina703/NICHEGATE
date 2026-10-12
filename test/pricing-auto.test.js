@@ -1,11 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const os = require('node:os');
+const path = require('node:path');
+process.env.DB_PATH = path.join(os.tmpdir(), `nichegate-pricing-auto-${process.pid}.db`);
 const { db, init } = require('../server/database');
 init();
 const pricingEngine = require('../server/services/pricingEngine');
 
 test('pricingEngine: autoPromoteWinners identifies and adopts winning price variant', async () => {
-  // Preserve existing pricing_tests to ensure complete isolation
+  // The test file uses a throwaway database so no real pricing tests are touched.
   const prevSettings = db.prepare('SELECT value FROM settings WHERE key = ?').get('pricing_tests');
   db.prepare('DELETE FROM settings WHERE key = ?').run('pricing_tests');
 

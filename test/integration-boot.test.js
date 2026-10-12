@@ -35,7 +35,7 @@ function get(pathname) {
   });
 }
 
-test('boot integration: health, truthful automation status, preview-html parity', async () => {
+test('boot integration: health, truthful automation status, preview-html parity', { skip: process.versions.bun && !process.env.NODE_BINARY ? 'requires Node.js runtime; set NODE_BINARY to run under Bun' : false, timeout: 30000 }, async () => {
   // Pre-seed the throwaway DB (schema + auto-start OFF) before the server boots,
   // so the child never fires an automation cycle (no external calls in tests).
   const { db, init } = require('../server/database');
@@ -43,15 +43,16 @@ test('boot integration: health, truthful automation status, preview-html parity'
   db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('auto_generate', 'false')").run();
   // Own ASCII-safe profession — deterministic content assertions (seed names
   // contain apostrophes that HTML escaping hides from naive includes()).
+  const fixture = `BootTest ${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const profId = db.prepare(
-    "INSERT INTO professions (emoji, name, slug, status, tier, colors, services, hashtags) VALUES ('🧪', 'BootTest Niche', 'boot-test-niche', 'researching', 'safe', '{}', '[]', '[]')"
-  ).run().lastInsertRowid;
-  const prof = { id: profId, name: 'BootTest Niche' };
+    "INSERT INTO professions (emoji, name, slug, status, tier, colors, services, hashtags) VALUES ('🧪', ?, ?, 'researching', 'safe', '{}', '[]', '[]')"
+  ).run(fixture, fixture.toLowerCase().replace(/[^a-z0-9]+/g, '-')).lastInsertRowid;
+  const prof = { id: profId, name: fixture };
   const productId = db.prepare(
     "INSERT INTO products (profession_id, name, type, price, status, theme, html_content, brief) VALUES (?, ?, 'spreadsheet', '$17', 'draft', NULL, '<!-- auto-generated -->', ?)"
   ).run(prof.id, `${prof.name} — Income Tracker`, 'Track every dollar earned from Pinterest: affiliate links, sponsor pins, idea pins.').lastInsertRowid;
 
-  const child = spawn(process.execPath, ['server/index.js'], {
+  const child = spawn(process.env.NODE_BINARY || process.execPath, ['server/index.js'], {
     cwd: path.resolve(__dirname, '..'),
     env: { ...process.env, PORT: String(PORT), BIND_HOST: '127.0.0.1', NODE_ENV: 'development' },
     stdio: ['ignore', 'pipe', 'pipe']
@@ -86,7 +87,7 @@ test('boot integration: health, truthful automation status, preview-html parity'
     assert.equal(preview.status, 200);
     assert.ok(!/Preview not available/i.test(preview.body), 'type fell through to "not available"');
     assert.ok(!/undefined/.test(preview.body), 'undefined leaked into preview (prof columns?)');
-    assert.ok(preview.body.includes('BootTest Niche'), 'profession name expected in preview');
+    assert.ok(preview.body.includes(fixture), 'profession name expected in preview');
     assert.ok(preview.body.includes('Income Tracker'), 'derived product title expected, not the canned one');
 
     // catalog API serves the product row
