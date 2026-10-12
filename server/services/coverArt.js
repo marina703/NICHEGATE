@@ -317,18 +317,26 @@ function getImageDimensions(buffer) {
   return null;
 }
 
-function isNativePortraitImage(buffer) {
+function isNativePortraitImage(buffer, opts = {}) {
   const dimensions = getImageDimensions(buffer);
-  return !!dimensions && dimensions.width >= 1024 && dimensions.height >= 1536 &&
-    dimensions.width / dimensions.height === COVER_WIDTH / COVER_HEIGHT;
+  if (!dimensions) return false;
+  // Providers with fixed-size free tiers (pollinations anonymous ≈ 627x940)
+  // still render the correct 2:3 aspect. Callers handling background-only
+  // images opt into a smaller minimum — the browser upscales behind the text
+  // layers, and a slightly soft background beats a missing one.
+  const minW = opts.minW || 1024;
+  const minH = opts.minH || 1536;
+  const ratio = dimensions.width / dimensions.height;
+  return dimensions.width >= minW && dimensions.height >= minH &&
+    Math.abs(ratio - COVER_WIDTH / COVER_HEIGHT) < 0.02;
 }
 
-function writeNativePortrait(outPath, buffer) {
+function writeNativePortrait(outPath, buffer, opts = {}) {
   const image = Buffer.from(buffer || []);
-  if (!isNativePortraitImage(image)) {
+  if (!isNativePortraitImage(image, opts)) {
     const dimensions = getImageDimensions(image);
     const actual = dimensions ? `${dimensions.width}x${dimensions.height}` : 'unknown dimensions';
-    throw new Error(`image provider returned ${actual}, expected a native 2:3 portrait of at least 1024x1536; refusing to crop or cache`);
+    throw new Error(`image provider returned ${actual}, expected a 2:3 portrait (min ${opts.minW || 1024}x${opts.minH || 1536}); refusing to crop or cache`);
   }
   fs.writeFileSync(outPath, image);
   return outPath;
@@ -347,7 +355,9 @@ async function viaPollinations(prompt, outPath) {
   const url = `${base}/${encodeURIComponent(prompt)}?width=${COVER_WIDTH}&height=${COVER_HEIGHT}&nologo=true`;
   const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 120000, maxBodyLength: Infinity });
   if (!res.data || !res.data.length) throw new Error('empty image response');
-  return writeNativePortrait(outPath, Buffer.from(res.data));
+  // Pollinations' anonymous tier caps resolution (~627x940) — accept the
+  // smaller 2:3 render; the browser upscales it behind the text layers.
+  return writeNativePortrait(outPath, Buffer.from(res.data), { minW: 600, minH: 900 });
 }
 
 // Cloudflare Workers AI text-to-image via the cover worker. The model is
@@ -403,12 +413,15 @@ async function ensureCoverArt(product, prof, theme = {}, opts = {}) {
   try {
     lastCoverError = null;
     const coverModel = resolveCoverModel(opts.coverClass);
+    const prov = provider();
+    // Fixed-size free tiers (pollinations) render smaller 2:3 portraits —
+    // accept them for the background-only path so the fallback actually works.
+    const dims = prov === 'pollinations' ? { minW: 600, minH: 900 } : {};
     const basePath = cachePath(prof, product, theme);
     const seed = opts.forceNew ? Math.floor(Math.random() * 2147483647) : undefined;
     const out = seed === undefined ? basePath : basePath.replace(/\.img$/, `-r${seed}.img`);
-    if (!opts.fresh && fs.existsSync(basePath) && fs.statSync(basePath).size > 20000 && isNativePortraitImage(fs.readFileSync(basePath))) return basePath;
+    if (!opts.fresh && fs.existsSync(basePath) && fs.statSync(basePath).size > 20000 && isNativePortraitImage(fs.readFileSync(basePath), dims)) return basePath;
     const prompt = promptFor(prof, product, theme);
-    const prov = provider();
     if (prov === 'cloudflare') return await viaCloudflare(prompt, out, seed, coverModel);
     if (prov === 'fal') return await viaFal(prompt, out, seed);
     return await viaPollinations(prompt, out);

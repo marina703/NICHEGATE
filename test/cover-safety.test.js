@@ -165,6 +165,28 @@ test('coverArt model classes: mapping, env override, allowlist guard, request mo
   assert.ok(!('model' in JSON.parse(coverArt.workerRequestBody('p'))));
 });
 
+test('portrait validation: strict for native providers, relaxed 2:3 for fixed-size free tiers', () => {
+  const coverArt = require('../server/services/coverArt');
+  const fakePng = (w, h) => {
+    const b = Buffer.alloc(33);
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(b, 0);
+    b.writeUInt32BE(13, 8);
+    b.write('IHDR', 12, 'ascii');
+    b.writeUInt32BE(w, 16);
+    b.writeUInt32BE(h, 20);
+    return b;
+  };
+  assert.equal(coverArt.isNativePortraitImage(fakePng(1200, 1800)), true);
+  assert.equal(coverArt.isNativePortraitImage(fakePng(627, 940)), false, 'strict default rejects the small tier');
+  assert.equal(coverArt.isNativePortraitImage(fakePng(627, 940), { minW: 600, minH: 900 }), true, 'relaxed accepts the 2:3 small tier');
+  assert.equal(coverArt.isNativePortraitImage(fakePng(1000, 1000), { minW: 600, minH: 900 }), false, 'wrong aspect fails even relaxed');
+  const tmp = path.join(require('node:os').tmpdir(), 'coverart-test-' + Date.now() + '.img');
+  coverArt.writeNativePortrait(tmp, fakePng(700, 1050), { minW: 600, minH: 900 });
+  assert.ok(fs.existsSync(tmp));
+  fs.unlinkSync(tmp);
+  assert.throws(() => coverArt.writeNativePortrait(tmp, fakePng(627, 900)));
+});
+
 test('coverArt classifies provider errors for honest per-item reporting', () => {
   const coverArt = require('../server/services/coverArt');
   assert.equal(coverArt.classifyCoverError(new Error('4006: you have used up your daily free allocation of 10,000 neurons')), 'quota_exhausted');
