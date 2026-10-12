@@ -2215,7 +2215,17 @@ app.post('/api/marketplace/anchor/:gid', async (req, res) => {
         .run(a.profession_id, a.name, a.type, a.price, a.marketplace, a.marketplace_id);
       id = Number(r.lastInsertRowid); action = 'created';
     }
-    res.json({ ok: true, id, action, name: a.name, type: a.type, profession_id: a.profession_id });
+    // Physical deliverable gate: anchored rows self-heal their file on the
+    // production volume (builders are moat-aware; no image quota needed).
+    let fileGenerated = false;
+    try {
+      const row = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+      await require('./services/fileFactory').ensureProductFile(row);
+      fileGenerated = !!(db.prepare('SELECT file_path FROM products WHERE id = ?').get(id).file_path);
+    } catch (e) {
+      console.error('[ANCHOR] file regen failed:', e.message);
+    }
+    res.json({ ok: true, id, action, name: a.name, type: a.type, profession_id: a.profession_id, fileGenerated });
   } catch (e) {
     console.error('[ANCHOR] error:', e.message);
     res.status(500).json({ error: e.message });
