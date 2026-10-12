@@ -33,6 +33,39 @@ const designDNA = require('./designStyles');
 
 const COVER_WIDTH = 1200;
 const COVER_HEIGHT = 1800;
+// Cover model classes — Workers AI neuron costs vary ~24x between models
+// (lucid-origin ≈ 636 neurons per 512x512 tile ≈ 7.6k per 1200x1800 cover vs
+// flux-2-klein-4b ≈ 26 per output tile ≈ ~330 per cover), so the class decides
+// free-tier capacity (~1 vs ~30 covers/day) AND per-cover cost. See
+// COVER_MODEL_FLEXIBILITY.md and BIONIC_E2E_AUDIT.md F1.
+const MODEL_ALLOWLIST = [
+  '@cf/black-forest-labs/flux-2-klein-4b',
+  '@cf/black-forest-labs/flux-1-schnell',
+  '@cf/black-forest-labs/flux-2-klein-9b',
+  '@cf/leonardo/lucid-origin'
+];
+function resolveCoverModel(coverClass = 'standard') {
+  const envChoice = {
+    standard: process.env.COVER_MODEL_STANDARD,
+    draft: process.env.COVER_MODEL_DRAFT,
+    hero: process.env.COVER_MODEL_HERO
+  }[coverClass];
+  const fallback = coverClass === 'draft'
+    ? '@cf/black-forest-labs/flux-1-schnell'
+    : coverClass === 'hero'
+      ? '@cf/black-forest-labs/flux-2-klein-9b'
+      : '@cf/black-forest-labs/flux-2-klein-4b';
+  return MODEL_ALLOWLIST.includes(envChoice) ? envChoice : fallback;
+}
+function classifyCoverError(err) {
+  const msg = String((err && err.message) || err || '');
+  if (/4006|free allocation|quota/i.test(msg)) return 'quota_exhausted';
+  if (/401|403|unauthorized/i.test(msg)) return 'auth_error';
+  if (/timeout|ETIMEDOUT|ECONNABORTED/i.test(msg)) return 'timeout';
+  return 'upstream_error';
+}
+let lastCoverError = null;
+function coverProviderState() { return lastCoverError; }
 const COVER_PROMPT_VERSION = 'photo-cover-v2';
 // Cover art follows the same style DNA used by the product, then specializes
 // to a niche when a style family is shared. The names are art directions, not
@@ -243,8 +276,12 @@ function promptFor(prof, product, theme = {}) {
   return buildArtPrompt(prof, product, 'photo-cover', theme);
 }
 
-function workerRequestBody(prompt, seed = undefined) {
-  return JSON.stringify({ prompt, width: COVER_WIDTH, height: COVER_HEIGHT, ...(Number.isInteger(seed) ? { seed } : {}) });
+function workerRequestBody(prompt, seed = undefined, model = undefined) {
+  return JSON.stringify({
+    prompt, width: COVER_WIDTH, height: COVER_HEIGHT,
+    ...(model ? { model } : {}),
+    ...(Number.isInteger(seed) ? { seed } : {})
+  });
 }
 
 function imageDataUri(buffer) {
@@ -313,12 +350,13 @@ async function viaPollinations(prompt, outPath) {
   return writeNativePortrait(outPath, Buffer.from(res.data));
 }
 
-// Cloudflare Workers AI Leonardo Lucid Origin — dimensions are part of the
-// model input contract, unlike FLUX.1 schnell's fixed-size schema.
-async function viaCloudflare(prompt, outPath, seed = undefined) {
+// Cloudflare Workers AI text-to-image via the cover worker. The model is
+// selected per cover class (see resolveCoverModel); the worker enforces the
+// allowlist and native portrait dimensions server-side.
+async function viaCloudflare(prompt, outPath, seed = undefined, model = undefined) {
   const url = process.env.COVER_WORKER_URL;
   if (!url) throw new Error('COVER_WORKER_URL missing');
-  const res = await axios.post(url, workerRequestBody(prompt, seed), {
+  const res = await axios.post(url, workerRequestBody(prompt, seed, model), {
     timeout: 180000,
     headers: { 'Content-Type': 'application/json', ...(process.env.COVER_WORKER_KEY ? { 'x-ng-key': process.env.COVER_WORKER_KEY } : {}) }
   });
@@ -356,16 +394,19 @@ async function viaFal(prompt, outPath, seed = undefined) {
 // Ensure a lifestyle background exists for this product. Returns path or null.
 async function ensureCoverArt(product, prof, theme = {}, opts = {}) {
   try {
+    lastCoverError = null;
+    const coverModel = resolveCoverModel(opts.coverClass);
     const basePath = cachePath(prof, product, theme);
     const seed = opts.forceNew ? Math.floor(Math.random() * 2147483647) : undefined;
     const out = seed === undefined ? basePath : basePath.replace(/\.img$/, `-r${seed}.img`);
     if (!opts.fresh && fs.existsSync(basePath) && fs.statSync(basePath).size > 20000 && isNativePortraitImage(fs.readFileSync(basePath))) return basePath;
     const prompt = promptFor(prof, product, theme);
     const prov = provider();
-    if (prov === 'cloudflare') return await viaCloudflare(prompt, out, seed);
+    if (prov === 'cloudflare') return await viaCloudflare(prompt, out, seed, coverModel);
     if (prov === 'fal') return await viaFal(prompt, out, seed);
     return await viaPollinations(prompt, out);
   } catch (e) {
+    lastCoverError = { at: new Date().toISOString(), reason: classifyCoverError(e), message: String(e.message || '').slice(0, 300) };
     console.error('[COVERART] failed:', e.message);
     return null;
   }
@@ -374,5 +415,6 @@ async function ensureCoverArt(product, prof, theme = {}, opts = {}) {
 module.exports = {
   COVER_WIDTH, COVER_HEIGHT, COVER_SCENES, sceneFor, promptFor, buildArtPrompt,
   STYLE_PROFILES, BANNED_SCENE_TERMS, cachePath, ensureCoverArt, provider, OUT_DIR,
-  workerRequestBody, getImageDimensions, imageDataUri, isNativePortraitImage, writeNativePortrait
+  workerRequestBody, getImageDimensions, imageDataUri, isNativePortraitImage, writeNativePortrait,
+  resolveCoverModel, classifyCoverError, coverProviderState, MODEL_ALLOWLIST
 };

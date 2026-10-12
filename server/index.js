@@ -2556,11 +2556,19 @@ app.post('/api/covers/generate', async (req, res) => {
   for (const p of rows) {
     try {
       const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(p.profession_id);
-      if (!prof) { failed++; continue; }
-      const art = await coverArt.ensureCoverArt(p, prof);
-      if (art) { generated++; items.push({ id: p.id, art: `/api/products/${p.id}/lifestyle-image` }); }
-      else failed++;
-    } catch (e) { failed++; console.error('[COVERS] #' + p.id + ':', e.message); }
+      if (!prof) { failed++; items.push({ id: p.id, ok: false, reason: 'missing_profession' }); continue; }
+      const art = await coverArt.ensureCoverArt(p, prof, {}, { coverClass: String(body.coverClass || 'standard') });
+      if (art) { generated++; items.push({ id: p.id, ok: true, art: `/api/products/${p.id}/lifestyle-image` }); }
+      else {
+        const state = coverArt.coverProviderState() || {};
+        failed++;
+        items.push({ id: p.id, ok: false, reason: state.reason || 'unknown_error', error: String(state.message || '').slice(0, 200) });
+      }
+    } catch (e) {
+      failed++;
+      console.error('[COVERS] #' + p.id + ':', e.message);
+      items.push({ id: p.id, ok: false, reason: coverArt.classifyCoverError(e), error: String(e.message || '').slice(0, 200) });
+    }
   }
   res.json({ total: rows.length, generated, failed, items });
 });

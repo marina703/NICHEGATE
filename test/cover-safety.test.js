@@ -101,3 +101,74 @@ test('browser rebuild sends cursors, prevents double start, and reports HTTP fai
   assert.ok(!messages.some(m => m[1] === 'Rebuild Complete'));
   assert.equal(rebuild.isRunning(), false);
 });
+
+test('Worker model allowlist: klein-4b default, per-request override, env default, rogue rejected', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '../cf-worker/src/index.js'), 'utf8');
+  const { default: worker } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+  const runs = [];
+  const AI = { run: async (model, args) => { runs.push({ model, args }); return { image: 'img' }; } };
+  const post = (body, extraEnv = {}) => worker.fetch(new Request('https://worker.test/', {
+    method: 'POST', headers: { 'x-ng-key': 'k' }, body: JSON.stringify(body)
+  }), { AI, SHARED_KEY: 'k', ...extraEnv });
+  let res = await post({ prompt: 'p', width: 1200, height: 1800 });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).model, '@cf/black-forest-labs/flux-2-klein-4b');
+  res = await post({ prompt: 'p', width: 1200, height: 1800, model: '@cf/black-forest-labs/flux-2-klein-9b' });
+  assert.equal((await res.json()).model, '@cf/black-forest-labs/flux-2-klein-9b');
+  res = await post({ prompt: 'p', width: 1200, height: 1800 }, { COVER_MODEL: '@cf/leonardo/lucid-origin' });
+  assert.equal((await res.json()).model, '@cf/leonardo/lucid-origin');
+  const before = runs.length;
+  res = await post({ prompt: 'p', width: 1200, height: 1800, model: '@cf/some/rogue-model' });
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.match(body.error, /model not allowed/);
+  assert.equal(body.allowed.length, 4);
+  assert.equal(runs.length, before);
+  // per-model generation params reach AI.run (schnell is a 4-step model)
+  await post({ prompt: 'p', width: 1200, height: 1800, model: '@cf/black-forest-labs/flux-1-schnell' });
+  const schnell = runs.find(r => r.model === '@cf/black-forest-labs/flux-1-schnell');
+  assert.equal(schnell.args.num_steps, 4);
+});
+
+test('Worker maps Cloudflare quota exhaustion to 429 instead of opaque 502', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '../cf-worker/src/index.js'), 'utf8');
+  const { default: worker } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+  const env = { AI: { run: async () => { throw new Error('4006: you have used up your daily free allocation of 10,000 neurons, please upgrade'); } }, SHARED_KEY: 'k' };
+  const res = await worker.fetch(new Request('https://worker.test/', {
+    method: 'POST', headers: { 'x-ng-key': 'k' }, body: JSON.stringify({ prompt: 'p', width: 1200, height: 1800 })
+  }), env);
+  assert.equal(res.status, 429);
+  assert.equal((await res.json()).error, 'quota_exhausted');
+  const env2 = { AI: { run: async () => { throw new Error('worker CPU time exceeded'); } }, SHARED_KEY: 'k' };
+  const res2 = await worker.fetch(new Request('https://worker.test/', {
+    method: 'POST', headers: { 'x-ng-key': 'k' }, body: JSON.stringify({ prompt: 'p', width: 1200, height: 1800 })
+  }), env2);
+  assert.equal(res2.status, 502);
+});
+
+test('coverArt model classes: mapping, env override, allowlist guard, request model field', () => {
+  const coverArt = require('../server/services/coverArt');
+  for (const k of ['COVER_MODEL_STANDARD', 'COVER_MODEL_DRAFT', 'COVER_MODEL_HERO']) delete process.env[k];
+  assert.equal(coverArt.resolveCoverModel('standard'), '@cf/black-forest-labs/flux-2-klein-4b');
+  assert.equal(coverArt.resolveCoverModel('draft'), '@cf/black-forest-labs/flux-1-schnell');
+  assert.equal(coverArt.resolveCoverModel('hero'), '@cf/black-forest-labs/flux-2-klein-9b');
+  assert.equal(coverArt.resolveCoverModel('nonsense-class'), '@cf/black-forest-labs/flux-2-klein-4b');
+  process.env.COVER_MODEL_STANDARD = '@cf/leonardo/lucid-origin';
+  assert.equal(coverArt.resolveCoverModel('standard'), '@cf/leonardo/lucid-origin');
+  process.env.COVER_MODEL_STANDARD = '@cf/rogue/model';
+  assert.equal(coverArt.resolveCoverModel('standard'), '@cf/black-forest-labs/flux-2-klein-4b');
+  delete process.env.COVER_MODEL_STANDARD;
+  const withModel = JSON.parse(coverArt.workerRequestBody('p', undefined, '@cf/black-forest-labs/flux-2-klein-9b'));
+  assert.equal(withModel.model, '@cf/black-forest-labs/flux-2-klein-9b');
+  assert.equal(withModel.width, 1200);
+  assert.equal(withModel.height, 1800);
+  assert.ok(!('model' in JSON.parse(coverArt.workerRequestBody('p'))));
+});
+
+test('coverArt classifies provider errors for honest per-item reporting', () => {
+  const coverArt = require('../server/services/coverArt');
+  assert.equal(coverArt.classifyCoverError(new Error('4006: you have used up your daily free allocation of 10,000 neurons')), 'quota_exhausted');
+  assert.equal(coverArt.classifyCoverError(new Error('Request failed with status code 403')), 'auth_error');
+  assert.equal(coverArt.classifyCoverError(new Error('timeout of 180000ms exceeded')), 'timeout');
+  assert.equal(coverArt.classifyCoverError(new Error('model returned no image')), 'upstream_error');
+});
