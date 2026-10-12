@@ -109,6 +109,24 @@ describe('trendRadar', () => {
     const h = radar.getSourceHealth();
     assert.equal(typeof h, 'object');
   });
+
+  it('skips the eBay /trending endpoint by default after datacenter 403s', async () => {
+    const originalEnabled = process.env.EBAY_TRENDING_ENABLED;
+    const axios = require('axios');
+    const originalGet = axios.get;
+    let requests = 0;
+    delete process.env.EBAY_TRENDING_ENABLED;
+    axios.get = async () => { requests++; throw new Error('should not fetch when disabled'); };
+    try {
+      assert.deepEqual(await radar.fetchEbayTrending(), []);
+      assert.equal(requests, 0);
+      assert.match(radar.getSourceHealth()['ebay-trending'].lastError, /disabled/);
+    } finally {
+      axios.get = originalGet;
+      if (originalEnabled === undefined) delete process.env.EBAY_TRENDING_ENABLED;
+      else process.env.EBAY_TRENDING_ENABLED = originalEnabled;
+    }
+  });
 });
 
 describe('discovery', () => {

@@ -174,8 +174,15 @@ test('refreshEtsyToken persists rotated refresh_token', async () => {
   ).run();
   const axios = require('axios');
   const orig = axios.post;
-  axios.post = async function stub(url) {
+  axios.post = async function stub(url, body, config) {
     if (String(url).includes('/public/oauth/token')) {
+      assert.equal(typeof body, 'string');
+      assert.equal(config.headers['Content-Type'], 'application/x-www-form-urlencoded');
+      const fields = new URLSearchParams(body);
+      assert.equal(fields.get('grant_type'), 'refresh_token');
+      assert.equal(fields.get('client_id'), 'testcid');
+      assert.equal(fields.get('refresh_token'), 'r_OLD');
+      assert.equal(fields.has('client_secret'), false);
       return { data: { access_token: 'a2', refresh_token: 'r_NEW', expires_in: 3600 } };
     }
     return orig.apply(axios, arguments);

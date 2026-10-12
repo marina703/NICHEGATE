@@ -236,6 +236,14 @@ async function fetchAmazonMovers(limit = 8) {
 }
 
 async function fetchEbayTrending(limit = 8) {
+  // eBay's former public /trending page now returns 403 from Railway/CI
+  // datacenter egress. Don't hammer an access-denied page on every scan.
+  // Keep the parser callable by explicitly opted-in environments for testing
+  // and future endpoint changes; the default discovery sweep skips it.
+  if (String(process.env.EBAY_TRENDING_ENABLED || '').toLowerCase() !== 'true') {
+    markHealth('ebay-trending', false, 'disabled: eBay /trending returns 403 from server egress');
+    return [];
+  }
   try {
     const resp = await axios.get('https://www.ebay.com/trending', {
       timeout: 15000,

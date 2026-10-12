@@ -1,5 +1,17 @@
 # MEMORY.md — persistent agent memory for NicheGate
 
+## Etsy refresh and eBay 403 (2026-10-12)
+- Etsy OAuth `/public/oauth/token` expects `application/x-www-form-urlencoded`.
+  Send refresh grants as URLSearchParams with grant_type, client_id, refresh_token;
+  auth-code grant likewise form-encoded (client_secret is not a token parameter).
+  Etsy rotates refresh tokens, so persist each returned token immediately.
+- eBay's unauthenticated `https://www.ebay.com/trending` page returns 403 from
+  Railway/datacenter egress. Keep this scraper disabled by default (opt in only
+  when endpoint access is independently confirmed); do not call it every scan.
+- If Etsy refresh still returns 403 after form encoding, the stored refresh token
+  may be expired/revoked or app credentials mismatched. Owner must reconnect Etsy
+  via `/setup`; never rotate or overwrite production marketplace secrets unasked.
+
 ## Cover composites (2026-10-12)
 - Cover art is an atmospheric, photoreal niche background only; never ask the
   image model to invent screens, charts, or readable product pages. The real

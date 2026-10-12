@@ -1,5 +1,22 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
+## ── 2026-10-12: ETSY REFRESH + EBAY 403 DIAGNOSIS ──
+- Production Railway logs showed Etsy token refresh HTTP 403 and eBay
+  `/trending` HTTP 403. Etsy OAuth token exchange/refresh had been sent as JSON,
+  but Etsy's official OAuth docs require `application/x-www-form-urlencoded`;
+  changed both grants to form encoding, with refresh requests carrying client_id
+  and rotating refresh_token (not client_secret). Regression asserts request body,
+  content type, grant/client/token fields and rotated-token persistence.
+- eBay `/trending` is an unauthenticated public-page scrape blocked with 403 from
+  Railway egress, not a fixable auth bug. It is now disabled by default and marks
+  source health as disabled without making the failing request. Optional opt-in
+  `EBAY_TRENDING_ENABLED=true` is documented only for environments where access
+  has been independently confirmed.
+- Focused suites: 29/29 pass. Full Node suite: 290 pass, 4 skipped, 0 failed
+  (294 tests). Syntax and `git diff --check` pass. Production Etsy reconnect is
+  still required if the persisted 90-day refresh token has expired/revoked; do
+  not alter production marketplace credentials automatically.
+
 ## ── 2026-10-12: REAL PRODUCT COVER COMPOSITES (server + Worker released) ──
 - [x] Cover release commit `2365987` (including feature commit `af8514f`) was
   pushed to `origin/main`. Railway production `/api/health` returned 200 with

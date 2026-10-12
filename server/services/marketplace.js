@@ -84,20 +84,22 @@ async function exchangeEtsyToken(code, redirectUri) {
   if (!check.ok) throw new Error(check.message);
   
   const clientId = process.env.ETSY_CLIENT_ID;
-  const clientSecret = process.env.ETSY_CLIENT_SECRET;
   // Reuse the exact redirect_uri + PKCE verifier from the auth request
   const stored = k => db.prepare('SELECT value FROM settings WHERE key = ?').get(k)?.value || null;
   const callback = redirectUri || stored('etsy_redirect_uri') || `http://localhost:${process.env.PORT || 5000}/api/marketplace/etsy/callback`;
   const codeVerifier = stored('etsy_code_verifier');
   if (!codeVerifier) throw new Error('OAuth session expired — click Connect Etsy again.');
   
-  const resp = await axios.post(`${ETSY_API_BASE}/public/oauth/token`, {
+  const form = new URLSearchParams({
     grant_type: 'authorization_code',
     client_id: clientId,
-    client_secret: clientSecret,
-    code,
     redirect_uri: callback,
+    code,
     code_verifier: codeVerifier
+  });
+  const resp = await axios.post(`${ETSY_API_BASE}/public/oauth/token`, form.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    timeout: 15000
   });
   
   db.prepare('INSERT OR REPLACE INTO marketplace_tokens (platform, access_token, refresh_token, expires_at) VALUES (?, ?, ?, ?)')
@@ -112,12 +114,18 @@ async function exchangeEtsyToken(code, redirectUri) {
 async function refreshEtsyToken() {
   const token = db.prepare('SELECT * FROM marketplace_tokens WHERE platform = ?').get('etsy');
   if (!token) throw new Error('No Etsy token found. Connect Etsy first.');
-  
-  const resp = await axios.post(`${ETSY_API_BASE}/public/oauth/token`, {
+
+  // Etsy's OAuth token endpoint requires application/x-www-form-urlencoded.
+  // The JSON object previously sent here (and in the auth-code exchange) is
+  // parsed as an empty grant by OAuth servers and can fail with 400/403.
+  const form = new URLSearchParams({
     grant_type: 'refresh_token',
-    client_id: process.env.ETSY_CLIENT_ID,
-    client_secret: process.env.ETSY_CLIENT_SECRET,
-    refresh_token: token.refresh_token
+    client_id: process.env.ETSY_CLIENT_ID || '',
+    refresh_token: token.refresh_token || ''
+  });
+  const resp = await axios.post(`${ETSY_API_BASE}/public/oauth/token`, form.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    timeout: 15000
   });
   
   db.prepare('UPDATE marketplace_tokens SET access_token = ?, refresh_token = ?, expires_at = ? WHERE platform = ?')

@@ -28,7 +28,7 @@ function get(pathname) {
     const req = http.get({ host: '127.0.0.1', port: PORT, path: pathname, timeout: 5000 }, (res) => {
       let body = '';
       res.on('data', (c) => (body += c));
-      res.on('end', () => resolve({ status: res.statusCode, body }));
+      res.on('end', () => resolve({ status: res.statusCode, body, headers: res.headers }));
     });
     req.on('error', () => resolve({ status: 0, body: '' }));
     req.on('timeout', () => { req.destroy(); resolve({ status: 0, body: '' }); });
@@ -51,6 +51,9 @@ test('boot integration: health, truthful automation status, preview-html parity'
   const productId = db.prepare(
     "INSERT INTO products (profession_id, name, type, price, status, theme, html_content, brief) VALUES (?, ?, 'spreadsheet', '$17', 'draft', NULL, '<!-- auto-generated -->', ?)"
   ).run(prof.id, `${prof.name} — Income Tracker`, 'Track every dollar earned from Pinterest: affiliate links, sponsor pins, idea pins.').lastInsertRowid;
+  const pdfProductId = db.prepare(
+    "INSERT INTO products (profession_id, name, type, price, status, theme, html_content, brief) VALUES (?, ?, 'checklist', '$12', 'draft', NULL, '<!-- auto-generated -->', ?)"
+  ).run(prof.id, `${prof.name} — Field Checklist`, 'A printable field checklist with real workflow steps.').lastInsertRowid;
 
   const child = spawn(process.env.NODE_BINARY || process.execPath, ['server/index.js'], {
     cwd: path.resolve(__dirname, '..'),
@@ -94,6 +97,15 @@ test('boot integration: health, truthful automation status, preview-html parity'
     const products = await get('/api/products');
     assert.equal(products.status, 200);
     assert.ok(products.body.includes('Income Tracker'));
+
+    // Actual deliverable preview must stream an inline PDF and allow only
+    // same-origin framing (the catalog drawer embeds this route in an iframe).
+    const pdfPreview = await get(`/api/products/${pdfProductId}/preview`);
+    assert.equal(pdfPreview.status, 200);
+    assert.match(pdfPreview.headers['content-type'] || '', /^application\/pdf(?:;|$)/i);
+    assert.match(pdfPreview.headers['content-disposition'] || '', /^inline;/i);
+    assert.match(pdfPreview.headers['content-security-policy'] || '', /frame-ancestors 'self'/i);
+    assert.match(pdfPreview.body, /^%PDF-/);
   } finally {
     child.kill();
     await new Promise((r) => setTimeout(r, 300));

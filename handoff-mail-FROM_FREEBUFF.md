@@ -1,4 +1,10 @@
-# Handoff — cover aspect contract + regression triage
+# Handoff — cover release + marketplace 403 fixes
+
+## Etsy refresh / eBay trend diagnosis (2026-10-12)
+
+Production logs showed two provider errors. Etsy authorization-code and refresh requests now use the official URL-encoded grant format, and rotated refresh tokens remain persisted. The eBay `/trending` page is blocked (403) from Railway server egress; its scraper is disabled by default with a health explanation, avoiding repeated failed requests. Focused tests pass 29/29; full Node suite passes 290/4 skipped/0 failed. Etsy refresh still needs a production check after Railway deploy; if it continues returning 403, likely causes are revoked/expired rotating refresh token or an Etsy app credential mismatch, so the owner must reconnect via `/setup`. No production secrets or marketplace data were changed as part of this fix.
+
+## Cover aspect contract + regression triage
 
 **Branch:** `feature/product-real-covers`
 **Baseline:** `d08b632` (main at start of branch work)
