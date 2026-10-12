@@ -615,7 +615,20 @@ function markGumroadQuotaExhausted(reason) {
 }
 
 async function requirePublishableCover(product) {
-  const coverVerdict = await require('./designCritic').critiqueCover(product && product.id);
+  let coverVerdict = await require('./designCritic').critiqueCover(product && product.id);
+  if (!coverVerdict || coverVerdict.publishAllowed !== true) {
+    // Self-heal: the usual cause is a stale shared-cache cover (pre-product-key
+    // era) failing the gate. Force ONE fresh render + re-critique before
+    // blocking the publish — bounded cost, honest verdict either way.
+    try {
+      const coverArt = require('./coverArt');
+      const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+      await coverArt.ensureCoverArt(product, prof, {}, { fresh: true, forceNew: true, coverClass: 'standard' });
+      coverVerdict = await require('./designCritic').critiqueCover(product && product.id, { force: true, forceRender: true });
+    } catch (e) {
+      console.error('[COVER GATE] self-heal failed:', e.message);
+    }
+  }
   if (!coverVerdict || coverVerdict.publishAllowed !== true) {
     const error = new Error(`Marketplace cover rejected (${(coverVerdict && coverVerdict.status) || 'unscored'}): ${(coverVerdict && coverVerdict.reason) || 'cover failed review'}`);
     error.code = 'COVER_REVIEW_FAILED';

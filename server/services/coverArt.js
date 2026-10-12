@@ -337,7 +337,7 @@ function writeNativePortrait(outPath, buffer) {
 function cachePath(prof, product, theme = {}) {
   const prompt = promptFor(prof, product, theme);
   const h = crypto.createHash('sha1')
-    .update(`${COVER_PROMPT_VERSION}|${provider()}|${prof.slug || prof.name}|${product.type}|${prompt}`)
+    .update(`${COVER_PROMPT_VERSION}|${provider()}|${prof.slug || prof.name}|${product.id || ''}|${product.type}|${prompt}`)
     .digest('hex').slice(0, 16);
   return path.join(OUT_DIR, `${prof.slug || 'cover'}-${product.type || 'art'}-${h}.img`);
 }
