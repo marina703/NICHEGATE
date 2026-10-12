@@ -2136,12 +2136,19 @@ app.get('/api/buffer/status', (req, res) => {
 app.get('/pin-image/:productId/:token', (req, res) => {
   const { productId, token } = req.params;
   const bridge = require('./services/bufferBridge');
-  const expected = `${bridge.shareTokenFor(0).split('-')[0]}-${productId}`;
-  const file = bridge.pinImagePublicUrl(Number(productId) || 0);
+  const id = Number(productId) || 0;
+  let expected, file;
+  try {
+    expected = `${bridge.shareTokenFor(0).split('-')[0]}-${productId}`;
+    file = bridge.pinImagePublicUrl(id);
+  } catch (e) {
+    console.error('[PIN-IMAGE] lookup failed:', e.message);
+    return res.status(404).send('not found');
+  }
   if (token !== expected || !file) return res.status(404).send('not found');
   res.set('Cache-Control', 'public, max-age=86400');
   res.type('image/jpeg');
-  res.sendFile(file);
+  res.sendFile(file); // sendFile itself 404s if the file vanished
 });
 
 app.post('/api/automation/run', async (req, res) => {
@@ -2934,8 +2941,30 @@ app.get('/api/setup/status', async (req, res) => {
     gumroad: mpStatus.gumroad,
     discord: { configured: !!webhook, url: webhook ? '***' : null },
     email: { configured: !!email, address: email ? '***' : null },
-    allReady: mpStatus.etsy.connected && mpStatus.gumroad.connected
+    allReady: mpStatus.etsy.connected && mpStatus.gumroad.connected,
+    // Buffer bridge (interim Pinterest channel): config surface, no secrets.
+    buffer: require('./services/bufferBridge').bufferStatus()
   });
+});
+
+// Set/rotate the Buffer bridge credentials from the console (values from the
+// Buffer dashboard: Settings → API). Values go into the settings table.
+app.post('/api/setup/buffer', (req, res) => {
+  try {
+    const { token, channelId, boardServiceId, publicBaseUrl } = req.body || {};
+    if (!token || typeof token !== 'string') return res.status(400).json({ error: 'token required' });
+    const put = (k, v) => {
+      if (v === null || typeof v !== 'string' || !v.trim()) { db.prepare('DELETE FROM settings WHERE key = ?').run(k); return; }
+      db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(k, v.trim());
+    };
+    put('buffer_api_token', token);
+    put('buffer_channel_id', channelId || null);
+    put('buffer_board_service_id', boardServiceId || null);
+    if (publicBaseUrl !== undefined) put('public_base_url', publicBaseUrl || null);
+    res.json({ ok: true, status: require('./services/bufferBridge').bufferStatus() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ------------------------------------------------------------------------
