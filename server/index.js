@@ -2253,6 +2253,7 @@ app.post('/api/marketplace/anchor/:gid', async (req, res) => {
   try {
     const axios = require('axios');
     const resp = await axios.get(`https://api.gumroad.com/v2/products/${encodeURIComponent(req.params.gid)}?access_token=${encodeURIComponent(process.env.GUMROAD_ACCESS_TOKEN)}`, { timeout: 20000 });
+    const body = req.body || {};
     const gp = resp.data && resp.data.product;
     if (!gp) return res.status(404).json({ error: 'Gumroad product not found' });
     const a = mp.mapGumroadAnchor(gp);
@@ -2260,13 +2261,13 @@ app.post('/api/marketplace/anchor/:gid', async (req, res) => {
     const existing = db.prepare('SELECT id FROM products WHERE marketplace_id = ?').get(a.marketplace_id);
     let id, action;
     if (existing) {
-      db.prepare('UPDATE products SET name = ?, type = ?, price = ?, status = \'listed\', marketplace = ?, profession_id = COALESCE(profession_id, ?) WHERE id = ?')
-        .run(a.name, a.type, a.price, a.marketplace, a.profession_id, existing.id);
+      db.prepare('UPDATE products SET name = ?, type = ?, price = ?, status = \'listed\', marketplace = ?, profession_id = COALESCE(profession_id, ?), brief = COALESCE(brief, ?) WHERE id = ?')
+        .run(a.name, a.type, a.price, a.marketplace, a.profession_id, body.brief || null, existing.id);
       id = existing.id; action = 'updated';
     } else {
-      const r = db.prepare(`INSERT INTO products (profession_id, name, type, price, status, origin, marketplace, marketplace_id)
-        VALUES (?, ?, ?, ?, 'listed', 'engine', ?, ?)`)
-        .run(a.profession_id, a.name, a.type, a.price, a.marketplace, a.marketplace_id);
+      const r = db.prepare(`INSERT INTO products (profession_id, name, type, price, status, origin, marketplace, marketplace_id, brief)
+        VALUES (?, ?, ?, ?, 'listed', 'engine', ?, ?, ?)`)
+        .run(a.profession_id, a.name, a.type, a.price, a.marketplace, a.marketplace_id, body.brief || null);
       id = Number(r.lastInsertRowid); action = 'created';
     }
     // Stash the Gumroad-hosted public cover URL — Pinterest dispatch needs a

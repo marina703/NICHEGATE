@@ -357,6 +357,18 @@ async function testEtsyConnection() {
   }
 }
 
+// Full cover-update flow for a live Gumroad listing: force a fresh render
+// (current brief/concept drives the copy), run the critique gate (self-heals
+// once), then attach the new cover via Catbox + Gumroad. Throws on gate fail.
+async function pushCoverToGumroad(product) {
+  const verdict = await requirePublishableCover(product);
+  const row = db.prepare('SELECT preview_path, marketplace_id FROM products WHERE id = ?').get(product.id);
+  if (!row || !row.preview_path) throw new Error('No rendered cover to attach');
+  if (!row.marketplace_id) throw new Error('Product is not linked to a Gumroad listing');
+  const publicUrl = await attachGumroadCover(row.marketplace_id, row.preview_path);
+  return { verdict, publicUrl };
+}
+
 // Anonymous image host so locally-generated covers can be attached to listings
 async function uploadToCatbox(filePath) {
   const buf = fs.readFileSync(filePath);
