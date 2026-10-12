@@ -4,7 +4,8 @@
 **Baseline:** `d08b632` (main at start of branch work)
 **Feature commit:** `af8514f` — `Ship real-product cover composites with crop-safe marketplace exports`
 **Release record:** `2365987` — pushed to `origin/main`; Railway production health verified HTTP 200 (`env=production`, 11 products, 34 professions).
-**Status:** Server release is live. The paired Cloudflare Worker code is not deployed: Wrangler 4.149.0 is unauthenticated, and no Cloudflare credentials are available. Do not use a temporary account for production deployment.
+**Worker deployment:** `nichegate-covers`, version `ba04520e-c7de-44d1-9d0e-eb183cd81d57`, deployed to the matching account `74d42a6784c765ed7c4276ab8d1f1c72`.
+**Status:** Server and cover Worker are live; authenticated generation smoke passed and actual JPEG bytes verified at 1200×1800.
 
 ## Aspect-ratio contract
 
@@ -22,11 +23,11 @@ All three reported failures predate this branch. Baseline source and `git blame`
 
 ## Verification
 
-- Full native Node suite: user-local Node.js 24.20.0 `node --test` — **288 passed, 4 skipped, 0 failed** (292 tests, 29 suites). Integration boot ran and passed.
+- Full native Node suite, rerun as part of this E2E audit: Node.js 24.20.0 `node --test` — **288 passed, 4 skipped, 0 failed** (292 tests, 29 suites). Boot integration, anonymous-route lockdown, session-gated console, marketplace review/publish guards and preview parity all passed.
 - Earlier full Bun suite: `bun test --timeout=12000` — **285 passed, 7 skipped, 0 failed** (292 tests, 44 files); Bun skips the Node subprocess test by default.
 - Live Worker `GET /health` — 200 with `{"ok":true,"worker":"nichegate-covers"}`.
 - `git diff --check` and staged diff check — passed; staged scan found no credential-like additions.
 
-## Remaining limitations / deployment gate
+## Deployment verification and remaining scope
 
-Cloudflare Wrangler 4.149.0 reports unauthenticated and directs `wrangler login`; no Cloudflare credentials are available in the shell. The authorized server push completed, and Railway `/api/health` now returns HTTP 200 with production environment and expected product/profession counts. Cloudflare was not deployed: the live `/health` endpoint only confirms the previous Worker is up, not that Lucid Origin generation works. Live photo-backed 1200×1800 generation and returned pixel dimensions remain unverified. Authenticate Wrangler with the correct production account, then deploy `cf-worker` and verify an authenticated generation response and decoded image dimensions before treating composite art as production-ready.
+Cloudflare Wrangler authentication is verified for `marina@letsbloww.com`, and the active account ID matched `account_id` in `cf-worker/wrangler.toml`. `npx wrangler deploy --strict` from `cf-worker` deployed version `ba04520e-c7de-44d1-9d0e-eb183cd81d57`; pre-deploy `--dry-run` succeeded and existing `SHARED_KEY` remained present (secret values were not read or displayed). Post-deploy `/health` returned HTTP 200. An authenticated Lucid Origin request returned HTTP 200 with model `@cf/leonardo/lucid-origin`; decoded bytes were JPEG, exactly 1200×1800, 1,605,201 bytes. Focused cover/worker tests passed 29/29. This verifies the Worker generation endpoint; automated image review/composite rendering on product previews and marketplace publishing are not part of this smoke test.

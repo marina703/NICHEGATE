@@ -1,10 +1,14 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
-## ── 2026-10-12: REAL PRODUCT COVER COMPOSITES (server released; Worker pending) ──
+## ── 2026-10-12: REAL PRODUCT COVER COMPOSITES (server + Worker released) ──
 - [x] Cover release commit `2365987` (including feature commit `af8514f`) was
-  pushed to `origin/main`. Railway production `/api/health` subsequently returned
-  200 with `env=production`, 11 products and 34 professions. Cloudflare Worker
-  remains on its existing deployment pending Wrangler authentication.
+  pushed to `origin/main`. Railway production `/api/health` returned 200 with
+  `env=production`, 11 products and 34 professions.
+- [x] Cloudflare Worker `nichegate-covers` deployed to the configured account
+  (`74d42a6784c765ed7c4276ab8d1f1c72`) after `wrangler whoami` matched it. Version
+  `ba04520e-c7de-44d1-9d0e-eb183cd81d57` is live. `/health` returned 200, and an
+  authenticated Lucid Origin request returned a decoded 1200×1800 JPEG (1,605,201
+  bytes); server-side `getImageDimensions` verified the actual byte dimensions.
 - [x] Cover hero uses actual `buildPreviewHTML(product, prof)` output embedded
   in a sandboxed srcdoc iframe; both photo-backed and no-art covers preserve the
   generated product title/copy/price and show the real product screen instead
@@ -29,15 +33,13 @@
   from product #969 (214,002 bytes, JPEG signature `ffd8ff`). Chromium preview
   confirmed it contains the exact Roofing Contractor quality checklist page in
   the photo-backed device frame with the niche headline/copy/price intact.
-- [x] Post-update render smoke: regenerated local covers for products #969
-  (Roofing checklist), #949 (Native Plant Landscaper spreadsheet), #965
-  (Faith-Based Recovery invoice), #961 (SMART Recovery social), and #932
-  (Wedding Photography spreadsheet). Each actual product preview rendered;
-  their configured Cloudflare endpoint still returned 1024×1024 FLUX output,
-  so the new dimension guard rejected the art and safely used the plain-cover
-  fallback. The source worker now requests Lucid Origin at 1200×1800, but was
-  not deployed per the no-deploy rule; redeploy/verify it before expecting
-  photo-backed output from the configured endpoint.
+- [x] Pre-deployment render smoke (historical): regenerated local covers for
+  products #969 (Roofing checklist), #949 (Native Plant Landscaper spreadsheet),
+  #965 (Faith-Based Recovery invoice), #961 (SMART Recovery social), and #932
+  (Wedding Photography spreadsheet). At that point, the old configured endpoint
+  returned 1024×1024 FLUX output, which the dimension guard rejected in favor of
+  plain-cover fallback. The Lucid Origin Worker has since been deployed and its
+  actual 1200×1800 JPEG output verified below.
 - [x] Aspect-ratio contract: marketplace cover export is a 1200×1500 (4:5)
   JPEG crop at `{x:0,y:150}` from the retained 1200×1800 (2:3) JPEG master.
   Device slot `{x:660,y:300,width:480,height:600}` is fully inside the safe crop;
@@ -62,13 +64,9 @@
   Node boot integration). Prior Bun suite: **285 pass, 7 skips, 0 fail**.
   `git diff --check` passes; no credential-like strings found in staged diff.
 - [x] Live cover Worker `/health` returns `{"ok":true,"worker":"nichegate-covers"}`.
-  Cloudflare documents Lucid Origin with width/height up to 2500 but does not
-  guarantee actual image pixel dimensions; client byte inspection remains required.
-- [ ] Cloudflare Worker deployment remains blocked: Wrangler 4.149.0 is not
-  authenticated (`wrangler whoami` requests `wrangler login`), and no credentials
-  are available in this shell. Do not deploy via temporary account. Live Worker
-  `/health` responds 200, but photo-backed generation and actual 1200×1800 output
-  have not been verified after the code change.
+  Authenticated Lucid Origin smoke generation succeeded after deployment, and the
+  returned JPEG bytes were decoded and verified at exactly 1200×1800 (1,605,201
+  bytes); this closes the prior gap between requested and actual dimensions.
 - [x] Feature commit `af8514f` (`Ship real-product cover composites with crop-safe
   marketplace exports`) and release-record commit `2365987` are on `origin/main`.
   Preview cache paths for #969, #949, #965, #961 and #932 were refreshed in local
@@ -87,9 +85,10 @@
   could paraphrase the deterministic intent while the exact phrase assertion
   expected the planner result. Test disables the model for its deterministic
   assertion. No production worker-memory behavior was changed.
-- Latest native Node result: 288/4/0 (292 total), including integration boot.
-  Prior Bun result: 285/7/0. Release commit `2365987` is pushed to main; Railway
-  production health is 200. Worker deployment still awaits Wrangler auth. See
+- Latest native Node result (E2E audit): 288/4/0 (292 total), including boot
+  integration, route lockdown, marketplace guards, and actual preview parity.
+  Cover Worker version `ba04520e-c7de-44d1-9d0e-eb183cd81d57` is deployed and
+  live generation dimensions verified. Railway `/api/health` returns 200. See
   `handoff-mail-FROM_FREEBUFF.md`.
 
 

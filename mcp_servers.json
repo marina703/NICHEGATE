@@ -9,6 +9,9 @@
       "env": {
         "PINTEREST_ACCESS_TOKEN": "${PINTEREST_ACCESS_TOKEN}"
       }
+    },
+    "cloudflare": {
+      "url": "https://mcp.cloudflare.com/mcp"
     }
   }
 }
