@@ -424,6 +424,7 @@ app.post('/api/etsy/push/:id', async (req, res) => {
       if (result && result.listing_id) {
         db.prepare("UPDATE products SET status = 'listed' WHERE id = ?").run(product.id);
         db.prepare("UPDATE settings SET value = ? WHERE key = 'etsy_published_today'").run(String(pubNum + 1));
+      require('./services/pinEngine').pinNewProductAsync(product.id);
         res.json({ ok: true, listing_id: result.listing_id, remaining: capNum - pubNum - 1 });
       } else {
         res.status(500).json({ error: 'Failed to publish to Etsy', details: result });
@@ -2225,6 +2226,7 @@ app.post('/api/marketplace/anchor/:gid', async (req, res) => {
     } catch (e) {
       console.error('[ANCHOR] file regen failed:', e.message);
     }
+    require('./services/pinEngine').pinNewProductAsync(id);
     res.json({ ok: true, id, action, name: a.name, type: a.type, profession_id: a.profession_id, fileGenerated });
   } catch (e) {
     console.error('[ANCHOR] error:', e.message);
@@ -2242,6 +2244,7 @@ app.post('/api/marketplace/publish/:productId', async (req, res) => {
     const result = await mp.publishProduct(product);
     db.prepare('UPDATE products SET status = ?, marketplace = ?, marketplace_id = ? WHERE id = ?')
       .run('listed', result.platform, result.listingId || null, product.id);
+    require('./services/pinEngine').pinNewProductAsync(product.id);
     db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
       .run('published', product.id, `Listed on ${result.platform}`, 'success');
     res.json({ success: true, ...result });

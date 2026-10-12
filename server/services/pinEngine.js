@@ -149,14 +149,19 @@ async function createPin({ productId, boardHint, when }) {
   return { ok: true, id: info.lastInsertRowid, scheduled_for: at.toISOString(), ai: copy.ai, url };
 }
 
-// Bulk: one pin per listed product (skips ones already pinned recently).
-function scheduleForProducts(limit = 20) {
-  const rows = db.prepare(
+// Listed products that don't have a scheduled/posted pin yet.
+function unpinnedListedProducts(limit = 20) {
+  return db.prepare(
     `SELECT p.*, pr.name AS prof_name FROM products p LEFT JOIN professions pr ON p.profession_id = pr.id
      WHERE p.status = 'listed'
        AND NOT EXISTS (SELECT 1 FROM pins WHERE pins.product_id = p.id AND pins.status IN ('scheduled','posted'))
      ORDER BY p.id DESC LIMIT ?`
   ).all(limit);
+}
+
+// Bulk: one pin per listed product (skips ones already pinned recently).
+function scheduleForProducts(limit = 20) {
+  const rows = unpinnedListedProducts(limit);
   let created = 0;
   const results = [];
   for (const p of rows) {
@@ -169,6 +174,36 @@ function scheduleForProducts(limit = 20) {
     }
   }
   return { ok: true, created, results };
+}
+
+// Autonomous variant: same selection, but AI keyword research + pin copy per
+// pin (deterministic fallback inside aiPinCopy when MODEL_ENABLED=false).
+async function scheduleForProductsAI(limit = 6) {
+  const rows = unpinnedListedProducts(limit);
+  let created = 0;
+  const results = [];
+  for (const p of rows) {
+    try {
+      const r = await createPin(p.id);
+      created++;
+      results.push({ id: p.id, pinId: r.id, ai: r.ai, at: r.scheduled_for });
+    } catch (e) {
+      results.push({ id: p.id, error: e.message });
+    }
+  }
+  return { ok: true, created, results };
+}
+
+// Fire-and-forget hook for publish-success paths: schedule the pin NOW (AI
+// copy when available) without blocking the publish response. Never throws.
+function pinNewProductAsync(productId) {
+  try {
+    createPin(productId)
+      .then(r => console.log('[PINS] auto-scheduled pin #' + r.id + ' for product #' + productId + ' (slot ' + r.scheduled_for + ')'))
+      .catch(e => console.error('[PINS] auto-schedule failed for product #' + productId + ':', e.message));
+  } catch (e) {
+    console.error('[PINS] auto-schedule error:', e.message);
+  }
 }
 
 // Synchronous twin of createPin for bulk loops (no AI/network per pin).
@@ -279,4 +314,4 @@ function attributionReport() {
   return { pins, posted, scheduled, withAttributedUrl: withUrl, note: 'click-side attribution needs the CF worker (stretch)' };
 }
 
-module.exports = { createPin, createPinSync, scheduleForProducts, duePins, nextSlot, attributionReport, pinterestKeywords, utmFor, attributedUrl, publishToPinterestApi, pinImageUrl, SLOT_GRID };
+module.exports = { createPin, createPinSync, scheduleForProducts, scheduleForProductsAI, pinNewProductAsync, unpinnedListedProducts, duePins, nextSlot, attributionReport, pinterestKeywords, utmFor, attributedUrl, publishToPinterestApi, pinImageUrl, SLOT_GRID };

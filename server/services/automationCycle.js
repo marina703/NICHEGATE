@@ -307,6 +307,7 @@ async function runFullCycle(deps) {
     safeTask(ctx, 'seasonal', () => taskSeasonal(ctx));
   }
   await safeTask(ctx, 'publish-queue', () => taskPublishQueue(ctx));
+  safeTask(ctx, 'pin-schedule', () => taskPinSchedule(ctx));
   safeTask(ctx, 'pin-drain', () => taskPinDrain(ctx));
   await safeTask(ctx, 'design-reskin', () => taskDesignReskin(ctx));
   return ctx;
@@ -329,6 +330,24 @@ async function taskDesignReskin(ctx) {
     }
   } catch (e) {
     console.error('[AUTO] design-reskin:', e.message);
+  }
+  return ctx;
+}
+
+// AUTONOMOUS PINS: every listed product without a scheduled pin gets one
+// (AI copy when the model is on, deterministic fallback otherwise). Runs in
+// the same cycle that publishes, so publish → pin is automatic. The drain
+// task then dispatches to Pinterest API v5 when credentials exist.
+function taskPinSchedule(ctx) {
+  try {
+    const pinEngine = require('./pinEngine');
+    pinEngine.scheduleForProductsAI(6).then(result => {
+      ctx.pinsScheduled = result.created;
+      if (result.created > 0) console.log('[AUTO] Scheduled ' + result.created + ' new pin(s) for listed products');
+    }).catch(e => { ctx.pinsScheduled = 0; console.error('[AUTO] pin schedule:', e.message); });
+  } catch (e) {
+    ctx.pinsScheduled = 0;
+    console.error('[AUTO] pin schedule:', e.message);
   }
   return ctx;
 }
