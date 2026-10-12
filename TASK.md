@@ -9,7 +9,7 @@
   in a sandboxed srcdoc iframe; both photo-backed and no-art covers preserve the
   generated product title/copy/price and show the real product screen instead
   of simulated invoice/checklist/graph/social content.
-- [x] Added `cover-v4` preview filename marker + `isCurrentCoverPath` cache
+- [x] Added `cover-v5` preview filename marker + `isCurrentCoverPath` cache
   validation in both fileFactory and `/api/products/:id/preview-image`; stale
   existing thumbnail paths regenerate rather than bypassing the cover builder.
   Regression test covers old/current cache paths.
@@ -68,9 +68,9 @@
   (`wrangler whoami` says run `wrangler login`); no Cloudflare credentials are
   present in the shell. Do not push the Railway-triggering server changes while
   Worker deployment is unavailable, to avoid a partial production release.
-- [x] Implementation committed locally on `feature/product-real-covers`; not
-  pushed or deployed. Preview cache paths for #969, #949, #965, #961 and #932
-  were refreshed in the local DB only.
+- [x] Commit `af8514f` (`Ship real-product cover composites with crop-safe marketplace exports`)
+  exists locally on `feature/product-real-covers`; not pushed or deployed. Preview
+  cache paths for #969, #949, #965, #961 and #932 were refreshed in local DB only.
 
 ## Regression triage detail (2026-10-12)
 - Integration duplicate slug: pre-existing in `d08b632`; static evidence was

@@ -2,7 +2,8 @@
 
 **Branch:** `feature/product-real-covers`
 **Baseline:** `d08b632` (main/origin/main at start of branch work)
-**Status:** local commit created on `feature/product-real-covers`; nothing pushed or deployed. Full release is blocked until Cloudflare Wrangler is authenticated, so the matched Worker/server release can be published together.
+**Commit:** `af8514f` — `Ship real-product cover composites with crop-safe marketplace exports`
+**Status:** committed locally on `feature/product-real-covers`; nothing pushed or deployed. Full release is blocked until Cloudflare Wrangler is authenticated, so the matched Worker/server release can be published together.
 
 ## Aspect-ratio contract
 
