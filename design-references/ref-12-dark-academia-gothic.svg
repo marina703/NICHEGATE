@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+<rect width="800" height="1000" fill="#f4efe4"/>
+<rect x="40" y="40" width="720" height="920" fill="none" stroke="#2b1d16" stroke-opacity="0.15" stroke-width="1"/>
+<text x="60" y="90" font-family="Consolas, monospace" font-size="15" letter-spacing="4" fill="#c8a95b">ref-12</text>
+<text x="60" y="130" font-family="Didot, 'Playfair Display', Georgia, serif" font-size="34" font-weight="700" fill="#2b1d16">DARK ACADEMIA GOTHIC</text>
+<text x="60" y="162" font-family="Georgia" font-size="16" font-style="italic" fill="#666">gothic badge · old money dark</text>
+<text x="60" y="300" font-family="Didot, 'Playfair Display', Georgia, serif" font-size="52" font-weight="800" fill="#2b1d16">SCHOLAR OF RUIN</text>
+<text x="60" y="366" font-family="Didot, 'Playfair Display', Georgia, serif" font-size="52" font-weight="800" fill="#7a1f2b"></text>
+<rect x="60" y="420" width="680" height="110" fill="none" stroke="#2b1d16" stroke-width="3" rx="55"/><text x="120" y="492" font-family="Didot, 'Playfair Display', Georgia, serif" font-size="38" fill="#2b1d16">EST. MCMXCII</text><text x="560" y="492" font-family="Didot, 'Playfair Display', Georgia, serif" font-size="44" fill="#7a1f2b">&#10022;</text>
+<text x="60" y="580" font-family="Georgia" font-size="17" fill="#444">Badge frames, blackletter-adjacent serifs, gold on p</text>
+<text x="60" y="606" font-family="Georgia" font-size="17" fill="#444">archment. For the person who annotates Marguerite Yo</text>
+<text x="60" y="626" font-family="Consolas, monospace" font-size="12" letter-spacing="3" fill="#888">PALETTE DNA</text>
+<rect x="60" y="640" width="120" height="120" rx="6" fill="#2b1d16"/><text x="120" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#2b1d16</text><rect x="196" y="640" width="120" height="120" rx="6" fill="#7a1f2b"/><text x="256" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#7a1f2b</text><rect x="332" y="640" width="120" height="120" rx="6" fill="#c8a95b"/><text x="392" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#c8a95b</text><rect x="468" y="640" width="120" height="120" rx="6" fill="#e9e2d2"/><text x="528" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#e9e2d2</text><rect x="604" y="640" width="120" height="120" rx="6" fill="#f4efe4"/><text x="664" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#f4efe4</text>
+<text x="60" y="880" font-family="Didot, 'Playfair Display', Georgia, serif" font-size="16" font-weight="700" fill="#2b1d16">TYPE: Didot</text>
+<text x="60" y="908" font-family="Consolas, monospace" font-size="13" fill="#666">REFERENCE BOARD — ORIGINAL GENERATIVE SEED (not sourced imagery)</text>
+</svg>

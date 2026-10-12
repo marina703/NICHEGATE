@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+<rect width="800" height="1000" fill="#ffffff"/>
+<rect x="40" y="40" width="720" height="920" fill="none" stroke="#22201d" stroke-opacity="0.15" stroke-width="1"/>
+<text x="60" y="90" font-family="Consolas, monospace" font-size="15" letter-spacing="4" fill="#e8e2d6">ref-03</text>
+<text x="60" y="130" font-family="Georgia, serif" font-size="34" font-weight="700" fill="#22201d">MUTANT HERITAGE</text>
+<text x="60" y="162" font-family="Georgia" font-size="16" font-style="italic" fill="#666">hacked classics · handcrafted</text>
+
+<text x="60" y="300" font-family="Georgia, serif" font-size="56" font-weight="800" fill="#22201d">HERITAGE REWIRED</text>
+<text x="60" y="370" font-family="Georgia, serif" font-size="56" font-weight="800" fill="#b0603a"></text>
+<text x="60" y="500" font-family="Georgia" font-size="58" font-weight="700" fill="#22201d" transform="rotate(-2 60 500)">HERITAGE</text><text x="70" y="545" font-family="Georgia" font-size="26" font-style="italic" fill="#b0603a">— classic forms, slightly off-kilter</text>
+<text x="60" y="580" font-family="Georgia" font-size="17" fill="#444">Classic serifs reengineered with a slight off-kilter</text>
+<text x="60" y="606" font-family="Georgia" font-size="17" fill="#444"> feel. Authored, never templated.</text>
+<text x="60" y="626" font-family="Consolas, monospace" font-size="12" letter-spacing="3" fill="#888">PALETTE DNA</text>
+<rect x="60" y="640" width="120" height="120" rx="6" fill="#22201d"/><text x="120" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#22201d</text><rect x="196" y="640" width="120" height="120" rx="6" fill="#b0603a"/><text x="256" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#b0603a</text><rect x="332" y="640" width="120" height="120" rx="6" fill="#e8e2d6"/><text x="392" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#e8e2d6</text><rect x="468" y="640" width="120" height="120" rx="6" fill="#f4efe6"/><text x="528" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#f4efe6</text><rect x="604" y="640" width="120" height="120" rx="6" fill="#ffffff"/><text x="664" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#ffffff</text>
+<text x="60" y="880" font-family="Georgia, serif" font-size="16" font-weight="700" fill="#22201d">TYPE: Georgia</text>
+<text x="60" y="908" font-family="Consolas, monospace" font-size="13" fill="#666">REFERENCE BOARD — ORIGINAL GENERATIVE SEED (not sourced imagery)</text>
+</svg>

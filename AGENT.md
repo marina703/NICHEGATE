@@ -5,6 +5,19 @@
 
 ---
 
+## 0. Active Task Queue
+
+**AGENT COMMS:** mailbox at repo root — `handoff-mail-FROM_BIONIC.md` (Bionic → Freebuff) and `handoff-mail-FROM_FREEBUFF.md` (replies). Read both at session start and after each task. **CHECKPOINT/ACK GATE:** multi-phase tasks post status at each phase boundary and wait for an `ACK:` (or owner go-signal) before proceeding; `HALT:` = stop at the next safe boundary. Exceptions: additive tests, docs updates, phases marked CONTINUOUS. The governance specs live in this repo root now (DESIGN_QUALITY_TASK, COVER_COMPOSITE_ADDENDUM, COVER_MODEL_FLEXIBILITY, LISTING_COPY_QUALITY, PIPELINE_STAGE_REGISTRY, CULL_DIRECTIVE, REVENUE_SPRINT_TASK, BIONIC_E2E_AUDIT) — read the spec before touching its subsystem.
+
+- ~~DESIGN_QUALITY_UPGRADE~~ — DONE (brief-by-default + critic + art director live; see TASK.md).
+- ~~CATALOG CULL~~ — RESOLVED: production already trimmed to 11 products (10 live Gumroad + an old draft set). The 11 drafts are owner-review-pending — do NOT purge.
+- **IN FLIGHT — LISTING COPY QUALITY (HIGH, small):** spec in `LISTING_COPY_QUALITY.md`. Moat-context into seoEngine copy + boilerplate gate + anchor the 10 harness-managed listings as marketplace-linked rows. Being implemented by Bionic on this branch.
+- **NEXT — REVENUE SPRINT (CRITICAL):** `REVENUE_SPRINT_TASK.md`. Launch pricing on the 10, pin import (origin=manual-kit), Etsy top-5 push (Etsy recovered — token refresh verified live). First recorded sale is the finish line.
+- **PARKED (post-first-sale) — PIPELINE_STAGE_REGISTRY:** `PIPELINE_STAGE_REGISTRY.md`. Phase 1 must ship with zero behavior change.
+- **OWNER ACTIONS:** post pins manually (3–5/day) · review the 11 drafts in the command center · Gumroad username rename (marinablow → nichegate) · Workers Paid only if cover volume exceeds ~14/day free.
+
+---
+
 ## 1. Prime Architecture Directives (Non-Negotiable)
 
 1. **Strict Command Center Architecture:**

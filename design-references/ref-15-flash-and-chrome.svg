@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+<rect width="800" height="1000" fill="#101010"/>
+<rect x="40" y="40" width="720" height="920" fill="none" stroke="#141414" stroke-opacity="0.15" stroke-width="1"/>
+<text x="60" y="90" font-family="Consolas, monospace" font-size="15" letter-spacing="4" fill="#d8d8d8">ref-15</text>
+<text x="60" y="130" font-family="Impact, sans-serif" font-size="34" font-weight="700" fill="#141414">FLASH AND CHROME</text>
+<text x="60" y="162" font-family="Arial, sans-serif" font-size="16" font-style="italic" fill="#666">tattoo flash · metal shop sign</text>
+<text x="60" y="300" font-family="Impact, sans-serif" font-size="52" font-weight="800" fill="#141414">BUILT TO LAST</text>
+<text x="60" y="366" font-family="Impact, sans-serif" font-size="52" font-weight="800" fill="#b3121a"></text>
+<path d="M80 470 L400 420 L720 470 L400 540 Z" fill="none" stroke="#b3121a" stroke-width="3"/><text x="250" y="495" font-family="Impact, sans-serif" font-size="42" font-style="italic" fill="#141414">BUILT TO LAST</text><path d="M80 470 L400 420 L720 470 L400 540 Z" fill="none" stroke="#141414" stroke-width="1" transform="translate(6 6)"/>
+<text x="60" y="580" font-family="Arial, sans-serif" font-size="17" fill="#444">Chrome-outline type, flash-art framing, blood red on</text>
+<text x="60" y="606" font-family="Arial, sans-serif" font-size="17" fill="#444"> black. For the person with a shop minimum.</text>
+<text x="60" y="626" font-family="Consolas, monospace" font-size="12" letter-spacing="3" fill="#888">PALETTE DNA</text>
+<rect x="60" y="640" width="120" height="120" rx="6" fill="#141414"/><text x="120" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#141414</text><rect x="196" y="640" width="120" height="120" rx="6" fill="#b3121a"/><text x="256" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#b3121a</text><rect x="332" y="640" width="120" height="120" rx="6" fill="#d8d8d8"/><text x="392" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#d8d8d8</text><rect x="468" y="640" width="120" height="120" rx="6" fill="#e8e2d2"/><text x="528" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#e8e2d2</text><rect x="604" y="640" width="120" height="120" rx="6" fill="#101010"/><text x="664" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#101010</text>
+<text x="60" y="880" font-family="Impact, sans-serif" font-size="16" font-weight="700" fill="#141414">TYPE: Impact</text>
+<text x="60" y="908" font-family="Consolas, monospace" font-size="13" fill="#666">REFERENCE BOARD — ORIGINAL GENERATIVE SEED (not sourced imagery)</text>
+</svg>

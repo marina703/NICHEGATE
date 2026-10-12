@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+<rect width="800" height="1000" fill="#faf5e6"/>
+<rect x="40" y="40" width="720" height="920" fill="none" stroke="#1d1d2b" stroke-opacity="0.15" stroke-width="1"/>
+<text x="60" y="90" font-family="Consolas, monospace" font-size="15" letter-spacing="4" fill="#2d5bff">ref-14</text>
+<text x="60" y="130" font-family="Courier New, monospace" font-size="34" font-weight="700" fill="#1d1d2b">RISO PUNK</text>
+<text x="60" y="162" font-family="Courier New, monospace" font-size="16" font-style="italic" fill="#666">DIY flyer · misregistration</text>
+<text x="60" y="300" font-family="Courier New, monospace" font-size="52" font-weight="800" fill="#1d1d2b">MISPRINT IS THE POINT</text>
+<text x="60" y="366" font-family="Courier New, monospace" font-size="52" font-weight="800" fill="#ff4fa3"></text>
+<rect x="80" y="430" width="280" height="100" fill="#ff4fa3" opacity="0.75"/><rect x="120" y="450" width="280" height="100" fill="#2d5bff" opacity="0.6"/><text x="430" y="510" font-family="Courier New, monospace" font-size="28" font-weight="700" fill="#1d1d2b">MISPRINT IS THE POINT</text>
+<text x="60" y="580" font-family="Courier New, monospace" font-size="17" fill="#444">Two-ink risograph with deliberate misregistration on</text>
+<text x="60" y="606" font-family="Courier New, monospace" font-size="17" fill="#444"> cream stock. For the person in the band AND the aud</text>
+<text x="60" y="626" font-family="Consolas, monospace" font-size="12" letter-spacing="3" fill="#888">PALETTE DNA</text>
+<rect x="60" y="640" width="120" height="120" rx="6" fill="#1d1d2b"/><text x="120" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#1d1d2b</text><rect x="196" y="640" width="120" height="120" rx="6" fill="#ff4fa3"/><text x="256" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#ff4fa3</text><rect x="332" y="640" width="120" height="120" rx="6" fill="#2d5bff"/><text x="392" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#2d5bff</text><rect x="468" y="640" width="120" height="120" rx="6" fill="#f3ead2"/><text x="528" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#f3ead2</text><rect x="604" y="640" width="120" height="120" rx="6" fill="#faf5e6"/><text x="664" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#faf5e6</text>
+<text x="60" y="880" font-family="Courier New, monospace" font-size="16" font-weight="700" fill="#1d1d2b">TYPE: Courier New</text>
+<text x="60" y="908" font-family="Consolas, monospace" font-size="13" fill="#666">REFERENCE BOARD — ORIGINAL GENERATIVE SEED (not sourced imagery)</text>
+</svg>

@@ -26,6 +26,28 @@ function etsyApiKey() {
   return `${process.env.ETSY_CLIENT_ID}:${process.env.ETSY_CLIENT_SECRET}`;
 }
 
+// Map a live Gumroad product to the fields an anchored products row needs.
+// Pure function so the niche/type mapping is unit-testable without a DB.
+const ANCHOR_PROFESSION_MAP = [
+  [/refuge/i, 23], [/smart recovery/i, 22], [/12-step|\baa\b/i, 21], [/hvac/i, 12],
+  [/roofing/i, 11], [/appliance/i, 9], [/air duct|\bduct\b/i, 8], [/mold/i, 7],
+  [/energy auditor/i, 4], [/beekeeping|apiary/i, 3]
+];
+const ANCHOR_FALLBACK_PROFESSION = 28; // Freelance & Solo Business
+function mapGumroadAnchor(gp) {
+  const name = String((gp && gp.name) || '').trim();
+  const profession_id = (ANCHOR_PROFESSION_MAP.find(([re]) => re.test(name)) || [null, ANCHOR_FALLBACK_PROFESSION])[1];
+  const type = /spreadsheet/i.test(name) ? 'spreadsheet' : /social/i.test(name) ? 'social' : 'checklist';
+  return {
+    profession_id,
+    name,
+    type,
+    price: Math.round(((gp && gp.price) || 0) / 100),
+    marketplace: 'gumroad',
+    marketplace_id: String((gp && gp.id) || (gp && gp.permalink) || '')
+  };
+}
+
 
 // ── KEY VALIDATION ──
 function checkEtsyKeys() {
@@ -854,6 +876,7 @@ async function updateListingCopy(product, copy) {
 }
 
 module.exports = {
+  mapGumroadAnchor,
   getEtsyAuthUrl,
   exchangeEtsyToken,
   refreshEtsyToken,

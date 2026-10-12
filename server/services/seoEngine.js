@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const demandSignals = require('./demandSignals');
+const contentLibrary = require('./contentLibrary');
 
 const PRODUCT_TERMS = {
   invoice:    ['Invoice Template', 'Editable Invoice', 'Service Invoice', 'Invoice'],
@@ -79,25 +80,60 @@ function safeJsonArray(value) {
 }
 
 // Build an SEO description with keyword-rich structure
-function buildDescription(prof, type, theme) {
+// Deliverable-specific details the listing copy must lead with — pulled from
+// the same moat library the builders use, so the copy matches the artifact.
+function moatSpecifics(prof, type) {
+  const out = [];
+  const push = (v) => { const t = (v && v.text) || v; if (t) out.push(String(t).replace(/\s+/g, ' ').trim().slice(0, 110)); };
+  if (type === 'social') {
+    for (let v = 0; v < 3; v++) {
+      const a = contentLibrary.socialAngleFor(prof, v);
+      if (a && a.hook) push(a.hook);
+    }
+  } else if (type === 'spreadsheet') {
+    out.push('multi-tab cost, margin and cash-flow structure');
+    out.push('a summary view built to be quoted from directly');
+  } else {
+    const cat = (contentLibrary.getContentFor && contentLibrary.getContentFor(prof)) || null;
+    (Array.isArray(cat && cat.checklist) ? cat.checklist.slice(0, 4) : []).forEach(push);
+    if (out.length < 2) {
+      for (let g = 0; g < 2; g++) {
+        (contentLibrary.checklistRowsFor(prof, 'daily', g, 2) || []).forEach(push);
+      }
+    }
+  }
+  return out.filter(Boolean);
+}
+
+// Copy gate — the boilerplate that made every listing sound identical is now a
+// hard fail, alongside the grammar-agreement bugs the old template produced.
+const BANNED_COPY = /look elite|clean, modern layout|customize colors, text, and fonts|Auto Theme|use forever/i;
+function listingCopyGate(description, specifics = []) {
+  const text = String(description || '');
+  const reasons = [];
+  if (BANNED_COPY.test(text)) reasons.push('boilerplate phrases');
+  if (/a (premium|professional|guided) (instagram|calculator|templates|checklists)\b/i.test(text)) reasons.push('grammar/agreement bug');
+  const hits = specifics.filter(s => s && text.toLowerCase().includes(String(s).toLowerCase().slice(0, 24)));
+  if (specifics.length && hits.length < 2) reasons.push(`only ${hits.length} deliverable-specific detail(s)`);
+  return { verdict: reasons.length ? 'fail' : 'pass', reasons, specificsMatched: hits.length };
+}
+
+function buildDescription(prof, type, theme, specifics = []) {
   const base = PRODUCT_TERMS[type] || PRODUCT_TERMS.invoice;
   const services = safeJsonArray(prof.services).slice(0, 4);
   const serviceList = services.map(s => (Array.isArray(s) ? s[0] : s)).filter(Boolean).join(', ');
-
+  const fmt = type === 'spreadsheet' ? 'XLSX' : type === 'social' ? 'ZIP' : 'PDF';
+  const inside = (specifics.length ? specifics.slice(0, 4).map(s => `• ${s}`) : [`• ${base[2]} built for how the work actually goes`]).join('\n');
 
   return [
-    `${prof.name} ${base[0]} — a ${TIER_TERMS[prof.tier]?.[0] || 'professional'} ${base[1].toLowerCase()} designed to make your business look elite.`,
+    `${base[2]} built for ${prof.name} — the version that accounts for how the work actually goes.`,
     ``,
-    `WHAT'S INCLUDED:`,
-    `• ${base[2]} with a clean, modern layout`,
-    `• Fully editable — customize colors, text, and fonts`,
-    `• Instant download, use forever`,
-    `• Commercial license for unlimited client projects`,
+    `WHAT'S INSIDE:`,
+    inside,
     ``,
-    `PERFECT FOR: ${prof.name} professionals, ${serviceList}`,
+    serviceList ? `BUILT FOR: ${prof.name} professionals — ${serviceList}.` : `BUILT FOR: ${prof.name} professionals.`,
     ``,
-    `Theme: ${theme} | Format: ${type === 'spreadsheet' ? 'XLSX' : type === 'social' ? 'ZIP' : 'PDF'}`,
-    `Instant download after purchase.`
+    `Format: ${fmt} · Instant download after purchase.`
   ].join('\n');
 }
 
@@ -141,14 +177,19 @@ function buildTags(prof, type, demandTags) {
 
 // Full SEO bundle for a product. demandTags (optional) = harvested marketplace
 // demand; omitted → the demandSignals cache is consulted instead.
-function generateSEO(prof, type, theme, demandTags) {
+function generateSEO(prof, type, theme, demandTags, opts = {}) {
   prof = prof || { name: 'Small Business', tier: 'safe' };
+  const specifics = opts.specifics || moatSpecifics(prof, type);
+  const description = buildDescription(prof, type, theme, specifics);
+  const copyGate = listingCopyGate(description, specifics);
   return {
     title: buildTitle(prof, type),
     shortTitle: buildShortTitle(prof, type),
-    description: buildDescription(prof, type, theme),
-    tags: buildTags(prof, type, demandTags)
+    description,
+    tags: buildTags(prof, type, demandTags),
+    copyGate,
+    specifics
   };
 }
 
-module.exports = { generateSEO, buildTitle, buildDescription, buildTags, safeJsonArray };
+module.exports = { generateSEO, buildTitle, buildDescription, buildTags, safeJsonArray, moatSpecifics, listingCopyGate };

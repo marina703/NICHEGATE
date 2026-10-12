@@ -2192,6 +2192,36 @@ app.get('/api/marketplace/test', async (req, res) => {
   res.json(results);
 });
 
+// Anchor a live Gumroad listing as a marketplace-linked products row so the
+// command center (optimizer, BI, reskin, pins) can see and manage it.
+// Idempotent by marketplace_id: existing rows are updated, never duplicated.
+app.post('/api/marketplace/anchor/:gid', async (req, res) => {
+  try {
+    const axios = require('axios');
+    const resp = await axios.get(`https://api.gumroad.com/v2/products/${encodeURIComponent(req.params.gid)}?access_token=${encodeURIComponent(process.env.GUMROAD_ACCESS_TOKEN)}`, { timeout: 20000 });
+    const gp = resp.data && resp.data.product;
+    if (!gp) return res.status(404).json({ error: 'Gumroad product not found' });
+    const a = mp.mapGumroadAnchor(gp);
+    if (!a.marketplace_id) return res.status(400).json({ error: 'Gumroad payload missing id' });
+    const existing = db.prepare('SELECT id FROM products WHERE marketplace_id = ?').get(a.marketplace_id);
+    let id, action;
+    if (existing) {
+      db.prepare('UPDATE products SET name = ?, type = ?, price = ?, status = \'listed\', marketplace = ?, profession_id = COALESCE(profession_id, ?) WHERE id = ?')
+        .run(a.name, a.type, a.price, a.marketplace, a.profession_id, existing.id);
+      id = existing.id; action = 'updated';
+    } else {
+      const r = db.prepare(`INSERT INTO products (profession_id, name, type, price, status, origin, marketplace, marketplace_id)
+        VALUES (?, ?, ?, ?, 'listed', 'engine', ?, ?)`)
+        .run(a.profession_id, a.name, a.type, a.price, a.marketplace, a.marketplace_id);
+      id = Number(r.lastInsertRowid); action = 'created';
+    }
+    res.json({ ok: true, id, action, name: a.name, type: a.type, profession_id: a.profession_id });
+  } catch (e) {
+    console.error('[ANCHOR] error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Publish a single approved product to configured marketplaces
 app.post('/api/marketplace/publish/:productId', async (req, res) => {
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.productId);

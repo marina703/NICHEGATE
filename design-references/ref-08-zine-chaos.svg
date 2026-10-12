@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+<rect width="800" height="1000" fill="#ffffff"/>
+<rect x="40" y="40" width="720" height="920" fill="none" stroke="#1a1a1a" stroke-opacity="0.15" stroke-width="1"/>
+<text x="60" y="90" font-family="Consolas, monospace" font-size="15" letter-spacing="4" fill="#f5c518">ref-08</text>
+<text x="60" y="130" font-family="Impact, sans-serif" font-size="34" font-weight="700" fill="#1a1a1a">ZINE CONTROLLED-CHAOS</text>
+<text x="60" y="162" font-family="Courier New, monospace" font-size="16" font-style="italic" fill="#666">collage · ransom-note · grid-bound</text>
+
+<text x="60" y="300" font-family="Impact, sans-serif" font-size="56" font-weight="800" fill="#1a1a1a">CUT &amp; PASTE</text>
+<text x="60" y="370" font-family="Impact, sans-serif" font-size="56" font-weight="800" fill="#e63b2e"></text>
+<g transform="rotate(-4 170.0 475.0)"><rect x="80" y="430" width="180" height="90" fill="#e63b2e" opacity="0.85"/></g><g transform="rotate(5 355.0 505.0)"><rect x="280" y="470" width="150" height="70" fill="#f5c518" opacity="0.85"/></g><g transform="rotate(-2 560.0 480.0)"><rect x="460" y="430" width="200" height="100" fill="#1a1a1a" opacity="0.85"/></g><g transform="rotate(7 685.0 520.0)"><rect x="640" y="480" width="90" height="80" fill="#e63b2e" opacity="0.85"/></g><text x="120" y="505" font-family="Impact, sans-serif" font-size="34" fill="#fff">CUT</text><text x="500" y="500" font-family="Courier New" font-size="30" fill="#111">PASTE</text>
+<text x="60" y="580" font-family="Courier New, monospace" font-size="17" fill="#444">Freeform collage energy disciplined by a strict unde</text>
+<text x="60" y="606" font-family="Courier New, monospace" font-size="17" fill="#444">rlying grid. The wildcard (cap 10%).</text>
+<text x="60" y="626" font-family="Consolas, monospace" font-size="12" letter-spacing="3" fill="#888">PALETTE DNA</text>
+<rect x="60" y="640" width="120" height="120" rx="6" fill="#1a1a1a"/><text x="120" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#1a1a1a</text><rect x="196" y="640" width="120" height="120" rx="6" fill="#e63b2e"/><text x="256" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#e63b2e</text><rect x="332" y="640" width="120" height="120" rx="6" fill="#f5c518"/><text x="392" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#f5c518</text><rect x="468" y="640" width="120" height="120" rx="6" fill="#f2efe9"/><text x="528" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#f2efe9</text><rect x="604" y="640" width="120" height="120" rx="6" fill="#ffffff"/><text x="664" y="790" font-family="Consolas, monospace" font-size="14" fill="#555" text-anchor="middle">#ffffff</text>
+<text x="60" y="880" font-family="Impact, sans-serif" font-size="16" font-weight="700" fill="#1a1a1a">TYPE: Impact</text>
+<text x="60" y="908" font-family="Consolas, monospace" font-size="13" fill="#666">REFERENCE BOARD — ORIGINAL GENERATIVE SEED (not sourced imagery)</text>
+</svg>
