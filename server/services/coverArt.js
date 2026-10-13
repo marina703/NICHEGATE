@@ -441,32 +441,47 @@ async function ensureCoverArt(product, prof, theme = {}, opts = {}) {
 // builds the map from the art file in a browser canvas.
 function detectWhiteRect(map, W, H, opts = {}) {
   if (!map || !W || !H || map.length !== W * H) return null;
-  const minFrac = opts.minFrac || 0.08;        // min area fraction of the frame
-  const maxFrac = opts.maxFrac || 0.60;        // max area fraction (avoid sky/walls)
-  const bright = opts.bright == null ? 200 : opts.bright;   // luminance threshold
+  const minFrac = opts.minFrac || 0.06;        // min area fraction of the frame
+  const maxFrac = opts.maxFrac || 0.45;        // max area fraction (avoid bright walls/whole-frame glow)
   const step = opts.step || 4;                 // sampling stride
-  // 1) coarse scan: mark bright, low-contrast pixels as candidates
+  // Adaptive threshold: the tablet screen is among the BRIGHTEST regions in a
+  // photo (higher than walls/windows), so percentile-based thresholds stay
+  // honest on both dark (roofing) and high-key (mold/appliance) photos.
+  let bright = opts.bright;
+  if (bright == null) {
+    const sample = [];
+    for (let p = 0; p < map.length; p += 7) sample.push(map[p]);
+    sample.sort((a, b) => a - b);
+    const pct = (q) => sample[Math.min(sample.length - 1, Math.floor(q * sample.length))];
+    bright = Math.max(140, Math.round((pct(0.85) + pct(0.97)) / 2));
+  }
+  // Exclude the outer 6% frame: window glow and studio backdrops bleed to the
+  // edges and would band the scan into false tablets.
+  const mx = Math.round(W * 0.06), myTop = Math.round(H * 0.06), myBot = H - Math.round(H * 0.06);
   const rows = [];
-  for (let y = 0; y < H; y += step) {
+  for (let y = myTop; y < myBot; y += step) {
     let count = 0, total = 0;
-    for (let x = 0; x < W; x += step) { if (map[y * W + x] >= bright) count++; total++; }
+    for (let x = mx; x < W - mx; x += step) { if (map[y * W + x] >= bright) count++; total++; }
     rows.push({ y, frac: count / total });
   }
-  // 2) find the densest vertical band (>=35% bright rows)
+  // 2) densest vertical band (>=35% bright rows), bands never start at the
+  // very top row of the scanned area (that is backdrop, not a device screen).
   let best = null;
   for (let i = 0; i < rows.length; i++) {
+    if (rows[i].y <= myTop + step) continue;
     for (let j = i + 3; j < rows.length; j++) {
       const band = rows.slice(i, j + 1);
-      const good = band.filter(r => r.frac >= 0.35).length;
-      if (good / band.length < 0.5) continue;
+      const good = band.filter(r => r.frac >= 0.22).length;
+      if (good / band.length < 0.55) continue;
       const score = good;
       if (!best || score > best.score) best = { i, j, score };
     }
   }
   if (!best) return null;
-  // 3) within the band, find the horizontal bright span
+  // 3) within the band, find the horizontal bright span (trimmed edges already
+  // excluded by mx).
   const xs = [];
-  for (let x = 0; x < W; x += step) {
+  for (let x = mx; x < W - mx; x += step) {
     let count = 0, total = 0;
     for (let k = best.i; k <= best.j; k++) { const y = rows[k].y; if (map[y * W + x] >= bright) count++; total++; }
     if (count / total >= 0.5) xs.push(x);
