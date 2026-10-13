@@ -742,7 +742,12 @@ async function getEtsyShopId(accessToken) {
     timeout: 10000
   });
   const shopId = shopsResp.data?.shops?.[0]?.shop_id;
-  if (shopId) process.env.ETSY_SHOP_ID = String(shopId); // cache for session
+  if (!shopId) {
+    // An Etsy account without a shop can never publish — fail with the action
+    // that fixes it instead of sending the literal string 'undefined' upstream.
+    throw new Error('This Etsy account has no shop. Create one at etsy.com/sell (shop name + billing), then retry the push — no reconnect needed.');
+  }
+  process.env.ETSY_SHOP_ID = String(shopId); // cache for session
   return String(shopId);
 }
 
