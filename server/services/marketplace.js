@@ -743,9 +743,17 @@ async function getEtsyShopId(accessToken) {
   });
   const shopId = shopsResp.data?.shops?.[0]?.shop_id;
   if (!shopId) {
-    // An Etsy account without a shop can never publish — fail with the action
-    // that fixes it instead of sending the literal string 'undefined' upstream.
-    throw new Error('This Etsy account has no shop. Create one at etsy.com/sell (shop name + billing), then retry the push — no reconnect needed.');
+    // Distinguish the two failure modes honestly: (a) the connected account
+    // genuinely has no shop (fix = create one), or (b) the shops read itself
+    // failed (scope/token problem — fix = reconnect). The old code swallowed
+    // (b) and sent the literal string 'undefined' upstream.
+    const shopsStatus = shopsResp.status;
+    const shopsBody = JSON.stringify(shopsResp.data || {}).slice(0, 300);
+    const shopList = JSON.stringify(shopsResp.data?.shops || []);
+    if (shopsStatus !== 200) {
+      throw new Error(`Etsy shops lookup failed (HTTP ${shopsStatus}): ${shopsBody} — likely a token/scope problem; reconnect via /setup as the account that owns the shop.`);
+    }
+    throw new Error(`The connected Etsy account (user ${userId}) has no shops (API returned ${shopList}). If your shop lives under a different Etsy login, reconnect via /setup while logged in as that account. Otherwise create one at etsy.com/sell.`);
   }
   process.env.ETSY_SHOP_ID = String(shopId); // cache for session
   return String(shopId);
