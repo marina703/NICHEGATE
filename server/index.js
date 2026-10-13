@@ -2380,7 +2380,10 @@ app.post('/api/branding/apply-gumroad', async (req, res) => {
 
 app.get('/api/marketplace/etsy/auth', async (req, res) => {
   try {
-    const result = await mp.getEtsyAuthUrl(req.query.redirectUri || `http://localhost:${PORT}/api/marketplace/etsy/callback`);
+    // The callback must be the PUBLIC production URL (Etsy validates it against
+    // the app's registered callback list) — never a localhost default.
+    const publicOrigin = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'nichegate-production.up.railway.app'}`;
+    const result = await mp.getEtsyAuthUrl(req.query.redirectUri || `${publicOrigin}/api/marketplace/etsy/callback`);
     res.json({ authUrl: result.url });
   } catch (e) {
     res.status(500).json({ error: e.message });
