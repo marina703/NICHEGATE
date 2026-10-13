@@ -2246,6 +2246,20 @@ app.get('/api/marketplace/test', async (req, res) => {
   res.json(results);
 });
 
+// Wipe the Etsy OAuth binding: deletes the stored token + OAuth flow state.
+// Used when the token is bound to the wrong account (e.g., an Etsy login that
+// owns no shop) — the reconnect then binds fresh to the correct account.
+app.post('/api/marketplace/etsy/disconnect', async (req, res) => {
+  try {
+    const gone = db.prepare("DELETE FROM marketplace_tokens WHERE platform = 'etsy'").run();
+    const settings = db.prepare("DELETE FROM settings WHERE key IN ('etsy_oauth_state', 'etsy_code_verifier', 'etsy_redirect_uri')").run();
+    console.log('[ETSY] disconnected: tokens removed ' + gone.changes + ', oauth state cleared ' + settings.changes);
+    res.json({ ok: true, tokensRemoved: gone.changes, stateCleared: settings.changes });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Anchor a live Gumroad listing as a marketplace-linked products row so the
 // command center (optimizer, BI, reskin, pins) can see and manage it.
 // Idempotent by marketplace_id: existing rows are updated, never duplicated.
