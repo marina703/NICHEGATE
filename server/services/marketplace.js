@@ -210,12 +210,22 @@ async function listOnEtsy(product, shopId) {
     image_ids: []
   };
   
-  const resp = await axios.post(`${ETSY_API_BASE}/application/shops/${shopId}/listings`, listing, {
-    headers: { 
-      Authorization: `Bearer ${token.access_token}`, 
-      'x-api-key': etsyApiKey() 
-    }
-  });
+  let resp;
+  try {
+    resp = await axios.post(`${ETSY_API_BASE}/application/shops/${shopId}/listings`, listing, {
+      headers: { 
+        Authorization: `Bearer ${token.access_token}`, 
+        'x-api-key': etsyApiKey() 
+      },
+      timeout: 60000
+    });
+  } catch (e) {
+    // Surface Etsy's field-level validation errors — axios drops the body on
+    // non-2xx, and 'status code 400' alone is undiagnosable.
+    const body = (e && e.response && e.response.data) || null;
+    const detail = body ? JSON.stringify(body).slice(0, 500) : e.message;
+    throw new Error(`Etsy listing create failed (HTTP ${e.response ? e.response.status : '?'}): ${detail}`);
+  }
   
   return resp.data;
 }
