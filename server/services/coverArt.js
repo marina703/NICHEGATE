@@ -453,7 +453,13 @@ function detectWhiteRect(map, W, H, opts = {}) {
     for (let p = 0; p < map.length; p += 7) sample.push(map[p]);
     sample.sort((a, b) => a - b);
     const pct = (q) => sample[Math.min(sample.length - 1, Math.floor(q * sample.length))];
-    bright = Math.max(140, Math.round((pct(0.85) + pct(0.97)) / 2));
+    const median = pct(0.5);
+    const p97 = pct(0.97);
+    // Reject uniform/flat frames that lack a high-contrast bright screen.
+    if (pct(0.95) - median < 35) return null;
+    // Place threshold near the top 3% (pure screen white) so silver/gray tablet
+    // bezels (typically luma 190-215) are not merged into the white screen (235-255).
+    bright = Math.max(175, Math.min(p97 - 6, Math.round(p97 * 0.94)));
   }
   // Exclude the outer 6% frame: window glow and studio backdrops bleed to the
   // edges and would band the scan into false tablets.
@@ -464,28 +470,40 @@ function detectWhiteRect(map, W, H, opts = {}) {
     for (let x = mx; x < W - mx; x += step) { if (map[y * W + x] >= bright) count++; total++; }
     rows.push({ y, frac: count / total });
   }
-  // 2) densest vertical band (>=35% bright rows), bands never start at the
-  // very top row of the scanned area (that is backdrop, not a device screen).
+  // 2) densest tight vertical band: anchor start/end on bright rows and score
+  // by bright rows minus dark rows so outer non-screen rows are never included.
   let best = null;
   for (let i = 0; i < rows.length; i++) {
     if (rows[i].y <= myTop + step) continue;
+    if (rows[i].frac < 0.22) continue;
     for (let j = i + 3; j < rows.length; j++) {
+      if (rows[j].frac < 0.22) continue;
       const band = rows.slice(i, j + 1);
       const good = band.filter(r => r.frac >= 0.22).length;
-      if (good / band.length < 0.55) continue;
-      const score = good;
+      if (good / band.length < 0.72) continue;
+      const bad = band.length - good;
+      const score = good - bad * 3;
       if (!best || score > best.score) best = { i, j, score };
     }
   }
   if (!best) return null;
-  // 3) within the band, find the horizontal bright span (trimmed edges already
-  // excluded by mx).
-  const xs = [];
+  // 3) within the band, find the longest contiguous horizontal bright span.
+  const colGood = [];
   for (let x = mx; x < W - mx; x += step) {
     let count = 0, total = 0;
     for (let k = best.i; k <= best.j; k++) { const y = rows[k].y; if (map[y * W + x] >= bright) count++; total++; }
-    if (count / total >= 0.5) xs.push(x);
+    colGood.push({ x, ok: (count / total) >= 0.6 });
   }
+  let bestRun = null, curRun = [];
+  for (const c of colGood) {
+    if (c.ok) {
+      curRun.push(c.x);
+      if (!bestRun || curRun.length > bestRun.length) bestRun = curRun.slice();
+    } else {
+      curRun = [];
+    }
+  }
+  const xs = bestRun || colGood.filter(c => c.ok).map(c => c.x);
   if (xs.length < 3) return null;
   const x0 = xs[0], x1 = xs[xs.length - 1], y0 = rows[best.i].y, y1 = rows[best.j].y;
   const rect = { x: x0, y: y0, width: x1 - x0 + step, height: y1 - y0 + step };

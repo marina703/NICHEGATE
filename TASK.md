@@ -1,5 +1,34 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
+## ── 2026-10-13 (cont): SHUTDOWN FIX · DARK-PALETTE DOCUMENT PAGES · DEPLOY ──
+- `server/services/pdfGenerator.js`: the SIGINT/SIGTERM handlers closed Chrome but never ended
+  the process, so a SIGTERM'd server kept running (Docker/Railway had to SIGKILL it after the
+  grace period) and `node --test` **hung forever** on `test/integration-boot.test.js` (its
+  spawned server survived `child.kill()`). They now `process.exit(130|143)` after `closeBrowser()`.
+  Result: that file went from 150s/cancelled → **3s/pass**, and the full suite terminates.
+- `server/services/designStudio.js` `baseStyle(theme)`: a **dark** palette (`theme.dark`, e.g.
+  "Onyx Volt" = `#050505` ink on `#0a0a0a`) used to paint both `body` and `.page` with `theme.bg`,
+  producing black-on-black text in every deliverable PDF and cover preview. Document pages now
+  always sit on a light surface (`brief.palette.surface` or `#ffffff`) while keeping the theme's
+  ink/accents; cover art (thumb-stopper, playbook cover, final page) still uses `theme.bg`.
+- `Dockerfile`: added `fonts-dejavu-core fonts-noto-color-emoji` so emoji in covers/PDFs stop
+  rendering as tofu boxes. **NOT verified** — no Docker in the cloud session; see HANDOFF_TODO.md A4.
+- VERIFIED in-session: `node --test` → **313 tests / 29 suites / 310 pass / 0 fail / 3 skipped**
+  (28s, exit 0); `node --check` on every edited file and `git diff --check` clean.
+- NOT verified in-session (no `data/` rows, no `.env`, no Docker, no marketplace creds): the real
+  catalogue's covers, a publish, and the Railway build itself. **Open items, evidence and acceptance
+  criteria are in `HANDOFF_TODO.md`** — read it before starting anything new.
+- 5 fixture covers were rendered for visual inspection only (`tmp/covers-out/`, gitignored).
+
+## ── 2026-10-13: ADAPTIVE COVER COMPOSITE FIX (cover-v7 — visible screen + tight bounds + copy layout) ──
+- Root causes of adaptive covers showing blank white tablets or failing the cover critique gate:
+  1. `buildThumbStopperCover` nested `<div class="ts-screen">` inside `<div class="ts-device">`. When `adaptive=true`, `.ts-device { display: none }` hid its child `.ts-screen` as well, leaving the photo's tablet screen completely blank white. Fixed by making `.ts-screen` a sibling of `.ts-device` inside `.ts-hero` (`<div class="ts-device"></div><div class="ts-screen">${realPreview}</div>`) and sizing `.product-preview-screen` dynamically to the slot height.
+  2. `detectWhiteRect()` previously scored vertical bands by raw count of bright rows (`good / band.length >= 0.55`), which expanded the detected vertical span up to 45% beyond the tablet's top/bottom edges into surrounding dark desk areas. Fixed by anchoring start/end on bright rows (`frac >= 0.22`), requiring `>= 0.72` density, penalizing non-bright rows (`good - bad * 3`), finding the longest contiguous horizontal bright span, and weighting out high-chroma colored props in `detectArtScreenSlot()` with a 4% bezel inset.
+  3. When the AI places the tablet centered (e.g. `x <= 540`) and overlapping the lower copy band, the 108px headline collided with the tablet screen. Added adaptive copy sizing/compaction (`compactCopy`) so the explanatory copy sits cleanly in the lower band while the product preview remains unobstructed inside the tablet screen.
+- Bumped `COVER_VERSION` to `cover-v7` in `server/services/fileFactory.js` so stale `cover-v6` blank-screen renders invalidate automatically.
+- Also wired all 15 Innovative product types (`playbook`, `pricing-bible`, `interactive-tool`, `profit-calculator`, `sop-package`, `business-in-a-box`, etc.) in `fileFactory.ensureProductFile` and `fileFactory.buildPreviewHTML` so they generate real deliverables and real cover previews instead of falling through to the generic fallback card; removed non-existent `buildEmailScriptsHTML`/`buildSOPPackageHTML` calls in `server/index.js`; fixed missing `<tr>` row wrappers in `buildTablePreviewHTML`; and eliminated the redundant double-render in `marketplace.requirePublishableCover` self-heal.
+- Verification: 76/76 tests pass across `cover-copy`, `cover-art-prompts`, `cover-safety`, `design-critic`, `preview-surface`, `lifestyle-mockup`, `marketplace-copy`, `etsy-heal`, `lockdown`, and `smoke`; visual Puppeteer/Chromium renders verified.
+
 ## ── 2026-10-13: ADAPTIVE COVER PLACEMENT (template lands ON the photo's tablet) ──
 - Owner feedback: the template must sit INSIDE the photo's white tablet rectangle,
   not float beside a blank tablet. Root cause: composite used a hard-coded CSS slot

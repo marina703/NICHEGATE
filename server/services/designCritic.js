@@ -272,7 +272,7 @@ async function critiqueCover(productOrId, opts = {}) {
         }
       }
     }
-    const coverPath = await fileFactory.ensureProductThumbnail(product, { force: !!opts.forceRender, skipDesignCritique: true });
+    const coverPath = await fileFactory.ensureProductThumbnail(product, { force: !!opts.forceRender, freshArt: !!opts.freshArt, skipDesignCritique: true });
     if (!coverPath || !fs.existsSync(coverPath)) return { ...coverDecision(null), productId: id, reason: 'cover render unavailable' };
     let bestPath = coverPath;
     let best = await scoreCoverVariant(product, [await imageFileDataUri(coverPath)]);

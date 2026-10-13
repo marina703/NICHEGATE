@@ -437,7 +437,7 @@ function generatePlaybookChapters(prof, opts) {
         { heading: 'The Perfect Client Flow', content: `
           <ul>
             <li><strong>1. First Contact:</strong> Respond within 1 hour. Ask 3 qualifying questions. Set expectations.</li>
-            <li><strong>2. Proposal:</br>Send within 24 hours. Include scope, timeline, price, and terms.</li>
+            <li><strong>2. Proposal:</strong> Send within 24 hours. Include scope, timeline, price, and terms.</li>
             <li><strong>3. Confirmation:</strong> Send booking confirmation with date, time, what to expect.</li>
             <li><strong>4. Execution:</strong> Arrive early. Communicate throughout. Document your work.</li>
             <li><strong>5. Follow-Up:</strong> Thank-you email within 24 hours. Request review at day 3. Follow up at day 30.</li>
@@ -554,12 +554,21 @@ function parseServices(prof) {
 const SYSTEM_FONT = "'Space Grotesk','Inter','Segoe UI',system-ui,sans-serif";
 
 function baseStyle(theme) {
+  const t = theme || {};
+  // Dark palettes are art direction for covers, not for paper. Rendering a dark
+  // theme's near-black ink on its own near-black page made every raster preview
+  // and PDF illegible (e.g. "Onyx Volt": #050505 text on a #0a0a0a page), so a
+  // document page always sits on a light surface and keeps the theme's ink and
+  // accents. Cover art (thumb-stoppers, playbook covers) still uses theme.bg.
+  const dark = !!t.dark;
+  const paper = dark ? ((t.brief && t.brief.palette && t.brief.palette.surface) || '#ffffff') : (t.bg || '#ffffff');
+  const wash = dark ? '#eef1f5' : (t.bg || '#ffffff');
   return `
   *{box-sizing:border-box;margin:0;padding:0}
   html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{font-family:${theme.font || SYSTEM_FONT};color:${theme.primary};background:${theme.bg};line-height:1.55;font-size:13px}
+  body{font-family:${t.font || SYSTEM_FONT};color:${t.primary};background:${wash};line-height:1.55;font-size:13px}
   @page{size:A4;margin:12mm}
-  .page{width:100%;max-width:794px;margin:0 auto;padding:44px 46px;min-height:1050px;page-break-after:always;background:${theme.bg};position:relative}
+  .page{width:100%;max-width:794px;margin:0 auto;padding:44px 46px;min-height:1050px;page-break-after:always;background:${paper};position:relative}
   .page:last-child{page-break-after:auto}
   .pill{display:inline-block;padding:5px 14px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;background:${theme.primary};color:#fff}
   .card{background:#fff;border:1px solid rgba(15,23,42,0.08);border-radius:16px;box-shadow:0 10px 30px -18px rgba(15,23,42,0.35)}
@@ -844,9 +853,9 @@ function buildTablePreviewHTML(product, prof, theme, which) {
   const headRight = isBooking
     ? ['Client', 'Date', 'Status'].map((h) => `<th>${h}</th>`).join('')
     : '<th class="num">Qty</th><th class="num">Total</th>';
-  const previewRows = safe.map((s) => isBooking
+  const previewRows = safe.map((s) => `<tr>${isBooking
     ? `<td class="strong">${esc(s[0])}</td><td class="muted">— TBD —</td><td class="muted">— TBD —</td><td><span class="status open">Booking</span></td>`
-    : `<td class="strong">${esc(s[0])}</td><td class="num">1</td><td class="num strong">${esc(s[1] || '—')}</td>`).join('');
+    : `<td class="strong">${esc(s[0])}</td><td class="num">1</td><td class="num strong">${esc(s[1] || '—')}</td>`}</tr>`).join('');
 
   return shell(`${prof.name} — ${productCopy.deriveTitle(product, prof) || (isBooking ? 'Booking & Appointment Tracker' : 'Pricing Calculator')}`, `
     .dash-head{display:flex;align-items:center;gap:16px;margin-bottom:22px}
@@ -1473,7 +1482,7 @@ function heroSnippetForCover(product, prof, theme) {
 }
 
 function coverPreviewStyles(labelHeight, screenHeight, fontSize) {
-  return `.product-preview-label{height:${labelHeight}px;display:flex;align-items:center;gap:12px;padding:0 12px;color:#64748b;background:#f8fafc;font:700 ${fontSize}px/1 system-ui,sans-serif;letter-spacing:1.1px}.preview-lights{display:flex;gap:5px}.preview-lights i{width:8px;height:8px;border-radius:50%;background:#f87171}.preview-lights i:nth-child(2){background:#fbbf24}.preview-lights i:nth-child(3){background:#34d399}.preview-title{margin-left:auto;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0;color:#334155}.product-preview-screen{height:${screenHeight}px;overflow:hidden;background:#fff}.product-preview-screen iframe,.product-preview-screen img{display:block;width:100%;height:100%;border:0;background:#fff;object-fit:contain}`;
+  return `.product-preview-label{height:${labelHeight}px;display:flex;align-items:center;gap:10px;padding:0 12px;color:#475569;background:#f8fafc;border-bottom:1px solid #e2e8f0;font:800 ${fontSize}px/1 system-ui,sans-serif;letter-spacing:.9px;white-space:nowrap}.preview-lights{display:flex;gap:5px;flex-shrink:0}.preview-lights i{width:8px;height:8px;border-radius:50%;background:#f87171}.preview-lights i:nth-child(2){background:#fbbf24}.preview-lights i:nth-child(3){background:#34d399}.preview-title{margin-left:auto;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0;color:#1e293b;font-weight:700}.product-preview-screen{height:${screenHeight}px;overflow:hidden;background:#fff}.product-preview-screen iframe{display:block;width:100%;height:100%;border:0;background:#fff}.product-preview-screen img{display:block;width:100%;height:auto;border:0;background:#fff}`;
 }
 
 function coverProductPreview(productHtml, title, zoom) {
@@ -1498,7 +1507,6 @@ function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, c
   const th = theme || {};
   const [title, sub, benefits, format] = coverCopy || thumbCoverCopy(product, prof);
   const realPreview = coverProductPreview(productHtml, title, 0.78);
-  const previewCss = coverPreviewStyles(40, 590, 11);
   const kc = (th.brief && th.brief.palette && th.brief.palette.accent) || th.accent || accentForCover(prof, th);
   const hasArt = !!artDataUri;
   // Adaptive placement: when the caller detected the photo's blank tablet
@@ -1507,6 +1515,23 @@ function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, c
   const adaptive = !!(slot && slot.adaptive && S !== DEVICE_SLOT);
   const insetX = Math.max(12, Math.round(S.width * 0.035));
   const insetY = Math.max(16, Math.round(S.height * 0.05));
+  const screenW = adaptive ? S.width : S.width - insetX * 2;
+  const screenH = adaptive ? S.height : S.height - insetY * 2;
+  const labelH = Math.max(32, Math.min(44, Math.round(screenH * 0.07)));
+  const previewCss = coverPreviewStyles(labelH, Math.max(100, screenH - labelH), 11);
+  // Avoid text colliding with a centered or left-leaning detected tablet screen:
+  // when the screen's vertical span overlaps the bottom copy band and its
+  // horizontal span enters the left copy column, constrain or compact the copy block.
+  const screenBottom = S.y + S.height;
+  const overlapsVertical = screenBottom > 920;
+  const availableLeftWidth = S.x > 460 ? (S.x - 96) : 1072;
+  const compactCopy = overlapsVertical && S.x <= 540;
+  const titleSize = compactCopy ? 54 : (availableLeftWidth < 620 ? 74 : 108);
+  const subSize = compactCopy ? 22 : (availableLeftWidth < 620 ? 28 : 34);
+  const benSize = compactCopy ? 19 : (availableLeftWidth < 620 ? 24 : 28);
+  const copyMaxWidth = (overlapsVertical && S.x > 460 && S.x < 1000) ? `${Math.max(420, S.x - 88)}px` : '100%';
+  const shownBenefits = compactCopy ? benefits.slice(0, 2) : benefits.slice(0, 3);
+  const midBottomPad = compactCopy ? 104 : 112;
   const kicker = `${String(prof.name || '').toUpperCase()}`;
   const headingFont = (th.brief && th.brief.fonts && th.brief.fonts.heading) || 'Space Grotesk';
   const fontCss = `font-family:'${String(headingFont).replace(/[^a-zA-Z0-9 -]/g, '')}', 'Inter', system-ui, sans-serif;`;
@@ -1520,35 +1545,35 @@ function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, c
 body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
 .ts{position:relative;width:1200px;height:1800px;overflow:hidden;color:#fff}
 .ts-photo{position:absolute;inset:0;background-size:cover;background-position:center 40%}
-.ts-copy-scrim{position:absolute;left:0;right:0;top:1080px;height:520px;background:linear-gradient(180deg,transparent 0%,rgba(12,12,13,.16) 18%,rgba(12,12,13,.72) 100%)}
+.ts-copy-scrim{position:absolute;left:0;right:0;top:${compactCopy ? 1180 : 1080}px;height:${compactCopy ? 420 : 520}px;background:linear-gradient(180deg,transparent 0%,rgba(12,12,13,.16) 18%,rgba(12,12,13,.82) 100%)}
 .ts-fallback{position:absolute;inset:0;background:linear-gradient(140deg,${kc} 0%,#14110f 78%)}
-.ts-inner{position:relative;z-index:2;height:1650px;display:flex;flex-direction:column;padding:206px 64px 0}
+.ts-inner{position:relative;z-index:3;height:1650px;display:flex;flex-direction:column;padding:206px 64px 0;pointer-events:none}
 .ts-top{display:flex;justify-content:space-between;align-items:center}
 .ts-brand{font-size:22px;font-weight:800;letter-spacing:4px}
 .ts-kicker{font-size:22px;font-weight:800;letter-spacing:2px;text-transform:uppercase;background:${kc};padding:12px 24px;border-radius:0}
-.ts-mid{margin-top:auto;padding-bottom:30px}
-.ts-title{font-size:108px;font-weight:900;line-height:.97;letter-spacing:-3.5px;text-shadow:0 8px 34px rgba(0,0,0,.65)}
-.ts-sub{font-size:34px;font-weight:600;margin-top:22px;color:#f4f4f5;text-shadow:0 4px 18px rgba(0,0,0,.7)}
-.ts-bens{margin-top:34px;display:flex;flex-direction:column;gap:14px}
-.ts-ben{display:flex;align-items:center;gap:16px;font-size:28px;font-weight:700;text-shadow:0 3px 14px rgba(0,0,0,.75)}
-.ts-ben .ck{width:46px;height:46px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;flex-shrink:0}
+.ts-mid{margin-top:auto;padding-bottom:${midBottomPad}px;max-width:${copyMaxWidth}}
+.ts-title{font-size:${titleSize}px;font-weight:900;line-height:.97;letter-spacing:-3px;text-shadow:0 8px 34px rgba(0,0,0,.65)}
+.ts-sub{font-size:${subSize}px;font-weight:600;margin-top:${compactCopy ? 12 : 22}px;color:#f4f4f5;text-shadow:0 4px 18px rgba(0,0,0,.7)}
+.ts-bens{margin-top:${compactCopy ? 14 : 34}px;display:flex;flex-direction:column;gap:${compactCopy ? 10 : 14}px}
+.ts-ben{display:flex;align-items:center;gap:16px;font-size:${benSize}px;font-weight:700;text-shadow:0 3px 14px rgba(0,0,0,.75)}
+.ts-ben .ck{width:${compactCopy ? 34 : 46}px;height:${compactCopy ? 34 : 46}px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-size:${compactCopy ? 18 : 26}px;font-weight:900;flex-shrink:0}
 .ts-foot{position:absolute;z-index:3;left:0;right:0;bottom:150px;background:rgba(12,12,13,.72);height:100px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:1px solid rgba(255,255,255,.16)}
 .ts-format{font-size:21px;font-weight:800;letter-spacing:2px;color:#e4e4e7}
-  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? '' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? '3px' : '10px'}}
+  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:inset 0 0 0 1px rgba(15,23,42,.12),0 2px 8px rgba(0,0,0,.18);' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? '4px' : '10px'}}
   .ts-device{${adaptive ? 'display:none' : `position:absolute;inset:0;background:#f4f4f5;border-radius:22px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px #d4d4d8;overflow:hidden`}}
-  .ts-screen{position:absolute;left:${adaptive ? 0 : insetX}px;top:${adaptive ? 0 : insetY}px;width:${adaptive ? S.width : S.width - insetX * 2}px;height:${adaptive ? S.height : S.height - insetY * 2}px;background:#fff;border-radius:4px;overflow:hidden}
+  .ts-screen{position:absolute;left:${adaptive ? 0 : insetX}px;top:${adaptive ? 0 : insetY}px;width:${screenW}px;height:${screenH}px;background:#fff;border-radius:4px;overflow:hidden}
   .ts-screen::after{content:"";pointer-events:none;position:absolute;inset:0;background:rgba(255,248,232,.07)}
   ${previewCss}
 </style></head><body>
 <div class="ts">
   ${bg}
-  <div class="ts-hero" data-slot-x="${S.x}" data-slot-y="${S.y}" data-slot-width="${S.width}" data-slot-height="${S.height}"><div class="ts-device"><div class="ts-screen">${realPreview}</div></div></div>
+  <div class="ts-hero" data-slot-x="${S.x}" data-slot-y="${S.y}" data-slot-width="${S.width}" data-slot-height="${S.height}"><div class="ts-device"></div><div class="ts-screen">${realPreview}</div></div>
   <div class="ts-inner">
     <div class="ts-top"><div class="ts-brand">NICHEGATE</div><div class="ts-kicker">${esc(kicker)}</div></div>
     <div class="ts-mid">
       <div class="ts-title">${esc(title)}</div>
       <div class="ts-sub">${esc(sub)}</div>
-      <div class="ts-bens">${benefits.slice(0, 3).map((b) => `<div class="ts-ben"><span class="ck">✓</span>${esc(b)}</div>`).join('')}</div>
+      <div class="ts-bens">${shownBenefits.map((b) => `<div class="ts-ben"><span class="ck">✓</span>${esc(b)}</div>`).join('')}</div>
     </div>
   </div>
   <div class="ts-foot"><div></div><div class="ts-format">${esc(format)}</div></div>

@@ -3,7 +3,7 @@
 FROM node:22-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium ca-certificates fonts-liberation \
+    chromium ca-certificates fonts-liberation fonts-dejavu-core fonts-noto-color-emoji \
   && rm -rf /var/lib/apt/lists/*
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true \

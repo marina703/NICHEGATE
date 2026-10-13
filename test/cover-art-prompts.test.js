@@ -70,7 +70,7 @@ test('cover scene library follows design DNA and gives five niches five distinct
   assert.ok(scenes.includes('Bold Minimalism'));
 });
 
-test('detectWhiteRect: finds a large blank bright rectangle and rejects noise/small/oversized regions', () => {
+test('detectWhiteRect: finds a large blank bright rectangle with tight vertical bounds and rejects noise/small/oversized regions', () => {
   const W = 150, H = 225;
   // Photo: mid-gray everywhere, with a bright rect on the right third.
   const mk = () => new Array(W * H).fill(90);
@@ -79,6 +79,16 @@ test('detectWhiteRect: finds a large blank bright rectangle and rejects noise/sm
   const r = coverArt.detectWhiteRect(buenos, W, H);
   assert.ok(r, 'should detect the drawn tablet screen');
   assert.ok(r.width >= 50 && r.height >= 100, `rect plausible: ${JSON.stringify(r)}`);
+  assert.ok(r.y >= 26 && r.y <= 36, `vertical start must tightly hug the tablet top (got y=${r.y})`);
+  assert.ok(r.y + r.height >= 174 && r.y + r.height <= 186, `vertical end must tightly hug the tablet bottom (got bottom=${r.y + r.height})`);
+  // Centered tablet (like the roofing cover): must also detect cleanly with tight bounds.
+  const centered = mk();
+  for (let y = 62; y < 158; y++) for (let x = 46; x < 105; x++) centered[y * W + x] = 240;
+  const rc = coverArt.detectWhiteRect(centered, W, H);
+  assert.ok(rc, 'should detect centered tablet screen');
+  assert.ok(rc.x >= 42 && rc.x <= 52, `centered x bounds (got x=${rc.x})`);
+  assert.ok(rc.y >= 58 && rc.y <= 68, `centered y bounds (got y=${rc.y})`);
+  assert.ok(rc.height >= 88 && rc.height <= 104, `centered height tight (got height=${rc.height})`);
   // All-dark photo → no detection.
   assert.equal(coverArt.detectWhiteRect(mk(), W, H), null);
   // Wrong map size → guarded null.

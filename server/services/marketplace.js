@@ -644,9 +644,12 @@ async function requirePublishableCover(product) {
     // blocking the publish — bounded cost, honest verdict either way.
     try {
       const coverArt = require('./coverArt');
-      const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
-      await coverArt.ensureCoverArt(product, prof, {}, { fresh: true, forceNew: true, coverClass: 'standard' });
-      coverVerdict = await require('./designCritic').critiqueCover(product && product.id, { force: true, forceRender: true });
+      const profId = product && product.profession_id != null
+        ? product.profession_id
+        : (product && product.id != null ? (db.prepare('SELECT profession_id FROM products WHERE id = ?').get(product.id) || {}).profession_id : null);
+      const prof = profId != null ? db.prepare('SELECT * FROM professions WHERE id = ?').get(profId) : null;
+      if (prof) await coverArt.ensureCoverArt(product, prof, {}, { fresh: true, forceNew: true, coverClass: 'standard' });
+      coverVerdict = await require('./designCritic').critiqueCover(product && product.id, { force: true, forceRender: true, freshArt: true });
     } catch (e) {
       console.error('[COVER GATE] self-heal failed:', e.message);
     }

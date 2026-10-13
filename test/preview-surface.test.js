@@ -40,10 +40,22 @@ test('buildPreviewHTML renders real content for every registered product type', 
   }
 });
 
-test('buildPreviewHTML uses the real profession name (no undefined in output)', () => {
+test('buildPreviewHTML uses the real profession name (no undefined in output) and wraps each spreadsheet row in <tr>', () => {
+  const profWithServices = {
+    ...prof,
+    services: JSON.stringify([['Affiliate Pin Campaigns', '$500'], ['Sponsored Pin Packages', '$350'], ['Digital Product Sales', '$250']])
+  };
   for (const key of ['spreadsheet', 'roi', 'checklist']) {
-    const html = fileFactory.buildPreviewHTML(productFor(key), prof);
+    const html = fileFactory.buildPreviewHTML(productFor(key), profWithServices);
     assert.ok(!/undefined/.test(html), `${key}: leaked "undefined" into preview`);
     assert.ok(html.includes(prof.name) || html.includes('Pinterest'), `${key}: missing niche context`);
+  }
+  const tableHtml = fileFactory.buildPreviewHTML(productFor('spreadsheet'), profWithServices);
+  assert.equal((tableHtml.match(/<tbody><tr>/g) || []).length, 1, 'tbody must start with <tr>');
+  assert.equal((tableHtml.match(/<\/tr>/g) || []).length >= 4, true, 'each service row must be wrapped in its own <tr>');
+  // Innovative types must render their dedicated templates rather than falling back to the generic emoji card.
+  for (const key of ['playbook', 'pricing-bible', 'interactive-tool', 'profit-calculator', 'sop-package', 'business-in-a-box']) {
+    const html = fileFactory.buildPreviewHTML(productFor(key), profWithServices);
+    assert.doesNotMatch(html, /class="card"><div class="emoji">/, `${key}: fell through to generic fallback card`);
   }
 });

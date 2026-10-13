@@ -1512,8 +1512,6 @@ app.get('/api/products/:id/preview-html', (req, res) => {
       let html = '';
       if (product.type === 'playbook') html = designStudio.buildPlaybookHTML(prof, theme, {});
       else if (product.type === 'pricing-bible') html = designStudio.buildPricingBibleHTML(prof, theme, {});
-      else if (product.type === 'email-scripts') html = designStudio.buildEmailScriptsHTML(prof, theme, {});
-      else if (product.type === 'sop-package') html = designStudio.buildSOPPackageHTML(prof, theme, {});
       else html = fileFactory.buildPreviewHTML(product, prof);
 
       res.setHeader('Content-Type', 'text/html');

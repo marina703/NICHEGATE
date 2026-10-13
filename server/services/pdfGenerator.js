@@ -97,10 +97,17 @@ async function closeBrowser() {
 }
 
 function installShutdownHooks() {
-  const handler = () => { closeBrowser().finally(() => {}); };
-  process.once('SIGINT', handler);
-  process.once('SIGTERM', handler);
-  process.once('beforeExit', handler);
+  // Registering a signal handler disables Node's default termination, so a
+  // graceful shutdown must close Chrome *and* end the process. Without the
+  // exit call the server ignores SIGTERM (Railway/Docker then SIGKILL it after
+  // the stop grace period, and any harness that spawns this server — e.g.
+  // test/integration-boot.test.js — waits forever for the child to die).
+  const onSignal = (code) => { closeBrowser().finally(() => process.exit(code)); };
+  process.once('SIGINT', () => onSignal(130));
+  process.once('SIGTERM', () => onSignal(143));
+  // beforeExit fires when the event loop drains on its own — close Chrome but
+  // leave the exit code to Node.
+  process.once('beforeExit', () => { closeBrowser().finally(() => {}); });
 }
 installShutdownHooks();
 

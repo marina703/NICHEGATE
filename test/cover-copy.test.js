@@ -131,21 +131,26 @@ test('composite cover uses a raster real-preview slot with DNA styling and no ba
   assert.match(cover, /\.ts-hero\{[^}]*left:660px/);
   assert.match(cover, /ts-device/, 'fallback slot keeps the drawn tablet device frame');
   assert.match(cover, /ts-screen/, 'template must sit inside the drawn tablet screen, not float beside it');
-  assert.match(cover, /<div class="ts-hero"[^>]*><div class="ts-device"><div class="ts-screen">/, 'real preview nested device > screen at the hero slot');
+  assert.match(cover, /<div class="ts-hero"[^>]*><div class="ts-device"><\/div><div class="ts-screen">/, 'real preview sits as a sibling of ts-device inside ts-hero so hiding the bezel never hides the screen');
   assert.match(cover, /linear-gradient\(180deg,transparent/);
   assert.doesNotMatch(cover, /\$49|🎨/);
   assert.match(cover, /font-family:'Fraunces'/);
   assert.match(cover, /MAKE MONEY FROM PINTEREST/);
 });
 
-test('adaptive slot: detected tablet screen replaces the fixed slot and hides the drawn bezel', () => {
+test('adaptive slot: detected tablet screen replaces the fixed slot and hides the drawn bezel while keeping the screen visible', () => {
   const product = { name: 'Pin-to-Profit Audit', type: 'checklist', price: '$49' };
   const adaptive = ds.buildThumbStopperCover(product, prof, { primary: '#123456' }, 'data:image/jpeg;base64,AAAA', 'data:image/jpeg;base64,REALPRODUCT', null, { x: 700, y: 520, width: 420, height: 560, adaptive: true });
   assert.match(adaptive, /left:700px/);
   assert.match(adaptive, /top:520px/);
   assert.match(adaptive, /\.ts-device\{display:none/, 'adaptive mode blends onto the photo screen — no drawn bezel');
+  assert.match(adaptive, /<div class="ts-device"><\/div><div class="ts-screen">/, 'ts-screen must not be a child of ts-device when ts-device is display:none');
+  assert.match(adaptive, /<img[^>]+src="data:image\/jpeg;base64,REALPRODUCT"/, 'real product preview remains rendered inside the screen');
   assert.doesNotMatch(adaptive, /transform:rotate/, 'adaptive template sits flat on the photo tablet');
-  //Malformed slots fall back to the fixed safe slot.
+  // Centered tablet that overlaps the lower copy band compacts the copy block so the screen stays unobstructed.
+  const centered = ds.buildThumbStopperCover(product, prof, { primary: '#123456' }, 'data:image/jpeg;base64,AAAA', 'data:image/jpeg;base64,REALPRODUCT', null, { x: 384, y: 540, width: 432, height: 612, adaptive: true });
+  assert.match(centered, /\.ts-title\{font-size:54px/);
+  // Malformed slots fall back to the fixed safe slot.
   const fallback = ds.buildThumbStopperCover(product, prof, { primary: '#123456' }, 'data:image/jpeg;base64,AAAA', 'data:image/jpeg;base64,REALPRODUCT', null, { x: 10, y: 10, width: 40, height: 40 });
   assert.match(fallback, /\.ts-hero\{[^}]*left:660px/);
   assert.match(fallback, /ts-device\{position:absolute/, 'fallback keeps the drawn device');
@@ -244,7 +249,8 @@ test('fileFactory invalidates prior thumbnail paths after a cover design version
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-previous.jpg'), false);
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v4-123.jpg'), false);
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v5-123.jpg'), false);
-  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v6-123.jpg'), true);
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v6-123.jpg'), false);
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v7-123.jpg'), true);
   assert.equal(fileFactory.isCurrentCoverPath(null), false);
 });
 

@@ -197,11 +197,21 @@ async function ensureProductFile(product) {
     filePath = await pdfGen.generatePDF(pdfGen.buildPyroLiftFuseHTML(prof, theme), `${prof.slug}-pyro-lift-fuse-${stamp}.pdf`);
   } else if (type === 'pyro-shoot-log') {
     filePath = await pdfGen.generatePDF(pdfGen.buildPyroShootLogHTML(prof, theme), `${prof.slug}-pyro-shoot-log-${stamp}.pdf`);
+  } else if (type === 'playbook') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : ds.buildPlaybookHTML(prof, theme, {}), `${prof.slug}-playbook-${stamp}.pdf`);
+  } else if (type === 'pricing-bible') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : ds.buildPricingBibleHTML(prof, theme, {}), `${prof.slug}-pricing-bible-${stamp}.pdf`);
+  } else if (type === 'seasonal-calendar') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildPlannerHTML(prof, theme), `${prof.slug}-seasonal-calendar-${stamp}.pdf`);
+  } else if (['sop-package', 'compliance-checklist', 'equipment-guide', 'certification-guide', 'first-year-roadmap', 'email-scripts', 'client-emails', 'prompt-library'].includes(type)) {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildChecklistHTML(prof, theme), `${prof.slug}-${type}-${stamp}.pdf`);
+  } else if (['client-onboarding', 'business-in-a-box', 'marketing-kit'].includes(type)) {
+    filePath = await zipGen.createSocialPack(prof, theme);
   } else if (type === 'interactive-tool') {
     const webToolGen = require('./webToolGenerator');
     filePath = webToolGen.generateWebToolFile(prof, { title: product.name, theme }, `${prof.slug}-interactive-tool-${stamp}.html`);
-  } else if (['spreadsheet', 'booking', 'pricing', 'inventory', 'shot-chart'].includes(type)) {
-    filePath = xlsxGen.generateXLSX(type === 'pricing' ? 'spreadsheet' : type, prof, `${prof.slug}-${type}-${stamp}.xlsx`);
+  } else if (['spreadsheet', 'booking', 'pricing', 'profit-calculator', 'inventory', 'shot-chart'].includes(type)) {
+    filePath = xlsxGen.generateXLSX((type === 'pricing' || type === 'profit-calculator') ? 'spreadsheet' : type, prof, `${prof.slug}-${type}-${stamp}.xlsx`);
   } else if (type === 'social') {
     filePath = await zipGen.createSocialPack(prof, theme);
   }
@@ -218,7 +228,7 @@ async function ensureProductFile(product) {
 // Reuses the same cached Chrome instance as the PDF generator.
 // ═══════════════════════════════════════════════════════════════════════════
 const PREVIEW_DIR = runtimeConfig.resolvePersistentDir('previews');
-const COVER_VERSION = 'cover-v6';
+const COVER_VERSION = 'cover-v7';
 fs.mkdirSync(PREVIEW_DIR, { recursive: true });
 
 function isCurrentCoverPath(previewPath) {
@@ -269,7 +279,23 @@ function buildPreviewHTML(product, prof, theme) {
   if (t === 'pyro-batch') return pdfGen.buildPyroBatchHTML(prof, theme);
   if (t === 'pyro-lift-fuse') return pdfGen.buildPyroLiftFuseHTML(prof, theme);
   if (t === 'pyro-shoot-log') return pdfGen.buildPyroShootLogHTML(prof, theme);
-  if (['spreadsheet', 'pricing', 'booking', 'inventory', 'shot-chart'].includes(t)) {
+  if (t === 'playbook') return ds.buildPlaybookHTML(prof, theme, {});
+  if (t === 'pricing-bible') return ds.buildPricingBibleHTML(prof, theme, {});
+  if (t === 'seasonal-calendar') return pdfGen.buildPlannerHTML(prof, theme);
+  if (t === 'interactive-tool') {
+    return require('./webToolGenerator').buildInteractiveWebToolHTML({
+      title: product.name || `${prof.name} Interactive Profit & Pricing Tool`,
+      nicheName: prof.name
+    }, theme);
+  }
+  if (['sop-package', 'compliance-checklist', 'equipment-guide', 'certification-guide', 'first-year-roadmap', 'email-scripts', 'client-emails', 'prompt-library'].includes(t)) {
+    return pdfGen.buildChecklistHTML(prof, theme);
+  }
+  if (['bundle', 'leadmagnet', 'client-onboarding', 'business-in-a-box'].includes(t)) {
+    return ds.buildCoverHTML(product, prof, theme, t === 'leadmagnet' ? 'leadmagnet' : 'bundle');
+  }
+  if (t === 'marketing-kit') return zipGen.buildSocialPostHTML(prof, theme);
+  if (['spreadsheet', 'pricing', 'profit-calculator', 'booking', 'inventory', 'shot-chart'].includes(t)) {
     return ds.buildTablePreviewHTML(product, prof, theme, t === 'booking' ? 'booking' : 'spreadsheet');
   }
   return buildFallbackCardHTML(product, prof);
@@ -333,7 +359,9 @@ async function renderProductCoverPreview(productHtml, title) {
   if (!browser) return null;
   const page = await browser.newPage();
   try {
-    await page.setViewport({ width: 960, height: 1200, deviceScaleFactor: 1 });
+    // Render at 800x1040 (matches the .page max-width of 794px) so the document
+    // fills the tablet screen edge-to-edge without side margins.
+    await page.setViewport({ width: 800, height: 1040, deviceScaleFactor: 1 });
     await page.setJavaScriptEnabled(false);
     await page.setRequestInterception(true);
     page.on('request', request => {
@@ -343,7 +371,7 @@ async function renderProductCoverPreview(productHtml, title) {
     });
     await page.setContent(String(productHtml || ''), { waitUntil: 'domcontentloaded', timeout: 10000 });
     await new Promise(resolve => setTimeout(resolve, 250));
-    const image = await page.screenshot({ type: 'jpeg', quality: 86, clip: { x: 0, y: 0, width: 960, height: 1200 } });
+    const image = await page.screenshot({ type: 'jpeg', quality: 88, clip: { x: 0, y: 0, width: 800, height: 1040 } });
     return `data:image/jpeg;base64,${Buffer.from(image).toString('base64')}`;
   } catch (e) {
     console.error(`[THUMB] product preview raster failed (${String(title || '').slice(0, 60)}):`, e.message);
@@ -364,9 +392,9 @@ async function detectArtScreenSlot(artDataUri, coverArt) {
   if (!browser) return null;
   const page = await browser.newPage();
   try {
-    // Downsample factor: scan at 150x225 — enough resolution to find a tablet
-    // screen, cheap enough to run per cover.
-    const SW = 150, SH = 225;
+    // Scan at 200x300 with step=2 (12px grid on 1200x1800) so the detected slot
+    // snaps accurately to the physical white screen edges inside the bezel.
+    const SW = 200, SH = 300;
     const map = await page.evaluate(async (src, SW, SH) => {
       const img = new Image();
       await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = src; });
@@ -377,16 +405,25 @@ async function detectArtScreenSlot(artDataUri, coverArt) {
       const data = ctx.getImageData(0, 0, SW, SH).data;
       const map = new Array(SW * SH);
       for (let i = 0, p = 0; p < map.length; i += 4, p++) {
-        map[p] = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const luma = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        const chroma = Math.max(r, g, b) - Math.min(r, g, b);
+        // Penalize colorful props (tape, wood, brass) so only neutral matte-white
+        // tablet screens register as high-luminance candidates.
+        map[p] = Math.max(0, luma - Math.max(0, chroma - 20) * 2);
       }
       return map;
     }, artDataUri, SW, SH);
-    const rect = coverArt.detectWhiteRect(map, SW, SH);
+    const rect = coverArt.detectWhiteRect(map, SW, SH, { step: 2 });
     if (!rect) return null;
     const sx = 1200 / SW, sy = 1800 / SH;
+    const rawX = Math.round(rect.x * sx), rawY = Math.round(rect.y * sy);
+    const rawW = Math.round(rect.width * sx), rawH = Math.round(rect.height * sy);
+    // Subtle 4px inset so the screen's own thin dark inner border stays visible.
+    const padX = 4, padY = 4;
     return {
-      x: Math.round(rect.x * sx), y: Math.round(rect.y * sy),
-      width: Math.round(rect.width * sx), height: Math.round(rect.height * sy),
+      x: rawX + padX, y: rawY + padY,
+      width: Math.max(140, rawW - padX * 2), height: Math.max(180, rawH - padY * 2),
       adaptive: true
     };
   } catch (e) {
