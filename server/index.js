@@ -2246,6 +2246,25 @@ app.get('/api/marketplace/test', async (req, res) => {
   res.json(results);
 });
 
+// Import an Etsy OAuth token obtained out-of-band (e.g., by the local OAuth
+// bridge running on the owner's machine). Overwrites the stored etsy token.
+// Accepts the full token payload; never logs the secrets.
+app.post('/api/marketplace/etsy/import-token', async (req, res) => {
+  try {
+    const { access_token, refresh_token, expires_in } = req.body || {};
+    if (!access_token || !refresh_token) return res.status(400).json({ error: 'access_token and refresh_token are required' });
+    const expiresAt = new Date(Date.now() + (Number(expires_in) || 3600) * 1000).toISOString();
+    db.prepare(`INSERT INTO marketplace_tokens (platform, access_token, refresh_token, expires_at)
+      VALUES ('etsy', ?, ?, ?)
+      ON CONFLICT(platform) DO UPDATE SET access_token = excluded.access_token, refresh_token = excluded.refresh_token, expires_at = excluded.expires_at`) 
+      .run(access_token, refresh_token, expiresAt);
+    const check = db.prepare('SELECT platform FROM marketplace_tokens WHERE platform = \'etsy\'').get();
+    res.json({ ok: !!check, expiresAt });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Wipe the Etsy OAuth binding: deletes the stored token + OAuth flow state.
 // Used when the token is bound to the wrong account (e.g., an Etsy login that
 // owns no shop) — the reconnect then binds fresh to the correct account.
