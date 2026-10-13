@@ -218,7 +218,7 @@ async function ensureProductFile(product) {
 // Reuses the same cached Chrome instance as the PDF generator.
 // ═══════════════════════════════════════════════════════════════════════════
 const PREVIEW_DIR = runtimeConfig.resolvePersistentDir('previews');
-const COVER_VERSION = 'cover-v5';
+const COVER_VERSION = 'cover-v6';
 fs.mkdirSync(PREVIEW_DIR, { recursive: true });
 
 function isCurrentCoverPath(previewPath) {
@@ -353,6 +353,50 @@ async function renderProductCoverPreview(productHtml, title) {
   }
 }
 
+// Adaptive slot detection: rasterize the art image on a canvas, build a
+// downsampled luminance map, and find the photo's blank tablet screen. The
+// returned rect is in full 1200x1800 art coordinates (or null when detection
+// fails — the composite then keeps its fixed safe slot).
+async function detectArtScreenSlot(artDataUri, coverArt) {
+  if (!artDataUri || !coverArt || typeof coverArt.detectWhiteRect !== 'function') return null;
+  const pdfGen = require('./pdfGenerator');
+  const browser = await pdfGen.getBrowser();
+  if (!browser) return null;
+  const page = await browser.newPage();
+  try {
+    // Downsample factor: scan at 150x225 — enough resolution to find a tablet
+    // screen, cheap enough to run per cover.
+    const SW = 150, SH = 225;
+    const map = await page.evaluate(async (src, SW, SH) => {
+      const img = new Image();
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = src; });
+      const canvas = document.createElement('canvas');
+      canvas.width = SW; canvas.height = SH;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, SW, SH);
+      const data = ctx.getImageData(0, 0, SW, SH).data;
+      const map = new Array(SW * SH);
+      for (let i = 0, p = 0; p < map.length; i += 4, p++) {
+        map[p] = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+      }
+      return map;
+    }, artDataUri, SW, SH);
+    const rect = coverArt.detectWhiteRect(map, SW, SH);
+    if (!rect) return null;
+    const sx = 1200 / SW, sy = 1800 / SH;
+    return {
+      x: Math.round(rect.x * sx), y: Math.round(rect.y * sy),
+      width: Math.round(rect.width * sx), height: Math.round(rect.height * sy),
+      adaptive: true
+    };
+  } catch (e) {
+    console.error('[THUMB] screen-slot detection failed:', e.message);
+    return null;
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
 // Ensure a product has a raster preview — cached on disk + in DB; returns path or null
 async function ensureProductThumbnail(product, opts = {}) {
   if (!opts.force && product.preview_path && fs.existsSync(product.preview_path) && isCurrentCoverPath(product.preview_path)) return product.preview_path;
@@ -381,7 +425,9 @@ async function ensureProductThumbnail(product, opts = {}) {
       console.error('[THUMB] cover art fetch:', e.message);
     }
     if (artDataUri && typeof ds.buildThumbStopperCover === 'function') {
-      html = ds.buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, copy);
+      let slot = null;
+      try { slot = await detectArtScreenSlot(artDataUri, require('./coverArt')); } catch (e) { console.error('[THUMB] slot detect:', e.message); }
+      html = ds.buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, copy, slot);
     } else if (typeof ds.buildPlainCover === 'function') {
       html = ds.buildPlainCover(product, prof, theme, productHtml);
     }

@@ -70,6 +70,21 @@ test('cover scene library follows design DNA and gives five niches five distinct
   assert.ok(scenes.includes('Bold Minimalism'));
 });
 
+test('detectWhiteRect: finds a large blank bright rectangle and rejects noise/small/oversized regions', () => {
+  const W = 150, H = 225;
+  // Photo: mid-gray everywhere, with a bright rect on the right third.
+  const mk = () => new Array(W * H).fill(90);
+  const buenos = mk();
+  for (let y = 30; y < 180; y++) for (let x = 75; x < 140; x++) buenos[y * W + x] = 235;
+  const r = coverArt.detectWhiteRect(buenos, W, H);
+  assert.ok(r, 'should detect the drawn tablet screen');
+  assert.ok(r.width >= 50 && r.height >= 100, `rect plausible: ${JSON.stringify(r)}`);
+  // All-dark photo → no detection.
+  assert.equal(coverArt.detectWhiteRect(mk(), W, H), null);
+  // Wrong map size → guarded null.
+  assert.equal(coverArt.detectWhiteRect([1, 2, 3], W, H), null);
+});
+
 test('buildArtPrompt: photo generation specifies a blank portrait tablet slot and hard negatives', () => {
   const p = coverArt.buildArtPrompt(creatorProf, product, 'photo-cover');
   for (const token of ['1200x1800', 'blank white tablet', 'flat-lay', 'right 45%', 'vertically centered', 'no text', 'no labels', 'no writing', 'no logos', 'no screen content', 'no documents']) {

@@ -1494,13 +1494,19 @@ const COVER_MASTER = Object.freeze({ width: 1200, height: 1800 });
 const MARKETPLACE_SAFE_RECT = Object.freeze({ x: 0, y: 150, width: 1200, height: 1500 });
 const DEVICE_SLOT = Object.freeze({ x: 660, y: 300, width: 480, height: 600 });
 
-function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, coverCopy = null) {
+function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, coverCopy = null, slot = null) {
   const th = theme || {};
   const [title, sub, benefits, format] = coverCopy || thumbCoverCopy(product, prof);
   const realPreview = coverProductPreview(productHtml, title, 0.78);
   const previewCss = coverPreviewStyles(40, 590, 11);
   const kc = (th.brief && th.brief.palette && th.brief.palette.accent) || th.accent || accentForCover(prof, th);
   const hasArt = !!artDataUri;
+  // Adaptive placement: when the caller detected the photo's blank tablet
+  // screen, the template lands ON that rectangle; otherwise the fixed safe slot.
+  const S = (slot && slot.width > 120 && slot.height > 150) ? slot : DEVICE_SLOT;
+  const adaptive = !!(slot && slot.adaptive && S !== DEVICE_SLOT);
+  const insetX = Math.max(12, Math.round(S.width * 0.035));
+  const insetY = Math.max(16, Math.round(S.height * 0.05));
   const kicker = `${String(prof.name || '').toUpperCase()}`;
   const headingFont = (th.brief && th.brief.fonts && th.brief.fonts.heading) || 'Space Grotesk';
   const fontCss = `font-family:'${String(headingFont).replace(/[^a-zA-Z0-9 -]/g, '')}', 'Inter', system-ui, sans-serif;`;
@@ -1528,13 +1534,15 @@ body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
 .ts-ben .ck{width:46px;height:46px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;flex-shrink:0}
 .ts-foot{position:absolute;z-index:3;left:0;right:0;bottom:150px;background:rgba(12,12,13,.72);height:100px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:1px solid rgba(255,255,255,.16)}
 .ts-format{font-size:21px;font-weight:800;letter-spacing:2px;color:#e4e4e7}
-.ts-hero{position:absolute;left:${DEVICE_SLOT.x}px;top:${DEVICE_SLOT.y}px;width:${DEVICE_SLOT.width}px;height:${DEVICE_SLOT.height}px;background:#fff;border:8px solid rgba(255,255,255,.94);border-radius:10px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55);color:#14110f;transform:rotate(-2deg);z-index:2;overflow:hidden}
-.ts-hero::after{content:"";pointer-events:none;position:absolute;inset:0;background:rgba(255,248,232,.07)}
-${previewCss}
+  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? '' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? '3px' : '10px'}}
+  .ts-device{${adaptive ? 'display:none' : `position:absolute;inset:0;background:#f4f4f5;border-radius:22px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px #d4d4d8;overflow:hidden`}}
+  .ts-screen{position:absolute;left:${adaptive ? 0 : insetX}px;top:${adaptive ? 0 : insetY}px;width:${adaptive ? S.width : S.width - insetX * 2}px;height:${adaptive ? S.height : S.height - insetY * 2}px;background:#fff;border-radius:4px;overflow:hidden}
+  .ts-screen::after{content:"";pointer-events:none;position:absolute;inset:0;background:rgba(255,248,232,.07)}
+  ${previewCss}
 </style></head><body>
 <div class="ts">
   ${bg}
-  <div class="ts-hero" data-slot-x="${DEVICE_SLOT.x}" data-slot-y="${DEVICE_SLOT.y}" data-slot-width="${DEVICE_SLOT.width}" data-slot-height="${DEVICE_SLOT.height}">${realPreview}</div>
+  <div class="ts-hero" data-slot-x="${S.x}" data-slot-y="${S.y}" data-slot-width="${S.width}" data-slot-height="${S.height}"><div class="ts-device"><div class="ts-screen">${realPreview}</div></div></div>
   <div class="ts-inner">
     <div class="ts-top"><div class="ts-brand">NICHEGATE</div><div class="ts-kicker">${esc(kicker)}</div></div>
     <div class="ts-mid">

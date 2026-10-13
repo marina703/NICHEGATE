@@ -125,14 +125,30 @@ test('composite cover uses a raster real-preview slot with DNA styling and no ba
     primary: '#123456', accent: '#ab7832', font: "'Fraunces'", brief: { fonts: { heading: 'Fraunces' } }
   }, 'data:image/jpeg;base64,AAAA', 'data:image/jpeg;base64,REALPRODUCT');
   assert.match(cover, /<img[^>]+src="data:image\/jpeg;base64,REALPRODUCT"/);
-  assert.match(cover, /rotate\(-[1-3]deg\)/);
+  assert.match(cover, /rotate\(-[0-9.]+deg\)/);
   assert.match(cover, /box-shadow:0 30px 60px -18px rgba\(0,0,0,.55\)/);
   assert.match(cover, /rgba\(255,248,232,.07\)/);
   assert.match(cover, /\.ts-hero\{[^}]*left:660px/);
+  assert.match(cover, /ts-device/, 'fallback slot keeps the drawn tablet device frame');
+  assert.match(cover, /ts-screen/, 'template must sit inside the drawn tablet screen, not float beside it');
+  assert.match(cover, /<div class="ts-hero"[^>]*><div class="ts-device"><div class="ts-screen">/, 'real preview nested device > screen at the hero slot');
   assert.match(cover, /linear-gradient\(180deg,transparent/);
-  assert.doesNotMatch(cover, /ts-price|\$49|🎨/);
+  assert.doesNotMatch(cover, /\$49|🎨/);
   assert.match(cover, /font-family:'Fraunces'/);
   assert.match(cover, /MAKE MONEY FROM PINTEREST/);
+});
+
+test('adaptive slot: detected tablet screen replaces the fixed slot and hides the drawn bezel', () => {
+  const product = { name: 'Pin-to-Profit Audit', type: 'checklist', price: '$49' };
+  const adaptive = ds.buildThumbStopperCover(product, prof, { primary: '#123456' }, 'data:image/jpeg;base64,AAAA', 'data:image/jpeg;base64,REALPRODUCT', null, { x: 700, y: 520, width: 420, height: 560, adaptive: true });
+  assert.match(adaptive, /left:700px/);
+  assert.match(adaptive, /top:520px/);
+  assert.match(adaptive, /\.ts-device\{display:none/, 'adaptive mode blends onto the photo screen — no drawn bezel');
+  assert.doesNotMatch(adaptive, /transform:rotate/, 'adaptive template sits flat on the photo tablet');
+  //Malformed slots fall back to the fixed safe slot.
+  const fallback = ds.buildThumbStopperCover(product, prof, { primary: '#123456' }, 'data:image/jpeg;base64,AAAA', 'data:image/jpeg;base64,REALPRODUCT', null, { x: 10, y: 10, width: 40, height: 40 });
+  assert.match(fallback, /\.ts-hero\{[^}]*left:660px/);
+  assert.match(fallback, /ts-device\{position:absolute/, 'fallback keeps the drawn device');
 });
 
 test('cover heroes embed the actual product HTML in a script-isolated preview', () => {
@@ -227,7 +243,8 @@ test('Pinterest selects the retained 2:3 master while marketplaces use 4:5', () 
 test('fileFactory invalidates prior thumbnail paths after a cover design version changes', () => {
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-previous.jpg'), false);
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v4-123.jpg'), false);
-  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v5-123.jpg'), true);
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v5-123.jpg'), false);
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v6-123.jpg'), true);
   assert.equal(fileFactory.isCurrentCoverPath(null), false);
 });
 

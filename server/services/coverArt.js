@@ -432,9 +432,56 @@ async function ensureCoverArt(product, prof, theme = {}, opts = {}) {
   }
 }
 
+// ── WHITE-SCREEN DETECTION (adaptive template placement) ────────────────────
+// The AI is asked to draw one big blank matte-white tablet screen. Image models
+// only approximately honor spatial instructions, so instead of a hard-coded CSS
+// slot we DETECT the largest bright, low-saturation rectangular region in the
+// photo and composite the template onto it. Pure function over a grayscale
+// luminance map (W*H ints 0-255) so it is hermetically testable; the caller
+// builds the map from the art file in a browser canvas.
+function detectWhiteRect(map, W, H, opts = {}) {
+  if (!map || !W || !H || map.length !== W * H) return null;
+  const minFrac = opts.minFrac || 0.08;        // min area fraction of the frame
+  const maxFrac = opts.maxFrac || 0.60;        // max area fraction (avoid sky/walls)
+  const bright = opts.bright == null ? 200 : opts.bright;   // luminance threshold
+  const step = opts.step || 4;                 // sampling stride
+  // 1) coarse scan: mark bright, low-contrast pixels as candidates
+  const rows = [];
+  for (let y = 0; y < H; y += step) {
+    let count = 0, total = 0;
+    for (let x = 0; x < W; x += step) { if (map[y * W + x] >= bright) count++; total++; }
+    rows.push({ y, frac: count / total });
+  }
+  // 2) find the densest vertical band (>=35% bright rows)
+  let best = null;
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 3; j < rows.length; j++) {
+      const band = rows.slice(i, j + 1);
+      const good = band.filter(r => r.frac >= 0.35).length;
+      if (good / band.length < 0.5) continue;
+      const score = good;
+      if (!best || score > best.score) best = { i, j, score };
+    }
+  }
+  if (!best) return null;
+  // 3) within the band, find the horizontal bright span
+  const xs = [];
+  for (let x = 0; x < W; x += step) {
+    let count = 0, total = 0;
+    for (let k = best.i; k <= best.j; k++) { const y = rows[k].y; if (map[y * W + x] >= bright) count++; total++; }
+    if (count / total >= 0.5) xs.push(x);
+  }
+  if (xs.length < 3) return null;
+  const x0 = xs[0], x1 = xs[xs.length - 1], y0 = rows[best.i].y, y1 = rows[best.j].y;
+  const rect = { x: x0, y: y0, width: x1 - x0 + step, height: y1 - y0 + step };
+  const area = rect.width * rect.height;
+  if (area < minFrac * W * H || area > maxFrac * W * H) return null;
+  return rect;
+}
+
 module.exports = {
   COVER_WIDTH, COVER_HEIGHT, COVER_SCENES, sceneFor, promptFor, buildArtPrompt,
   STYLE_PROFILES, BANNED_SCENE_TERMS, cachePath, ensureCoverArt, provider, OUT_DIR,
   workerRequestBody, getImageDimensions, imageDataUri, isNativePortraitImage, writeNativePortrait,
-  resolveCoverModel, classifyCoverError, coverProviderState, MODEL_ALLOWLIST
+  detectWhiteRect, resolveCoverModel, classifyCoverError, coverProviderState, MODEL_ALLOWLIST
 };

@@ -1,5 +1,50 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
+## ── 2026-10-13: ADAPTIVE COVER PLACEMENT (template lands ON the photo's tablet) ──
+- Owner feedback: the template must sit INSIDE the photo's white tablet rectangle,
+  not float beside a blank tablet. Root cause: composite used a hard-coded CSS slot
+  (DEVICE_SLOT 660,300,480,600) while the AI drew its tablet elsewhere in the frame.
+- FIX (cover-v6): adaptive placement. `coverArt.detectWhiteRect()` (pure scanline
+  luminance detector, hermetically tested) finds the largest bright low-saturation
+  rectangle in the art; `fileFactory.detectArtScreenSlot()` rasterizes the art on a
+  150x225 canvas in Puppeteer and maps the rect back to 1200x1800 coordinates.
+  `buildThumbStopperCover` now takes a slot: adaptive (template blends flat onto the
+  photo's own screen, bezel hidden, no rotation) or the fixed safe slot with a drawn
+  device frame when detection fails. Art prompt restored to "one blank white tablet
+  in the right 45%" — detection needs the tablet.
+- Cache version bumped to cover-v6; `isCurrentCoverPath` + tests updated (v5 now stale).
+- Verification: 58 targeted cover/pipeline tests pass, 0 fail (cover-copy,
+  cover-art-prompts, cover-safety, design-critic, lifestyle-mockup, preview-surface).
+  Local full-pipeline render of #678 verified visually (fallback drawn-device mode on
+  a photo without a clean tablet; adaptive mode when detection succeeds).
+- Etsy push of the 5 sprint products still blocked at the cover-review gate until
+  this deploy lands in production (Railway auto-deploys from main).
+
+## ── 2026-10-12/13: ETSY RECONNECT RESOLVED — NO BUG EXISTED (Freebuff takeover from Bionic) ──
+- Resolved the "user 1286002574 owns zero shops" contradiction with direct evidence:
+  the public shop https://www.etsy.com/shop/NicheGate is LIVE (banner, logo, About,
+  policies; owner "Marina Lindemans", on Etsy since 2026) — it is simply EMPTY
+  (0 items, 0 sales). The Bionic "shop setup never finished" theory is disproved.
+- Production OAuth chain verified healthy live: /api/automation/log shows etsy_token_refresh
+  SUCCESS every ~30min since 2026-10-12 22:08 with zero 403s; /api/marketplace/test
+  returns gumroad connected (10 products) + etsy connected as user 1286002574.
+- Fresh OAuth consent completed through production's REGISTERED callback
+  (/api/marketplace/etsy/auth -> etsy.com consent -> /api/marketplace/etsy/callback)
+  while authenticated to Etsy as the shop owner (Marina Lindemans). Etsy bound the new
+  token to the SAME user 1286002574 — proving that user IS the shop owner's account.
+  Do NOT treat 1286002574 as a wrong-account binding.
+- The Desktop localhost bridge (etsy-bridge.bat/.js, port 8085) cannot work until
+  http://localhost:8085/callback is registered as a callback URL on the Etsy app
+  console (Etsy rejects it: "The requested redirect URL is not permitted."). An
+  upgraded bridge with shop-ownership pre-check is saved as
+  OneDrive/Desktop/etsy-bridge-v2.js (unused; low priority since prod OAuth works).
+- Publish readiness after reconnect: /api/etsy/cap canPublish=true, cap 20/day,
+  remaining 20; 24 products in catalog (all currently marketplace=listed on Gumroad
+  but the Etsy shop has 0 listings — first push pending).
+- Optional owner follow-up (not done): register localhost:8085/callback in the Etsy
+  developer console if the local bridge flow is ever wanted; else delete
+  etsy-bridge.bat/.js/v2.js.
+
 ## ── 2026-10-12: ETSY REFRESH + EBAY 403 DIAGNOSIS ──
 - Production Railway logs showed Etsy token refresh HTTP 403 and eBay
   `/trending` HTTP 403. Etsy OAuth token exchange/refresh had been sent as JSON,
@@ -13,11 +58,25 @@
   `EBAY_TRENDING_ENABLED=true` is documented only for environments where access
   has been independently confirmed.
 - Focused suites: 29/29 pass. Full Node suite: 290 pass, 4 skipped, 0 failed
-  (294 tests). Syntax and `git diff --check` pass. Production Etsy reconnect is
-  still required if the persisted 90-day refresh token has expired/revoked; do
-  not alter production marketplace credentials automatically.
+  (294 tests). Syntax and `git diff --check` pass. Commit `4a054b3` is pushed to
+  `origin/main` and deployed on Railway (deployment
+  `5d9ffa1b-cb9b-4893-94dc-3815d862b05e`, SUCCESS). Production `/api/health` and
+  `/api/health/readiness` both return 200 (`ready:true`). Post-deploy automation
+  still logged Etsy token refresh HTTP 403, so the code-format repair alone did
+  not restore the stored authorization. Production Etsy reconnect is required
+  if the persisted 90-day refresh token has expired/revoked or credentials are
+  mismatched; do not alter production marketplace credentials automatically.
+  Readiness still confirms an Etsy token is present, which does not validate it.
+  The deployment logs showed publishing correctly safety-locked; eBay scraper is
+  disabled by default to avoid repeat 403 requests.
+
+- Current handoff: production is healthy, but an owner-authorized Etsy reconnect
+  at `/setup` remains the only outstanding recovery step. Verify one token
+  refresh/API operation after reconnect before considering Etsy fully recovered.
+  Do not paste, print, or rotate marketplace secrets in logs/chat.
 
 ## ── 2026-10-12: REAL PRODUCT COVER COMPOSITES (server + Worker released) ──
+
 - [x] Cover release commit `2365987` (including feature commit `af8514f`) was
   pushed to `origin/main`. Railway production `/api/health` returned 200 with
   `env=production`, 11 products and 34 professions.
