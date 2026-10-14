@@ -354,7 +354,7 @@ async function renderPreviewImage(html, outPath) {
   }
 }
 
-async function renderProductCoverPreview(productHtml, title) {
+async function renderProductCoverPreview(productHtml, title, focusY = 0) {
   const browser = await pdfGen.getBrowser();
   if (!browser) return null;
   const page = await browser.newPage();
@@ -371,7 +371,7 @@ async function renderProductCoverPreview(productHtml, title) {
     });
     await page.setContent(String(productHtml || ''), { waitUntil: 'domcontentloaded', timeout: 10000 });
     await new Promise(resolve => setTimeout(resolve, 250));
-    const image = await page.screenshot({ type: 'jpeg', quality: 88, clip: { x: 0, y: 0, width: 800, height: 1040 } });
+    const image = await page.screenshot({ type: 'jpeg', quality: 88, clip: { x: 0, y: Math.max(0, focusY), width: 800, height: 1040 } });
     return `data:image/jpeg;base64,${Buffer.from(image).toString('base64')}`;
   } catch (e) {
     console.error(`[THUMB] product preview raster failed (${String(title || '').slice(0, 60)}):`, e.message);
@@ -445,7 +445,12 @@ async function ensureProductThumbnail(product, opts = {}) {
   let productHtml = buildPreviewHTML(product, prof, theme);
   if (!productHtml) return null;
   const copy = ds.thumbCoverCopy(product, prof);
-  const realPreview = await renderProductCoverPreview(productHtml, copy[0]);
+  // playbook / pricing-bible open with a 1123px designed cover page whose headline
+  // sits in its lower half, but the preview box is ~1.7:1 landscape and shows only
+  // the top ~44% of this raster — start 300px lower so the product headline is inside
+  // the visible band instead of an apparently empty screen.
+  const focusY = ['playbook', 'pricing-bible'].includes(String(product.type || '').toLowerCase()) ? 300 : 0;
+  const realPreview = await renderProductCoverPreview(productHtml, copy[0], focusY);
   if (realPreview) productHtml = realPreview;
   let html = productHtml;
   // v3: AI lifestyle photo + typography composite (falls back to the plain

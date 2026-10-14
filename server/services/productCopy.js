@@ -44,7 +44,15 @@ function derivePitch(product, prof) {
       }
     } else if (!sub) {
       const first = brief.split(/(?<=[.!?])\s/)[0];
-      sub = first.length <= 120 ? first : brief.slice(0, 117).trim() + '…';
+      if (first.length <= 120) sub = first;
+      else {
+        // Cut on a word boundary so a cover subtitle never ends mid-word
+        // (e.g. "... priced for a solo oper…").
+        const clipped = first.slice(0, 117);
+        const lastSpace = clipped.lastIndexOf(' ');
+        sub = (lastSpace > 60 ? clipped.slice(0, lastSpace) : clipped)
+          .replace(/[,;:.–—-]+$/, '').trim() + '…';
+      }
     }
   }
   return { sub, benefits: (benefits && benefits.length ? benefits : null) };
