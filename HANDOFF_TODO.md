@@ -58,7 +58,10 @@ no Pollinations/Pinterest keys), and **no Docker**, so production-only paths cou
   raster. Files: `server/services/designStudio.js`, plus `test/cover-copy.test.js` /
   `test/design-critic.test.js` if you add an assertion.
 
-### A3. Playbook-type thumbnails crop the product page (title invisible)
+### A3. ~~Playbook-type thumbnails crop the product page (title invisible)~~ — DONE (7281b10)
+Fixed in `fileFactory.ensureProductThumbnail`: `playbook`/`pricing-bible` raster capture now starts 300px lower (`focusY`), so the product’s own headline lands in the visible band. Re-rendered and visually verified (`tmp/covers-out/playbook-pyrotechnics.jpg` shows the headline inside the screen).
+
+### (historical) Playbook-type thumbnails crop the product page
 - **Evidence:** `tmp/covers-out/playbook-pyrotechnics.jpg` (rendered this session) shows a black
   preview with only the badge chip and the (tofu) emoji; the product page's own `H1` — “The
   Complete Pyrotechnics / Fireworks Business Playbook” — is **not visible**. Measured with
@@ -117,7 +120,10 @@ no Pollinations/Pinterest keys), and **no Docker**, so production-only paths cou
 - **Note:** 4 of the 5 fixture covers used the plain fallback (no art) because of A5 — re-render
   them once `COVER_WORKER_URL`/`COVER_WORKER_KEY` are available to see the real composite.
 
-### A7. Long niche names clip the cover subtitle mid-word
+### A7. ~~Long niche names clip the cover subtitle mid-word~~ — DONE (7281b10)
+`productCopy.derivePitch` now backs up to the last word boundary (and strips trailing punctuation) before adding the ellipsis. Verified in the re-rendered drywall + pyro covers (“…priced for a solo operator.”).
+
+### (historical) Long niche names clip the cover subtitle mid-word
 - **Evidence:** `tmp/covers-out/profit-calculator-drywall.jpg` — the sub reads
   “priced for a solo oper…” (the niche name “Drywall Contractor / Finisher” pushes the sub past
   its line clamp).
