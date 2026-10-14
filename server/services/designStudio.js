@@ -1517,7 +1517,19 @@ function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, c
   const insetY = Math.max(16, Math.round(S.height * 0.05));
   const screenW = adaptive ? S.width : S.width - insetX * 2;
   const screenH = adaptive ? S.height : S.height - insetY * 2;
+  // Corner radius for the composited page. On a detected tablet the page sits
+  // inside the real screen, so matching the photo screen's own corner curvature
+  // (and letting the tablet's matte screen show through the corner) makes it read
+  // as glass rather than a pasted-on rectangle.
+  const screenRadius = adaptive ? Math.max(10, Math.round(S.width * 0.03)) : 4;
   const labelH = Math.max(32, Math.min(44, Math.round(screenH * 0.07)));
+  // Exact rectangle the product page raster occupies, in 1200x1800 master
+  // coordinates. Emitted as data attributes so the cover QA gate can re-locate
+  // the page without re-deriving the layout math (and without drifting from it).
+  const contentX = adaptive ? S.x : S.x + insetX;
+  const contentY = (adaptive ? S.y : S.y + insetY) + labelH;
+  const contentW = screenW;
+  const contentH = Math.max(0, screenH - labelH);
   const previewCss = coverPreviewStyles(labelH, Math.max(100, screenH - labelH), 11);
   // Avoid text colliding with a centered or left-leaning detected tablet screen:
   // when the screen's vertical span overlaps the bottom copy band and its
@@ -1549,7 +1561,7 @@ body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
 .ts-fallback{position:absolute;inset:0;background:linear-gradient(140deg,${kc} 0%,#14110f 78%)}
 .ts-inner{position:relative;z-index:3;height:1650px;display:flex;flex-direction:column;padding:206px 64px 0;pointer-events:none}
 .ts-top{display:flex;justify-content:space-between;align-items:center}
-.ts-brand{font-size:22px;font-weight:800;letter-spacing:4px}
+.ts-brand{align-self:flex-start;font-size:15px;font-weight:800;letter-spacing:3px;color:#2dd4bf;background:rgba(9,9,11,.72);padding:7px 14px;border-radius:3px}
 .ts-kicker{font-size:22px;font-weight:800;letter-spacing:2px;text-transform:uppercase;background:${kc};padding:12px 24px;border-radius:0}
 .ts-mid{margin-top:auto;padding-bottom:${midBottomPad}px;max-width:${copyMaxWidth}}
 .ts-title{font-size:${titleSize}px;font-weight:900;line-height:.97;letter-spacing:-3px;text-shadow:0 8px 34px rgba(0,0,0,.65)}
@@ -1559,15 +1571,15 @@ body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
 .ts-ben .ck{width:${compactCopy ? 34 : 46}px;height:${compactCopy ? 34 : 46}px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-size:${compactCopy ? 18 : 26}px;font-weight:900;flex-shrink:0}
 .ts-foot{position:absolute;z-index:3;left:0;right:0;bottom:150px;background:rgba(12,12,13,.72);height:100px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:1px solid rgba(255,255,255,.16)}
 .ts-format{font-size:21px;font-weight:800;letter-spacing:2px;color:#e4e4e7}
-  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:inset 0 0 0 1px rgba(15,23,42,.12),0 2px 8px rgba(0,0,0,.18);' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? '4px' : '10px'}}
+  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:inset 0 0 26px rgba(15,23,42,.10);' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? screenRadius + 'px' : '10px'}}
   .ts-device{${adaptive ? 'display:none' : `position:absolute;inset:0;background:#f4f4f5;border-radius:22px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px #d4d4d8;overflow:hidden`}}
-  .ts-screen{position:absolute;left:${adaptive ? 0 : insetX}px;top:${adaptive ? 0 : insetY}px;width:${screenW}px;height:${screenH}px;background:#fff;border-radius:4px;overflow:hidden}
+  .ts-screen{position:absolute;left:${adaptive ? 0 : insetX}px;top:${adaptive ? 0 : insetY}px;width:${screenW}px;height:${screenH}px;background:#fff;border-radius:${screenRadius}px;overflow:hidden}
   .ts-screen::after{content:"";pointer-events:none;position:absolute;inset:0;background:rgba(255,248,232,.07)}
   ${previewCss}
 </style></head><body>
 <div class="ts">
   ${bg}
-  <div class="ts-hero" data-slot-x="${S.x}" data-slot-y="${S.y}" data-slot-width="${S.width}" data-slot-height="${S.height}"><div class="ts-device"></div><div class="ts-screen">${realPreview}</div></div>
+  <div class="ts-hero" data-slot-x="${S.x}" data-slot-y="${S.y}" data-slot-width="${S.width}" data-slot-height="${S.height}" data-adaptive="${adaptive ? '1' : '0'}" data-screen-x="${contentX}" data-screen-y="${contentY}" data-screen-width="${contentW}" data-screen-height="${contentH}" data-label-height="${labelH}" data-device-rotate="${adaptive ? 0 : -1.5}"><div class="ts-device"></div><div class="ts-screen">${realPreview}</div></div>
   <div class="ts-inner">
     <div class="ts-top"><div class="ts-brand">NICHEGATE</div><div class="ts-kicker">${esc(kicker)}</div></div>
     <div class="ts-mid">
@@ -1587,7 +1599,7 @@ function buildPlainCover(product, prof, theme, productHtml) {
   const kc = accentForCover(prof, th);
   const hero = coverProductPreview(productHtml, title, 1);
   const price = product.price || '$12';
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(title)} cover</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#e7e5e1;display:flex;justify-content:center;font-family:'Space Grotesk','Inter',system-ui,sans-serif}.thumbcover{width:1200px;height:1800px;padding:150px 0;background:#f8f7f4;color:#14110f;display:flex;flex-direction:column;overflow:hidden}${coverPreviewStyles(42, 620, 12)}</style></head><body><div class="thumbcover"><div style="display:flex;justify-content:space-between;align-items:center;padding:44px 64px 0;font-size:22px;font-weight:800;letter-spacing:3px"><span>NICHEGATE</span><span style="background:#14110f;color:#fff;font-size:20px;padding:10px 22px;border-radius:999px">${esc(format)}</span></div><div style="margin:36px 64px 0;align-self:flex-start;font-size:24px;font-weight:800;letter-spacing:3px;color:#fff;background:${kc};padding:12px 26px;border-radius:999px">${esc((prof.name || '').toUpperCase())}</div><h1 style="margin:30px 64px 0;font-size:100px;font-weight:900;line-height:.98;letter-spacing:-3px">${esc(title)}</h1><div style="margin:24px 64px 0;font-size:32px;color:#57534e;max-width:920px">${esc(sub)}</div><div class="product-preview-card" style="margin:44px 64px 0;background:#fff;border-radius:24px;box-shadow:0 30px 60px -30px rgba(20,17,15,.25);overflow:hidden">${hero}</div><div style="margin:40px 64px 0;display:flex;flex-direction:column;gap:18px">${benefits.slice(0, 3).map((b) => `<div style="display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700"><span style="width:52px;height:52px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900">✓</span>${esc(b)}</div>`).join('')}</div><div style="margin-top:auto;padding:44px 64px 54px;display:flex;justify-content:space-between;align-items:flex-end"><div><div style="font-size:34px;font-weight:800;letter-spacing:2px">INSTANT DOWNLOAD</div><div style="font-size:22px;color:#78716c;font-weight:600">Lifetime updates</div></div><div style="text-align:right"><div style="font-size:30px;letter-spacing:4px">★★★★★</div><div style="font-size:22px;color:#78716c">Editable · Commercial use</div></div></div></div></body></html>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(title)} cover</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#e7e5e1;display:flex;justify-content:center;font-family:'Space Grotesk','Inter',system-ui,sans-serif}.thumbcover{width:1200px;height:1800px;padding:150px 0;background:#f8f7f4;color:#14110f;display:flex;flex-direction:column;overflow:hidden}${coverPreviewStyles(42, 620, 12)}</style></head><body><div class="thumbcover"><div style="display:flex;justify-content:space-between;align-items:center;padding:44px 64px 0;font-size:22px;font-weight:800;letter-spacing:3px"><span style="color:#2dd4bf;background:rgba(9,9,11,.86);padding:7px 14px;border-radius:3px;font-size:15px;letter-spacing:3px">NICHEGATE</span><span style="background:#14110f;color:#fff;font-size:20px;padding:10px 22px;border-radius:999px">${esc(format)}</span></div><div style="margin:36px 64px 0;align-self:flex-start;font-size:24px;font-weight:800;letter-spacing:3px;color:#fff;background:${kc};padding:12px 26px;border-radius:999px">${esc((prof.name || '').toUpperCase())}</div><h1 style="margin:30px 64px 0;font-size:100px;font-weight:900;line-height:.98;letter-spacing:-3px">${esc(title)}</h1><div style="margin:24px 64px 0;font-size:32px;color:#57534e;max-width:920px">${esc(sub)}</div><div class="product-preview-card" style="margin:44px 64px 0;background:#fff;border-radius:24px;box-shadow:0 30px 60px -30px rgba(20,17,15,.25);overflow:hidden">${hero}</div><div style="margin:40px 64px 0;display:flex;flex-direction:column;gap:18px">${benefits.slice(0, 3).map((b) => `<div style="display:flex;align-items:center;gap:18px;font-size:30px;font-weight:700"><span style="width:52px;height:52px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900">✓</span>${esc(b)}</div>`).join('')}</div><div style="margin-top:auto;padding:44px 64px 54px;display:flex;justify-content:space-between;align-items:flex-end"><div><div style="font-size:34px;font-weight:800;letter-spacing:2px">INSTANT DOWNLOAD</div><div style="font-size:22px;color:#78716c;font-weight:600">Lifetime updates</div></div><div style="text-align:right"><div style="font-size:30px;letter-spacing:4px">★★★★★</div><div style="font-size:22px;color:#78716c">Editable · Commercial use</div></div></div></div></body></html>`;
 }
 
 /**

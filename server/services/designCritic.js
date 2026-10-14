@@ -248,6 +248,31 @@ function latestCoverScore(productId) {
   catch { return null; }
 }
 
+// ── STRUCTURAL COVER QA ─────────────────────────────────────────────────────
+// The AI critique scores taste; it cannot tell whether the page actually landed
+// in the tablet or whether the page shown belongs to another product. This runs
+// the deterministic structural gate for every verdict that could authorize a
+// publish, and a failure blocks it. No AI, no network.
+async function structuralCoverQa(product, coverPath) {
+  try {
+    return await require('./coverQA').verifyCover(product, { coverPath });
+  } catch (e) {
+    // A verifier that breaks must block publishing, never crash it.
+    return { ok: false, publishAllowed: false, status: 'fail', reason: `cover QA error: ${e.message}`, checks: {} };
+  }
+}
+
+function gateOnCoverQa(decision, qa) {
+  if (!qa || qa.publishAllowed) return decision;
+  return {
+    ...decision,
+    status: 'fail',
+    publishAllowed: false,
+    coverQa: qa,
+    reason: [decision && decision.reason, `cover QA: ${qa.reason}`].filter(Boolean).join(' | ')
+  };
+}
+
 async function critiqueCover(productOrId, opts = {}) {
   try {
     const id = Number(productOrId && productOrId.id ? productOrId.id : productOrId);
@@ -258,8 +283,9 @@ async function critiqueCover(productOrId, opts = {}) {
     if (!cfg.enabled) {
       const coverPath = await fileFactory.ensureProductThumbnail(product, { skipDesignCritique: true });
       if (!coverPath || !fs.existsSync(coverPath)) return { ...coverDecision(null), productId: id, reason: 'cover render unavailable' };
-      const reviewId = persistCoverVerdict(id, null, { artifactPath: coverPath, reviewStatus: 'not_required' });
-      return { status: 'not_required', publishAllowed: !!reviewId, reason: reviewId ? 'AI cover review disabled' : 'cover verdict could not be persisted', productId: id, coverPath, reviewId };
+      const qa = await structuralCoverQa(product, coverPath);
+      const reviewId = persistCoverVerdict(id, null, { artifactPath: coverPath, reviewStatus: qa.publishAllowed ? 'not_required' : 'fail' });
+      return gateOnCoverQa({ status: 'not_required', publishAllowed: !!reviewId, reason: reviewId ? 'AI cover review disabled' : 'cover verdict could not be persisted', productId: id, coverPath, reviewId }, qa);
     }
     if (!opts.force) {
       const previous = latestCoverScore(id);
@@ -268,7 +294,8 @@ async function critiqueCover(productOrId, opts = {}) {
         if (hash === previous.artifact_sha256) {
           const scores = safeParse(previous.scores);
           const decision = coverDecision({ scores, zeroGarbledText: previous.zero_garbled_text === 1 });
-          return { ...decision, status: previous.status, productId: id, scores, coverPath: previous.artifact_path, cached: true };
+          const qa = await structuralCoverQa(product, previous.artifact_path);
+          return gateOnCoverQa({ ...decision, status: previous.status, productId: id, scores, coverPath: previous.artifact_path, cached: true }, qa);
         }
       }
     }
@@ -293,14 +320,15 @@ async function critiqueCover(productOrId, opts = {}) {
       product.preview_path = bestPath;
     }
     const decision = coverDecision(best);
-    const reviewId = persistCoverVerdict(id, best, { revised, artifactPath: bestPath });
+    const qa = await structuralCoverQa(product, bestPath);
+    const reviewId = persistCoverVerdict(id, best, { revised, artifactPath: bestPath, reviewStatus: qa.publishAllowed ? undefined : 'fail' });
     if (!reviewId) {
       return { ...decision, status: 'unscored', publishAllowed: false, reason: 'cover verdict could not be persisted', productId: id, coverPath: bestPath };
     }
     if (!best) {
       return { ...decision, productId: id, coverPath: bestPath, reason: 'cover critique unavailable', reviewId };
     }
-    return { ...decision, productId: id, scores: best.scores, critique: best.critique, coverPath: bestPath, revised, reviewId };
+    return gateOnCoverQa({ ...decision, productId: id, scores: best.scores, critique: best.critique, coverPath: bestPath, revised, reviewId }, qa);
   } catch (e) {
     console.error('[CRITIC] critiqueCover failed:', e.message);
     return { ...coverDecision(null), reason: e.message };
@@ -642,6 +670,8 @@ module.exports = {
   THRESHOLD,
   COVER_THRESHOLD,
   COVER_RUBRIC,
+  structuralCoverQa,
+  gateOnCoverQa,
   parseCoverCritique,
   coverDecision,
   scoreCoverVariant,

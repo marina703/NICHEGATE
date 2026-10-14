@@ -19,6 +19,10 @@ generated/
 previews/
 covers/ai/
 
+# ── Worker secrets + local state (wrangler) ──
+cf-worker/.dev.vars
+cf-worker/.wrangler/
+
 # ── Legacy / scratch ──
 client/_css_part.css
 client/_css_part2.css

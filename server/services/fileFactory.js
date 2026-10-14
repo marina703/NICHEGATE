@@ -434,6 +434,82 @@ async function detectArtScreenSlot(artDataUri, coverArt) {
   }
 }
 
+// ── COVER QA MANIFEST ────────────────────────────────────────────────────────
+// Structural provenance for one rendered cover, written next to the 2:3 master.
+// The cover QA gate reads this instead of re-deriving layout math, so the gate
+// and the renderer can never disagree about where the page was placed.
+function coverMasterPath(coverPath) {
+  return String(coverPath || '').replace(/\.jpg$/i, '.master.jpg');
+}
+
+function coverManifestPath(coverPath) {
+  return `${coverMasterPath(coverPath)}.qa.json`;
+}
+
+/** Pull the geometry the renderer emitted on `.ts-hero`. */
+function parseCoverGeometry(html) {
+  const tag = String(html || '').match(/<div class="ts-hero"[^>]*>/);
+  if (!tag) return null;
+  const num = (name) => {
+    const m = tag[0].match(new RegExp(`data-${name}="(-?\\d+(?:\\.\\d+)?)"`));
+    return m ? Number(m[1]) : null;
+  };
+  const geometry = {
+    adaptive: num('adaptive') === 1,
+    slot: { x: num('slot-x'), y: num('slot-y'), width: num('slot-width'), height: num('slot-height') },
+    screen: { x: num('screen-x'), y: num('screen-y'), width: num('screen-width'), height: num('screen-height') },
+    labelHeight: num('label-height'),
+    deviceRotate: Number.isFinite(num('device-rotate')) ? num('device-rotate') : 0
+  };
+  const complete = geometry.slot.width != null && geometry.screen.width != null && geometry.labelHeight != null;
+  return complete ? geometry : null;
+}
+
+function writeCoverManifest(coverPath, { product, prof, html, hadArt }) {
+  if (!coverPath || !fs.existsSync(coverMasterPath(coverPath))) return null;
+  const geometry = parseCoverGeometry(html);
+  if (!geometry) return null;
+  const manifest = {
+    productId: product.id,
+    professionSlug: (prof && prof.slug) || null,
+    type: product.type || null,
+    coverVersion: COVER_VERSION,
+    renderedAt: new Date().toISOString(),
+    hadArt: !!hadArt,
+    ...geometry
+  };
+  try {
+    fs.writeFileSync(coverManifestPath(coverPath), JSON.stringify(manifest));
+    return manifest;
+  } catch (e) {
+    console.error('[THUMB] cover manifest write:', e.message);
+    return null;
+  }
+}
+
+function readCoverManifest(coverPath) {
+  try {
+    const raw = fs.readFileSync(coverManifestPath(coverPath), 'utf8');
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+/** Re-derive this product's page raster from its own design/brief. Used by the
+ *  QA gate to prove the cover actually shows THIS product's page — independent
+ *  of whatever the render happened to composite. */
+async function productPageRaster(product) {
+  if (!product || product.id == null) return null;
+  const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+  if (!prof) return null;
+  await ensureBuildBrief(product, prof);
+  const theme = fallbackTheme(product);
+  const html = buildPreviewHTML(product, prof, theme);
+  if (!html) return null;
+  const focusY = ['playbook', 'pricing-bible'].includes(String(product.type || '').toLowerCase()) ? 300 : 0;
+  const title = ds.thumbCoverCopy(product, prof)[0];
+  return renderProductCoverPreview(html, title, focusY);
+}
+
 // Ensure a product has a raster preview — cached on disk + in DB; returns path or null
 async function ensureProductThumbnail(product, opts = {}) {
   if (!opts.force && product.preview_path && fs.existsSync(product.preview_path) && isCurrentCoverPath(product.preview_path)) return product.preview_path;
@@ -453,6 +529,7 @@ async function ensureProductThumbnail(product, opts = {}) {
   const realPreview = await renderProductCoverPreview(productHtml, copy[0], focusY);
   if (realPreview) productHtml = realPreview;
   let html = productHtml;
+  let hadArt = false;
   // v3: AI lifestyle photo + typography composite (falls back to the plain
   // HTML cover when the free image tier is unavailable — never blocks).
   try {
@@ -466,9 +543,19 @@ async function ensureProductThumbnail(product, opts = {}) {
     } catch (e) {
       console.error('[THUMB] cover art fetch:', e.message);
     }
-    if (artDataUri && typeof ds.buildThumbStopperCover === 'function') {
+    // The product's own page is always rasterised and placed inside the
+    // category/profession background — with the AI lifestyle photo when
+    // available, otherwise the niche accent gradient. Only if the composite
+    // builder itself is missing do we fall back to the flat paper cover.
+    hadArt = !!artDataUri;
+    if (typeof ds.buildThumbStopperCover === 'function') {
       let slot = null;
-      try { slot = await detectArtScreenSlot(artDataUri, require('./coverArt')); } catch (e) { console.error('[THUMB] slot detect:', e.message); }
+      if (artDataUri) {
+        try { slot = await detectArtScreenSlot(artDataUri, require('./coverArt')); } catch (e) { console.error('[THUMB] slot detect:', e.message); }
+        if (!slot) console.warn('[THUMB] no tablet screen detected in the art — using the fixed slot (page will float over the photo)');
+      } else {
+        console.warn('[THUMB] no cover art available — compositing the product page on the niche accent background');
+      }
       html = ds.buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, copy, slot);
     } else if (typeof ds.buildPlainCover === 'function') {
       html = ds.buildPlainCover(product, prof, theme, productHtml);
@@ -483,6 +570,7 @@ async function ensureProductThumbnail(product, opts = {}) {
     ? await renderCoverImage(html, outPath)
     : await renderPreviewImage(html, outPath);
   if (!result) return null;
+  if (isCover) writeCoverManifest(result, { product, prof, html, hadArt });
   try {
     db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(result, product.id);
     product.preview_path = result;
@@ -513,5 +601,10 @@ module.exports = {
   ensureBuildBrief,
   autoCritiqueAllowed,
   getRecoveryPrompts,
-  SERENITY_PRAYER_PROMPT
+  SERENITY_PRAYER_PROMPT,
+  productPageRaster,
+  coverMasterPath,
+  coverManifestPath,
+  readCoverManifest,
+  parseCoverGeometry
 };

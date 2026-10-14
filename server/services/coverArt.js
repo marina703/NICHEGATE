@@ -66,34 +66,42 @@ function classifyCoverError(err) {
 }
 let lastCoverError = null;
 function coverProviderState() { return lastCoverError; }
-const COVER_PROMPT_VERSION = 'photo-cover-v2';
+const COVER_PROMPT_VERSION = 'photo-cover-v3';
 // Cover art follows the same style DNA used by the product, then specializes
 // to a niche when a style family is shared. The names are art directions, not
 // generated model claims.
 const COVER_SCENES = {
   'Ink-Trap Engineered': {
     styles: ['technical'], niches: ['trades'],
-    scene: 'industrial workbench flat-lay, neatly arranged steel trade tools and measuring tape, cool north-window light, charcoal slate and brushed steel, restrained technical editorial styling'
+    scene: 'industrial workbench flat-lay, neatly arranged steel trade tools and measuring tape, cool north-window light, charcoal slate and brushed steel, restrained technical editorial styling',
+    // `look` is the lighting + styling only — used verbatim when a profession
+    // scene supplies the real subject, so the DNA never injects its own props.
+    look: 'cool north-window light, restrained technical editorial styling'
   },
   'Grounded Organic': {
     styles: ['organic'], niches: ['outdoor', 'food', 'home', 'wellness', 'craft'],
-    scene: 'warm wooden desk flat-lay, ceramic tea cup, folded kraft paper and one small botanical sprig, tactile oak and linen, late-morning amber daylight, grounded organic styling'
+    scene: 'warm wooden desk flat-lay, ceramic tea cup, folded kraft paper and one small botanical sprig, tactile oak and linen, late-morning amber daylight, grounded organic styling',
+    look: 'warm late-morning daylight, grounded organic styling'
   },
   'Quiet Luxury': {
     styles: ['luxe'], niches: ['beauty', 'fashion', 'spiritual'],
-    scene: 'quiet linen-covered worktable flat-lay, one polished brass pen and a small neutral ceramic dish, soft diffuse window light, ivory stone and warm taupe, quiet luxury editorial styling'
+    scene: 'quiet linen-covered worktable flat-lay, one polished brass pen and a small neutral ceramic dish, soft diffuse window light, ivory stone and warm taupe, quiet luxury editorial styling',
+    look: 'soft diffuse window light, quiet luxury editorial styling'
   },
   'Flash & Chrome': {
     styles: ['brutalist'], niches: ['creator', 'tech', 'fitness', 'pyro'],
-    scene: 'dark leather work surface flat-lay, one chrome tool and restrained red gel-light accent, crisp hard-edged studio flash, black leather and brushed metal, bold contemporary editorial styling'
+    scene: 'dark leather work surface flat-lay, one chrome tool and restrained red gel-light accent, crisp hard-edged studio flash, black leather and brushed metal, bold contemporary editorial styling',
+    look: 'crisp hard-edged studio flash, bold contemporary editorial styling'
   },
   'Editorial Ink': {
     styles: ['editorial', 'heritage'], niches: ['finance', 'recovery'],
-    scene: 'mahogany writing desk flat-lay, one fountain pen and a small stack of blank cream paper, directional soft window light, deep walnut and ink tones, classic editorial styling'
+    scene: 'mahogany writing desk flat-lay, one fountain pen and a small stack of blank cream paper, directional soft window light, deep walnut and ink tones, classic editorial styling',
+    look: 'directional soft window light, classic editorial styling'
   },
   'Bold Minimalism': {
     styles: ['minimal'], niches: ['default'],
-    scene: 'clean matte-white surface flat-lay, a single sculptural black pen as the only prop, crisp directional daylight and hard clean shadows, high-contrast bold minimal styling'
+    scene: 'clean matte-white surface flat-lay, a single sculptural black pen as the only prop, crisp directional daylight and hard clean shadows, high-contrast bold minimal styling',
+    look: 'crisp directional daylight and hard clean shadows, high-contrast bold minimal styling'
   }
 };
 
@@ -247,6 +255,130 @@ const BANNED_SCENE_TERMS = {
   default: /stock market|trading floor|ticker tape/gi
 };
 
+// ── PROFESSION-ACCURATE SCENES ────────────────────────────────────────────
+// The style DNA decides the LOOK (surface, light, editorial treatment); this
+// table decides the SUBJECT. A generic "steel trade tools and measuring tape"
+// flat-lay is what put calipers on a roofing cover — a roofer never uses them.
+// Each entry names a real setting for the trade and the exact tools that trade
+// actually carries, plus the instruments that must never appear.
+// Match order matters: the first hit wins, so keep specific trades above the
+// broad consult/marketing catch-alls.
+const PROFESSION_SCENES = [
+  { match: /roof|shingle|gutter|siding|chimney/i,
+    scene: 'on a residential rooftop deck: an aluminium extension ladder resting against the house, courses of asphalt shingles, ridge cap and a gutter run in frame',
+    props: 'a shingle hatchet, a coil of roofing nails and a utility knife',
+    avoid: 'no calipers, no drafting instruments, no office stationery, no wrenches' },
+  { match: /plumb|pipe|drain|septic|water heater/i,
+    scene: 'beside open copper pipework under a sink in a tiled utility room, pipe runs and shut-off valves in frame',
+    props: 'a basin wrench, slip-joint pliers and Teflon tape',
+    avoid: 'no calipers, no drafting instruments, no laptops' },
+  { match: /electric|alarm|solar|low voltage|security install/i,
+    scene: 'in front of a neat residential electrical panel with rows of breakers on a concrete utility-room floor, conduit runs in frame',
+    props: 'a voltage tester, insulated screwdrivers and a roll of electrical tape',
+    avoid: 'no calipers, no paint brushes, no drafting instruments' },
+  { match: /hvac|heating|cooling|air duct|furnace|refrigerat/i,
+    scene: 'beside a rooftop condenser unit and galvanised ductwork, service valves and copper line set in frame',
+    props: 'manifold gauges, a fin comb and a service wrench',
+    avoid: 'no calipers, no drafting instruments, no office stationery' },
+  { match: /landscap|lawn|garden|irrigation|tree|arbor|hardscape|mulch/i,
+    scene: 'on a freshly graded garden bed beside stone edging and a young shrub, tilled soil and a wheelbarrow in frame',
+    props: 'bypass pruning shears, a hand trowel and work gloves',
+    avoid: 'no calipers, no laptops, no laboratory glassware' },
+  { match: /mold|asbestos|inspection|inspector|energy audit|thermograph|radon|mould/i,
+    scene: 'in a residential basement corner with exposed joists and plastic sheeting, damp concrete block wall in frame',
+    props: 'a pin-type moisture meter, a respirator and a clipboard',
+    avoid: 'no calipers, no laptops, no clean-room glassware' },
+  { match: /drywall|plaster|stucco|painter|paint(ing)?\b|wallpaper/i,
+    scene: 'on a sheet of fresh drywall in a half-renovated room, a taping seam, blue painter tape lines and a drop cloth in frame',
+    props: 'a taping knife, a mud pan and a sanding block',
+    avoid: 'no calipers, no power drills, no office stationery' },
+  { match: /concrete|mason|tile|flooring|epoxy|stonemason|hardwood/i,
+    scene: 'on a finished tile floor beside a spirit level and a stack of tile offcuts, grout lines and a trowel smear in frame',
+    props: 'a notched trowel, tile spacers and a rubber grout float',
+    avoid: 'no calipers, no laptops, no paint brushes' },
+  { match: /carpent|woodwork|millwork|cabinet|furniture|custom build/i,
+    scene: 'on a woodworking bench inside a workshop, oak offcuts, wood shavings and a vice in frame',
+    props: 'a handsaw, a carpenter pencil and a folding ruler',
+    avoid: 'no calipers, no office stationery, no laptop' },
+  { match: /clean|janitorial|maid|housekeep/i,
+    scene: 'in a just-cleaned bright room beside a bucket of water and folded microfibre cloths, spotless vinyl floor and a window with daylight in frame',
+    props: 'a spray bottle, folded microfibre cloths and a scrub brush',
+    avoid: 'no calipers, no office stationery, no construction tools' },
+  { match: /notary|loan signing|escrow|title|paralegal|legal/i,
+    scene: 'on a dark wood desk with a closed manila file folder and a stack of sealed envelopes, warm office light in frame',
+    props: 'an embossing seal, a stamp pad and a black pen',
+    avoid: 'no calipers, no tools, no construction equipment' },
+  { match: /tax|account|bookkeep|payroll|finance|financial|consult|advisor|insur|real estate|property/i,
+    scene: 'on a dark mahogany desk with a closed leather portfolio and a short stack of blank cream paper, tall-window daylight in frame',
+    props: 'a fountain pen, a paper ledger and reading glasses',
+    avoid: 'no calipers, no tools, no machinery' },
+  { match: /photo|videograph|film|cinemat|camera/i,
+    scene: 'in a natural-light studio beside a camera bag and a folded reflector, seamless paper backdrop edge in frame',
+    props: 'a camera battery, a lens cloth and a roll of gaffer tape',
+    avoid: 'no calipers, no office stationery, no construction tools' },
+  { match: /salon|barber|beauty|nail|lash|esthetic|makeup|hair/i,
+    scene: 'on a clean marble styling station beside folded towels and a spray bottle, round mirror edge in frame',
+    props: 'a round brush, a comb and a pair of shears',
+    avoid: 'no calipers, no power tools, no laptops' },
+  { match: /massage|spa|wellness|yoga|therap|acupunct|meditat/i,
+    scene: 'on a calm treatment-room surface beside folded linen towels and a small ceramic dish, soft diffused light in frame',
+    props: 'a rolled linen towel, a smooth stone and a small bottle of oil',
+    avoid: 'no calipers, no tools, no office stationery' },
+  { match: /dog|pet|groom|vet|animal/i,
+    scene: 'on a stainless grooming table beside folded towels and a hair-covered rubber mat, tiled floor and daylight in frame',
+    props: 'clippers, a slicker brush and a pair of blunt scissors',
+    avoid: 'no calipers, no office stationery, no construction tools' },
+  { match: /fitness|personal train|gym|crossfit|athlet/i,
+    scene: 'on a rubber gym floor beside a squat rack base and a chalk-dusted platform, plate stack edge in frame',
+    props: 'a kettlebell, lifting straps and a stopwatch',
+    avoid: 'no calipers, no office stationery, no laptops' },
+  { match: /fishing|charter|hunt|hunting|outfitt|outdoor|survival|camping/i,
+    scene: 'on a boat deck at first light beside an open tackle box, rope coil and misty water in frame',
+    props: 'a closed tackle box, a spool of monofilament and a landing net handle',
+    avoid: 'no calipers, no office stationery, no laptops' },
+  { match: /food|cater|bakery|chef|coffee|restaurant|baker|cake/i,
+    scene: 'on a marble kitchen counter beside a floured butcher block and a folded linen towel, warm morning light in frame',
+    props: 'a chef knife, a wooden spoon and a small bowl of coarse salt',
+    avoid: 'no calipers, no construction tools, no laptops' },
+  { match: /mechanic|auto|detailing|car wash|tire|bodyshop/i,
+    scene: 'on a polished concrete garage floor beside a rolling tool chest and a folded shop towel, car lift base in frame',
+    props: 'a socket wrench, a torque wrench and nitrile gloves',
+    avoid: 'no calipers, no office stationery, no laptops' },
+  { match: /recovery|sobriety|sobrie|counsel|mental health|addiction/i,
+    scene: 'on a quiet table beside a folded blanket and a small potted plant, soft curtain-filtered morning light in frame',
+    props: 'an open journal, a steaming mug and a pen',
+    avoid: 'no calipers, no tools, no alcohol, no branded packaging' },
+  { match: /pinterest|etsy|creator|marketing|social media|content|influencer|newsletter/i,
+    scene: 'on a bright light-wood desk beside a folded fabric swatch and a small potted plant, soft ring-light daylight in frame',
+    props: 'a phone, a notebook and a cup of coffee',
+    avoid: 'no unrelated electronics, no grid backgrounds' },
+  { match: /wedding|event|planner|florist|decorat/i,
+    scene: 'on a linen-covered table beside a small floral arrangement and folded ribbon spools, soft window light in frame',
+    props: 'a pair of scissors, a spool of ribbon and a fabric swatch ring',
+    avoid: 'no calipers, no construction tools, no laptops' }
+];
+
+/** The COVER_SCENES strings read "<subject surface>, <props>, <lighting>, <styling>".
+ *  When a profession scene supplies the subject and the real tools, keeping the
+ *  style entry's own subject would fight it — this returns only its trailing
+ *  lighting + styling clauses so the DNA contributes the *look*, not the objects. */
+function styleTextureFromScene(scene) {
+  const parts = String(scene || '').split(',').map(s => s.trim()).filter(Boolean);
+  return parts.length > 2 ? parts.slice(-2).join(', ') : parts.join(', ');
+}
+
+/** Pick the profession-authentic setting + props for this product. Returns null
+ *  when no trade keyword matches, so the caller keeps the generic prompt. */
+function professionScene(prof = {}) {
+  // Match the profession identity only — product titles like "Equipment Guide"
+  // would otherwise drag a guide into the fishing scene.
+  const blob = `${prof.slug || ''} ${prof.name || ''}`.toLowerCase();
+  for (const entry of PROFESSION_SCENES) {
+    if (entry.match.test(blob)) return entry;
+  }
+  return null;
+}
+
 function buildArtPrompt(prof, product, profile = 'photo-cover', theme = {}) {
   if (profile !== 'photo-cover') {
     const nicheKey = designDNA.detectNicheCategory(prof);
@@ -259,17 +391,26 @@ function buildArtPrompt(prof, product, profile = 'photo-cover', theme = {}) {
   const style = (resolvedTheme.dna && resolvedTheme.dna.style) || (resolvedTheme.brief && resolvedTheme.brief.style_lineage) || direction.name;
   const font = (theme.brief && theme.brief.fonts && theme.brief.fonts.heading) || (product.design_brief && (() => { try { return JSON.parse(product.design_brief).fonts?.heading; } catch { return null; } })());
   const accent = theme.accent || (theme.brief && theme.brief.palette && theme.brief.palette.accent) || (product.design_brief && (() => { try { return JSON.parse(product.design_brief).palette?.accent; } catch { return null; } })());
+  // The style DNA above decides the look; this decides the subject. Without it a
+  // trades niche gets a generic "steel tools and measuring tape" flat-lay, which
+  // is how calipers ended up on a roofing cover.
+  const role = professionScene(prof);
   return [
     'Top-down flat-lay photograph, 2:3 portrait canvas, native 1200x1800 pixels',
-    direction.scene,
+    role ? `setting and lighting: ${direction.look || styleTextureFromScene(direction.scene)}` : direction.scene,
+    role ? `set ${role.scene}` : null,
     'one blank white tablet lying completely flat, screen is a plain matte-white blank surface with no interface',
     'tablet fixed in the right 45% of frame, vertically centered, approximately 40% of frame width, leave the left 55% visually quiet for copy',
-    'two or three contextual physical props only, neatly spaced, no overlapping the tablet slot',
+    role
+      ? `the only tools in frame are ${role.props}, placed neatly beside the tablet and never overlapping it`
+      : 'two or three contextual physical props only, neatly spaced, no overlapping the tablet slot',
     'photographed directly from above with parallel edges, soft realistic contact shadow, consistent physical light direction',
     `design DNA ${direction.name}${style ? ` / ${style}` : ''}${font ? ` / ${font} typography` : ''}${accent ? ` / restrained ${accent} accent` : ''}`,
     'photorealistic atmospheric product photography, professional product photography, subtle natural grain',
-    'no text, no letters, no words, no labels, no writing, no logos, no watermark, no screen content, no visible screens except the specified blank tablet, no interface, no UI elements, no charts, no graphs, no documents, no readable text or documents, no paper with marks'
-  ].join(', ');
+    'real photograph taken on a full-frame DSLR with a 35mm lens in natural light, authentic materials showing real wear, shallow depth of field, documentary realism, not an illustration, not a 3d render, not CGI',
+    'no text, no letters, no words, no labels, no writing, no logos, no watermark, no screen content, no visible screens except the specified blank tablet, no interface, no UI elements, no charts, no graphs, no documents, no readable text or documents, no paper with marks',
+    role ? role.avoid : null
+  ].filter(Boolean).join(', ');
 }
 
 function promptFor(prof, product, theme = {}) {
@@ -444,76 +585,104 @@ function detectWhiteRect(map, W, H, opts = {}) {
   const minFrac = opts.minFrac || 0.06;        // min area fraction of the frame
   const maxFrac = opts.maxFrac || 0.45;        // max area fraction (avoid bright walls/whole-frame glow)
   const step = opts.step || 4;                 // sampling stride
-  // Adaptive threshold: the tablet screen is among the BRIGHTEST regions in a
-  // photo (higher than walls/windows), so percentile-based thresholds stay
-  // honest on both dark (roofing) and high-key (mold/appliance) photos.
-  let bright = opts.bright;
-  if (bright == null) {
-    const sample = [];
-    for (let p = 0; p < map.length; p += 7) sample.push(map[p]);
-    sample.sort((a, b) => a - b);
-    const pct = (q) => sample[Math.min(sample.length - 1, Math.floor(q * sample.length))];
-    const median = pct(0.5);
-    const p97 = pct(0.97);
-    // Reject uniform/flat frames that lack a high-contrast bright screen.
-    if (pct(0.95) - median < 35) return null;
-    // Place threshold near the top 3% (pure screen white) so silver/gray tablet
-    // bezels (typically luma 190-215) are not merged into the white screen (235-255).
-    bright = Math.max(175, Math.min(p97 - 6, Math.round(p97 * 0.94)));
-  }
-  // Exclude the outer 6% frame: window glow and studio backdrops bleed to the
-  // edges and would band the scan into false tablets.
-  const mx = Math.round(W * 0.06), myTop = Math.round(H * 0.06), myBot = H - Math.round(H * 0.06);
-  const rows = [];
-  for (let y = myTop; y < myBot; y += step) {
-    let count = 0, total = 0;
-    for (let x = mx; x < W - mx; x += step) { if (map[y * W + x] >= bright) count++; total++; }
-    rows.push({ y, frac: count / total });
-  }
-  // 2) densest tight vertical band: anchor start/end on bright rows and score
-  // by bright rows minus dark rows so outer non-screen rows are never included.
-  let best = null;
-  for (let i = 0; i < rows.length; i++) {
-    if (rows[i].y <= myTop + step) continue;
-    if (rows[i].frac < 0.22) continue;
-    for (let j = i + 3; j < rows.length; j++) {
-      if (rows[j].frac < 0.22) continue;
-      const band = rows.slice(i, j + 1);
-      const good = band.filter(r => r.frac >= 0.22).length;
-      if (good / band.length < 0.72) continue;
-      const bad = band.length - good;
-      const score = good - bad * 3;
-      if (!best || score > best.score) best = { i, j, score };
+
+  // Single-threshold scan (geometry unchanged): densest bright band -> longest
+  // contiguous horizontal span inside that band.
+  const findAt = (bright) => {
+    // Exclude the outer 6% frame: window glow and studio backdrops bleed to the
+    // edges and would band the scan into false tablets.
+    const mx = Math.round(W * 0.06), myTop = Math.round(H * 0.06), myBot = H - Math.round(H * 0.06);
+    const rows = [];
+    for (let y = myTop; y < myBot; y += step) {
+      let count = 0, total = 0;
+      for (let x = mx; x < W - mx; x += step) { if (map[y * W + x] >= bright) count++; total++; }
+      rows.push({ y, frac: count / total });
     }
-  }
-  if (!best) return null;
-  // 3) within the band, find the longest contiguous horizontal bright span.
-  const colGood = [];
-  for (let x = mx; x < W - mx; x += step) {
-    let count = 0, total = 0;
-    for (let k = best.i; k <= best.j; k++) { const y = rows[k].y; if (map[y * W + x] >= bright) count++; total++; }
-    colGood.push({ x, ok: (count / total) >= 0.6 });
-  }
-  let bestRun = null, curRun = [];
-  for (const c of colGood) {
-    if (c.ok) {
-      curRun.push(c.x);
-      if (!bestRun || curRun.length > bestRun.length) bestRun = curRun.slice();
-    } else {
-      curRun = [];
+    // 2) densest tight vertical band: anchor start/end on bright rows and score
+    // by bright rows minus dark rows so outer non-screen rows are never included.
+    let best = null;
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].y <= myTop + step) continue;
+      if (rows[i].frac < 0.22) continue;
+      for (let j = i + 3; j < rows.length; j++) {
+        if (rows[j].frac < 0.22) continue;
+        const band = rows.slice(i, j + 1);
+        const good = band.filter(r => r.frac >= 0.22).length;
+        if (good / band.length < 0.72) continue;
+        const bad = band.length - good;
+        const score = good - bad * 3;
+        if (!best || score > best.score) best = { i, j, score };
+      }
     }
+    if (!best) return null;
+    // 3) within the band, find the longest contiguous horizontal bright span.
+    const colGood = [];
+    for (let x = mx; x < W - mx; x += step) {
+      let count = 0, total = 0;
+      for (let k = best.i; k <= best.j; k++) { const y = rows[k].y; if (map[y * W + x] >= bright) count++; total++; }
+      colGood.push({ x, ok: (count / total) >= 0.6 });
+    }
+    let bestRun = null, curRun = [];
+    for (const c of colGood) {
+      if (c.ok) {
+        curRun.push(c.x);
+        if (!bestRun || curRun.length > bestRun.length) bestRun = curRun.slice();
+      } else {
+        curRun = [];
+      }
+    }
+    const xs = bestRun || colGood.filter(c => c.ok).map(c => c.x);
+    if (xs.length < 3) return null;
+    const x0 = xs[0], x1 = xs[xs.length - 1], y0 = rows[best.i].y, y1 = rows[best.j].y;
+    const rect = { x: x0, y: y0, width: x1 - x0 + step, height: y1 - y0 + step };
+    const area = rect.width * rect.height;
+    if (area < minFrac * W * H || area > maxFrac * W * H) return null;
+    return rect;
+  };
+
+  // Explicit threshold wins (tests + callers that know the photo).
+  if (opts.bright != null) return findAt(opts.bright);
+
+  // Adaptive threshold: the tablet screen is among the BRIGHTEST regions, so a
+  // percentile-derived threshold stays honest on dark and high-key photos alike.
+  const sample = [];
+  for (let p = 0; p < map.length; p += 7) sample.push(map[p]);
+  sample.sort((a, b) => a - b);
+  const pct = (q) => sample[Math.min(sample.length - 1, Math.floor(q * sample.length))];
+  const median = pct(0.5);
+  const p97 = pct(0.97);
+  // Reject uniform/flat frames that lack a high-contrast bright screen.
+  if (pct(0.95) - median < 35) return null;
+  const bright = Math.max(175, Math.min(p97 - 6, Math.round(p97 * 0.94)));
+
+  // Image models vary how bright they render a matte screen (observed luma
+  // ~180-215), so ONE percentile-derived threshold intermittently rejects the
+  // real screen. That failure is silent: the composite falls back to the fixed
+  // slot and the product page floats over the photo instead of sitting in the
+  // tablet. Sweep strictly downwards and keep the largest tablet-shaped hit.
+  const ladder = [bright, bright - 10, bright - 20, 170, 158, 146];
+  const hits = [];
+  const seen = new Set();
+  for (const t of ladder) {
+    if (t < 120 || seen.has(t)) continue;
+    seen.add(t);
+    const r = findAt(t);
+    if (r) hits.push({ rect: r, bright: t });
   }
-  const xs = bestRun || colGood.filter(c => c.ok).map(c => c.x);
-  if (xs.length < 3) return null;
-  const x0 = xs[0], x1 = xs[xs.length - 1], y0 = rows[best.i].y, y1 = rows[best.j].y;
-  const rect = { x: x0, y: y0, width: x1 - x0 + step, height: y1 - y0 + step };
-  const area = rect.width * rect.height;
-  if (area < minFrac * W * H || area > maxFrac * W * H) return null;
-  return rect;
+  if (!hits.length) return null;
+  // Prefer portrait-shaped candidates (a tablet), largest area first.
+  const shaped = hits.filter(({ rect }) => {
+    const ar = rect.height / rect.width;
+    return ar >= 0.8 && ar <= 2.2;
+  });
+  const pool = shaped.length ? shaped : hits;
+  pool.sort((a, b) => (b.rect.width * b.rect.height) - (a.rect.width * a.rect.height));
+  return pool[0].rect;
 }
 
 module.exports = {
   COVER_WIDTH, COVER_HEIGHT, COVER_SCENES, sceneFor, promptFor, buildArtPrompt,
+  PROFESSION_SCENES, professionScene,
   STYLE_PROFILES, BANNED_SCENE_TERMS, cachePath, ensureCoverArt, provider, OUT_DIR,
   workerRequestBody, getImageDimensions, imageDataUri, isNativePortraitImage, writeNativePortrait,
   detectWhiteRect, resolveCoverModel, classifyCoverError, coverProviderState, MODEL_ALLOWLIST

@@ -102,11 +102,20 @@ test('browser rebuild sends cursors, prevents double start, and reports HTTP fai
   assert.equal(rebuild.isRunning(), false);
 });
 
-test('Worker model allowlist: klein-4b default, per-request override, env default, rogue rejected', async () => {
+test('Worker model allowlist: klein-4b default, per-request override, env default, rogue rejected, per-model input shape', async () => {
   const source = fs.readFileSync(path.join(__dirname, '../cf-worker/src/index.js'), 'utf8');
   const { default: worker } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
   const runs = [];
-  const AI = { run: async (model, args) => { runs.push({ model, args }); return { image: 'img' }; } };
+  const AI = { run: async (model, args) => {
+    const entry = { model, args };
+    // Klein's prompt/width/height/guidance travel as multipart fields, so capture
+    // the serialized body to assert the fields really reach the model.
+    if (args && args.multipart && args.multipart.body) {
+      entry.multipartText = await new Response(args.multipart.body).text();
+    }
+    runs.push(entry);
+    return { image: 'img' };
+  } };
   const post = (body, extraEnv = {}) => worker.fetch(new Request('https://worker.test/', {
     method: 'POST', headers: { 'x-ng-key': 'k' }, body: JSON.stringify(body)
   }), { AI, SHARED_KEY: 'k', ...extraEnv });
@@ -124,10 +133,32 @@ test('Worker model allowlist: klein-4b default, per-request override, env defaul
   assert.match(body.error, /model not allowed/);
   assert.equal(body.allowed.length, 4);
   assert.equal(runs.length, before);
-  // per-model generation params reach AI.run (schnell is a 4-step model)
-  await post({ prompt: 'p', width: 1200, height: 1800, model: '@cf/black-forest-labs/flux-1-schnell' });
-  const schnell = runs.find(r => r.model === '@cf/black-forest-labs/flux-1-schnell');
-  assert.equal(schnell.args.num_steps, 4);
+  // The regression this covers: FLUX.2 Klein declares a multipart root schema, so
+  // a flat prompt object is rejected upstream ("5006: required properties at '/'
+  // are 'multipart'"). Klein must be called with a serialized multipart body and
+  // must NOT receive num_steps (Klein inference is fixed at 4 steps).
+  const klein = runs.find(r => r.model === '@cf/black-forest-labs/flux-2-klein-4b');
+  assert.ok(klein.args.multipart, 'klein is called with a multipart input');
+  assert.match(klein.args.multipart.contentType, /multipart\/form-data/);
+  assert.ok(klein.args.multipart.body, 'multipart body is present');
+  assert.match(klein.multipartText, /name="prompt"/);
+  assert.match(klein.multipartText, /name="width"\r?\n\r?\n1200/);
+  assert.match(klein.multipartText, /name="height"\r?\n\r?\n1800/);
+  assert.match(klein.multipartText, /name="guidance"/);
+  assert.equal(klein.args.num_steps, undefined);
+  // lucid-origin keeps the flat shape, with the requested native portrait size.
+  const lucid = runs.find(r => r.model === '@cf/leonardo/lucid-origin');
+  assert.equal(lucid.args.width, 1200);
+  assert.equal(lucid.args.height, 1800);
+  assert.equal(lucid.args.num_steps, 24);
+  // schnell has no width/height control and returns its own fixed square output,
+  // so it cannot satisfy the 2:3 native-portrait contract — the worker rejects it
+  // explicitly rather than handing back an unusable image.
+  const beforeSchnell = runs.length;
+  res = await post({ prompt: 'p', width: 1200, height: 1800, model: '@cf/black-forest-labs/flux-1-schnell' });
+  assert.equal(res.status, 400);
+  assert.match((await res.json()).error, /native portrait/);
+  assert.equal(runs.length, beforeSchnell);
 });
 
 test('Worker maps Cloudflare quota exhaustion to 429 instead of opaque 502', async () => {

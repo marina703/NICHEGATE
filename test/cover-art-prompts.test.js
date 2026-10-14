@@ -37,6 +37,29 @@ test('buildArtPrompt: photo backgrounds leave screen and document content for th
   assert.doesNotMatch(finance, /physical materials, calculator, financial charts|showing (?:data|charts)|financial analysis printout/);
 });
 
+test('buildArtPrompt: profession scenes name the trade real setting and tools', () => {
+  const roof = coverArt.buildArtPrompt({ name: 'Roofing Contractor', slug: 'roofing' }, { type: 'spreadsheet' });
+  assert.match(roof, /rooftop deck/i);
+  assert.match(roof, /ladder/i);
+  assert.match(roof, /shingle/i);
+  assert.match(roof, /the only tools in frame are a shingle hatchet/i);
+  assert.match(roof, /no calipers/i, 'unrelated instruments must be explicitly excluded');
+  // The style DNA must contribute look only — never its own generic subject.
+  assert.doesNotMatch(roof, /one chrome tool/i);
+  assert.doesNotMatch(roof, /dark leather work surface/i);
+  assert.match(roof, /not an illustration/i);
+
+  // A different trade must get its own scene, not the roofing one.
+  const plumb = coverArt.buildArtPrompt({ name: 'Plumber', slug: 'plumber' }, { type: 'invoice' });
+  assert.match(plumb, /basin wrench/i);
+  assert.doesNotMatch(plumb, /rooftop deck/i);
+
+  // Unknown professions keep the generic prop line rather than a wrong scene.
+  const unknown = coverArt.buildArtPrompt({ name: 'Life Coach', slug: 'life-coach' }, { type: 'checklist' });
+  assert.match(unknown, /two or three contextual physical props/);
+  assert.equal(coverArt.professionScene({ name: 'Life Coach', slug: 'life-coach' }), null);
+});
+
 test('buildArtPrompt: vector-asset profile targets flat cutout assets', () => {
   const p = coverArt.buildArtPrompt(creatorProf, product, 'vector-asset');
   assert.ok(p.includes('transparent background'));

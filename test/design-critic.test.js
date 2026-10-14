@@ -71,6 +71,16 @@ function stubVision(fn) {
   return () => { router.callVision = original; };
 }
 
+// The structural cover-QA gate is a separate collaborator (it inspects the
+// rendered artifact and needs a browser). These tests target the AI critique, so
+// they stub the gate — the gate's own behaviour is covered in cover-qa.test.js.
+function stubCoverQa(verdict = { ok: true, publishAllowed: true, status: 'pass' }) {
+  const coverQA = require('../server/services/coverQA');
+  const original = coverQA.verifyCover;
+  coverQA.verifyCover = async () => ({ checks: {}, ...verdict });
+  return () => { coverQA.verifyCover = original; };
+}
+
 function goodCoverScores(overall = 8.5, textViolation = false) {
   return JSON.stringify({
     preview_composite_realism: overall,
@@ -143,6 +153,7 @@ test('cover critic persists verdict against the exact current JPEG and reuses on
   const originalThumbnail = fileFactory.ensureProductThumbnail;
   let calls = 0;
   const restore = stubVision(async () => { calls++; return goodCoverScores(8.25); });
+  const restoreQa = stubCoverQa();
   fileFactory.ensureProductThumbnail = async (product) => {
     if (!product.preview_path) {
       product.preview_path = coverPath;
@@ -169,6 +180,7 @@ test('cover critic persists verdict against the exact current JPEG and reuses on
   } finally {
     fileFactory.ensureProductThumbnail = originalThumbnail;
     restore();
+    restoreQa();
     ai();
     try { fs.unlinkSync(coverPath); } catch {}
     cleanup(pid, profId);
@@ -189,6 +201,7 @@ test('cover critic stores one revised variant when the first cover fails', async
   let renderCount = 0;
   let visionCount = 0;
   const restore = stubVision(async () => { visionCount++; return goodCoverScores(visionCount === 1 ? 4 : 8); });
+  const restoreQa = stubCoverQa();
   fileFactory.ensureProductThumbnail = async (product, opts = {}) => {
     const coverPath = opts.freshArtRevision ? coverPaths[1] : coverPaths[0];
     product.preview_path = coverPath;
@@ -210,6 +223,7 @@ test('cover critic stores one revised variant when the first cover fails', async
   } finally {
     fileFactory.ensureProductThumbnail = originalThumbnail;
     restore();
+    restoreQa();
     ai();
     coverPaths.forEach(file => { try { fs.unlinkSync(file); } catch {} });
     cleanup(pid, profId);
@@ -225,6 +239,7 @@ test('cover critic fails closed when enabled review is unavailable and records u
   const fileFactory = require('../server/services/fileFactory');
   const originalThumbnail = fileFactory.ensureProductThumbnail;
   const restore = stubVision(async () => { throw new Error('vision unavailable'); });
+  const restoreQa = stubCoverQa();
   fileFactory.ensureProductThumbnail = async (product) => {
     product.preview_path = coverPath;
     db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(coverPath, pid);
@@ -238,6 +253,7 @@ test('cover critic fails closed when enabled review is unavailable and records u
   } finally {
     fileFactory.ensureProductThumbnail = originalThumbnail;
     restore();
+    restoreQa();
     ai();
     try { fs.unlinkSync(coverPath); } catch {}
     cleanup(pid, profId);
@@ -497,6 +513,41 @@ test('critic: MODEL_ENABLED=false → skipped with null scores and zero model ca
     assert.equal(calls, 0, 'zero cost when AI is off');
   } finally {
     restore();
+    cleanup(pid, profId);
+  }
+});
+
+test('cover QA failure blocks publishing even when the AI review passes', async () => {
+  const profId = makeProfession('cover-qa-block');
+  const pid = makeProduct(profId);
+  const ai = withAiOn();
+  const coverPath = path.join(os.tmpdir(), `nichegate-${pid}-cover-v7-qa.jpg`);
+  fs.writeFileSync(coverPath, VALID_TEST_JPEG);
+  const fileFactory = require('../server/services/fileFactory');
+  const originalThumbnail = fileFactory.ensureProductThumbnail;
+  const restore = stubVision(async () => goodCoverScores(8.5));
+  const restoreQa = stubCoverQa({
+    ok: false,
+    publishAllowed: false,
+    status: 'fail',
+    reason: 'no tablet screen detected in the background photo — the page floats instead of sitting in the device'
+  });
+  fileFactory.ensureProductThumbnail = async (product) => {
+    product.preview_path = coverPath;
+    db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(coverPath, pid);
+    return coverPath;
+  };
+  try {
+    const result = await critic.critiqueCover(pid, { force: true });
+    assert.equal(result.publishAllowed, false, 'a structural QA failure must block publishing');
+    assert.equal(result.status, 'fail');
+    assert.match(result.reason, /cover QA/);
+    assert.equal(result.coverQa.publishAllowed, false);
+    assert.equal(critic.latestCoverScore(pid).status, 'fail', 'the stored review must not claim a pass');
+  } finally {
+    fileFactory.ensureProductThumbnail = originalThumbnail;
+    restore(); restoreQa(); ai();
+    try { fs.unlinkSync(coverPath); } catch {}
     cleanup(pid, profId);
   }
 });
