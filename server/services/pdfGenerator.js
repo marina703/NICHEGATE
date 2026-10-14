@@ -71,6 +71,14 @@ async function generatePDF(htmlContent, filename) {
   const page = await browser.newPage();
   try {
     page.setDefaultTimeout(30000);
+    if (typeof page.setRequestInterception === 'function') {
+      await page.setRequestInterception(true);
+      page.on('request', request => {
+        const url = request.url();
+        if (url.startsWith('data:') || url === 'about:blank') request.continue();
+        else request.abort();
+      });
+    }
     await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 30000 });
     const outputPath = path.join(OUTPUT_DIR, filename);
     await page.pdf({

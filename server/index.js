@@ -91,7 +91,9 @@ const apiLimiter = rateLimit({
   // /api/health* and /api/auth/* never share this counter: a burst of anonymous
   // traffic must not 429 Railway's healthcheck or the login that recovers a
   // session (that was a full-lockout path).
-  max: (req) => (auth.enabled() && auth.isValidToken(auth.tokenFrom(req)) ? API_LIMIT_AUTHED : API_LIMIT_ANON),
+  // When auth is disabled (local dev), console traffic has no session cookie
+  // and still requires the full authenticated console budget.
+  max: (req) => (!auth.enabled() || auth.isValidToken(auth.tokenFrom(req)) ? API_LIMIT_AUTHED : API_LIMIT_ANON),
   skip: (req) => req.path.startsWith('/health') || req.path.startsWith('/auth'),
   standardHeaders: true,
   legacyHeaders: false,
@@ -2679,7 +2681,7 @@ app.get('/api/products/:id/lifestyle-image', async (req, res) => {
   }
 });
 
-// Batch-generate AI lifestyle backgrounds (slow on free tier — background job)
+// Regenerate composite covers (AI lifestyle background + cover-v7 thumbnail)
 app.post('/api/covers/generate', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '10', 10) || 10, 100);
   const status = String(req.query.status || 'approved');
@@ -2696,8 +2698,11 @@ app.post('/api/covers/generate', async (req, res) => {
       const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(p.profession_id);
       if (!prof) { failed++; items.push({ id: p.id, ok: false, reason: 'missing_profession' }); continue; }
       const art = await coverArt.ensureCoverArt(p, prof, {}, { coverClass: String(body.coverClass || 'standard') });
-      if (art) { generated++; items.push({ id: p.id, ok: true, art: `/api/products/${p.id}/lifestyle-image` }); }
-      else {
+      const thumb = await fileFactory.ensureProductThumbnail(p, { force: true });
+      if (thumb) {
+        generated++;
+        items.push({ id: p.id, ok: true, preview_path: thumb, art: art ? `/api/products/${p.id}/lifestyle-image` : null });
+      } else {
         const state = coverArt.coverProviderState() || {};
         failed++;
         items.push({ id: p.id, ok: false, reason: state.reason || 'unknown_error', error: String(state.message || '').slice(0, 200) });
@@ -2708,7 +2713,7 @@ app.post('/api/covers/generate', async (req, res) => {
       items.push({ id: p.id, ok: false, reason: coverArt.classifyCoverError(e), error: String(e.message || '').slice(0, 200) });
     }
   }
-  res.json({ total: rows.length, generated, failed, items });
+  res.json({ total: rows.length, generated, failed, items, results: items });
 });
 
 // Bulk-reject trash drafts (keeps approved/listed/sold). Pass ?q= to filter by name.

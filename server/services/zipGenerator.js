@@ -34,6 +34,14 @@ async function renderSocialImage(html, width, height, outPath) {
   const page = await browser.newPage();
   try {
     await page.setViewport({ width, height, deviceScaleFactor: 2 });
+    if (typeof page.setRequestInterception === 'function') {
+      await page.setRequestInterception(true);
+      page.on('request', request => {
+        const url = request.url();
+        if (url.startsWith('data:') || url === 'about:blank') request.continue();
+        else request.abort();
+      });
+    }
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
     await new Promise(r => setTimeout(r, 200));
     await page.screenshot({ path: outPath, type: 'png' });

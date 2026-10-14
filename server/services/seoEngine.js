@@ -11,7 +11,7 @@ const PRODUCT_TERMS = {
   website:    ['Website Template', 'One-Page Website', 'Business Website', 'Website'],
   social:     ['Social Media Templates', 'Instagram Templates', 'Content Pack', 'Social Pack'],
   brand:      ['Brand Kit', 'Brand Identity', 'Logo Template', 'Branding Package'],
-  spreadsheet:['Spreadsheet Template', 'Calculator', 'Pricing Tool', 'Excel Template'],
+  spreadsheet:['Pricing Calculator', 'Calculator', 'Pricing Tool', 'Excel Template'],
   booking:    ['Booking Form', 'Appointment Template', 'Scheduling Form', 'Booking Template'],
   checklist:  ['Checklist Template', 'Service Checklist', 'Quality Checklist', 'Checklist'],
   journal:    ['Journal Template', 'Recovery Journal', 'Guided Journal', 'Journal'],
@@ -91,8 +91,12 @@ function moatSpecifics(prof, type) {
       if (a && a.hook) push(a.hook);
     }
   } else if (type === 'spreadsheet') {
-    out.push('multi-tab cost, margin and cash-flow structure');
-    out.push('a summary view built to be quoted from directly');
+    // Mirrors the tabs xlsxGenerator actually writes for the spreadsheet type.
+    const n = safeJsonArray(prof.services).length;
+    out.push(`Pricing tab: ${n || 'your'} services with live line totals, margin and tax`);
+    out.push('P&L tab: monthly and annual profit, expenses and margin');
+    out.push('Client ROI tab: a value sheet that justifies premium quotes');
+    out.push('Cash Flow and Scenarios tabs: 12-month runway plus three demand cases');
   } else {
     const cat = (contentLibrary.getContentFor && contentLibrary.getContentFor(prof)) || null;
     (Array.isArray(cat && cat.checklist) ? cat.checklist.slice(0, 4) : []).forEach(push);
@@ -107,7 +111,7 @@ function moatSpecifics(prof, type) {
 
 // Copy gate — the boilerplate that made every listing sound identical is now a
 // hard fail, alongside the grammar-agreement bugs the old template produced.
-const BANNED_COPY = /look elite|clean, modern layout|customize colors, text, and fonts|Auto Theme|use forever/i;
+const BANNED_COPY = /look elite|clean, modern layout|customize colors, text, and fonts|Auto Theme|use forever|how the work actually goes|the version that accounts/i;
 function listingCopyGate(description, specifics = []) {
   const text = String(description || '');
   const reasons = [];
@@ -123,10 +127,18 @@ function buildDescription(prof, type, theme, specifics = []) {
   const services = safeJsonArray(prof.services).slice(0, 4);
   const serviceList = services.map(s => (Array.isArray(s) ? s[0] : s)).filter(Boolean).join(', ');
   const fmt = type === 'spreadsheet' ? 'XLSX' : type === 'social' ? 'ZIP' : 'PDF';
-  const inside = (specifics.length ? specifics.slice(0, 4).map(s => `• ${s}`) : [`• ${base[2]} built for how the work actually goes`]).join('\n');
+  const inside = (specifics.length ? specifics.slice(0, 4).map(s => `• ${s}`) : [`• Ready-to-use ${base[0].toLowerCase()} for ${prof.name}`]).join('\n');
+  const OUTCOME = {
+    spreadsheet: 'quote jobs in seconds with live formulas, margin and tax built in.',
+    booking: 'track bookings, deposits and balances in one sheet.',
+    inventory: 'see stock value and reorder flags at a glance.'
+  };
+  const lead = OUTCOME[type]
+    ? `${base[2]} for ${prof.name} — ${OUTCOME[type]}`
+    : `${base[2]} for ${prof.name}, ready to use straight after download.`;
 
   return [
-    `${base[2]} built for ${prof.name} — the version that accounts for how the work actually goes.`,
+    lead,
     ``,
     `WHAT'S INSIDE:`,
     inside,
@@ -145,23 +157,41 @@ function buildTags(prof, type, demandTags) {
   const tags = [];
 
   // Product type terms
-  tags.push(base[0].toLowerCase().substring(0, 20));
-  tags.push(base[1].toLowerCase().substring(0, 20));
+  // fitTag never ships a mid-word fragment; an unfit term is skipped.
+  for (const term of [base[0], base[1]]) {
+    const t = demandSignals.fitTag(term);
+    if (t.length >= 3 && !tags.includes(t)) tags.push(t);
+  }
 
   // Live demand terms (explicit arg, else whatever the last harvest cached)
   const demand = (demandTags && demandTags.length)
     ? demandTags
     : demandSignals.getCachedDemandTags((prof && prof.name) || '');
   for (const d of demand) {
-    const clean = String(d).trim().toLowerCase().substring(0, 20);
+    const clean = demandSignals.fitTag(d);
     if (clean.length >= 3 && !tags.includes(clean)) tags.push(clean);
     if (tags.length >= 11) break; // leave ≥2 slots for hashtags/fillers
   }
 
-  // Profession hashtags (strip #, truncate to 20 chars)
+  // Profession hashtags: auto-space run-together words, then truncate to 20 chars
   for (const h of hashtags) {
-    const clean = h.replace('#', '').substring(0, 20);
-    if (clean.length >= 3 && !tags.includes(clean)) tags.push(clean);
+    let clean = String(h).replace('#', '').trim();
+    // Auto-space: insert space before each uppercase-to-lowercase transition
+    // (handles camelCase hashtags); also split long tags at word boundaries
+    if (clean.length > 20) {
+      // Try common camelCase splits: insert space before each capital letter
+      clean = clean.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+      // If still too long, split at every 10 chars as fallback
+      if (clean.length > 20) {
+        const parts = [];
+        for (let i = 0; i < clean.length; i += 10) {
+          parts.push(clean.substring(i, i + 10).trim());
+        }
+        clean = parts.join(' ');
+      }
+    }
+    const tagged = demandSignals.fitTag(clean);
+    if (tagged.length >= 3 && !tags.includes(tagged)) tags.push(tagged);
     if (tags.length >= 13) break;
   }
 

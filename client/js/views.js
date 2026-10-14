@@ -53,7 +53,7 @@ function head(title, desc, rightHtml) {
 }
 function empty(msg) { return `<div class="panel"><div class="empty">${esc(msg)}</div></div>`; }
 function img(p) {
-  if (p && p.preview_path) {
+  if (p && p.id != null) {
     return `<img src="/api/products/${encodeURIComponent(p.id)}/preview-image" loading="lazy" alt="">`;
   }
   return `<span class="ph">${thumbFallback(p && p.type)}</span>`;

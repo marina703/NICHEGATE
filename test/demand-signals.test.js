@@ -26,6 +26,13 @@ test('mergeDemandTags: demand first, dedupes, caps at 13, truncates to 20 chars'
   assert.equal(clamped, 'a-really-long-demand'); // first 20 chars, kept not dropped
 });
 
+test('fitTag: cuts on a word/hyphen boundary and never ships a mid-word fragment', () => {
+  assert.equal(demand.fitTag('sustainablelandscaping'), '', 'one unbreakable word that cannot fit is dropped');
+  assert.equal(demand.fitTag('native plant landscaping pros'), 'native plant');
+  assert.equal(demand.fitTag('short tag'), 'short tag');
+  assert.equal(demand.fitTag('a-really-long-demand-tag-that-exceeds-twenty-characters'), 'a-really-long-demand');
+});
+
 test('mergeDemandTags: drops tags shorter than 3 chars and tolerates empty inputs', () => {
   const out = demand.mergeDemandTags([], ['ab', 'valid tag', 'ok'], 13);
   assert.deepEqual(out, ['valid tag']);

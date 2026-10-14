@@ -228,7 +228,7 @@ async function ensureProductFile(product) {
 // Reuses the same cached Chrome instance as the PDF generator.
 // ═══════════════════════════════════════════════════════════════════════════
 const PREVIEW_DIR = runtimeConfig.resolvePersistentDir('previews');
-const COVER_VERSION = 'cover-v7';
+const COVER_VERSION = 'cover-v8';
 fs.mkdirSync(PREVIEW_DIR, { recursive: true });
 
 function isCurrentCoverPath(previewPath) {
@@ -295,7 +295,8 @@ function buildPreviewHTML(product, prof, theme) {
     return ds.buildCoverHTML(product, prof, theme, t === 'leadmagnet' ? 'leadmagnet' : 'bundle');
   }
   if (t === 'marketing-kit') return zipGen.buildSocialPostHTML(prof, theme);
-  if (['spreadsheet', 'pricing', 'profit-calculator', 'booking', 'inventory', 'shot-chart'].includes(t)) {
+  if (['spreadsheet', 'pricing', 'profit-calculator'].includes(t)) return ds.buildPricingSheetPreviewHTML(product, prof, theme);
+  if (['booking', 'inventory', 'shot-chart'].includes(t)) {
     return ds.buildTablePreviewHTML(product, prof, theme, t === 'booking' ? 'booking' : 'spreadsheet');
   }
   return buildFallbackCardHTML(product, prof);
@@ -315,6 +316,14 @@ async function renderCoverImage(html, outPath) {
   const page = await browser.newPage();
   try {
     await page.setViewport({ width: COVER_EXPORT.master.width, height: COVER_EXPORT.master.height, deviceScaleFactor: 1 });
+    if (typeof page.setRequestInterception === 'function') {
+      await page.setRequestInterception(true);
+      page.on('request', request => {
+        const url = request.url();
+        if (url.startsWith('data:') || url === 'about:blank') request.continue();
+        else request.abort();
+      });
+    }
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
     await new Promise(r => setTimeout(r, 400));
     const masterPath = outPath.replace(/\.jpg$/i, '.master.jpg');
@@ -336,6 +345,14 @@ async function renderPreviewImage(html, outPath) {
   const page = await browser.newPage();
   try {
     await page.setViewport({ width: 1080, height: 1440, deviceScaleFactor: 1 });
+    if (typeof page.setRequestInterception === 'function') {
+      await page.setRequestInterception(true);
+      page.on('request', request => {
+        const url = request.url();
+        if (url.startsWith('data:') || url === 'about:blank') request.continue();
+        else request.abort();
+      });
+    }
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
     await new Promise(r => setTimeout(r, 350)); // let fonts paint
     const h = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0));

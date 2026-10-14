@@ -1,5 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const os = require('node:os');
+const path = require('node:path');
+process.env.DB_PATH = path.join(os.tmpdir(), `nichegate-competitor-engine-${process.pid}.db`);
 const { db, init } = require('../server/database');
 init();
 const competitorEngine = require('../server/services/competitorEngine');

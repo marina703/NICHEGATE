@@ -147,7 +147,7 @@ test('cover critic persists verdict against the exact current JPEG and reuses on
   const profId = makeProfession('cover-persist');
   const pid = makeProduct(profId);
   const ai = withAiOn();
-  const coverPath = path.join(os.tmpdir(), `nichegate-${pid}-cover-v7-01.jpg`);
+  const coverPath = path.join(os.tmpdir(), `nichegate-${pid}-cover-v8-01.jpg`);
   fs.writeFileSync(coverPath, VALID_TEST_JPEG);
   const fileFactory = require('../server/services/fileFactory');
   const originalThumbnail = fileFactory.ensureProductThumbnail;
@@ -192,7 +192,7 @@ test('cover critic stores one revised variant when the first cover fails', async
   const pid = makeProduct(profId);
   const ai = withAiOn();
   const coverPaths = [
-    path.join(os.tmpdir(), `nichegate-${pid}-cover-v7.jpg`),
+    path.join(os.tmpdir(), `nichegate-${pid}-cover-v8.jpg`),
     path.join(os.tmpdir(), `nichegate-${pid}-cover-v4-r1.jpg`)
   ];
   coverPaths.forEach((file, i) => fs.writeFileSync(file, Buffer.concat([VALID_TEST_JPEG, Buffer.from([i])])));
@@ -234,7 +234,7 @@ test('cover critic fails closed when enabled review is unavailable and records u
   const profId = makeProfession('cover-unscored');
   const pid = makeProduct(profId);
   const ai = withAiOn();
-  const coverPath = path.join(os.tmpdir(), `nichegate-${pid}-cover-v7.jpg`);
+  const coverPath = path.join(os.tmpdir(), `nichegate-${pid}-cover-v8.jpg`);
   fs.writeFileSync(coverPath, VALID_TEST_JPEG);
   const fileFactory = require('../server/services/fileFactory');
   const originalThumbnail = fileFactory.ensureProductThumbnail;
@@ -521,7 +521,7 @@ test('cover QA failure blocks publishing even when the AI review passes', async 
   const profId = makeProfession('cover-qa-block');
   const pid = makeProduct(profId);
   const ai = withAiOn();
-  const coverPath = path.join(os.tmpdir(), `nichegate-${pid}-cover-v7-qa.jpg`);
+  const coverPath = path.join(os.tmpdir(), `nichegate-${pid}-cover-v8-qa.jpg`);
   fs.writeFileSync(coverPath, VALID_TEST_JPEG);
   const fileFactory = require('../server/services/fileFactory');
   const originalThumbnail = fileFactory.ensureProductThumbnail;

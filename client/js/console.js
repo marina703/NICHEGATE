@@ -486,10 +486,13 @@ async function openProduct(id) {
         <div class="flex-between mb8"><span class="hint">Origin</span><b>${esc((p && p.origin) || 'engine')}${p && p.origin === 'manual' ? ' · manual publish' : ''}</b></div>
         <div class="flex-between"><span class="hint">Created</span><b>${esc(p ? timeAgo(p.created_at) : '')}</b></div>
       </div></div>
-      <div class="panel"><div class="panel-head">Preview</div><div class="panel-body tight" style="padding:0">
-        <iframe src="/api/products/${id}/preview" title="Product preview" style="width:100%;height:340px;border:none;border-radius:var(--radius-sm);background:#fff"></iframe>
+      <div class="panel"><div class="panel-head">Cover</div><div class="panel-body tight" style="padding:8px">
+        <img id="drawer-cover-img" src="/api/products/${encodeURIComponent(id)}/preview-image" alt="Product cover" style="width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);display:block;background:var(--inset-bg)">
       </div></div>
     </div>
+    <div class="panel mb14"><div class="panel-head">Deliverable Preview <a class="btn xs" href="/api/products/${encodeURIComponent(id)}/preview" target="_blank" rel="noopener" style="margin-left:auto">${icon('eye')} Full file</a></div><div class="panel-body tight" style="padding:0">
+      <iframe src="/api/products/${encodeURIComponent(id)}/preview-html" title="Product preview" style="width:100%;height:340px;border:none;border-radius:var(--radius-sm);background:#fff"></iframe>
+    </div></div>
     <div id="drawer-seo"></div>`;
   openDrawer(p ? p.name : 'Product', body);
 }
@@ -1257,8 +1260,16 @@ function rebuildCovers() {
 }
 
 async function coverGenerate(id) {
-  await safe(() => dataActions.generateCovers({ productId: Number(id) }));
-  toast('info', 'Cover requested', 'Regenerating in the background.');
+  toast('info', 'Cover requested', 'Regenerating cover…');
+  const r = await safe(() => dataActions.generateCovers({ productId: Number(id) }));
+  if (r && r.generated > 0) {
+    toast('success', 'Cover updated', 'Composite cover regenerated.');
+  } else {
+    toast('warning', 'Cover update', 'Used fallback cover.');
+  }
+  await refreshAfterMutation();
+  const img = document.getElementById('drawer-cover-img');
+  if (img) img.src = `/api/products/${encodeURIComponent(id)}/preview-image?t=${Date.now()}`;
 }
 async function deleteProduct(id) {
   await safe(() => dataActions.deleteProduct(id));

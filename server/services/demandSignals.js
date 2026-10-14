@@ -54,11 +54,26 @@ async function etsyDemandTags(niche, { limit = 6, forceRefresh = false } = {}) {
   }
 }
 
+/**
+ * Fit a candidate tag into Etsy's 20-char limit WITHOUT cutting a word: keep the
+ * longest prefix that ends on a space or hyphen boundary; a single word that
+ * cannot fit is dropped (''), never shipped as a broken fragment such as
+ * "sustainablelandscapi".
+ */
+function fitTag(raw) {
+  const s = String(raw == null ? '' : raw).trim().toLowerCase();
+  if (s.length <= 20) return s;
+  for (let i = 20; i >= 3; i--) {
+    if (/[\s-]/.test(s[i])) return s.slice(0, i).replace(/[\s-]+$/, '');
+  }
+  return '';
+}
+
 /** Merge harvested demand tags into an Etsy tag list (≤max, each ≤20 chars). */
 function mergeDemandTags(baseTags, demandTags, max = 13) {
   const out = [];
   for (const t of [...(demandTags || []), ...(baseTags || [])]) {
-    const clean = String(t).trim().toLowerCase().substring(0, 20);
+    const clean = fitTag(t);
     if (clean.length >= 3 && !out.includes(clean)) out.push(clean);
     if (out.length >= max) break;
   }
@@ -92,4 +107,4 @@ function designTokens(tags) {
   return { sentiment: 'default', accent: '#e11d48' };
 }
 
-module.exports = { etsyDemandTags, mergeDemandTags, getCachedDemandTags, designTokens };
+module.exports = { etsyDemandTags, mergeDemandTags, getCachedDemandTags, designTokens, fitTag };

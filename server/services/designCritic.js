@@ -149,6 +149,14 @@ async function renderPageShots(html, { limit = 2, width = 1080, height = 1350 } 
     const page = await browser.newPage();
     try {
       await page.setViewport({ width, height, deviceScaleFactor: 1 });
+      if (typeof page.setRequestInterception === 'function') {
+        await page.setRequestInterception(true);
+        page.on('request', request => {
+          const url = request.url();
+          if (url.startsWith('data:') || url === 'about:blank') request.continue();
+          else request.abort();
+        });
+      }
       await page.setContent(String(html || ''), { waitUntil: 'domcontentloaded' });
       await new Promise(r => setTimeout(r, 350)); // let fonts paint
       for (let i = 0; i < limit; i++) {

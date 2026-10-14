@@ -6,6 +6,31 @@ const runtimeConfig = require('./runtimeConfig');
 const OUTPUT_DIR = runtimeConfig.resolvePersistentDir('generated');
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
+// Shared by the Pricing sheet formulas and the cover/preview mockup, so the
+// product page shows exactly the numbers the sold file calculates.
+const PRICING_MARGIN_PCT = 40;
+const PRICING_TAX_RATE = 0.08;
+
+function pricingSheetModel(prof) {
+  let services = [];
+  try { services = JSON.parse(prof.services || '[]'); } catch { services = []; }
+  const lines = services.map(function(s) {
+    const base = priceToNumber(s[1]);
+    const total = base != null ? base : 0;
+    return {
+      name: s[0],
+      basePrice: base != null ? base : s[1],
+      qty: 1,
+      total: total,
+      marginPct: PRICING_MARGIN_PCT,
+      net: total * (1 - PRICING_MARGIN_PCT / 100)
+    };
+  });
+  const subtotal = lines.reduce(function(a, l) { return a + l.total; }, 0);
+  const tax = subtotal * PRICING_TAX_RATE;
+  return { lines: lines, subtotal: subtotal, tax: tax, grand: subtotal + tax, taxRate: PRICING_TAX_RATE };
+}
+
 function priceToNumber(str) {
   const m = String(str || '').replace(/,/g, '').match(/\d+(?:\.\d+)?/);
   return m ? parseFloat(m[0]) : null;
@@ -53,11 +78,11 @@ function buildPricingSheet(prof) {
   ];
   services.forEach(function(s, i) {
     const r = i + 4;
-    rows.push([s[0], priceToNumber(s[1]) != null ? priceToNumber(s[1]) : s[1], 1, '=B' + r + '*C' + r, 40, '=D' + r + '*(1-E' + r + '/100)']);
+    rows.push([s[0], priceToNumber(s[1]) != null ? priceToNumber(s[1]) : s[1], 1, '=B' + r + '*C' + r, PRICING_MARGIN_PCT, '=D' + r + '*(1-E' + r + '/100)']);
   });
   rows.push([]);
   rows.push(['', '', 'Subtotal', '=SUM(D4:D' + last + ')', '', '=SUM(F4:F' + last + ')']);
-  rows.push(['', '', 'Tax (8%)', '=D' + (last + 2) + '*0.08', '', '']);
+  rows.push(['', '', 'Tax (' + Math.round(PRICING_TAX_RATE * 100) + '%)', '=D' + (last + 2) + '*' + PRICING_TAX_RATE, '', '']);
   rows.push(['', '', 'Grand Total', '=D' + (last + 2) + '+D' + (last + 3), '', '']);
   const ws = XLSX.utils.aoa_to_sheet(rows);
   styleSheet(ws, 3, [32, 12, 10, 12, 10, 12]);
@@ -226,7 +251,22 @@ function generateXLSX(type, prof, filename) {
   }
   const outputPath = path.join(OUTPUT_DIR, filename);
   XLSX.writeFile(wb, outputPath, { cellStyles: true });
+  forceRecalcOnOpen(outputPath);
   return outputPath;
+}
+
+// SheetJS writes formulas without cached values, so viewers that don't
+// recalculate show blank totals. Ask Excel / LibreOffice to recalc on open.
+function forceRecalcOnOpen(filePath) {
+  const AdmZip = require('adm-zip');
+  const zip = new AdmZip(filePath);
+  const entry = zip.getEntry('xl/workbook.xml');
+  if (!entry) return filePath;
+  const xml = zip.readAsText(entry);
+  if (/<calcPr\b/.test(xml)) return filePath;
+  zip.updateFile('xl/workbook.xml', Buffer.from(xml.replace('</workbook>', '<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>'), 'utf8'));
+  zip.writeZip(filePath);
+  return filePath;
 }
 
 module.exports = {
@@ -236,5 +276,8 @@ module.exports = {
   buildPnLSheet,
   buildScenariosSheet,
   buildHighTicketRoiSheet,
-  buildCashFlowForecastSheet
+  buildCashFlowForecastSheet,
+  pricingSheetModel,
+  PRICING_MARGIN_PCT,
+  PRICING_TAX_RATE
 };

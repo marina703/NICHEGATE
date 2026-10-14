@@ -853,9 +853,14 @@ function buildTablePreviewHTML(product, prof, theme, which) {
   const headRight = isBooking
     ? ['Client', 'Date', 'Status'].map((h) => `<th>${h}</th>`).join('')
     : '<th class="num">Qty</th><th class="num">Total</th>';
-  const previewRows = safe.map((s) => `<tr>${isBooking
-    ? `<td class="strong">${esc(s[0])}</td><td class="muted">— TBD —</td><td class="muted">— TBD —</td><td><span class="status open">Booking</span></td>`
-    : `<td class="strong">${esc(s[0])}</td><td class="num">1</td><td class="num strong">${esc(s[1] || '—')}</td>`}</tr>`).join('');
+  const previewRows = safe.map((s) => `
+    <tr>
+      <td class="strong">${esc(s[0])}</td>
+      <td class="num">1</td>
+      <td class="num strong">${esc(s[1] || '—')}</td>
+      <td>${isBooking ? '<span class="status open">Booking</span>' : ''}</td>
+    </tr>`
+  ).join('');
 
   return shell(`${prof.name} — ${productCopy.deriveTitle(product, prof) || (isBooking ? 'Booking & Appointment Tracker' : 'Pricing Calculator')}`, `
     .dash-head{display:flex;align-items:center;gap:16px;margin-bottom:22px}
@@ -897,6 +902,68 @@ function buildTablePreviewHTML(product, prof, theme, which) {
       <tbody>${previewRows}</tbody>
     </table>
     <div class="hint"><div><div class="lbl">Opens in</div><div class="val">Excel · Google Sheets · Numbers</div></div><div><div class="lbl">Last refreshed</div><div class="val">${new Date().toLocaleDateString()}</div></div></div>
+  </div>`, theme);
+}
+// ── PRICING SHEET PREVIEW (exact mirror of the sold file's Pricing tab) ──
+// Uses the same row model as xlsxGenerator.buildPricingSheet, so the cover's
+// tablet shows the columns, quantities and totals the buyer actually receives.
+function buildPricingSheetPreviewHTML(product, prof, theme) {
+  const xlsxGen = require('./xlsxGenerator');
+  const m = xlsxGen.pricingSheetModel(prof);
+  const money = (v) => (typeof v === 'number'
+    ? '$' + v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    : esc(v));
+  const rows = m.lines.map((l) => `<tr>
+      <td class="strong">${esc(l.name)}</td>
+      <td class="num">${money(l.basePrice)}</td>
+      <td class="num">${l.qty}</td>
+      <td class="num strong">${money(l.total)}</td>
+      <td class="num">${l.marginPct}%</td>
+      <td class="num">${money(Math.round(l.net * 100) / 100)}</td></tr>`).join('');
+  const taxPct = Math.round(m.taxRate * 100);
+
+  return shell(`${prof.name} — ${productCopy.deriveTitle(product, prof) || 'Pricing Calculator'}`, `
+    .dash-head{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+    .dash-head .ic{width:52px;height:52px;border-radius:14px;background:${theme.primary};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+    .dash-head h1{font-size:1.4rem;font-weight:900;letter-spacing:-0.4px}
+    .dash-head p{font-size:0.74rem;opacity:0.55;margin-top:3px}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+    .stat{background:#fff;border:1px solid rgba(15,23,42,0.07);border-left:4px solid ${theme.accent};border-radius:12px;padding:12px 14px}
+    .stat .lbl{font-size:0.6rem;letter-spacing:1.4px;text-transform:uppercase;opacity:0.5}
+    .stat .val{font-size:1.3rem;font-weight:900;margin-top:4px}
+    .stat .sub{font-size:0.66rem;color:#64748b;margin-top:2px}
+    table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden}
+    thead th{font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;padding:12px 14px;background:${theme.primary};color:#fff;text-align:left}
+    tbody td{padding:12px 14px;border-bottom:1px solid #edf1f7;font-size:1.05rem}
+    .num{text-align:right;font-variant-numeric:tabular-nums}
+    .strong{font-weight:800}
+    tfoot td{padding:12px 14px;font-size:1.05rem;background:#f8fafc}
+    tfoot .grand td{font-weight:900;font-size:0.92rem;background:${theme.primary};color:#fff}
+    .hint{margin-top:16px;display:flex;justify-content:space-between;align-items:center;background:${theme.primary};color:#fff;border-radius:12px;padding:12px 16px}
+    .hint .lbl{font-size:0.6rem;letter-spacing:1.6px;text-transform:uppercase;opacity:0.6}
+    .hint .val{font-size:0.82rem;font-weight:700}
+  `, `
+  <div class="page">
+    <div class="dash-head">
+      <div class="ic">🧮</div>
+      <div><h1>${esc(prof.name)} — Pricing Calculator</h1>
+      <p>Edit quantities — totals recalculate automatically</p></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="lbl">Service lines</div><div class="val">${m.lines.length}</div><div class="sub">pre-filled, editable</div></div>
+      <div class="stat"><div class="lbl">Grand total</div><div class="val">${money(Math.round(m.grand * 100) / 100)}</div><div class="sub">incl. ${taxPct}% tax</div></div>
+      <div class="stat"><div class="lbl">Margin</div><div class="val">${m.lines.length ? m.lines[0].marginPct + '%' : '—'}</div><div class="sub">built into every line</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Service</th><th class="num">Base Price</th><th class="num">Qty</th><th class="num">Line Total</th><th class="num">Margin %</th><th class="num">Net</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr><td colspan="3"></td><td class="num">Subtotal</td><td></td><td class="num">${money(Math.round(m.subtotal * 100) / 100)}</td></tr>
+        <tr><td colspan="3"></td><td class="num">Tax (${taxPct}%)</td><td></td><td class="num">${money(Math.round(m.tax * 100) / 100)}</td></tr>
+        <tr class="grand"><td colspan="3"></td><td class="num">Grand Total</td><td></td><td class="num">${money(Math.round(m.grand * 100) / 100)}</td></tr>
+      </tfoot>
+    </table>
+    <div class="hint"><div><div class="lbl">Opens in</div><div class="val">Excel · Google Sheets · Numbers</div></div><div><div class="lbl">Formulas</div><div class="val">LIVE</div></div></div>
   </div>`, theme);
 }
 // ── DECISION MATRIX ──────────────────────────────────────────────────────
@@ -1521,7 +1588,7 @@ function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, c
   // inside the real screen, so matching the photo screen's own corner curvature
   // (and letting the tablet's matte screen show through the corner) makes it read
   // as glass rather than a pasted-on rectangle.
-  const screenRadius = adaptive ? Math.max(10, Math.round(S.width * 0.03)) : 4;
+  const screenRadius = adaptive ? Math.max(18, Math.round(S.width * 0.06)) : 4;
   const labelH = Math.max(32, Math.min(44, Math.round(screenH * 0.07)));
   // Exact rectangle the product page raster occupies, in 1200x1800 master
   // coordinates. Emitted as data attributes so the cover QA gate can re-locate
@@ -1543,7 +1610,8 @@ function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, c
   const benSize = compactCopy ? 19 : (availableLeftWidth < 620 ? 24 : 28);
   const copyMaxWidth = (overlapsVertical && S.x > 460 && S.x < 1000) ? `${Math.max(420, S.x - 88)}px` : '100%';
   const shownBenefits = compactCopy ? benefits.slice(0, 2) : benefits.slice(0, 3);
-  const midBottomPad = compactCopy ? 104 : 112;
+  // Copy must clear the footer band (bottom 180px, 96px tall) with a margin.
+  const midBottomPad = compactCopy ? 150 : 160;
   const kicker = `${String(prof.name || '').toUpperCase()}`;
   const headingFont = (th.brief && th.brief.fonts && th.brief.fonts.heading) || 'Space Grotesk';
   const fontCss = `font-family:'${String(headingFont).replace(/[^a-zA-Z0-9 -]/g, '')}', 'Inter', system-ui, sans-serif;`;
@@ -1561,7 +1629,7 @@ body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
 .ts-fallback{position:absolute;inset:0;background:linear-gradient(140deg,${kc} 0%,#14110f 78%)}
 .ts-inner{position:relative;z-index:3;height:1650px;display:flex;flex-direction:column;padding:206px 64px 0;pointer-events:none}
 .ts-top{display:flex;justify-content:space-between;align-items:center}
-.ts-brand{align-self:flex-start;font-size:15px;font-weight:800;letter-spacing:3px;color:#2dd4bf;background:rgba(9,9,11,.72);padding:7px 14px;border-radius:3px}
+.ts-brand{align-self:flex-start;font-size:17px;font-weight:800;letter-spacing:3px;color:#5eead4;background:rgba(9,9,11,.92);padding:9px 16px;border-radius:3px;box-shadow:0 2px 12px rgba(0,0,0,.45)}
 .ts-kicker{font-size:22px;font-weight:800;letter-spacing:2px;text-transform:uppercase;background:${kc};padding:12px 24px;border-radius:0}
 .ts-mid{margin-top:auto;padding-bottom:${midBottomPad}px;max-width:${copyMaxWidth}}
 .ts-title{font-size:${titleSize}px;font-weight:900;line-height:.97;letter-spacing:-3px;text-shadow:0 8px 34px rgba(0,0,0,.65)}
@@ -1569,7 +1637,7 @@ body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
 .ts-bens{margin-top:${compactCopy ? 14 : 34}px;display:flex;flex-direction:column;gap:${compactCopy ? 10 : 14}px}
 .ts-ben{display:flex;align-items:center;gap:16px;font-size:${benSize}px;font-weight:700;text-shadow:0 3px 14px rgba(0,0,0,.75)}
 .ts-ben .ck{width:${compactCopy ? 34 : 46}px;height:${compactCopy ? 34 : 46}px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-size:${compactCopy ? 18 : 26}px;font-weight:900;flex-shrink:0}
-.ts-foot{position:absolute;z-index:3;left:0;right:0;bottom:150px;background:rgba(12,12,13,.72);height:100px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:1px solid rgba(255,255,255,.16)}
+.ts-foot{position:absolute;z-index:3;left:0;right:0;bottom:180px;background:rgba(12,12,13,.72);height:96px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:1px solid rgba(255,255,255,.16)}
 .ts-format{font-size:21px;font-weight:800;letter-spacing:2px;color:#e4e4e7}
   .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:inset 0 0 26px rgba(15,23,42,.10);' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? screenRadius + 'px' : '10px'}}
   .ts-device{${adaptive ? 'display:none' : `position:absolute;inset:0;background:#f4f4f5;border-radius:22px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px #d4d4d8;overflow:hidden`}}
@@ -1917,7 +1985,7 @@ function buildDNAHTML(prof, productType, title, extraCss, body) {
 module.exports = {
   esc, priceNum, parseServices, baseStyle, shell, SYSTEM_FONT,
   buildInvoiceHTML, buildChecklistHTML, buildJournalHTML, buildBrandKitHTML,
-  buildTablePreviewHTML, buildDecisionMatrixHTML, buildROIHTML,
+  buildTablePreviewHTML, buildPricingSheetPreviewHTML, buildDecisionMatrixHTML, buildROIHTML,
   buildCoverHTML, buildWebsiteHTML,
   buildSocialPostHTML, buildSocialStoryHTML, buildSocialCarouselHTML,
   buildPlannerHTML, buildWallArtHTML, buildWorksheetHTML, buildPartyPrintableHTML,

@@ -399,7 +399,7 @@ function buildArtPrompt(prof, product, profile = 'photo-cover', theme = {}) {
     'Top-down flat-lay photograph, 2:3 portrait canvas, native 1200x1800 pixels',
     role ? `setting and lighting: ${direction.look || styleTextureFromScene(direction.scene)}` : direction.scene,
     role ? `set ${role.scene}` : null,
-    'one blank white tablet lying completely flat, screen is a plain matte-white blank surface with no interface',
+    'one blank white tablet lying completely flat, framed by a thin black-and-silver metal bezel so the matte-white screen is clearly bounded by a dark rim, screen is a plain matte-white blank surface with no interface',
     'tablet fixed in the right 45% of frame, vertically centered, approximately 40% of frame width, leave the left 55% visually quiet for copy',
     role
       ? `the only tools in frame are ${role.props}, placed neatly beside the tablet and never overlapping it`

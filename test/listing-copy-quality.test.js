@@ -55,3 +55,12 @@ test('mapGumroadAnchor maps niche, type, price and marketplace id', () => {
   const d = mp.mapGumroadAnchor({ id: 333, name: 'Something Unmapped' });
   assert.equal(d.profession_id, 28);
 });
+
+test('spreadsheet listing names the real workbook tabs and rejects filler taglines', () => {
+  const out = seo.generateSEO(PROF, 'spreadsheet', 'Auto Theme', []);
+  for (const tab of ['Pricing tab', 'P&L tab', 'Client ROI tab', 'Cash Flow']) {
+    assert.ok(out.description.includes(tab), `missing tab mention: ${tab}`);
+  }
+  assert.ok(!/how the work actually goes|accounts for how/i.test(out.description));
+  assert.equal(seo.listingCopyGate('Pricing Tool built for HVAC — the version that accounts for how the work actually goes.', out.specifics).verdict, 'fail');
+});

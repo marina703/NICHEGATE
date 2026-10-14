@@ -158,7 +158,7 @@ test('judge: a no-art cover only has to prove the page landed (no tablet photo t
 
 function makeCoverFixture({ manifest, coverBytes = Buffer.from([1, 2, 3, 4]) } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ng-coverqa-'));
-  const coverPath = path.join(dir, 'roofing-spreadsheet-1-cover-v7.jpg');
+  const coverPath = path.join(dir, 'roofing-spreadsheet-1-cover-v8.jpg');
   fs.writeFileSync(coverPath, coverBytes);
   fs.writeFileSync(fileFactory.coverMasterPath(coverPath), Buffer.from([9, 9, 9]));
   if (manifest !== null) {
@@ -225,7 +225,7 @@ test('verifyCover: missing manifest, missing master and missing file all block',
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ng-coverqa-'));
   try {
-    const coverPath = path.join(dir, 'x-cover-v7.jpg');
+    const coverPath = path.join(dir, 'x-cover-v8.jpg');
     fs.writeFileSync(coverPath, Buffer.from([1]));
     const v = await qa.verifyCover({ id: 4242 }, { coverPath, deps: passingDeps });
     assert.equal(v.publishAllowed, false);

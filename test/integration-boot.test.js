@@ -23,9 +23,11 @@ const { DatabaseSync } = require('node:sqlite');
 
 const PORT = 5400 + Math.floor(Math.random() * 500);
 
-function get(pathname) {
+// Cold PDF renders launch headless Chrome on first hit, so the socket timeout
+// is per-call: the default covers JSON routes, the PDF route gets more headroom.
+function get(pathname, timeout = 5000) {
   return new Promise((resolve) => {
-    const req = http.get({ host: '127.0.0.1', port: PORT, path: pathname, timeout: 5000 }, (res) => {
+    const req = http.get({ host: '127.0.0.1', port: PORT, path: pathname, timeout }, (res) => {
       let body = '';
       res.on('data', (c) => (body += c));
       res.on('end', () => resolve({ status: res.statusCode, body, headers: res.headers }));
@@ -100,7 +102,7 @@ test('boot integration: health, truthful automation status, preview-html parity'
 
     // Actual deliverable preview must stream an inline PDF and allow only
     // same-origin framing (the catalog drawer embeds this route in an iframe).
-    const pdfPreview = await get(`/api/products/${pdfProductId}/preview`);
+    const pdfPreview = await get(`/api/products/${pdfProductId}/preview`, 60000);
     assert.equal(pdfPreview.status, 200);
     assert.match(pdfPreview.headers['content-type'] || '', /^application\/pdf(?:;|$)/i);
     assert.match(pdfPreview.headers['content-disposition'] || '', /^inline;/i);
