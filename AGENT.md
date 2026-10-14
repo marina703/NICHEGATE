@@ -1,7 +1,7 @@
 # AGENT.md — Autonomous Agent Operating Manual for NicheGate
 
-**Project:** NicheGate — Autonomous Digital Product Factory & Operations Command Center.
-**Mission:** Discover micro-niche demand → generate file-backed digital deliverables (PDF, XLSX, ZIP) → publish to Gumroad & Etsy → distribute via Pinterest & Sequences → evaluate real sales elasticity → amplify winners. All 24/7, deterministic, and self-healing.
+**Project:** NicheGate — an autonomous digital-product factory operated through a private command center; there is no customer-facing NicheGate storefront.
+**Mission:** End state is an AI-run full loop: discover and forecast demand → create and edit file-backed digital deliverables (PDF, XLSX, ZIP) → quality-check → publish to external marketplaces → measure real outcomes → improve and scale winners. The command center is for visibility, configuration, and operator control. Keep current production safety opt-ins until the owner authorizes the operating mode.
 
 ---
 

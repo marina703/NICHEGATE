@@ -270,12 +270,12 @@ const PROFESSION_SCENES = [
     avoid: 'no calipers, no drafting instruments, no office stationery, no wrenches' },
   { match: /plumb|pipe|drain|septic|water heater/i,
     scene: 'beside open copper pipework under a sink in a tiled utility room, pipe runs and shut-off valves in frame',
-    props: 'a basin wrench, slip-joint pliers and Teflon tape',
-    avoid: 'no calipers, no drafting instruments, no laptops' },
+    props: 'a basin wrench, slip-joint pliers and a pipe cutter',
+    avoid: 'no calipers, no drafting instruments, no laptops, no tape rolls' },
   { match: /electric|alarm|solar|low voltage|security install/i,
     scene: 'in front of a neat residential electrical panel with rows of breakers on a concrete utility-room floor, conduit runs in frame',
-    props: 'a voltage tester, insulated screwdrivers and a roll of electrical tape',
-    avoid: 'no calipers, no paint brushes, no drafting instruments' },
+    props: 'a voltage tester, insulated screwdrivers and a wire stripper',
+    avoid: 'no calipers, no paint brushes, no drafting instruments, no tape rolls' },
   { match: /hvac|heating|cooling|air duct|furnace|refrigerat/i,
     scene: 'beside a rooftop condenser unit and galvanised ductwork, service valves and copper line set in frame',
     props: 'manifold gauges, a fin comb and a service wrench',
@@ -286,8 +286,8 @@ const PROFESSION_SCENES = [
     avoid: 'no calipers, no laptops, no laboratory glassware' },
   { match: /mold|asbestos|inspection|inspector|energy audit|thermograph|radon|mould/i,
     scene: 'in a residential basement corner with exposed joists and plastic sheeting, damp concrete block wall in frame',
-    props: 'a pin-type moisture meter, a respirator and a clipboard',
-    avoid: 'no calipers, no laptops, no clean-room glassware' },
+    props: 'a pin-type moisture meter, a respirator and a marking crayon',
+    avoid: 'no calipers, no laptops, no clean-room glassware, no clipboards, no paper' },
   { match: /drywall|plaster|stucco|painter|paint(ing)?\b|wallpaper/i,
     scene: 'on a sheet of fresh drywall in a half-renovated room, a taping seam, blue painter tape lines and a drop cloth in frame',
     props: 'a taping knife, a mud pan and a sanding block',
@@ -301,29 +301,29 @@ const PROFESSION_SCENES = [
     props: 'a handsaw, a carpenter pencil and a folding ruler',
     avoid: 'no calipers, no office stationery, no laptop' },
   { match: /clean|janitorial|maid|housekeep/i,
-    scene: 'in a just-cleaned bright room beside a bucket of water and folded microfibre cloths, spotless vinyl floor and a window with daylight in frame',
-    props: 'a spray bottle, folded microfibre cloths and a scrub brush',
-    avoid: 'no calipers, no office stationery, no construction tools' },
+    scene: 'in a just-cleaned bright room beside a bucket of water and folded dark microfibre cloths, spotless vinyl floor and a window with daylight in frame',
+    props: 'a spray bottle, a folded dark microfibre cloth and a scrub brush',
+    avoid: 'no calipers, no office stationery, no construction tools, no bright white cloths' },
   { match: /notary|loan signing|escrow|title|paralegal|legal/i,
     scene: 'on a dark wood desk with a closed manila file folder and a stack of sealed envelopes, warm office light in frame',
     props: 'an embossing seal, a stamp pad and a black pen',
     avoid: 'no calipers, no tools, no construction equipment' },
   { match: /tax|account|bookkeep|payroll|finance|financial|consult|advisor|insur|real estate|property/i,
-    scene: 'on a dark mahogany desk with a closed leather portfolio and a short stack of blank cream paper, tall-window daylight in frame',
-    props: 'a fountain pen, a paper ledger and reading glasses',
-    avoid: 'no calipers, no tools, no machinery' },
+    scene: 'on a dark mahogany desk with a closed leather portfolio, tall-window daylight in frame',
+    props: 'a fountain pen, a closed dark notebook and reading glasses',
+    avoid: 'no calipers, no tools, no machinery, no loose paper, no open books' },
   { match: /photo|videograph|film|cinemat|camera/i,
-    scene: 'in a natural-light studio beside a camera bag and a folded reflector, seamless paper backdrop edge in frame',
-    props: 'a camera battery, a lens cloth and a roll of gaffer tape',
-    avoid: 'no calipers, no office stationery, no construction tools' },
+    scene: 'in a natural-light studio beside a camera bag, dark grey backdrop stand edge in frame',
+    props: 'a camera battery, a lens cloth and a lens cap',
+    avoid: 'no calipers, no office stationery, no construction tools, no tape rolls' },
   { match: /salon|barber|beauty|nail|lash|esthetic|makeup|hair/i,
     scene: 'on a clean marble styling station beside folded towels and a spray bottle, round mirror edge in frame',
     props: 'a round brush, a comb and a pair of shears',
     avoid: 'no calipers, no power tools, no laptops' },
   { match: /massage|spa|wellness|yoga|therap|acupunct|meditat/i,
     scene: 'on a calm treatment-room surface beside folded linen towels and a small ceramic dish, soft diffused light in frame',
-    props: 'a rolled linen towel, a smooth stone and a small bottle of oil',
-    avoid: 'no calipers, no tools, no office stationery' },
+    props: 'a folded dark towel, a smooth stone and a small bottle of oil',
+    avoid: 'no calipers, no tools, no office stationery, no rolled towels' },
   { match: /dog|pet|groom|vet|animal/i,
     scene: 'on a stainless grooming table beside folded towels and a hair-covered rubber mat, tiled floor and daylight in frame',
     props: 'clippers, a slicker brush and a pair of blunt scissors',
@@ -346,16 +346,16 @@ const PROFESSION_SCENES = [
     avoid: 'no calipers, no office stationery, no laptops' },
   { match: /recovery|sobriety|sobrie|counsel|mental health|addiction/i,
     scene: 'on a quiet table beside a folded blanket and a small potted plant, soft curtain-filtered morning light in frame',
-    props: 'an open journal, a steaming mug and a pen',
-    avoid: 'no calipers, no tools, no alcohol, no branded packaging' },
+    props: 'a closed dark journal, a steaming mug and a pen',
+    avoid: 'no calipers, no tools, no alcohol, no branded packaging, no open books, no loose paper' },
   { match: /pinterest|etsy|creator|marketing|social media|content|influencer|newsletter/i,
     scene: 'on a bright light-wood desk beside a folded fabric swatch and a small potted plant, soft ring-light daylight in frame',
     props: 'a phone, a notebook and a cup of coffee',
     avoid: 'no unrelated electronics, no grid backgrounds' },
   { match: /wedding|event|planner|florist|decorat/i,
-    scene: 'on a linen-covered table beside a small floral arrangement and folded ribbon spools, soft window light in frame',
-    props: 'a pair of scissors, a spool of ribbon and a fabric swatch ring',
-    avoid: 'no calipers, no construction tools, no laptops' }
+    scene: 'on a linen-covered table beside a small floral arrangement and folded ribbon, soft window light in frame',
+    props: 'a pair of scissors, folded ribbon and a fabric swatch ring',
+    avoid: 'no calipers, no construction tools, no laptops, no ribbon spools' }
 ];
 
 /** The COVER_SCENES strings read "<subject surface>, <props>, <lighting>, <styling>".
@@ -399,16 +399,18 @@ function buildArtPrompt(prof, product, profile = 'photo-cover', theme = {}) {
     'Top-down flat-lay photograph, 2:3 portrait canvas, native 1200x1800 pixels',
     role ? `setting and lighting: ${direction.look || styleTextureFromScene(direction.scene)}` : direction.scene,
     role ? `set ${role.scene}` : null,
-    'one blank white tablet lying completely flat, framed by a thin black-and-silver metal bezel so the matte-white screen is clearly bounded by a dark rim, screen is a plain matte-white blank surface with no interface',
-    'tablet fixed in the right 45% of frame, vertically centered, approximately 40% of frame width, leave the left 55% visually quiet for copy',
+    'exactly ONE blank white tablet lying completely flat, framed by a crisp thin black-and-silver metal bezel whose dark inner rim clearly outlines all four sides of the matte-white blank screen, no interface',
+    'the tablet is the single brightest object in the frame — every prop is smaller, darker and matte so nothing competes with the screen',
+    'tablet fixed in the right 46% of frame, vertically centered, approximately 46% of frame width and 42% of frame height, leave the left 54% visually quiet for cover copy',
     role
-      ? `the only tools in frame are ${role.props}, placed neatly beside the tablet and never overlapping it`
-      : 'two or three contextual physical props only, neatly spaced, no overlapping the tablet slot',
+      ? `the only tools in frame are ${role.props}, small, dark or earth-toned, placed neatly beside the tablet and never overlapping it`
+      : 'two or three small contextual physical props only, dark or earth-toned, neatly spaced, no overlapping the tablet slot',
     'photographed directly from above with parallel edges, soft realistic contact shadow, consistent physical light direction',
     `design DNA ${direction.name}${style ? ` / ${style}` : ''}${font ? ` / ${font} typography` : ''}${accent ? ` / restrained ${accent} accent` : ''}`,
     'photorealistic atmospheric product photography, professional product photography, subtle natural grain',
     'real photograph taken on a full-frame DSLR with a 35mm lens in natural light, authentic materials showing real wear, shallow depth of field, documentary realism, not an illustration, not a 3d render, not CGI',
     'no text, no letters, no words, no labels, no writing, no logos, no watermark, no screen content, no visible screens except the specified blank tablet, no interface, no UI elements, no charts, no graphs, no documents, no readable text or documents, no paper with marks',
+    'no tape rolls, no rolls of tape, no gaffer tape, no white or metallic circular objects, no clipboards, no open notebooks, no open journals, no loose paper sheets, no second tablet, no phone, no laptop',
     role ? role.avoid : null
   ].filter(Boolean).join(', ');
 }
@@ -637,6 +639,58 @@ function detectWhiteRect(map, W, H, opts = {}) {
     const rect = { x: x0, y: y0, width: x1 - x0 + step, height: y1 - y0 + step };
     const area = rect.width * rect.height;
     if (area < minFrac * W * H || area > maxFrac * W * H) return null;
+    // ── TABLET SHAPE GATE ──────────────────────────────────────────────────
+    // A big bright prop (a roll of tape, a paper ledger, an open journal) can
+    // out-scan the real screen. The covers that composite correctly all share
+    // two physical traits the props lack: STRAIGHT parallel edges (every row
+    // of a rounded prop tapers toward its top/bottom) and a DARK bezel rim
+    // immediately outside all four edges. Reject candidates missing either.
+    const meanAt = (x, y) => map[y * W + x];
+    // 1) Edge straightness: sample row runs inside the band; a rectangle keeps
+    //    ~the same run length on every row, a roll/journal shrinks at the ends.
+    const band = rows.slice(best.i, best.j + 1);
+    const rowLens = band.map(({ y }) => {
+      let a = x0, b = x1;
+      while (a <= x1 && meanAt(a, y) < bright) a++;
+      while (b >= x0 && meanAt(b, y) < bright) b--;
+      return b >= a ? b - a : 0;
+    }).filter((l) => l > 0);
+    if (rowLens.length < 3) return null;
+    const avgLen = rowLens.reduce((s, l) => s + l, 0) / rowLens.length;
+    const straight = rowLens.filter((l) => l >= avgLen * 0.85).length / rowLens.length;
+    if (straight < 0.7) return null; // rounded prop — not a tablet
+    // 2) Dark bezel: the black-and-silver rim must ring the rect on all sides.
+    //    Sample a 1-2px band just OUTSIDE each edge and require it to read
+    //    substantially darker than the screen interior.
+    const interior = (() => {
+      let s = 0, n = 0;
+      for (let y = y0 + 2; y < y1; y += 2) for (let x = x0 + 2; x < x1; x += 2) { s += meanAt(x, y); n++; }
+      return n ? s / n : 0;
+    })();
+    // Sample a thin band just OUTSIDE each edge and take the WEAKEST of the
+    // four. A bezeled tablet rings dark on all four sides. A prop (tape roll,
+    // open journal, paper ledger) rests ON a lit surface, so at least one long
+    // side has no rim — averaging the four would let that missing side hide
+    // behind the darker ones, so we require EVERY edge to read dark.
+    const o = Math.max(2, Math.round(step * 1.5));
+    const sideMean = (samples) => {
+      const vals = samples.filter(({ x, y }) => x >= 0 && x < W && y >= 0 && y < H).map(({ x, y }) => meanAt(x, y));
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    const hSamples = [];
+    for (let x = Math.max(0, x0 - o); x < Math.min(W, x1 + o); x += 1) {
+      hSamples.push({ x, y: y0 - o }, { x, y: y0 - 1 }, { x, y: y1 + 1 }, { x, y: y1 + o });
+    }
+    const vSamples = [];
+    for (let y = Math.max(0, y0 - o); y < Math.min(H, y1 + o); y += 1) {
+      vSamples.push({ x: x0 - o, y }, { x: x0 - 1, y }, { x: x1 + 1, y }, { x: x1 + o, y });
+    }
+    const sides = [sideMean(hSamples), sideMean(vSamples)];
+    // Weakest-edge gap: interior luma minus the DARKEST-reading side band.
+    // A drawn black/silver rim reads ~40-90 below a ~200 luma screen on every
+    // side; a prop's un-rimmed side sits only ~10-40 below its own bright face.
+    const weakest = sides.some((v) => v == null) ? 0 : interior - Math.max(...sides);
+    if (weakest < 34) return null;
     return rect;
   };
 

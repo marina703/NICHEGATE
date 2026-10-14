@@ -31,6 +31,8 @@ const TOOL_SPECS = [
     desc: 'Set one product status — approve/reject a single draft.' },
   { name: 'generate', args: '{ "idea": "<what to make>", "count": 1 }',
     desc: 'Draft new product(s) from a free-text idea into the review queue (origin=manual).' },
+  { name: 'brainstorm', args: '{ "niche": "<niche>", "type": "checklist|spreadsheet|...", "count": 3, "brief": "<optional>" }',
+    desc: 'Brainstorm distinct differentiated concept directions for a niche — each with a trend forecast. Use when the boss asks for ideas, angles or "what should we make for X".' },
   { name: 'generate_for_trend', args: '{ "trendId": 3, "count": 3 }',
     desc: 'Draft products for a tracked trend window.' },
   { name: 'publish', args: '{ "id": 12 }',
@@ -124,6 +126,16 @@ function planDeterministic(message) {
   const has = (...ws) => ws.some(w => t.includes(w));
   if (!t.trim()) return null;
 
+  // "brainstorm ideas for X" / "what should we make for X" — concept
+  // directions, not product drafts. Must precede the generic make branch.
+  if (has('brainstorm', 'ideas for', 'concept directions', 'angles for', 'what should we make', 'what to make')) {
+    const niche = String(message)
+      .replace(/^.*?(brainstorm|ideas for|concept directions|angles for|what should we make|what to make)/i, '')
+      .replace(/^\s*(some\s+)?(ideas?\s+|concepts?\s+|directions?\s+|angles?\s+)?for\s+/i, '')
+      .replace(/[?.!]+$/, '')
+      .trim().slice(0, 80);
+    if (niche) return { plan: [{ tool: 'brainstorm', args: { niche, count: 3 } }], say: null };
+  }
   if (has('make ', 'create ', 'generate ')) {
     const idea = String(message).replace(/^(please\s+)?(make|create|generate)\s+(me\s+)?(a|an|some)?\s*/i, '').trim() || String(message);
     return { plan: [{ tool: 'generate', args: { idea, count: 1 } }], say: null };
@@ -202,6 +214,12 @@ function answerFor(tool, args, r) {
   if (tool === 'generate') {
     const n = ((r && r.created) || []).length;
     return `Drafted ${n} product${n === 1 ? '' : 's'} from "${(args || {}).idea}" — waiting in the Review queue.`;
+  }
+  if (tool === 'brainstorm') {
+    const dirs = (r && r.directions) || [];
+    if (!dirs.length) return `No solid directions for "${(args || {}).niche}" — try a different niche or angle.`;
+    const list = dirs.map(d => `${d.index}. ${d.name}${d.forecast && d.forecast.trending ? ' 🔥 trending' : ''} — ${String(d.pitch || '').slice(0, 90)}`).join('\n');
+    return `Concept directions for "${(args || {}).niche}" (${dirs.length}):\n${list}`;
   }
   if (tool === 'remember') return `Remembered: "${(args || {}).content}"`;
   if (tool === 'ask_boss') return 'Asked the boss — the question is in the Boss inbox and the Discord ping is on its way.';

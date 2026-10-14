@@ -495,6 +495,9 @@ async function openProduct(id) {
     </div></div>
     <div id="drawer-seo"></div>`;
   openDrawer(p ? p.name : 'Product', body);
+  // Descriptions load with the drawer — the panel used to stay empty until
+  // the operator found the "SEO" button, which read as "no description".
+  loadSeo(id).catch(() => {});
 }
 
 async function loadSeo(id) {

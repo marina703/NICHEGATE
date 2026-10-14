@@ -80,22 +80,23 @@ The dashboard was rebuilt as a no-bundler ES-module console. Follow these invari
 
 ## Known open items (next 3 steps — see TASK.md for full detail)
 
-1. Set `MODEL_ENABLED=true` in `.env` (key already present) to switch on the concept engine; the Railway production service must also have a valid `DISCORD_WEBHOOK_URL` or startup fails closed.
-2. Verify `ETSY_CLIENT_SECRET` is **distinct** from `ETSY_CLIENT_ID` (readiness checker flags `id === secret`); reconnect Etsy at `/setup`.
-3. Start server → approve Review Queue + Deploy Bundles (Gumroad 10/day limit; re-run daily).
+1. ~~Set `MODEL_ENABLED=true` in `.env`~~ — DONE (already true locally; see 2026-10-11 TASK.md entry). The Railway production service must also have a valid `DISCORD_WEBHOOK_URL` or startup fails closed.
+2. ~~Verify `ETSY_CLIENT_SECRET` is distinct from `ETSY_CLIENT_ID`~~ — DONE 2026-10-11 (readiness check passes). An owner-side Etsy reconnect at `/setup` remains the only way to refresh a stale/expired OAuth token.
+3. Start server → approve Review Queue + Deploy Bundles (Gumroad 10/day limit; re-run daily). Owner-gated: real marketplace publishing. Optional opt-in: `QUALITY_AUTO_APPROVE=true` lets the cycle auto-approve FLIGHT_READY (≥85) drafts via `taskQualityGate` (manual products never auto-approve; production publish locks still apply).
 
 ## Environment config snapshot (secrets redacted)
 
-- `OPENROUTER_API_KEY` set; `MODEL_ENABLED` **NOT set → AI concept layer OFF**.
+- `OPENROUTER_API_KEY` set; `MODEL_ENABLED` **set → AI concept layer ON** (verified 2026-10-14 against a live server).
 - `COVER_ART_PROVIDER=cloudflare`; `COVER_WORKER_URL`/`COVER_WORKER_KEY` set.
-- `GUMROAD_ACCESS_TOKEN` set; `ETSY_CLIENT_ID` set.
+- `GUMROAD_ACCESS_TOKEN` set; `ETSY_CLIENT_ID` set; `ETSY_CLIENT_SECRET` distinct from the ID.
 - Historical local snapshot: `DISCORD_WEBHOOK_URL` was empty; production startup now rejects this configuration. `FAL_API_KEY` not set (fal unused while on Cloudflare).
+- Not set by default (opt-ins): `AUTO_START_ENABLED`, `AUTO_PUBLISH_ENABLED`, `AUTO_PUBLISH_MANUAL`, `QUALITY_AUTO_APPROVE`.
 
 ## Tests
 
 ```
 node --test        # or: npm test
 ```
-Expected: 77 tests · 18 suites · 73 pass · 0 fail · 4 skipped (verified 2026-09-21).
+Expected: 349 tests · 29 suites · 345 pass · 0 fail · 4 skipped (verified 2026-10-14).
 
 The suite is hermetic: it must pass on a fresh database with no seed data. `test/concept.test.js` provisions and cleans up its own fixture — do not reintroduce a dependency on production rows.

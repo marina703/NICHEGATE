@@ -32,7 +32,18 @@ describe('agentWorker.parseToolCall', () => {
 });
 
 describe('agentWorker.planDeterministic', () => {
-  it('plans generation from a make request (article stripped, like the Make-This bar)', () => {
+  it('plans concept brainstorming before the generic make branch', () => {
+    const p = agent.planDeterministic('brainstorm ideas for beekeeping');
+    assert.equal(p.plan[0].tool, 'brainstorm');
+    assert.equal(p.plan[0].args.niche, 'beekeeping');
+    assert.equal(p.plan[0].args.count, 3);
+    // "what should we make for X" is an ideas question, not a draft request.
+    const q = agent.planDeterministic('what should we make for drone surveying?');
+    assert.equal(q.plan[0].tool, 'brainstorm');
+    assert.equal(q.plan[0].args.niche, 'drone surveying');
+  });
+
+  it('still plans generation from a make request (article stripped, like the Make-This bar)', () => {
     const p = agent.planDeterministic('make a dog bakery price list');
     assert.equal(p.plan[0].tool, 'generate');
     assert.equal(p.plan[0].args.idea, 'dog bakery price list');

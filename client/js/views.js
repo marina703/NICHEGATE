@@ -721,12 +721,15 @@ export function social(s) {
   const postRows = posts.map(p => {
     const color = p.status === 'posted' ? 'var(--green)' : p.status === 'cancelled' ? 'var(--red)' : 'var(--amber)';
     const on = (s.selectedMisc || new Set()).has(`post:${p.id}`);
+    // Deterministic engagement forecast badge (server-side, no AI needed).
+    const fc = p.forecast && p.forecast.prediction ? p.forecast : null;
+    const fcBadge = fc ? `<span title="Predicted engagement: ${esc(fc.prediction)} (${esc(String(fc.score))}/100)" style="margin-left:6px">${fc.prediction === 'high' ? '🔥' : fc.prediction === 'medium' ? '⚡' : '💤'}</span>` : '';
     return `<div class="flex${on ? ' sel' : ''}" style="padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px">
       <button class="btn ghost sm" data-action="misc-toggle-select" data-key="${encodeURIComponent(`post:${p.id}`)}" title="Select">${on ? '☑' : '☐'}</button>
       <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0"></span>
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(String(p.content || '').slice(0, 70))}…</div>
-        <div class="hint">${esc(p.platform)} · ${esc(timeAgo(p.scheduledAt))} · ${esc(p.status)}</div>
+        <div class="hint">${esc(p.platform)} · ${esc(timeAgo(p.scheduledAt))} · ${esc(p.status)}${fcBadge}</div>
       </div>
       ${sparkBtn('post', p.id, String(p.content || '').slice(0, 40))}
       ${p.status === 'scheduled' ? `<button class="btn red sm" data-action="social-cancel" data-id="${p.id}">Cancel</button>` : ''}

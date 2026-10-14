@@ -1,10 +1,10 @@
 # 🚪 NicheGate
 
-**An autonomous digital-product factory.** NicheGate discovers trending niches, generates sellable digital templates (invoices, calculators, checklists, journals, brand kits, social packs, complete toolkits), and publishes them to marketplaces — with human review gates where it matters.
+**A digital-product factory built toward end-to-end autonomy.** NicheGate's intended pipeline discovers and forecasts demand, creates and edits sellable digital products, checks their quality, publishes to external marketplaces, and learns from results. The operator interface is a private command center for visibility and control; NicheGate has no customer-facing storefront.
 
 > Tagline: *Templates for the oddly specific.*
 
-**Local app:** http://localhost:5000 · Storefront: `/store` · Setup: `/setup`
+**Local app:** http://localhost:5000 · Command center: `/` · Setup: `/setup` · Login: `/login`
 
 ---
 
@@ -144,7 +144,6 @@ Etsy keys: etsy.com/developers/register → set the redirect URI shown at `/setu
 | Automation | `GET /api/automation/status`, `POST /api/automation/run`, scheduler start/stop, `GET /api/automation/log` |
 | Console | `GET /api/console/overview`, `GET /api/console/bi` (health/deltas/series/listing-health/insights), `GET /api/console/actions`, `GET /api/console/runs`, `GET /api/console/stream` (SSE), `POST /api/console/run` |
 | Health | `GET /api/health/readiness` (redacted launch-readiness report) |
-| Storefront feed | `GET /api/store/products` (real listings + buy URLs + store URL) |
 
 ## Data
 

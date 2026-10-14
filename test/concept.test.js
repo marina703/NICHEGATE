@@ -1,8 +1,48 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { noveltyScore, parseConcept, generateConcept, applyConcept } = require('../server/services/conceptEngine');
+const { noveltyScore, parseConcept, generateConcept, applyConcept, forecastTrend, forecastProductEngagement } = require('../server/services/conceptEngine');
 const cfg = require('../server/services/modelConfig');
 const { db } = require('../server/database');
+
+test('forecastTrend is a deterministic no-op when the model layer is disabled', () => {
+  if (cfg.enabled) return; // live-key environments exercise the scored path below
+  const f = forecastTrend({ name: 'House Cleaning', slug: 'house-cleaning' }, 'checklist', { name: 'x', pitch: 'y' });
+  assert.deepEqual(f, { trending: false, score: 0 });
+});
+
+test('forecastTrend scores seasonal and compliance keywords consistently with its threshold', () => {
+  if (!cfg.enabled) return; // gated on cfg.enabled — scored path needs the layer on
+  const f = forecastTrend({ name: 'HVAC', slug: 'hvac' }, 'checklist', {
+    name: 'IRS Season Compliance Checklist',
+    pitch: 'limited holiday offer'
+  });
+  assert.equal(typeof f.score, 'number');
+  assert.equal(f.trending, f.score >= 30);
+});
+
+test('forecastProductEngagement reads the stored concept and is deterministic', () => {
+  const product = {
+    name: 'Gumroad Profit Tracker Spreadsheet',
+    concept: JSON.stringify({
+      name: 'Gumroad Profit Tracker Spreadsheet',
+      pitch: 'Track every dollar you earn and save hours each month.',
+      benefits: ['Revenue by niche', 'Fee math', 'Weekly snapshot'],
+      differentiator: 'Built for creators who sell digital downloads and need real net margins.'
+    })
+  };
+  const a = forecastProductEngagement(product, 'gumroad creators');
+  const b = forecastProductEngagement(product, 'gumroad creators');
+  assert.deepEqual(a, b, 'same inputs must produce the same forecast');
+  assert.ok(a.score > 0);
+  assert.ok(['low', 'medium', 'high'].includes(a.prediction));
+});
+
+test('forecastProductEngagement tolerates a missing/broken concept JSON', () => {
+  const withJunk = forecastProductEngagement({ name: 'Plain Checklist', concept: 'not json' }, 'cleaning');
+  const withNone = forecastProductEngagement({ name: 'Plain Checklist', concept: null }, 'cleaning');
+  assert.deepEqual(withJunk, withNone);
+  assert.equal(typeof withNone.score, 'number');
+});
 
 test('novelty gate rewards specific angles and rejects generic templates', () => {
   const generic = { name: 'Ultimate Invoice Template Kit', pitch: 'A simple basic template for everyone.', benefits: ['a', 'b', 'c'], differentiator: 'x' };

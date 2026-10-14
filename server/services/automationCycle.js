@@ -151,7 +151,7 @@ function taskGenerate(ctx) {
   const profs = db.prepare("SELECT * FROM professions WHERE status != 'archived'").all();
   let generated = 0;
   for (const prof of profs) {
-    const have = new Set(db.prepare("SELECT type FROM products WHERE profession_id = ? AND status IN ('draft','pending-review')").all(prof.id).map(r => r.type));
+    const have = new Set(db.prepare("SELECT type FROM products WHERE profession_id = ? AND status IN ('draft','pending-review','approved','listed','published')").all(prof.id).map(r => r.type));
     const missing = VARY_TYPES.filter(t => !have.has(t));
     if (!missing.length) continue;
     const type = missing[Math.floor(Math.random() * missing.length)];
@@ -204,9 +204,10 @@ async function taskPublishQueue(ctx) {
   const autoList = db.prepare('SELECT * FROM settings WHERE key = ?').get('auto_list');
   if (!autoList || autoList.value !== 'true') return ctx;
 
-  // Deploy policy: manual ("Make-this") products are local-only — they never
-  // auto-publish. Engine-generated inventory flows as before.
-  const approved = db.prepare("SELECT * FROM products WHERE status = 'approved' AND marketplace_id IS NULL AND (origin IS NULL OR origin != 'manual')").all();
+  // Deploy policy: manual ("Make-this") products are auto-published when
+  // AUTO_PUBLISH_MANUAL=true is set; default remains opt-out for safety.
+  const includeManual = String(process.env.AUTO_PUBLISH_MANUAL || '').toLowerCase() === 'true';
+  const approved = db.prepare("SELECT * FROM products WHERE status = 'approved' AND marketplace_id IS NULL AND (origin IS NULL OR ? = 1 OR origin != 'manual')").all(includeManual ? 1 : 0);
   let listed = 0;
 
   // Check Gumroad quota BEFORE attempting any publishes
@@ -282,6 +283,42 @@ async function safeTask(ctx, label, fn) {
   }
 }
 
+// ═══ QUALITY GATE (opt-in auto-approval) ═══
+// qualityEngine audits every draft/pending-review product on the 5-dimension
+// rubric; FLIGHT_READY (>= 85, zero defects, real on-disk file) products are
+// auto-approved into the publish queue when QUALITY_AUTO_APPROVE=true.
+// Default OFF — the review queue stays human-owned until the operator opts
+// in. origin='manual' products carry a human brief and are never auto-
+// approved. Never throws; production publishing locks are untouched.
+function taskQualityGate(ctx) {
+  try {
+    const optIn = String(process.env.QUALITY_AUTO_APPROVE || '').toLowerCase() === 'true';
+    ctx.qualityAutoApprove = optIn;
+    if (!optIn) return ctx;
+    const qualityEngine = require('./qualityEngine');
+    const rows = db.prepare("SELECT * FROM products WHERE status IN ('draft','pending-review') AND (origin IS NULL OR origin != 'manual') LIMIT 50").all();
+    let approved = 0;
+    let grounded = 0;
+    for (const p of rows) {
+      const audit = qualityEngine.auditProductById(p.id);
+      if (audit && audit.flightReady) {
+        db.prepare('UPDATE products SET status = ? WHERE id = ?').run('approved', p.id);
+        db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+          .run('quality_auto_approve', p.id, `FLIGHT_READY ${audit.score}/100 — auto-approved`, 'success');
+        approved++;
+      } else if (audit) {
+        grounded++;
+      }
+    }
+    ctx.qualityApproved = approved;
+    ctx.qualityGrounded = grounded;
+    if (approved > 0) console.log(`[AUTO] Quality gate: ${approved} flight-ready product(s) auto-approved, ${grounded} held for review`);
+  } catch (e) {
+    console.error('[AUTO] quality gate:', e.message);
+  }
+  return ctx;
+}
+
 async function runFullCycle(deps) {
   deps = deps || {};
   const ctx = {
@@ -306,6 +343,7 @@ async function runFullCycle(deps) {
     await safeTask(ctx, 'notify-generated', () => notifyGenerated(ctx));
     safeTask(ctx, 'seasonal', () => taskSeasonal(ctx));
   }
+  safeTask(ctx, 'quality-gate', () => taskQualityGate(ctx));
   await safeTask(ctx, 'publish-queue', () => taskPublishQueue(ctx));
   safeTask(ctx, 'pin-schedule', () => taskPinSchedule(ctx));
   safeTask(ctx, 'pin-drain', () => taskPinDrain(ctx));
@@ -380,6 +418,7 @@ module.exports = {
   taskPublishQueue,
   taskPinDrain,
   taskDesignReskin,
+  taskQualityGate,
   getWebhookUrl,
   TYPE_PRICES,
   VARY_TYPES

@@ -125,6 +125,8 @@ test('composite cover uses a raster real-preview slot with DNA styling and no ba
     primary: '#123456', accent: '#ab7832', font: "'Fraunces'", brief: { fonts: { heading: 'Fraunces' } }
   }, 'data:image/jpeg;base64,AAAA', 'data:image/jpeg;base64,REALPRODUCT');
   assert.match(cover, /<img[^>]+src="data:image\/jpeg;base64,REALPRODUCT"/);
+  assert.match(cover, /\.product-preview-screen img\{[^}]*transform:scale\(1\.16\);transform-origin:top center/,
+    'rasterized product detail should be modestly enlarged inside the clipped screen for thumbnail legibility');
   assert.match(cover, /rotate\(-[0-9.]+deg\)/);
   assert.match(cover, /box-shadow:0 30px 60px -18px rgba\(0,0,0,.55\)/);
   assert.match(cover, /rgba\(255,248,232,.07\)/);
@@ -250,7 +252,8 @@ test('fileFactory invalidates prior thumbnail paths after a cover design version
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v4-123.jpg'), false);
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v5-123.jpg'), false);
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v6-123.jpg'), false);
-  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v8-123.jpg'), true);
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v8-123.jpg'), false, 'v8 previews predate the enlarged product-screen treatment');
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v9-123.jpg'), true);
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v7-123.jpg'), false, 'v7 covers were drawn from the generic mockup and must regenerate');
   assert.equal(fileFactory.isCurrentCoverPath(null), false);
 });

@@ -1,5 +1,72 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
+## ── 2026-10-14: E2E FINISH PASS — verification, fixes, autonomy wiring ──
+Owner ask: "finish the project with a minimum of 8/10 quality across the board, e2e, front to back."
+- BASELINE: full `node --test` was NOT green on arrival — 1 real failure
+  (test/design-critic.test.js "cover critic … reuses only matching hash"): the
+  uncommitted COVER_VERSION bump v8→v9 in fileFactory.js was never propagated
+  to the test fixtures (v8 paths fail isCurrentCoverPath → cache miss). Fixed
+  by updating all four fixture names; design-critic 20/20, full suite green.
+- E2E LIVE (throwaway port 5099, scratch DB copy of data/profession-box.db —
+  dev DB untouched, 60 products / 10 listed): login 200; GET sweep of all 77
+  registered routes → 66×200, and every non-200 is CORRECT behavior (missing
+  query params → 400, fake IDs → 404). auth gate holds (anon 401 everywhere
+  except /login, /api/auth/*, /api/health*). Console action pipeline verified
+  end-to-end (backup-database runId 6, real backup file, run history).
+- E2E BROWSER (dogfood pass): all 12 views render with real data and ZERO
+  console errors / CSP violations; product drawer + preview iframe verified
+  (HTTP 200, real product copy — the frame-ancestors 'self' fix works);
+  theme toggle, ⌘K palette, triage all functional.
+- FIXES APPLIED (all with the suite green after):
+  1. `streamFile(res, path)` helper in server/index.js — all 7
+     createReadStream().pipe(res) sites now fail loudly on read errors
+     instead of silently returning a 200 with an empty body (pipe does not
+     forward 'error').
+  2. GET /api/marketplace/etsy/callback without a code → 400 (was 500 after
+     the failed token exchange).
+  3. design-critic test fixtures cover-v8 → cover-v9 (see BASELINE).
+- AUTONOMY WIRING (closes the 2026-10-14 audit gaps):
+  1. QUALITY GATE: automationCycle.taskQualityGate audits draft/pending-review
+     products with qualityEngine each cycle and auto-approves FLIGHT_READY
+     (≥85, zero defects, real file) products when QUALITY_AUTO_APPROVE=true
+     (default OFF; origin='manual' never auto-approves; production publish
+     locks untouched). Verified live on the scratch DB: 21/50 drafts
+     FLIGHT_READY → approved, 29 held, 21 automation_log audit rows.
+  2. BRAINSTORM: agent worker tool `brainstorm {niche,type,count}` wired to
+     conceptEngine.brainstormConcepts (variations now genuinely diversify —
+     each avoids every angle produced so far in the batch). Deterministic
+     planner routes "brainstorm ideas for X" / "what should we make for X"
+     BEFORE the generic make branch. Verified live: 3 real AI concept
+     directions for beekeeping via /api/console/agent + the command bar.
+     Model variance is honest: identical calls can return 0–3 directions
+     (novelty gate); the tool reports empty with a note instead of inventing.
+  3. FORECASTS: forecastTrend is now attached to every generated concept in
+     generateConcept (activates the previously-dead noveltyScore boost);
+     forecastProductEngagement is persisted on every social post
+     (post-now + batch-generate) and rendered as a 🔥/⚡/💤 badge in the
+     Social view. All deterministic — zero model cost.
+- TESTS: 349 tests / 29 suites / 345 pass / 0 fail / 4 skipped (baseline on
+  arrival: 341/337/0/4 with 1 fail). +8 new: brainstorm planner branch,
+  quality-gate opt-in/manual-exclusion/audit coverage (new
+  test/automation-quality.test.js), concept forecast determinism.
+- ENVIRONMENT LESSON (measurement, not app): `curl -o /dev/null` on this
+  Windows box reports bytes=0 / a client write error for real streamed
+  bodies — always curl image routes to a real output file when verifying.
+  Also: the bundled Node 26 exits with "stdin is not a tty" under
+  background terminal jobs — run bounded jobs in the foreground and boot
+  servers with pty=true + an explicit cd to the project root.
+- NOT done (owner-gated, unchanged): no commit/push/deploy performed; no
+  marketplace publishing; production opt-ins stay off.
+
+## ── 2026-10-14: LOCAL WORKTREE STABILIZATION ──
+- Owner reconfirmed the product north star: private command-center hub only, no customer-facing storefront; final goal is autonomous discovery/forecasting → creation/editing → QA → external publication → outcome learning.
+- Fixed the duplicate `fewShotSection` declaration that prevented `conceptEngine.js` from loading.
+- Fixed the `taskPublishQueue` SQL predicate to bind the `AUTO_PUBLISH_MANUAL` opt-in as a value; added `test/publish-queue.test.js` regression coverage.
+- Fixed generation dedupe so approved/listed products count as existing inventory; added `test/automation-generation.test.js` (RED reproduced 1 duplicate, GREEN generated 0).
+- Verified against isolated scratch DBs: full `node --test` → 341 tests, 337 pass, 0 fail, 4 skipped; changed JS syntax checks and `git diff --check` pass.
+- Initial autonomy audit: data-driven trend forecasts are exposed by `/api/trends/:id/intelligence`; `qualityEngine` currently audits via command-center routes/actions but is not wired to auto-approve/publish; the cycle publishes only already-approved products, and production auto-start/publish remain explicitly locked. The new concept-level forecast/brainstorm helpers in `conceptEngine.js` have no callers beyond exports and need review before relying on them.
+- No production database was used; no marketplace calls, commit, push, or deployment were performed. Remaining handoff/production checks are still open.
+
 ## ── 2026-10-13 (cont): SHUTDOWN FIX · DARK-PALETTE DOCUMENT PAGES · DEPLOY ──
 - `server/services/pdfGenerator.js`: the SIGINT/SIGTERM handlers closed Chrome but never ended
   the process, so a SIGTERM'd server kept running (Docker/Railway had to SIGKILL it after the

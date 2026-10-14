@@ -48,6 +48,19 @@ fs.mkdirSync(GENERATED_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const MAX_SPREADSHEET_PREVIEW_BYTES = 20 * 1024 * 1024;
 
+// Stream a file to the response, failing loudly on read errors. An unhandled
+// stream error after headers are sent otherwise surfaces as a silent 200 with
+// an empty body — pipe() does not forward the source stream's error event.
+function streamFile(res, absPath) {
+  const stream = fs.createReadStream(absPath);
+  stream.on('error', (e) => {
+    console.error('[STREAM] read error:', absPath, e.message);
+    if (!res.headersSent) return res.status(500).json({ error: 'File unreadable' });
+    res.destroy();
+  });
+  return stream.pipe(res);
+}
+
 // -- MIDDLEWARE --
 // -- SECURITY HEADERS --
 // CSP: script-src 'self' only — possible because no page ships inline
@@ -582,6 +595,8 @@ app.post('/api/social/post-now', async (req, res) => {
       const niche = product.prof_name || 'Small Business';
       const prompt = 'Generate a ' + platform + ' post for "' + (product.name || 'Product') + '" in the ' + niche + ' niche.';
       const content = await conceptEngine.generateSocialPost(prompt, niche);
+      // Deterministic engagement forecast persisted with the post (Social view shows the badge).
+      const forecast = conceptEngine.forecastProductEngagement(product, niche);
       
       // Log it as posted
       const scheduled = db.prepare("SELECT value FROM settings WHERE key = 'social_scheduled'").get();
@@ -591,13 +606,14 @@ app.post('/api/social/post-now', async (req, res) => {
         productId,
         platform,
         content,
+        forecast,
         scheduledAt: new Date().toISOString(),
         status: 'posted',
         postedAt: new Date().toISOString()
       });
       db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('social_scheduled', ?)").run(JSON.stringify(posts));
       
-      res.json({ ok: true, content, platform });
+      res.json({ ok: true, content, platform, forecast });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -767,8 +783,8 @@ app.post('/api/trends/:id/generate', async (req, res) => {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // MAKE THIS — manual custom generation. Products land in the review queue
-  // tagged origin='manual': the deploy policy keeps them local-only and the
-  // auto-list cycle never publishes them — you push them live yourself.
+  // tagged origin='manual': the auto-list cycle excludes them by default;
+  // AUTO_PUBLISH_MANUAL=true opts into publishing them after approval.
   // ═══════════════════════════════════════════════════════════════════════════
 app.post('/api/products/generate-custom', async (req, res) => {
     try {
@@ -1461,6 +1477,8 @@ app.post('/api/social/batch-generate', async (req, res) => {
           const niche = product.prof_name || 'Small Business';
           const prompt = 'Generate a ' + (platform || 'instagram') + ' post for "' + (product.name || 'Product') + '" in the ' + niche + ' niche.';
           const content = await conceptEngine.generateSocialPost(prompt, niche);
+          // Deterministic engagement forecast persisted with the post.
+          const forecast = conceptEngine.forecastProductEngagement(product, niche);
           
           // Auto-schedule for staggered times
           const scheduledAt = new Date(Date.now() + results.length * 3600000 + 3600000).toISOString();
@@ -1472,13 +1490,14 @@ app.post('/api/social/batch-generate', async (req, res) => {
             productId: product.id,
             platform: platform || 'instagram',
             content,
+            forecast,
             scheduledAt,
             status: 'scheduled',
             createdAt: new Date().toISOString()
           });
           db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('social_scheduled', ?)").run(JSON.stringify(posts));
           
-          results.push({ productId: product.id, name: product.name, status: 'scheduled' });
+          results.push({ productId: product.id, name: product.name, status: 'scheduled', forecast });
         } catch (e) {
           results.push({ productId: product.id, name: product.name, status: 'error', error: e.message });
         }
@@ -1498,6 +1517,18 @@ app.get('/api/products/:id/preview-html', (req, res) => {
     try {
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
       if (!product) return res.status(404).json({ error: 'Product not found' });
+      // Same iframe fix as /preview above: the console drawer embeds this
+      // response in its "Deliverable Preview" iframe (client/js/console.js),
+      // but the global helmet CSP ships frame-ancestors 'none' — which makes
+      // the browser silently refuse to render a 200 response in-frame
+      // (net::ERR_BLOCKED_BY_RESPONSE, blank panel). Rewrite ONLY that one
+      // directive to 'self'; every other CSP directive stays verbatim.
+      const csp = res.getHeader('Content-Security-Policy');
+      if (typeof csp === 'string' && /frame-ancestors/i.test(csp)) {
+        res.setHeader('Content-Security-Policy', csp.replace(/frame-ancestors[^;]*/i, "frame-ancestors 'self'"));
+      } else {
+        res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+      }
       // Profession data lives in the professions table — products never carried
       // prof_name/services columns (the old inline object rendered "undefined").
       const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
@@ -2151,7 +2182,7 @@ app.get('/pin-image/:productId/:token', (req, res) => {
   if (!fs.existsSync(abs)) return res.status(404).send('not found');
   res.set('Cache-Control', 'public, max-age=86400');
   res.type('image/jpeg');
-  return fs.createReadStream(abs).pipe(res);
+  return streamFile(res, abs);
 });
 
 app.post('/api/automation/run', async (req, res) => {
@@ -2426,6 +2457,11 @@ app.get('/api/marketplace/etsy/auth', async (req, res) => {
 app.get('/api/marketplace/etsy/callback', async (req, res) => {
   try {
     if (req.query.error) throw new Error(`Etsy denied authorization: ${req.query.error}`);
+    // A callback with no code is a malformed OAuth redirect, not a server
+    // fault — answer 400 instead of letting the exchange 500 below.
+    if (!req.query.code) {
+      return res.status(400).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Inter,sans-serif;background:#0a0a0a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px}a{color:#2dd4bf}</style></head><body><h1 style="color:#ef4444">Etsy connection failed</h1><p>Missing authorization code — restart the connection from /setup.</p><a href="/setup">Back to Setup</a></body></html>`);
+    }
     const tokens = await mp.exchangeEtsyToken(req.query.code);
     res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Inter,sans-serif;background:#0a0a0a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px}h1{color:#22c55e}a{color:#2dd4bf}</style></head><body><h1>? Etsy connected</h1><p>NicheGate can now list products on Etsy.</p><a href="/setup">Return to Setup ?</a></body></html>`);
   } catch (e) {
@@ -2496,7 +2532,7 @@ app.get('/api/export/product/:id', async (req, res) => {
     const abs = path.resolve(product.file_path);
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${path.basename(abs)}"`);
-    return fs.createReadStream(abs).pipe(res);
+    return streamFile(res, abs);
   }
 
   // Otherwise generate it now, using the correct builder for this product type
@@ -2506,7 +2542,7 @@ app.get('/api/export/product/:id', async (req, res) => {
     const abs = path.resolve(filePath);
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${path.basename(abs)}"`);
-    return fs.createReadStream(abs).pipe(res);
+    return streamFile(res, abs);
   } catch (e) {
     console.error('[EXPORT] error:', e.message);
     return res.status(500).json({ error: e.message });
@@ -2581,7 +2617,7 @@ app.get('/api/products/:id/preview', async (req, res) => {
     if (ext === '.pdf') {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
-      return fs.createReadStream(filePath).pipe(res);
+      return streamFile(res, filePath);
     }
 
     const sizeKB = filePath ? (fs.statSync(filePath).size / 1024).toFixed(1) : null;
@@ -2601,7 +2637,7 @@ app.get('/api/products/:id/preview', async (req, res) => {
         const ws = wb.Sheets[name];
         let html = XLSX.utils.sheet_to_html(ws).replace(/^<table[^>]*>/, '<table>');
         html = html.replace(/<td[^>]*>/g, '<td>').replace(/<th[^>]*>/g, '<th>');
-        return `<div class="card"><h3>?? ${escHtml(name)}</h3>${html}</div>`;
+        return `<div class="card"><h3>${escHtml(name)}</h3>${html}</div>`;
       }).join('');
       const body = previewHeader(product, prof, `Excel · ${sizeKB} KB`) + `<img class="preview-img" src="/api/products/${product.id}/preview-image">` + tables;
       return res.type('html').send(previewShell(escHtml(product.name) + ' · Preview', body));
@@ -2613,10 +2649,10 @@ app.get('/api/products/:id/preview', async (req, res) => {
       const entries = zip.getEntries();
       let html = previewHeader(product, prof, `ZIP archive · ${sizeKB} KB · ${entries.length} files`);
       html += `<img class="preview-img" src="/api/products/${product.id}/preview-image">`;
-      html += `<div class="card"><h3>?? Archive contents</h3>` + entries.map(e =>
+      html += `<div class="card"><h3>Archive contents</h3>` + entries.map(e =>
         `<div class="entry"><span>${escHtml(e.entryName)}</span><span>${(e.header.size / 1024).toFixed(1)} KB</span></div>`).join('') + '</div>';
       html += entries.filter(e => /\.(html?|txt|css|json|csv|xml)$/i.test(e.entryName)).map(e =>
-        `<div class="card"><h3>?? ${escHtml(e.entryName)} (preview)</h3><pre>${escHtml(e.getData().toString('utf8').slice(0, 5000))}</pre></div>`).join('');
+        `<div class="card"><h3>${escHtml(e.entryName)} (preview)</h3><pre>${escHtml(e.getData().toString('utf8').slice(0, 5000))}</pre></div>`).join('');
       return res.type('html').send(previewShell(escHtml(product.name) + ' · Preview', html));
     }
 
@@ -2636,7 +2672,7 @@ app.get('/api/products/:id/preview', async (req, res) => {
         <div class="entry"><span>File path</span><span>${escHtml(product.file_path || 'none')}</span></div></div>`;
     }
     if (realHtml) {
-      body += `<div class="card" style="padding:0"><h3 style="padding:14px 18px;border-bottom:1px solid #e2e8f0;">?? Saved HTML</h3><iframe sandbox="allow-same-origin" srcdoc="${escHtml(product.html_content).replace(/"/g, '&quot;')}" style="width:100%;height:460px;border:none;background:white;"></iframe></div>`;
+      body += `<div class="card" style="padding:0"><h3 style="padding:14px 18px;border-bottom:1px solid #e2e8f0;">Saved HTML</h3><iframe sandbox="allow-same-origin" srcdoc="${escHtml(product.html_content).replace(/"/g, '&quot;')}" style="width:100%;height:460px;border:none;background:white;"></iframe></div>`;
     }
     return res.type('html').send(previewShell(escHtml(product.name) + ' · Preview', body));
   } catch (e) {
@@ -2655,7 +2691,7 @@ app.get('/api/products/:id/preview-image', async (req, res) => {
     if (!previewPath || !fs.existsSync(previewPath)) return res.status(404).json({ error: 'Preview image unavailable for this product' });
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Content-Disposition', `inline; filename="${path.basename(previewPath)}"`);
-    return fs.createReadStream(previewPath).pipe(res);
+    return streamFile(res, previewPath);
   } catch (e) {
     console.error('[PREVIEW-IMAGE] error:', e.message);
     return res.status(500).json({ error: e.message });
@@ -2674,7 +2710,7 @@ app.get('/api/products/:id/lifestyle-image', async (req, res) => {
     if (!artPath || !fs.existsSync(artPath)) return res.status(404).json({ error: 'Lifestyle image unavailable — try again later' });
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Content-Disposition', `inline; filename="${path.basename(artPath)}"`);
-    return fs.createReadStream(artPath).pipe(res);
+    return streamFile(res, artPath);
   } catch (e) {
     console.error('[LIFESTYLE-IMAGE] error:', e.message);
     return res.status(500).json({ error: e.message });
@@ -2764,7 +2800,7 @@ app.post('/api/export/render', async (req, res) => {
     // Stream manually — res.sendFile/res.download have a Windows path bug
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pdf"`);
-    return fs.createReadStream(abs).pipe(res);
+    return streamFile(res, abs);
   } catch (e) {
     console.error('[RENDER] error:', e.message);
     return res.status(500).json({ error: e.message });
@@ -3667,6 +3703,31 @@ app.post('/api/console/agent', async (req, res) => {
         const count = Math.min(6, Math.max(1, parseInt(a.count) || 1));
         const r = await generateForNiche(idea, count, () => {}, { origin: 'manual', name: idea });
         return { niche: r.niche, created: r.created };
+      },
+      brainstorm: async (a) => {
+        // Deterministic-first concept brainstorming: returns distinct
+        // directions (each carrying its trend forecast) for one niche.
+        const niche = String(a.niche || '').trim().slice(0, 80);
+        if (!niche) return { error: 'niche is required' };
+        const count = Math.min(5, Math.max(1, parseInt(a.count) || 3));
+        const type = String(a.type || 'checklist').trim();
+        const conceptEngine = require('./services/conceptEngine');
+        const results = await conceptEngine.brainstormConcepts({ name: niche, slug: '' }, type, count, a.brief || null, null);
+        if (!results.length) {
+          return { niche, directions: [], note: 'No directions came back — the model is off or every variation was rejected by the novelty gate.' };
+        }
+        return {
+          niche,
+          type,
+          directions: results.map(r => ({
+            index: r.index,
+            name: r.concept.name,
+            pitch: r.concept.pitch,
+            benefits: r.concept.benefits,
+            differentiator: r.concept.differentiator,
+            forecast: r.concept.forecast || null
+          }))
+        };
       },
       generate_for_trend: async (a) => {
         const id = parseInt(a.trendId);

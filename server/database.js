@@ -265,7 +265,7 @@ function init() {
   // Migration: AI product concept (differentiated name + pitch + why-not-generic)
   try { db.exec('ALTER TABLE products ADD COLUMN concept TEXT'); } catch (e) { /* column already exists */ }
   // Origin tag: 'manual' (Make-this / hand-fed) vs 'engine' (auto-generated).
-  // The deploy policy reads it — manual products never auto-publish.
+  // The publish queue excludes manual products unless AUTO_PUBLISH_MANUAL=true.
   try { db.exec('ALTER TABLE products ADD COLUMN origin TEXT'); } catch (e) { /* column already exists */ }
   // Optimized listing copy (title/tags/description) written by the optimizer.
   try { db.exec('ALTER TABLE products ADD COLUMN listing_json TEXT'); } catch (e) { /* column already exists */ }

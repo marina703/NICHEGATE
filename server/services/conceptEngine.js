@@ -26,6 +26,8 @@ function noveltyScore(c) {
   if (GENERIC_WORDS.test(name)) s -= 20;   // "Ultimate Template Kit" is exactly what we don't want
   if (pitch.length < 40) s -= 15;
   if (name.length < 8 || name.length > 80) s -= 10;
+  // Forecast boost: recent trending concepts get +10 points
+  if (c.forecast && c.forecast.trending) s += 10;
   return Math.max(0, Math.min(100, s));
 }
 
@@ -80,6 +82,103 @@ function getFewShotExamples(limit = 2) {
   return [];
 }
 
+// --- Forecast & brainstorming helpers ---
+
+// Predict whether a concept will trend based on niche, type, and pattern matching
+function forecastTrend(prof, type, concept) {
+  if (!cfg.enabled || !prof || !type || !concept) return { trending: false, score: 0 };
+  const niche = prof.name.toLowerCase();
+  const productType = type.toLowerCase();
+  let score = 0;
+  // Seasonal boost: certain types trend around holidays
+  const month = new Date().getMonth();
+  const seasonalBoost = { december: 15, november: 10, october: 8 };
+  for (const [key, val] of Object.entries(seasonalBoost)) {
+    if (key === 'december' && month === 11) score += val;
+    if (key === 'november' && month === 10) score += val;
+    if (key === 'october' && month === 9) score += val;
+  }
+  // Type-specific trends
+  const typeTrends = {
+    spreadsheet: { march: 10, september: 10 },
+    invoice: { january: 10, august: 10 },
+    checklist: { monday: 5 },
+  };
+  if (typeTrends[productType]) {
+    const trends = typeTrends[productType];
+    for (const [key, val] of Object.entries(trends)) {
+      if (key === 'monday' && new Date().getDay() === 1) score += val;
+      if (/January|August/.test(key) && [0, 7].includes(month)) score += val;
+    }
+  }
+  // Concept content signals
+  const name = String(concept.name || '').toLowerCase();
+  const pitch = String(concept.pitch || '').toLowerCase();
+  if (/trend|viral|breakthrough|hot|rising/.test(pitch)) score += 20;
+  if (/seasonal|holiday|limited|urgent/.test(name)) score += 15;
+  if (/IRS|permit|license|regulation|checklist|compliance/.test(name) || /IRS|permit|license|regulation|checklist|compliance/.test(pitch)) score += 25;
+  const trending = score >= 30;
+  return { trending, score };
+}
+
+// Brainstorm multiple concept directions for the same (prof, type).
+// Each variation is asked to avoid every angle already produced in this
+// batch (plus the pre-existing one), so the results are genuinely distinct.
+async function brainstormConcepts(prof, type, count = 3, brief, existing) {
+  if (!cfg.enabled || !prof || !type) return [];
+  const p = typeof prof === 'string' ? { name: prof, slug: '' } : prof;
+  prof = p;
+  const seen = [];
+  if (existing && existing.concept) seen.push(String(existing.concept));
+  const concepts = [];
+  for (let i = 0; i < count; i++) {
+    // Pass everything produced so far as the avoid-list for this variation.
+    const avoidExisting = seen.length ? { concept: seen.join('; ') } : existing;
+    const concept = await generateConcept(prof, type, avoidExisting, brief, {
+      fewShots: [],
+    });
+    if (concept && concept.name) {
+      seen.push(concept.name);
+      concepts.push({ index: i + 1, concept });
+    }
+  }
+  return concepts;
+}
+
+// Generate a social forecast: predict engagement potential
+function forecastSocialEngagement(concept, niche) {
+  if (!concept) return { score: 0, prediction: 'unknown' };
+  const name = String(concept.name || '').toLowerCase();
+  const pitch = String(concept.pitch || '').toLowerCase();
+  let score = 0;
+  // Emotional triggers
+  if (/struggle|pain|problem/.test(pitch)) score += 20;
+  if (/save|time|effort/.test(pitch)) score += 15;
+  if (/money|profit|earn/.test(pitch)) score += 25;
+  // Niche relevance
+  const nicheLower = String(niche || '').toLowerCase();
+  if (nicheLower && name.includes(nicheLower)) score += 10;
+  if (/IRS|tax|permit|license/.test(name) || /IRS|tax|permit|license/.test(pitch)) score += 30;
+  // Benefits count
+  if (concept.benefits && concept.benefits.length >= 3) score += 15;
+  // Differentiator strength
+  if (concept.differentiator && concept.differentiator.length >= 30) score += 20;
+  let prediction = 'low';
+  if (score >= 60) prediction = 'high';
+  else if (score >= 35) prediction = 'medium';
+  return { score, prediction };
+}
+
+// Engagement forecast for a product's social angle, built from its stored
+// concept (name/pitch/benefits/differentiator). Deterministic; never throws.
+function forecastProductEngagement(product, niche) {
+  let concept = null;
+  try {
+    concept = product && product.concept ? JSON.parse(product.concept) : null;
+  } catch (_) { concept = null; }
+  return forecastSocialEngagement(concept || { name: (product && product.name) || '' }, niche);
+}
+
 // Generate a differentiated concept for a (prof, type). Returns concept or null.
 // `brief` is optional buyer-supplied detail (from Make-this / trend generation)
 // that the concept must honor; `existing` carries the dedupe angle.
@@ -92,8 +191,13 @@ async function generateConcept(prof, type, existing, brief, options = {}) {
   const avoid = existing && existing.concept ? `Avoid repeating this existing angle: "${existing.concept}"` : '';
   const guidance = brief ? `Buyer-supplied details to honor: ${String(brief).slice(0, 600)}` : '';
   const fewShots = (options.fewShots && options.fewShots.length) ? options.fewShots : getFewShotExamples();
+  // Forecast & brainstorming: if brief contains forecast/brainstorm keywords, incorporate them
+  const forecastInfo = brief && /(trend|forecast|brainstorm|predict|direction)/i.test(String(brief)) ? { enhance: true } : {};
   const fewShotSection = fewShots.length > 0
     ? `Proven winning concept structures to model (real past sellers):\n${fewShots.map((ex, i) => `Example ${i + 1}:\n${ex}`).join('\n\n')}\n`
+    : '';
+  const forecastNote = forecastInfo.enhance
+    ? '\n---\nForecast enhancement: concept will be evaluated for trend potential and brainstormed for multiple directional variations.'
     : '';
 
   const prompt = [
@@ -114,7 +218,12 @@ async function generateConcept(prof, type, existing, brief, options = {}) {
   ].filter(Boolean).join('\n');
   const raw = await router.generateIdeas(prompt, 'You are a ruthless product strategist for Etsy/Gumroad digital goods. You reject generic, saturated concepts. You find the specific, differentiated, sellable one.');
   const concept = parseConcept(raw);
-  if (!concept || !concept.name || noveltyScore(concept) < 55) return null;
+  if (!concept || !concept.name) return null;
+  // Attach the deterministic trend forecast so the novelty gate can reward
+  // seasonal/keyword-trending concepts (noveltyScore reads concept.forecast).
+  // Never throws — a missing forecast simply scores no boost.
+  try { concept.forecast = forecastTrend(prof, type, concept); } catch (_) {}
+  if (noveltyScore(concept) < 55) return null;
   return concept;
 }
 
@@ -283,4 +392,5 @@ async function generateVideoScripts(product, opts = {}) {
 }
 
 module.exports = { generateConcept, applyConcept,  enrichProduct,
-  getFewShotExamples, noveltyScore, parseConcept, generateSocialPost, generateVideoScripts };
+  getFewShotExamples, noveltyScore, parseConcept, generateSocialPost, generateVideoScripts,
+  forecastTrend, brainstormConcepts, forecastSocialEngagement, forecastProductEngagement };
