@@ -1926,7 +1926,111 @@ body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
 </div></body></html>`;
 }
 
-/** HTML-only cover (used when no AI art is available — never blocks a listing). */
+/**
+ * CONTENT-FORWARD COVER — the product content IS the hero.
+ *
+ * Matches the reference style (planner marketplaces, device-mockup listings):
+ * a clean themed background, bold editorial typography, and the REAL product
+ * pages large — the cover page as the front hero, interior spreads fanned
+ * behind it — so a buyer sees exactly what they're getting (the grid/ruled/
+ * tracker layouts), not a stock lifestyle scene with a postage-stamp thumbnail.
+ * Deterministic: no AI art required.
+ *
+ * The front hero reuses the exact cover-page raster the QA gate re-derives
+ * (coverRaster) and emits `.ts-hero` geometry, so the publish gate's
+ * page-belongs-to-product check passes the same way the composite cover did.
+ * The fanned interior cards are decorative peeks (iframes of the real doc).
+ *
+ * @param coverRaster data:image URI of the cover page (from renderProductCoverPreview)
+ */
+function buildContentForwardCover(product, prof, theme, realProductHtml, coverCopy = null, coverRaster = null) {
+  const th = theme || {};
+  const [title, sub, benefits, format] = coverCopy || thumbCoverCopy(product, prof);
+  const kc = (th.brief && th.brief.palette && th.brief.palette.accent) || th.accent || accentForCover(prof, th);
+  const primary = th.primary || '#0f172a';
+  const bg = th.bg || '#f8fafc';
+  const headingFont = (th.brief && th.brief.fonts && th.brief.fonts.heading) || 'Space Grotesk';
+  const fontCss = `font-family:'${String(headingFont).replace(/[^a-zA-Z0-9 -]/g, '')}', 'Inter', system-ui, sans-serif;`;
+  const kicker = String(prof.name || '').toUpperCase();
+  // Light ink on dark covers, dark ink on light covers — decided by the theme bg.
+  const bgIsDark = (() => {
+    const hex = String(bg).replace('#', '');
+    if (hex.length < 6) return false;
+    const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 128;
+  })();
+  const ink = bgIsDark ? '#f8fafc' : '#14110f';
+  const inkSub = bgIsDark ? 'rgba(248,250,252,.78)' : '#57534e';
+
+  // Front hero card geometry in 1200x1800 master coordinates (axis-aligned so
+  // the QA gate samples it straight on). The cover-page raster sits inside.
+  const HX = 430, HY = 620, HW = 540, HH = 700;
+  const insetX = Math.max(12, Math.round(HW * 0.035));
+  const insetY = Math.max(16, Math.round(HH * 0.05));
+  const screenW = HW - insetX * 2;
+  const screenH = HH - insetY * 2;
+
+  // Front hero: the cover-page raster (same one the QA gate re-renders).
+  const heroScreen = coverProductPreview(coverRaster || realProductHtml, title, 0.78);
+
+  // One interior page peek (iframe of the real doc, scrolled to a page).
+  const peek = (topPx, zoom) => {
+    const source = String(realProductHtml || '<!doctype html><html><body><main><h1>Product preview unavailable</h1></main></body></html>');
+    const viewport = `<meta name="viewport" content="width=760"><style>html{zoom:${zoom};transform-origin:top left;overflow:hidden}body{max-width:760px!important;overflow:hidden}</style>`;
+    const withViewport = /<head\b[^>]*>/i.test(source)
+      ? source.replace(/<head\b[^>]*>/i, (head) => `${head}${viewport}`)
+      : `<!doctype html><html><head>${viewport}</head><body>${source}</body></html>`;
+    return `<div class="cf-page" style="top:${-topPx}px"><iframe title="interior page" sandbox="" srcdoc="${esc(withViewport)}"></iframe></div>`;
+  };
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(title)}</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
+.cf{position:relative;width:1200px;height:1800px;overflow:hidden;background:${bg};color:${ink}}
+.cf-bgtint{position:absolute;inset:0;background:radial-gradient(120% 80% at 80% 0%,${kc}22 0%,transparent 55%),radial-gradient(100% 70% at 0% 100%,${primary}18 0%,transparent 50%)}
+.cf-top{position:absolute;left:72px;right:72px;top:96px;display:flex;justify-content:space-between;align-items:center;z-index:4}
+.cf-kicker{font-size:22px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#fff;background:${kc};padding:12px 24px;border-radius:999px}
+.cf-format{font-size:20px;font-weight:800;letter-spacing:2px;padding:11px 22px;border-radius:999px;border:2px solid ${bgIsDark ? 'rgba(255,255,255,.35)' : 'rgba(20,17,15,.18)'};color:${ink}}
+.cf-title{position:absolute;left:72px;top:200px;width:1056px;font-size:100px;font-weight:900;line-height:.95;letter-spacing:-3px;z-index:4}
+.cf-sub{position:absolute;left:72px;top:470px;width:900px;font-size:32px;font-weight:600;color:${inkSub};line-height:1.25;z-index:4}
+.cf-stack{position:absolute;left:0;top:560px;width:1200px;height:820px;z-index:2}
+.cf-card{position:absolute;width:460px;height:620px;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 34px 70px -28px rgba(15,15,20,.4),0 4px 14px rgba(15,15,20,.12)}
+.cf-card .cf-page{position:absolute;left:0;width:100%;height:100%}
+.cf-card iframe{display:block;width:100%;height:100%;border:0;background:#fff}
+.cf-card.p1{left:150px;top:40px;transform:rotate(-8deg) scale(.9);transform-origin:bottom center;z-index:1}
+.cf-card.p2{left:640px;top:20px;transform:rotate(7deg) scale(.9);transform-origin:bottom center;z-index:1}
+.cf-hero,.ts-hero{position:absolute;left:${HX}px;top:${HY - 560}px;width:${HW}px;height:${HH}px;z-index:3;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 44px 90px -30px rgba(15,15,20,.5),0 6px 18px rgba(15,15,20,.14)}
+.cf-hero .cf-screen,.ts-hero .cf-screen{position:absolute;left:${insetX}px;top:${insetY}px;width:${screenW}px;height:${screenH}px;background:#fff;border-radius:6px;overflow:hidden}
+${coverPreviewStyles(0, screenH, 11)}
+.cf-bens{position:absolute;left:72px;right:72px;top:1430px;display:flex;gap:22px;flex-wrap:wrap;z-index:4}
+.cf-ben{display:flex;align-items:center;gap:14px;font-size:26px;font-weight:700;background:${bgIsDark ? 'rgba(255,255,255,.08)' : 'rgba(20,17,15,.05)'};padding:16px 24px;border-radius:14px}
+.cf-ben .ck{width:40px;height:40px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;flex-shrink:0}
+.cf-foot{position:absolute;left:72px;right:72px;bottom:64px;display:flex;justify-content:space-between;align-items:flex-end;z-index:4}
+.cf-dl{font-size:30px;font-weight:800;letter-spacing:2px}
+.cf-dl small{display:block;font-size:20px;font-weight:600;color:${inkSub};letter-spacing:0;margin-top:6px}
+.cf-stars{font-size:28px;letter-spacing:4px}
+</style></head><body>
+<div class="cf">
+  <div class="cf-bgtint"></div>
+  <div class="cf-top"><div class="cf-kicker">${esc(kicker)}</div><div class="cf-format">${esc(format)}</div></div>
+  <h1 class="cf-title">${esc(title)}</h1>
+  <div class="cf-sub">${esc(sub)}</div>
+  <div class="cf-stack">
+    <div class="cf-card p1">${peek(0, 0.82)}</div>
+    <div class="cf-card p2">${peek(1240, 0.82)}</div>
+    <div class="ts-hero" data-slot-x="${HX}" data-slot-y="${HY}" data-slot-width="${HW}" data-slot-height="${HH}" data-adaptive="0" data-screen-x="${HX + insetX}" data-screen-y="${HY + insetY}" data-screen-width="${screenW}" data-screen-height="${screenH}" data-label-height="0" data-preview-scale="${COVER_PREVIEW_SCALE}" data-device-rotate="0"><div class="cf-screen">${heroScreen}</div></div>
+  </div>
+  <div class="cf-bens">${benefits.slice(0, 3).map((b) => `<div class="cf-ben"><span class="ck">✓</span>${esc(b)}</div>`).join('')}</div>
+  <div class="cf-foot">
+    <div class="cf-dl">INSTANT DOWNLOAD<small>Lifetime updates · Commercial use</small></div>
+    <div class="cf-stars">★★★★★</div>
+  </div>
+</div></body></html>`;
+}
+
+/**
+ * HTML-only cover (used when no AI art is available — never blocks a listing).
+ */
 function buildPlainCover(product, prof, theme, productHtml) {
   const th = theme || {};
   const [title, sub, benefits, format] = thumbCoverCopy(product, prof);
@@ -2257,7 +2361,7 @@ module.exports = {
   buildPlannerHTML, buildWallArtHTML, buildWorksheetHTML, buildPartyPrintableHTML,
   buildPyroBatchHTML, buildPyroLiftFuseHTML, buildPyroShootLogHTML,
   buildRecoveryJournalHTML, buildAffirmationLabelsHTML, buildRecoveryNutritionHTML, buildMeetingFlashcardsHTML,
-  thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover,
+  thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover, buildContentForwardCover,
   COVER_MASTER, MARKETPLACE_SAFE_RECT, DEVICE_SLOT,
   buildLifestyleMockupHTML,
   wrapMarketplaceMockup

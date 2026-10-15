@@ -236,7 +236,7 @@ async function ensureProductFile(product) {
 // Reuses the same cached Chrome instance as the PDF generator.
 // ═══════════════════════════════════════════════════════════════════════════
 const PREVIEW_DIR = runtimeConfig.resolvePersistentDir('previews');
-const COVER_VERSION = 'cover-v10';
+const COVER_VERSION = 'cover-v11';
 fs.mkdirSync(PREVIEW_DIR, { recursive: true });
 
 function isCurrentCoverPath(previewPath) {
@@ -337,7 +337,26 @@ async function renderCoverImage(html, outPath) {
       });
     }
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
-    await new Promise(r => setTimeout(r, 400));
+    // Content-forward covers render the real product pages inside sandboxed
+    // srcdoc iframes. Wait for every iframe to fire its load event (bounded),
+    // then a short settle buffer, so the fanned stack is fully painted before
+    // the screenshot instead of catching blank cards.
+    try {
+      await page.evaluate(() => new Promise((resolve) => {
+        const frames = Array.from(document.querySelectorAll('iframe'));
+        if (!frames.length) return resolve();
+        let left = frames.length;
+        const done = () => { if (--left <= 0) resolve(); };
+        const timer = setTimeout(resolve, 6000); // hard cap — never block forever
+        frames.forEach((f) => {
+          if (f.contentWindow && f.contentWindow.document && f.contentWindow.document.readyState === 'complete') return done();
+          f.addEventListener('load', done, { once: true });
+          f.addEventListener('error', done, { once: true });
+        });
+        void timer; // the cap stays armed; firing after resolve is a harmless no-op
+      }));
+    } catch (e) { /* iframe wait is best-effort */ }
+    await new Promise(r => setTimeout(r, 500));
     const masterPath = outPath.replace(/\.jpg$/i, '.master.jpg');
     await page.screenshot({ path: masterPath, type: 'jpeg', quality: 90, clip: { x: 0, y: 0, ...COVER_EXPORT.master } });
     await page.screenshot({ path: outPath, type: 'jpeg', quality: 90, clip: COVER_EXPORT.crop });
@@ -550,6 +569,9 @@ async function ensureProductThumbnail(product, opts = {}) {
   const theme = fallbackTheme(product);
   let productHtml = buildPreviewHTML(product, prof, theme);
   if (!productHtml) return null;
+  // The REAL multi-page product HTML — the content-forward cover fans several
+  // of these pages, so it needs the document, not the single-page raster.
+  const realProductHtml = productHtml;
   const copy = ds.thumbCoverCopy(product, prof);
   // playbook / pricing-bible open with a 1123px designed cover page whose headline
   // sits in its lower half, but the preview box is ~1.7:1 landscape and shows only
@@ -560,35 +582,44 @@ async function ensureProductThumbnail(product, opts = {}) {
   if (realPreview) productHtml = realPreview;
   let html = productHtml;
   let hadArt = false;
-  // v3: AI lifestyle photo + typography composite (falls back to the plain
-  // HTML cover when the free image tier is unavailable — never blocks).
+  // CONTENT-FORWARD is the default: the real product pages ARE the hero (a
+  // fanned stack on a clean themed background), matching the planner-marketplace
+  // / device-mockup reference style. It is deterministic and needs no AI art.
+  // The old AI-lifestyle composite (photo scene + tiny thumbnail) is kept only
+  // as an explicit opt-in (opts.coverStyle === 'lifestyle') for the rare type
+  // where a physical-feel scene genuinely helps.
+  const wantLifestyle = String(opts.coverStyle || '').toLowerCase() === 'lifestyle';
   try {
-    let artDataUri = null;
-    try {
-      const coverArt = require('./coverArt');
-      const artPath = await coverArt.ensureCoverArt(product, prof, theme, { fresh: opts.freshArt || opts.freshArtRevision === true, forceNew: opts.freshArtRevision === true });
-      if (artPath && fs.existsSync(artPath)) {
-        artDataUri = coverArt.imageDataUri(fs.readFileSync(artPath));
+    if (!wantLifestyle && typeof ds.buildContentForwardCover === 'function') {
+      // productHtml is now the cover-page raster (data:image) — the same raster
+      // the QA gate re-derives, so the hero card correlates on the publish gate.
+      html = ds.buildContentForwardCover(product, prof, theme, realProductHtml, copy, productHtml);
+    } else {
+      // v3: AI lifestyle photo + typography composite (falls back to the plain
+      // HTML cover when the free image tier is unavailable — never blocks).
+      let artDataUri = null;
+      try {
+        const coverArt = require('./coverArt');
+        const artPath = await coverArt.ensureCoverArt(product, prof, theme, { fresh: opts.freshArt || opts.freshArtRevision === true, forceNew: opts.freshArtRevision === true });
+        if (artPath && fs.existsSync(artPath)) {
+          artDataUri = coverArt.imageDataUri(fs.readFileSync(artPath));
+        }
+      } catch (e) {
+        console.error('[THUMB] cover art fetch:', e.message);
       }
-    } catch (e) {
-      console.error('[THUMB] cover art fetch:', e.message);
-    }
-    // The product's own page is always rasterised and placed inside the
-    // category/profession background — with the AI lifestyle photo when
-    // available, otherwise the niche accent gradient. Only if the composite
-    // builder itself is missing do we fall back to the flat paper cover.
-    hadArt = !!artDataUri;
-    if (typeof ds.buildThumbStopperCover === 'function') {
-      let slot = null;
-      if (artDataUri) {
-        try { slot = await detectArtScreenSlot(artDataUri, require('./coverArt')); } catch (e) { console.error('[THUMB] slot detect:', e.message); }
-        if (!slot) console.warn('[THUMB] no tablet screen detected in the art — using the fixed slot (page will float over the photo)');
-      } else {
-        console.warn('[THUMB] no cover art available — compositing the product page on the niche accent background');
+      hadArt = !!artDataUri;
+      if (typeof ds.buildThumbStopperCover === 'function') {
+        let slot = null;
+        if (artDataUri) {
+          try { slot = await detectArtScreenSlot(artDataUri, require('./coverArt')); } catch (e) { console.error('[THUMB] slot detect:', e.message); }
+          if (!slot) console.warn('[THUMB] no tablet screen detected in the art — using the fixed slot (page will float over the photo)');
+        } else {
+          console.warn('[THUMB] no cover art available — compositing the product page on the niche accent background');
+        }
+        html = ds.buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, copy, slot);
+      } else if (typeof ds.buildPlainCover === 'function') {
+        html = ds.buildPlainCover(product, prof, theme, productHtml);
       }
-      html = ds.buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, copy, slot);
-    } else if (typeof ds.buildPlainCover === 'function') {
-      html = ds.buildPlainCover(product, prof, theme, productHtml);
     }
   } catch (e) {
     console.error('[THUMB] cover build:', e.message);
