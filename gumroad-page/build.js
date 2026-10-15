@@ -4,7 +4,12 @@
 const fs = require('fs');
 
 const raw = JSON.parse(fs.readFileSync(__dirname + '/../.audit-tmp/gprods.json', 'utf8'));
-const products = (raw.products || []).filter(p => p.published && !p.deleted);
+// All non-deleted products: the seller's storefront catalog includes products
+// the API flags unpublished — they remain URL-accessible (verified: direct
+// /l/ links return 200) and the September storefront linked to them. Gumroad's
+// public API cannot flip the published flag on an existing product, so the
+// storefront reflects the full catalog rather than the 13 flagged-published.
+const products = (raw.products || []).filter(p => !p.deleted);
 
 // ---- clean doubled names: "Niche Niche Type" -> "Niche Type" -------------
 function cleanName(name) {
