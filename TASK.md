@@ -1,5 +1,27 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
+## ── 2026-10-15 (PM): ETSY OAUTH RECONNECTED — production verified ──
+- Railway CLI on this box: the `railway` in PATH is a broken bun shim
+  ("could not create process"); the WORKING binary is the WinGet Node install:
+  `/c/Users/linde/AppData/Local/Microsoft/WinGet/Packages/OpenJS.NodeJS.LTS_Microsoft.Winget.Source_8wekyb3d8bbwe/node-v24.20.0-win-x64/railway`
+  (v5.67.1, logged in as the owner; project NICHEGATE, env production).
+- Owner completed consent via the production auth URL
+  (/api/marketplace/etsy/auth behind admin login → etsy.com consent →
+  /api/marketplace/etsy/callback). User hit Etsy's Google-login popup hang
+  first time; worked after signing in at etsy.com/signin first.
+- VERIFIED LIVE: /api/marketplace/test → etsy connected as user 1286002574,
+  gumroad connected (10 products — wave-1 listings); /api/etsy/cap → 20/day,
+  0 published, 20 remaining, canPublish:true; automation_log shows
+  etsy_token_refresh success entries after the reconnect. Scopes granted:
+  listings_r listings_w transactions_r shops_r shops_w.
+- ENV SNAPSHOT (railway variables, keys only): 39 vars — Etsy trio
+  (ETSY_CLIENT_ID/CLIENT_SECRET/SHARED_SECRET), Gumroad token, OpenRouter +
+  MODEL_ENABLED=true, cover worker trio, DATAFORSEO, SERPER, PINTEREST,
+  DISCORD_WEBHOOK all present. NOTE: REDIRECT_URI is set to
+  /oauth/redirect but the app IGNORES it (getEtsyAuthUrl builds the callback
+  from RAILWAY_PUBLIC_DOMAIN → /api/marketplace/etsy/callback) — stale but
+  harmless. Etsy publish cap and OAuth work with the current secret length.
+
 ## ── 2026-10-15: STORE WIPE + EDITORIAL COVER REBUILD (owner-directed fresh start) ──
 Owner feedback: covers were one template with color swaps ("copy-paste"), wrong
 headlines on some ("Pricing Calculator" on Massage Therapy), labels not showing,
