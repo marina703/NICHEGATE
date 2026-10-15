@@ -66,7 +66,7 @@ function classifyCoverError(err) {
 }
 let lastCoverError = null;
 function coverProviderState() { return lastCoverError; }
-const COVER_PROMPT_VERSION = 'photo-cover-v3';
+const COVER_PROMPT_VERSION = 'photo-cover-v4';
 // Cover art follows the same style DNA used by the product, then specializes
 // to a niche when a style family is shared. The names are art directions, not
 // generated model claims.
@@ -267,95 +267,118 @@ const PROFESSION_SCENES = [
   { match: /roof|shingle|gutter|siding|chimney/i,
     scene: 'on a residential rooftop deck: an aluminium extension ladder resting against the house, courses of asphalt shingles, ridge cap and a gutter run in frame',
     props: 'a shingle hatchet, a coil of roofing nails and a utility knife',
-    avoid: 'no calipers, no drafting instruments, no office stationery, no wrenches' },
+    avoid: 'no calipers, no drafting instruments, no office stationery, no wrenches',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
   { match: /plumb|pipe|drain|septic|water heater/i,
     scene: 'beside open copper pipework under a sink in a tiled utility room, pipe runs and shut-off valves in frame',
     props: 'a basin wrench, slip-joint pliers and a pipe cutter',
-    avoid: 'no calipers, no drafting instruments, no laptops, no tape rolls' },
+    avoid: 'no calipers, no drafting instruments, no laptops, no tape rolls',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
   { match: /electric|alarm|solar|low voltage|security install/i,
     scene: 'in front of a neat residential electrical panel with rows of breakers on a concrete utility-room floor, conduit runs in frame',
     props: 'a voltage tester, insulated screwdrivers and a wire stripper',
-    avoid: 'no calipers, no paint brushes, no drafting instruments, no tape rolls' },
+    avoid: 'no calipers, no paint brushes, no drafting instruments, no tape rolls',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
   { match: /hvac|heating|cooling|air duct|furnace|refrigerat/i,
     scene: 'beside a rooftop condenser unit and galvanised ductwork, service valves and copper line set in frame',
     props: 'manifold gauges, a fin comb and a service wrench',
-    avoid: 'no calipers, no drafting instruments, no office stationery' },
+    avoid: 'no calipers, no drafting instruments, no office stationery',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
   { match: /landscap|lawn|garden|irrigation|tree|arbor|hardscape|mulch/i,
     scene: 'on a freshly graded garden bed beside stone edging and a young shrub, tilled soil and a wheelbarrow in frame',
     props: 'bypass pruning shears, a hand trowel and work gloves',
-    avoid: 'no calipers, no laptops, no laboratory glassware' },
+    avoid: 'no calipers, no laptops, no laboratory glassware',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
   { match: /mold|asbestos|inspection|inspector|energy audit|thermograph|radon|mould/i,
     scene: 'in a residential basement corner with exposed joists and plastic sheeting, damp concrete block wall in frame',
     props: 'a pin-type moisture meter, a respirator and a marking crayon',
-    avoid: 'no calipers, no laptops, no clean-room glassware, no clipboards, no paper' },
+    avoid: 'no calipers, no laptops, no clean-room glassware, no clipboards, no paper',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
   { match: /drywall|plaster|stucco|painter|paint(ing)?\b|wallpaper/i,
     scene: 'on a sheet of fresh drywall in a half-renovated room, a taping seam, blue painter tape lines and a drop cloth in frame',
     props: 'a taping knife, a mud pan and a sanding block',
-    avoid: 'no calipers, no power drills, no office stationery' },
+    avoid: 'no calipers, no power drills, no office stationery',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
   { match: /concrete|mason|tile|flooring|epoxy|stonemason|hardwood/i,
     scene: 'on a finished tile floor beside a spirit level and a stack of tile offcuts, grout lines and a trowel smear in frame',
     props: 'a notched trowel, tile spacers and a rubber grout float',
-    avoid: 'no calipers, no laptops, no paint brushes' },
+    avoid: 'no calipers, no laptops, no paint brushes',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
   { match: /carpent|woodwork|millwork|cabinet|furniture|custom build/i,
     scene: 'on a woodworking bench inside a workshop, oak offcuts, wood shavings and a vice in frame',
     props: 'a handsaw, a carpenter pencil and a folding ruler',
-    avoid: 'no calipers, no office stationery, no laptop' },
+    avoid: 'no calipers, no office stationery, no laptop',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
   { match: /clean|janitorial|maid|housekeep/i,
     scene: 'in a just-cleaned bright room beside a bucket of water and folded dark microfibre cloths, spotless vinyl floor and a window with daylight in frame',
     props: 'a spray bottle, a folded dark microfibre cloth and a scrub brush',
-    avoid: 'no calipers, no office stationery, no construction tools, no bright white cloths' },
+    avoid: 'no calipers, no office stationery, no construction tools, no bright white cloths',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
   { match: /notary|loan signing|escrow|title|paralegal|legal/i,
     scene: 'on a dark wood desk with a closed manila file folder and a stack of sealed envelopes, warm office light in frame',
     props: 'an embossing seal, a stamp pad and a black pen',
-    avoid: 'no calipers, no tools, no construction equipment' },
+    avoid: 'no calipers, no tools, no construction equipment',
+    surface: { printable: 'blank white sheet of paper', screen: 'open laptop with a large blank white screen', phone: 'smartphone' } },
   { match: /tax|account|bookkeep|payroll|finance|financial|consult|advisor|insur|real estate|property/i,
     scene: 'on a dark mahogany desk with a closed leather portfolio, tall-window daylight in frame',
     props: 'a fountain pen, a closed dark notebook and reading glasses',
-    avoid: 'no calipers, no tools, no machinery, no loose paper, no open books' },
+    avoid: 'no calipers, no tools, no machinery, no loose paper, no open books',
+    surface: { printable: 'blank white sheet of paper', screen: 'open laptop with a large blank white screen', phone: 'smartphone' } },
   { match: /photo|videograph|film|cinemat|camera/i,
     scene: 'in a natural-light studio beside a camera bag, dark grey backdrop stand edge in frame',
     props: 'a camera battery, a lens cloth and a lens cap',
-    avoid: 'no calipers, no office stationery, no construction tools, no tape rolls' },
+    avoid: 'no calipers, no office stationery, no construction tools, no tape rolls',
+    surface: { printable: 'blank white sheet of paper', screen: 'open laptop with a large blank white screen', phone: 'smartphone' } },
   { match: /salon|barber|beauty|nail|lash|esthetic|makeup|hair/i,
     scene: 'on a clean marble styling station beside folded towels and a spray bottle, round mirror edge in frame',
     props: 'a round brush, a comb and a pair of shears',
-    avoid: 'no calipers, no power tools, no laptops' },
+    avoid: 'no calipers, no power tools, no laptops',
+    surface: { printable: 'blank white sheet of paper', screen: 'tablet with a blank white screen', phone: 'smartphone' } },
   { match: /massage|spa|wellness|yoga|therap|acupunct|meditat/i,
     scene: 'on a calm treatment-room surface beside folded linen towels and a small ceramic dish, soft diffused light in frame',
     props: 'a folded dark towel, a smooth stone and a small bottle of oil',
-    avoid: 'no calipers, no tools, no office stationery, no rolled towels' },
+    avoid: 'no calipers, no tools, no office stationery, no rolled towels',
+    surface: { printable: 'blank white sheet of paper', screen: 'tablet with a blank white screen', phone: 'smartphone' } },
   { match: /dog|pet|groom|vet|animal/i,
     scene: 'on a stainless grooming table beside folded towels and a hair-covered rubber mat, tiled floor and daylight in frame',
     props: 'clippers, a slicker brush and a pair of blunt scissors',
-    avoid: 'no calipers, no office stationery, no construction tools' },
+    avoid: 'no calipers, no office stationery, no construction tools',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'tablet with a blank white screen', phone: 'smartphone' } },
   { match: /fitness|personal train|gym|crossfit|athlet/i,
     scene: 'on a rubber gym floor beside a squat rack base and a chalk-dusted platform, plate stack edge in frame',
     props: 'a kettlebell, lifting straps and a stopwatch',
-    avoid: 'no calipers, no office stationery, no laptops' },
+    avoid: 'no calipers, no office stationery, no laptops',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'tablet with a blank white screen', phone: 'smartphone' } },
   { match: /fishing|charter|hunt|hunting|outfitt|outdoor|survival|camping/i,
     scene: 'on a boat deck at first light beside an open tackle box, rope coil and misty water in frame',
     props: 'a closed tackle box, a spool of monofilament and a landing net handle',
-    avoid: 'no calipers, no office stationery, no laptops' },
+    avoid: 'no calipers, no office stationery, no laptops',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'tablet with a blank white screen', phone: 'smartphone' } },
   { match: /food|cater|bakery|chef|coffee|restaurant|baker|cake/i,
     scene: 'on a marble kitchen counter beside a floured butcher block and a folded linen towel, warm morning light in frame',
     props: 'a chef knife, a wooden spoon and a small bowl of coarse salt',
-    avoid: 'no calipers, no construction tools, no laptops' },
+    avoid: 'no calipers, no construction tools, no laptops',
+    surface: { printable: 'blank white sheet of paper', screen: 'tablet with a blank white screen', phone: 'smartphone' } },
   { match: /mechanic|auto|detailing|car wash|tire|bodyshop/i,
     scene: 'on a polished concrete garage floor beside a rolling tool chest and a folded shop towel, car lift base in frame',
     props: 'a socket wrench, a torque wrench and nitrile gloves',
-    avoid: 'no calipers, no office stationery, no laptops' },
+    avoid: 'no calipers, no office stationery, no laptops',
+    surface: { printable: 'blank white sheet of paper', screen: 'diagnostic tablet with a blank white screen', phone: 'smartphone' } },
   { match: /recovery|sobriety|sobrie|counsel|mental health|addiction/i,
     scene: 'on a quiet table beside a folded blanket and a small potted plant, soft curtain-filtered morning light in frame',
     props: 'a closed dark journal, a steaming mug and a pen',
-    avoid: 'no calipers, no tools, no alcohol, no branded packaging, no open books, no loose paper' },
+    avoid: 'no calipers, no tools, no alcohol, no branded packaging, no open books, no loose paper',
+    surface: { printable: 'blank white sheet of paper', screen: 'tablet with a blank white screen', phone: 'smartphone' } },
   { match: /pinterest|etsy|creator|marketing|social media|content|influencer|newsletter/i,
     scene: 'on a bright light-wood desk beside a folded fabric swatch and a small potted plant, soft ring-light daylight in frame',
     props: 'a phone, a notebook and a cup of coffee',
-    avoid: 'no unrelated electronics, no grid backgrounds' },
+    avoid: 'no unrelated electronics, no grid backgrounds',
+    surface: { printable: 'blank white sheet of paper', screen: 'open laptop with a large blank white screen', phone: 'smartphone' } },
   { match: /wedding|event|planner|florist|decorat/i,
     scene: 'on a linen-covered table beside a small floral arrangement and folded ribbon, soft window light in frame',
     props: 'a pair of scissors, folded ribbon and a fabric swatch ring',
-    avoid: 'no calipers, no construction tools, no laptops, no ribbon spools' }
+    avoid: 'no calipers, no construction tools, no laptops, no ribbon spools',
+    surface: { printable: 'blank white sheet of paper', screen: 'open laptop with a large blank white screen', phone: 'smartphone' } }
 ];
 
 /** The COVER_SCENES strings read "<subject surface>, <props>, <lighting>, <styling>".
@@ -394,37 +417,37 @@ function buildArtPrompt(prof, product, profile = 'photo-cover', theme = {}) {
   // The style DNA above decides the look; this decides the subject. Without it a
   // trades niche gets a generic "steel tools and measuring tape" flat-lay, which
   // is how calipers ended up on a roofing cover.
-  // The surface the product preview is composited onto — matched to the
-  // product's real end use instead of one generic tablet on every cover:
-  // printables sit on paper/clipboards, data tools on a laptop screen, social
-  // packs on a phone. The white-rect detector finds whichever blank surface
-  // the prompt specifies, so the adaptive composite lands on the right thing.
-  const SURFACE_BY_TYPE = {
-    checklist: 'blank white clipboard holding one blank sheet of paper, lying completely flat on the work surface',
-    'decision-matrix': 'blank white clipboard with a blank sheet of paper, lying completely flat on the desk',
-    invoice: 'neat stack of three blank white paper sheets, lying completely flat on the desk',
-    journal: 'open blank white notebook with empty pages, lying completely flat on the desk',
-    spreadsheet: 'open laptop with a large blank white screen, lying flat on the desk',
-    booking: 'open laptop with a large blank white screen, lying flat on the desk',
-    roi: 'open laptop with a large blank white screen, lying flat on the desk',
-    website: 'open laptop with a large blank white screen, lying flat on the desk',
-    social: 'smartphone lying flat with its blank white screen facing up',
-    bundle: 'stack of document folders topped with blank white paper sheets, lying flat on the desk',
+  // The surface the product preview is composited onto — matched to BOTH the
+  // product kind and what the profession realistically carries. No roofer
+  // works off a laptop on a rooftop: trades get a clipboard, rugged tablet or
+  // phone; laptops stay for genuinely desk-bound professions (tax, notary,
+  // creators). The scene supplies the setting, so the surface clause never
+  // names "desk" — it would contradict a rooftop or basement scene.
+  const KIND_BY_TYPE = {
+    checklist: 'printable', 'decision-matrix': 'printable', invoice: 'printable',
+    journal: 'printable', bundle: 'printable',
+    spreadsheet: 'screen', booking: 'screen', roi: 'screen', website: 'screen',
+    social: 'phone',
   };
-  const surface = SURFACE_BY_TYPE[String(product && product.type || '').toLowerCase()]
-    || 'blank white sheet of paper, lying completely flat on the desk';
+  const DEFAULT_SURFACE = {
+    printable: 'blank white sheet of paper',
+    screen: 'open laptop with a large blank white screen',
+    phone: 'smartphone',
+  };
+  const kind = KIND_BY_TYPE[String(product && product.type || '').toLowerCase()] || 'printable';
   const role = professionScene(prof);
+  const surface = (role && role.surface && role.surface[kind]) || DEFAULT_SURFACE[kind];
   return [
     'Top-down flat-lay photograph, 2:3 portrait canvas, native 1200x1800 pixels',
     role ? `setting and lighting: ${direction.look || styleTextureFromScene(direction.scene)}` : direction.scene,
     role ? `set ${role.scene}` : null,
-    `exactly ONE ${surface}, completely blank with nothing on it`,
+    `exactly ONE ${surface}, lying completely flat, completely blank with nothing on it`,
     'the blank surface is the single brightest object in the frame — every prop is smaller, darker and matte so nothing competes with it',
     'fixed in the right 46% of frame, vertically centered, approximately 46% of frame width and 42% of frame height, leave the left 54% visually quiet for cover copy',
     role
       ? `the only tools in frame are ${role.props}, small, dark or earth-toned, placed neatly beside the blank surface, never overlapping it or duplicating it`
       : 'two or three small contextual physical props only, dark or earth-toned, neatly spaced, no overlapping the blank surface',
-    'photographed directly from above with parallel edges, soft realistic contact shadow, consistent physical light direction',
+    'shot perfectly perpendicular, dead-on top-down, zero camera tilt, zero perspective distortion, every edge parallel to the frame, soft realistic contact shadow, consistent physical light direction',
     `design DNA ${direction.name}${style ? ` / ${style}` : ''}${font ? ` / ${font} typography` : ''}${accent ? ` / restrained ${accent} accent` : ''}`,
     'photorealistic atmospheric product photography, professional product photography, subtle natural grain',
     'real photograph taken on a full-frame DSLR with a 35mm lens in natural light, authentic materials showing real wear, shallow depth of field, documentary realism, not an illustration, not a 3d render, not CGI',

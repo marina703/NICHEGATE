@@ -156,19 +156,19 @@ test('buildArtPrompt: photo generation specifies a blank portrait compositing su
 });
 
 test('buildArtPrompt: every product type composites onto its own natural surface', () => {
-  // The surface is matched to the product's real end use — printables sit on
-  // paper/clipboards, data tools on a laptop screen, social packs on a phone —
-  // instead of one generic tablet on every cover.
+  // The surface is matched to the product kind AND what the profession
+  // realistically carries — printables sit on paper/clipboards, data tools
+  // on screens, social packs on phones.
   const cases = [
-    ['checklist', /exactly one blank white clipboard holding one blank sheet of paper/],
-    ['invoice', /exactly one neat stack of three blank white paper sheets/],
+    ['checklist', /exactly one blank white sheet of paper/],
+    ['invoice', /exactly one blank white sheet of paper/],
     ['spreadsheet', /exactly one open laptop with a large blank white screen/],
     ['booking', /exactly one open laptop with a large blank white screen/],
     ['roi', /exactly one open laptop with a large blank white screen/],
     ['website', /exactly one open laptop with a large blank white screen/],
-    ['social', /exactly one smartphone lying flat with its blank white screen/],
-    ['bundle', /exactly one stack of document folders topped with blank white paper/],
-    ['journal', /exactly one open blank white notebook with empty pages/],
+    ['social', /exactly one smartphone/],
+    ['bundle', /exactly one blank white sheet of paper/],
+    ['journal', /exactly one blank white sheet of paper/],
   ];
   for (const [type, re] of cases) {
     const p = coverArt.buildArtPrompt(creatorProf, { type }, 'photo-cover').toLowerCase();
@@ -188,6 +188,35 @@ test('buildArtPrompt: every product type composites onto its own natural surface
   const mold = coverArt.buildArtPrompt({ name: 'Mold Inspector', slug: 'mold-inspector' }, { type: 'checklist' }, 'photo-cover').toLowerCase();
   assert.match(mold, /never overlapping it or duplicating it/,
     'the surface must never be duplicated by the role props');
+});
+
+test('buildArtPrompt: trades never composite onto a laptop — they carry clipboards, tablets and phones', () => {
+  // Reality check: no roofer works off a MacBook on a rooftop, no electrician
+  // opens a laptop on a utility-room floor. Trades get a clipboard (printables),
+  // a rugged tablet (data tools) or a phone (social kits). Laptops stay for
+  // genuinely desk-bound professions.
+  const trades = [
+    [{ name: 'Roofing Contractor', slug: 'roofing' }, /roof|shingle/],
+    [{ name: 'HVAC Technician', slug: 'hvac' }, /hvac|heating|cooling/],
+    [{ name: 'Plumber', slug: 'plumber' }, /plumb|pipe/],
+    [{ name: 'Electrician', slug: 'electrician' }, /electric|alarm|solar/],
+    [{ name: 'Mold Inspector', slug: 'mold-inspector' }, /mold|asbestos|inspection/],
+    [{ name: 'Air Duct Cleaning', slug: 'air-duct-cleaning' }, /hvac|air duct/],
+    [{ name: 'Post-Construction Cleaner', slug: 'post-construction-cleaning' }, /clean|janitorial/],
+    [{ name: 'Native Plant Landscaper', slug: 'native-landscaping' }, /landscap|lawn|garden/],
+  ];
+  for (const [prof] of trades) {
+    for (const type of ['spreadsheet', 'booking', 'roi', 'website']) {
+      const p = coverArt.buildArtPrompt(prof, { type }, 'photo-cover').toLowerCase();
+      assert.doesNotMatch(p, /\blaptop\b/, `${prof.name} (${type}) must not composite onto a laptop`);
+      assert.match(p, /rugged tablet with a blank white screen/, `${prof.name} (${type}) must use a rugged tablet`);
+    }
+    const checklist = coverArt.buildArtPrompt(prof, { type: 'checklist' }, 'photo-cover').toLowerCase();
+    assert.match(checklist, /blank white clipboard/, `${prof.name} checklist must composite onto a clipboard`);
+  }
+  // Desk-bound professions keep the laptop.
+  const desk = coverArt.buildArtPrompt({ name: 'Tax Consultant', slug: 'tax-consultant' }, { type: 'spreadsheet' }, 'photo-cover').toLowerCase();
+  assert.match(desk, /open laptop with a large blank white screen/);
 });
 
 test('Lucid Origin output dimensions are validated rather than center-cropped', () => {
