@@ -1645,7 +1645,7 @@ body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
 .ts-ben .ck{width:${compactCopy ? 34 : 46}px;height:${compactCopy ? 34 : 46}px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-size:${compactCopy ? 18 : 26}px;font-weight:900;flex-shrink:0}
 .ts-foot{position:absolute;z-index:3;left:0;right:0;bottom:180px;background:rgba(12,12,13,.72);height:96px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:1px solid rgba(255,255,255,.16)}
 .ts-format{font-size:21px;font-weight:800;letter-spacing:2px;color:#e4e4e7}
-  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:inset 0 0 26px rgba(15,23,42,.10), 0 16px 38px -12px rgba(0,0,0,.55);' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? screenRadius + 'px' : '10px'}}
+  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:inset 0 0 26px rgba(15,23,42,.10);' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? screenRadius + 'px' : '10px'}}
   .ts-device{${adaptive ? 'display:none' : `position:absolute;inset:0;background:#f4f4f5;border-radius:22px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px #d4d4d8;overflow:hidden`}}
   .ts-screen{position:absolute;left:${adaptive ? 0 : insetX}px;top:${adaptive ? 0 : insetY}px;width:${screenW}px;height:${screenH}px;background:#fff;border-radius:${screenRadius}px;overflow:hidden}
   .ts-screen::after{content:"";pointer-events:none;position:absolute;inset:0;background:rgba(255,248,232,.07)}
