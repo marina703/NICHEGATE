@@ -74,6 +74,8 @@ const TYPES = [
   // and carry the "Just for Today" / Serenity Prayer language the programs use.
   { key: 'recovery-journal', label: '"Just for Today" Recovery Journal', emoji: '📔', price: 15, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
   { key: 'affirmation-labels', label: 'Recovery Affirmation Labels', emoji: '🏷️', price: 8, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
+  { key: 'affirmation-labels-edgy', label: 'Edgy Sobriety Affirmation Labels', emoji: '🔥', price: 8, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
+  { key: 'affirmation-labels-warm', label: 'Gentle Affirmation Labels', emoji: '🌸', price: 8, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
   { key: 'recovery-nutrition', label: 'Recovery Cleanse & Nutrition Guide', emoji: '🥗', price: 14, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
   { key: 'meeting-flashcards', label: 'Meeting Facilitator Flashcards', emoji: '🗂️', price: 12, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
 ];

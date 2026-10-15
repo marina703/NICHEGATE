@@ -175,8 +175,9 @@ async function ensureProductFile(product) {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildJournalHTML(prof, theme, getRecoveryPrompts(prof)), `${prof.slug}-journal-${stamp}.pdf`);
   } else if (type === 'recovery-journal') {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildRecoveryJournalHTML(prof, theme, getRecoveryPrompts(prof)), `${prof.slug}-recovery-journal-${stamp}.pdf`);
-  } else if (type === 'affirmation-labels') {
-    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildAffirmationLabelsHTML(prof, theme), `${prof.slug}-affirmation-labels-${stamp}.pdf`);
+  } else if (type === 'affirmation-labels' || type === 'affirmation-labels-edgy' || type === 'affirmation-labels-warm') {
+    const vk = type === 'affirmation-labels-edgy' ? 'edgy' : (type === 'affirmation-labels-warm' ? 'warm' : 'classic');
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildAffirmationLabelsHTML(prof, theme, vk), `${prof.slug}-${type}-${stamp}.pdf`);
   } else if (type === 'recovery-nutrition') {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildRecoveryNutritionHTML(prof, theme), `${prof.slug}-recovery-nutrition-${stamp}.pdf`);
   } else if (type === 'meeting-flashcards') {
@@ -276,6 +277,8 @@ function buildPreviewHTML(product, prof, theme) {
   if (t === 'journal') return pdfGen.buildJournalHTML(prof, theme, getRecoveryPrompts(prof));
   if (t === 'recovery-journal') return pdfGen.buildRecoveryJournalHTML(prof, theme, getRecoveryPrompts(prof));
   if (t === 'affirmation-labels') return pdfGen.buildAffirmationLabelsHTML(prof, theme);
+  if (t === 'affirmation-labels-edgy') return pdfGen.buildAffirmationLabelsHTML(prof, theme, 'edgy');
+  if (t === 'affirmation-labels-warm') return pdfGen.buildAffirmationLabelsHTML(prof, theme, 'warm');
   if (t === 'recovery-nutrition') return pdfGen.buildRecoveryNutritionHTML(prof, theme);
   if (t === 'meeting-flashcards') return pdfGen.buildMeetingFlashcardsHTML(prof, theme);
   if (t === 'brand') return pdfGen.buildBrandKitHTML(prof, theme);

@@ -861,41 +861,105 @@ const RECOVERY_AFFIRMATIONS = [
   'Today I am honest', 'Growth over comfort', 'I deserve this healing',
   'Act as if', 'One moment at a time', 'I am not alone'
 ];
-function buildAffirmationLabelsHTML(prof, theme) {
+
+// The "sober grind" voice — the recovery crowd that wants attitude, not
+// softness. Owner-supplied phrases first, then a few in the same register.
+const EDGY_AFFIRMATIONS = [
+  'You got this, dog', 'Dirty hands, clean money', 'Gettin swoll',
+  'Get up n get it', "Sober grind or I'll be doin time", 'Love yourself, bitch',
+  'Built different', 'No days off', 'Stay dangerous', 'Earned, not given',
+  'One more rep', "Keep it movin'", 'Stack paper, stay sober',
+  'Your only competition is yesterday', 'Recovery is gangster',
+  'Head down, grind up', 'Sobriety is the flex', 'Fuck the noise'
+];
+
+// The gentle voice — the softer end of the same audience.
+const WARM_AFFIRMATIONS = [
+  'You are doing great', 'Small steps count', 'Be gentle with yourself',
+  'You deserve good things', "Breathe, you're okay", 'Progress over perfection',
+  'Today is yours', 'You are worthy', 'Keep going, love', 'Rest is productive',
+  'Your feelings are valid', "You've survived worse", 'Choose joy today',
+  'Bloom where you are', 'You are enough, always', 'One kind thought at a time',
+  "Slow down, you're doing fine", 'You matter'
+];
+
+// Variant registry — colour + shape + typography per style. Classic keeps the
+// EXACT palette/phrases/CSS the original shipped, so existing products and
+// their covers are unchanged when no variant is requested.
+const AFFIRMATION_VARIANTS = {
+  classic: {
+    label: 'Classic', palette: RECOVERY_PALETTE, affirmations: RECOVERY_AFFIRMATIONS,
+    font: "Georgia,'Times New Roman',serif", italic: true, caps: false,
+    shapeA: 'round', shapeB: 'rect', onShape: null, sheetBg: '#fff', tipsBg: '#fbf7ee',
+    headA: 'Just for Today', headB: 'One Day at a Time',
+    tipA: 'print on sticker paper or cardstock. Stick them on your mirror, fridge, wallet, planner or water bottle — anywhere a reminder of your intention helps you through the day.',
+    tipB: 'these 2×4 labels fit standard Avery 2"×4" shipping labels. Print, cut, and place one in each spot you\'ll see it — a gentle nudge toward your recovery, all day long.'
+  },
+  edgy: {
+    label: 'Edgy', affirmations: EDGY_AFFIRMATIONS,
+    palette: { primary: '#111111', accent: '#c6ff3d', bg: '#f2f2ee', ink: '#111111', gold: '#ff2e88', rose: '#ff6b00', line: '#c7c7bd' },
+    font: "'Arial Black','Helvetica Neue',Arial,sans-serif", italic: false, caps: true,
+    shapeA: 'hex', shapeB: 'tag', onShape: '#c6ff3d', sheetBg: '#fff', tipsBg: '#f2f2ee',
+    headA: 'No Days Off', headB: 'Sober Grind',
+    tipA: 'print on sticker paper. Slap \'em on the locker, the truck dash, the gym bag, the mirror — wherever you need the reminder that you don\'t quit.',
+    tipB: 'standard 2"×4" labels. One on the toolbox, one on the fridge, one in the wallet. Stay dangerous.'
+  },
+  warm: {
+    label: 'Warm', affirmations: WARM_AFFIRMATIONS,
+    palette: { primary: '#8a3b2e', accent: '#d98b6a', bg: '#fdf4ee', ink: '#3a2a24', gold: '#c98a3f', rose: '#e0a4a4', line: '#e6d3c6' },
+    font: "'Trebuchet MS','Segoe UI',system-ui,sans-serif", italic: false, caps: false,
+    shapeA: 'oval', shapeB: 'square', onShape: null, sheetBg: '#fffdfa', tipsBg: '#fdf1ea',
+    headA: 'Be Gentle With You', headB: 'Small Steps Count',
+    tipA: 'print on sticker paper or cardstock. Place them where your eyes land when you need a kind word — the mirror, the kettle, the front of your journal.',
+    tipB: 'standard 2"×4" labels. Leave one for yourself and one for someone who needs it.'
+  }
+};
+const AFFIRMATION_VARIANT_KEYS = Object.keys(AFFIRMATION_VARIANTS);
+
+function buildAffirmationLabelsHTML(prof, theme, variantKey) {
   const _sh = (theme && theme.dna) ? shellDNA : shell;
-  const P = RECOVERY_PALETTE;
+  const V = AFFIRMATION_VARIANTS[String(variantKey || 'classic')] || AFFIRMATION_VARIANTS.classic;
+  const P = V.palette;
   const niche = prof.name.replace(/\s*\(.*?\)\s*/g, '').trim();
-  // Two sheets: 12 round labels (2.5") + 10 rectangular labels (2"x4").
-  const round = RECOVERY_AFFIRMATIONS.slice(0, 12).map(a => `<div class="lbl round"><span>${esc(a)}</span></div>`).join('');
-  const rect = RECOVERY_AFFIRMATIONS.map(a => `<div class="lbl rect"><span>${esc(a)}</span></div>`).join('');
-  return _sh(`${niche} — Recovery Affirmation Labels`, `
+  // Two sheets: 12 round-ish labels (2.5") + rectangular labels (2"x4").
+  const round = V.affirmations.slice(0, 12).map(a => `<div class="lbl ${V.shapeA}"><span>${esc(a)}</span></div>`).join('');
+  const rect = V.affirmations.map(a => `<div class="lbl ${V.shapeB}"><span>${esc(a)}</span></div>`).join('');
+  const spanCss = V.caps ? 'text-transform:uppercase;letter-spacing:.4px;font-weight:900' : (V.italic ? 'font-style:italic;font-weight:600' : 'font-weight:700');
+  const softA = 'linear-gradient(160deg,#fbf7ee,#f1ead9)';
+  const softB = 'linear-gradient(160deg,#fbf7ee,#f3ecdc)';
+  const titleSuffix = V.label === 'Classic' ? '' : ' (' + V.label + ')';
+  return _sh(`${niche} — Recovery Affirmation Labels${titleSuffix}`, `
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Georgia,'Times New Roman',serif;color:${P.ink};background:${P.bg};line-height:1.5;font-size:13px}
+    body{font-family:${V.font};color:${P.ink};background:${P.bg};line-height:1.5;font-size:13px}
     @page{size:A4;margin:8mm}
-    .sheet{page-break-after:always;background:#fff;padding:18px}
+    .sheet{page-break-after:always;background:${V.sheetBg};padding:18px}
     .sheet:last-child{page-break-after:auto}
     .sheet-head{text-align:center;margin-bottom:14px}
-    .sheet-head .t{font-size:1.3rem;font-style:italic;color:${P.primary}}
+    .sheet-head .t{font-size:1.3rem;${V.italic ? 'font-style:italic;' : ''}color:${P.primary}}
     .sheet-head .h{font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:#9a8f7d;margin-top:4px}
     .grid-round{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:10px 20px}
     .grid-rect{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:10px 20px}
     .lbl{display:flex;align-items:center;justify-content:center;text-align:center;border:1px dashed ${P.line}}
-    .lbl.round{aspect-ratio:1;border-radius:50%;background:linear-gradient(160deg,#fbf7ee,#f1ead9)}
-    .lbl.rect{aspect-ratio:2/1;border-radius:8px;background:linear-gradient(160deg,#fbf7ee,#f3ecdc)}
-    .lbl span{font-size:.82rem;color:${P.primary};font-weight:600;padding:0 10px;font-style:italic}
+    .lbl.round{aspect-ratio:1;border-radius:50%;background:${softA}}
+    .lbl.rect{aspect-ratio:2/1;border-radius:8px;background:${softB}}
+    .lbl.hex{aspect-ratio:1;background:${P.primary};border:0;clip-path:polygon(25% 3%,75% 3%,100% 50%,75% 97%,25% 97%,0 50%)}
+    .lbl.tag{aspect-ratio:2/1;background:${P.primary};border:0;border-radius:12px 12px 12px 0}
+    .lbl.oval{aspect-ratio:1;border-radius:50%/38%;background:${softA}}
+    .lbl.square{aspect-ratio:2/1;border-radius:14px;background:${softB}}
+    .lbl span{font-size:.82rem;color:${V.onShape || P.primary};padding:0 10px;${spanCss}}
     .cut{height:1px;background:${P.line};margin:6px 0}
-    .tips{margin-top:16px;padding:14px 18px;background:#fbf7ee;border:1px solid ${P.line};border-radius:10px;font-size:.74rem;color:#6b6252}
+    .tips{margin-top:16px;padding:14px 18px;background:${V.tipsBg};border:1px solid ${P.line};border-radius:10px;font-size:.74rem;color:#6b6252}
     .tips b{color:${P.primary}}
   `, `
   <div class="sheet">
-    <div class="sheet-head"><div class="t">Just for Today</div><div class="h">${esc(prof.name)} · Round Labels · cut on the dashed circles</div></div>
+    <div class="sheet-head"><div class="t">${esc(V.headA)}</div><div class="h">${esc(prof.name)} · Round Labels · cut on the dashed ${V.shapeA === 'hex' ? 'edges' : 'circles'}</div></div>
     <div class="grid-round">${round}</div>
-    <div class="tips"><b>How to use:</b> print on sticker paper or cardstock. Stick them on your mirror, fridge, wallet, planner or water bottle — anywhere a reminder of your intention helps you through the day.</div>
+    <div class="tips"><b>How to use:</b> ${esc(V.tipA)}</div>
   </div>
   <div class="sheet">
-    <div class="sheet-head"><div class="t">One Day at a Time</div><div class="h">${esc(prof.name)} · Rectangle Labels · cut on the dashed lines</div></div>
+    <div class="sheet-head"><div class="t">${esc(V.headB)}</div><div class="h">${esc(prof.name)} · Rectangle Labels · cut on the dashed lines</div></div>
     <div class="grid-rect">${rect}</div>
-    <div class="tips"><b>Tip:</b> these 2×4 labels fit standard Avery 2"×4" shipping labels. Print, cut, and place one in each spot you'll see it — a gentle nudge toward your recovery, all day long.</div>
+    <div class="tips"><b>Tip:</b> ${esc(V.tipB)}</div>
   </div>`, { primary: P.primary, accent: P.accent, bg: P.bg });
 }
 
@@ -2361,6 +2425,7 @@ module.exports = {
   buildPlannerHTML, buildWallArtHTML, buildWorksheetHTML, buildPartyPrintableHTML,
   buildPyroBatchHTML, buildPyroLiftFuseHTML, buildPyroShootLogHTML,
   buildRecoveryJournalHTML, buildAffirmationLabelsHTML, buildRecoveryNutritionHTML, buildMeetingFlashcardsHTML,
+  AFFIRMATION_VARIANTS, AFFIRMATION_VARIANT_KEYS,
   thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover, buildContentForwardCover,
   COVER_MASTER, MARKETPLACE_SAFE_RECT, DEVICE_SLOT,
   buildLifestyleMockupHTML,
