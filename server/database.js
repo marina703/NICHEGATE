@@ -11,12 +11,15 @@ fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new DatabaseSync(DB_PATH);
 
-// Enforce WAL + sensible lock wait so concurrent cron/API writers don't fail fast
+// Enforce WAL + sensible lock wait so concurrent cron/API writers don't fail fast.
+// busy_timeout MUST be set first: the WAL switch takes a lock, and without this
+// wait it fails instantly whenever another process (parallel test file, cron,
+// API) holds the file — leaving the connection with no lock wait at all.
+db.exec('PRAGMA busy_timeout = 5000;');
+db.exec('PRAGMA synchronous = NORMAL;');
+db.exec('PRAGMA foreign_keys = ON;');
 try {
   db.exec('PRAGMA journal_mode = WAL;');
-  db.exec('PRAGMA busy_timeout = 5000;');
-  db.exec('PRAGMA synchronous = NORMAL;');
-  db.exec('PRAGMA foreign_keys = ON;');
 } catch (e) {
   console.error('[DB] pragma init:', e.message);
 }

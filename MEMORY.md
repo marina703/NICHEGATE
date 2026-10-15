@@ -24,6 +24,15 @@
 - If Etsy refresh still returns 403 after form encoding, the stored refresh token
   may be expired/revoked or app credentials mismatched. Owner must reconnect Etsy
   via `/setup`; never rotate or overwrite production marketplace secrets unasked.
+- Commit `4a054b3` (2026-10-12) with the URL-encoded grants and default-off eBay
+  scraper is deployed to Railway production as `5d9ffa1b-cb9b-4893-94dc-3815d862b05e`.
+  `/api/health` and `/api/health/readiness` returned 200 (`ready:true`), but the
+  post-deploy automation log still reported Etsy refresh 403. Token presence in
+  readiness does not prove validity; after the owner reconnects in `/setup`, verify
+  an Etsy API operation. Production publishing was safety-locked in the observed
+  runtime logs. No marketplace secrets were modified.
+- Regression verification recorded for this release: focused suites 29/29 pass;
+  full Node suite 290 pass, 4 skipped, 0 failed (294 tests).
 
 ## Cover composites (2026-10-12)
 - Cover art is an atmospheric, photoreal niche background only; never ask the

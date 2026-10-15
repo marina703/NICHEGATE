@@ -2282,6 +2282,11 @@ app.get('/api/marketplace/test', async (req, res) => {
 // Accepts the full token payload; never logs the secrets.
 app.post('/api/marketplace/etsy/import-token', async (req, res) => {
   try {
+    // Shared-secret gate: the local OAuth bridge presents the same worker key
+    // the server already holds. Without it the route is unusable.
+    if (req.headers['x-ng-key'] !== process.env.COVER_WORKER_KEY) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
     const { access_token, refresh_token, expires_in } = req.body || {};
     if (!access_token || !refresh_token) return res.status(400).json({ error: 'access_token and refresh_token are required' });
     const expiresAt = new Date(Date.now() + (Number(expires_in) || 3600) * 1000).toISOString();
