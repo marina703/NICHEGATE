@@ -378,7 +378,27 @@ const PROFESSION_SCENES = [
     scene: 'on a linen-covered table beside a small floral arrangement and folded ribbon, soft window light in frame',
     props: 'a pair of scissors, folded ribbon and a fabric swatch ring',
     avoid: 'no calipers, no construction tools, no laptops, no ribbon spools',
-    surface: { printable: 'blank white sheet of paper', screen: 'open laptop with a large blank white screen', phone: 'smartphone' } }
+    surface: { printable: 'blank white sheet of paper', screen: 'open laptop with a large blank white screen', phone: 'smartphone' } },
+  { match: /beekeep|apiary|honey|apiarist/i,
+    scene: 'at an apiary beside a Langstroth hive on a stand, wildflowers and grass in frame',
+    props: 'a bee smoker, a hive tool and a honey frame',
+    avoid: 'no calipers, no drafting instruments, no laptops, no Sherlock Holmes pipes',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
+  { match: /drone|uav|aerial|survey/i,
+    scene: 'on a job-site crate beside a quadcopter drone with its controller, open ground in frame',
+    props: 'a drone remote controller, a spare battery pack and propeller guards',
+    avoid: 'no calipers, no office stationery, no laptops',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
+  { match: /appliance|washer|dryer|refrigerat|oven|stove|dishwasher|repair/i,
+    scene: 'beside an open appliance in a utility room, exposed panels and wiring in frame',
+    props: 'a multimeter, insulated screwdrivers and a putty knife',
+    avoid: 'no calipers, no office stationery, no laptops',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } },
+  { match: /pyrotechn|firework|explosive|display operator/i,
+    scene: 'on a plywood firing table at a display site, mortars and safety cones in frame',
+    props: 'a firing console key, safety glasses and a spool of igniter wire',
+    avoid: 'no calipers, no office stationery, no laptops, no open flames',
+    surface: { printable: 'blank white clipboard holding one blank sheet of paper', screen: 'rugged tablet with a blank white screen', phone: 'smartphone' } }
 ];
 
 /** The COVER_SCENES strings read "<subject surface>, <props>, <lighting>, <styling>".
