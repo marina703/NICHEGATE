@@ -1,5 +1,32 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
+## ── 2026-10-14: WORKER ANTI-PUNT + COVER REBUILD TIMEOUT FIXES ──
+Owner feedback (same session as the E2E finish pass): "the ai just reverts
+back to 'ive asked boss what to do'" and "cover regeneration failed inside
+nichegate command center".
+- ANTI-PUNT (agentWorker.js): the worker is now named the DEFAULT
+  DECISION-MAKER in the system prompt; ask_boss is LAST RESORT (real money,
+  irreversible action, explicit "ask me", or info only the boss has) — never
+  for ideas or answerable questions. ask_boss tool desc carries the same
+  criteria. Structural guard: a FIRST-action ask_boss without an explicit
+  boss request is REJECTED and the model is redirected to decide (consult
+  snapshot/list/brainstorm, recommend, or execute). Deterministic planner no
+  longer routes "what do you think" to ask_boss. Committed bd083ee.
+- COVER REBUILD TIMEOUT: generatePreviewBatch rendered covers SEQUENTIALLY
+  (~100s each), so the console's 5-cover batch needed 500s+ and every
+  client/proxy timed out → "Rebuild Stopped". Renders are a network art
+  fetch + one Puppeteer page on the shared browser → now bounded waves of 4.
+  Verified live: 5-cover batch in 194s, 5/5 generated (was 500s+ and dead).
+  rebuild-covers action default limit 10 → 3. Test pins overlap (2-4),
+  failure reporting and cursor semantics unchanged. Committed bd083ee.
+- GUMROAD INVENTORY CHECK (owner: "60 or more live listings"): the v2 API
+  with the .env token returns EXACTLY 10 products for nichegate.gumroad.com;
+  the `page` parameter is IGNORED (pages 1-100 all returned the identical 10
+  IDs — verified distinct-id count). marinablow.gumroad.com is dead (404).
+  The "60" matches the command-center CATALOG count (dev DB: 50 drafts + 10
+  listed), not live Gumroad listings. Open question for the owner: where the
+  60+ number came from (dashboard drafts? another account?).
+
 ## ── 2026-10-14: E2E FINISH PASS — verification, fixes, autonomy wiring ──
 Owner ask: "finish the project with a minimum of 8/10 quality across the board, e2e, front to back."
 - BASELINE: full `node --test` was NOT green on arrival — 1 real failure
