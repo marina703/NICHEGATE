@@ -394,23 +394,42 @@ function buildArtPrompt(prof, product, profile = 'photo-cover', theme = {}) {
   // The style DNA above decides the look; this decides the subject. Without it a
   // trades niche gets a generic "steel tools and measuring tape" flat-lay, which
   // is how calipers ended up on a roofing cover.
+  // The surface the product preview is composited onto — matched to the
+  // product's real end use instead of one generic tablet on every cover:
+  // printables sit on paper/clipboards, data tools on a laptop screen, social
+  // packs on a phone. The white-rect detector finds whichever blank surface
+  // the prompt specifies, so the adaptive composite lands on the right thing.
+  const SURFACE_BY_TYPE = {
+    checklist: 'blank white clipboard holding one blank sheet of paper, lying completely flat on the work surface',
+    'decision-matrix': 'blank white clipboard with a blank sheet of paper, lying completely flat on the desk',
+    invoice: 'neat stack of three blank white paper sheets, lying completely flat on the desk',
+    journal: 'open blank white notebook with empty pages, lying completely flat on the desk',
+    spreadsheet: 'open laptop with a large blank white screen, lying flat on the desk',
+    booking: 'open laptop with a large blank white screen, lying flat on the desk',
+    roi: 'open laptop with a large blank white screen, lying flat on the desk',
+    website: 'open laptop with a large blank white screen, lying flat on the desk',
+    social: 'smartphone lying flat with its blank white screen facing up',
+    bundle: 'stack of document folders topped with blank white paper sheets, lying flat on the desk',
+  };
+  const surface = SURFACE_BY_TYPE[String(product && product.type || '').toLowerCase()]
+    || 'blank white sheet of paper, lying completely flat on the desk';
   const role = professionScene(prof);
   return [
     'Top-down flat-lay photograph, 2:3 portrait canvas, native 1200x1800 pixels',
     role ? `setting and lighting: ${direction.look || styleTextureFromScene(direction.scene)}` : direction.scene,
     role ? `set ${role.scene}` : null,
-    'exactly ONE blank white tablet lying completely flat, framed by a crisp thin black-and-silver metal bezel whose dark inner rim clearly outlines all four sides of the matte-white blank screen, no interface',
-    'the tablet is the single brightest object in the frame — every prop is smaller, darker and matte so nothing competes with the screen',
-    'tablet fixed in the right 46% of frame, vertically centered, approximately 46% of frame width and 42% of frame height, leave the left 54% visually quiet for cover copy',
+    `exactly ONE ${surface}, completely blank with nothing on it`,
+    'the blank surface is the single brightest object in the frame — every prop is smaller, darker and matte so nothing competes with it',
+    'fixed in the right 46% of frame, vertically centered, approximately 46% of frame width and 42% of frame height, leave the left 54% visually quiet for cover copy',
     role
-      ? `the only tools in frame are ${role.props}, small, dark or earth-toned, placed neatly beside the tablet and never overlapping it`
-      : 'two or three small contextual physical props only, dark or earth-toned, neatly spaced, no overlapping the tablet slot',
+      ? `the only tools in frame are ${role.props}, small, dark or earth-toned, placed neatly beside the blank surface, never overlapping it or duplicating it`
+      : 'two or three small contextual physical props only, dark or earth-toned, neatly spaced, no overlapping the blank surface',
     'photographed directly from above with parallel edges, soft realistic contact shadow, consistent physical light direction',
     `design DNA ${direction.name}${style ? ` / ${style}` : ''}${font ? ` / ${font} typography` : ''}${accent ? ` / restrained ${accent} accent` : ''}`,
     'photorealistic atmospheric product photography, professional product photography, subtle natural grain',
     'real photograph taken on a full-frame DSLR with a 35mm lens in natural light, authentic materials showing real wear, shallow depth of field, documentary realism, not an illustration, not a 3d render, not CGI',
-    'no text, no letters, no words, no labels, no writing, no logos, no watermark, no screen content, no visible screens except the specified blank tablet, no interface, no UI elements, no charts, no graphs, no documents, no readable text or documents, no paper with marks',
-    'no tape rolls, no rolls of tape, no gaffer tape, no white or metallic circular objects, no clipboards, no open notebooks, no open journals, no loose paper sheets, no second tablet, no phone, no laptop',
+    'no text, no letters, no words, no labels, no writing, no logos, no watermark, no screen content, no interface, no UI elements, no charts, no graphs, no documents, no readable text or documents, no paper with marks, nothing on the blank surface',
+    'no tape rolls, no rolls of tape, no gaffer tape, no white or metallic circular objects, no second device, no extra paper beyond the specified surface, no clutter',
     role ? role.avoid : null
   ].filter(Boolean).join(', ');
 }

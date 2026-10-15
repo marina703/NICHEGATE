@@ -252,8 +252,8 @@ test('fileFactory invalidates prior thumbnail paths after a cover design version
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v4-123.jpg'), false);
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v5-123.jpg'), false);
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v6-123.jpg'), false);
-  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v8-123.jpg'), false, 'v8 previews predate the enlarged product-screen treatment');
-  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v9-123.jpg'), true);
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v9-123.jpg'), false, 'v9 previews predate the per-type product-surface covers');
+  assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v10-123.jpg'), true);
   assert.equal(fileFactory.isCurrentCoverPath('previews/product-42-cover-v7-123.jpg'), false, 'v7 covers were drawn from the generic mockup and must regenerate');
   assert.equal(fileFactory.isCurrentCoverPath(null), false);
 });

@@ -228,7 +228,7 @@ async function ensureProductFile(product) {
 // Reuses the same cached Chrome instance as the PDF generator.
 // ═══════════════════════════════════════════════════════════════════════════
 const PREVIEW_DIR = runtimeConfig.resolvePersistentDir('previews');
-const COVER_VERSION = 'cover-v9';
+const COVER_VERSION = 'cover-v10';
 fs.mkdirSync(PREVIEW_DIR, { recursive: true });
 
 function isCurrentCoverPath(previewPath) {

@@ -1549,12 +1549,16 @@ function heroSnippetForCover(product, prof, theme) {
 }
 
 function coverPreviewStyles(labelHeight, screenHeight, fontSize) {
-  return `.product-preview-label{height:${labelHeight}px;display:flex;align-items:center;gap:10px;padding:0 12px;color:#475569;background:#f8fafc;border-bottom:1px solid #e2e8f0;font:800 ${fontSize}px/1 system-ui,sans-serif;letter-spacing:.9px;white-space:nowrap}.preview-lights{display:flex;gap:5px;flex-shrink:0}.preview-lights i{width:8px;height:8px;border-radius:50%;background:#f87171}.preview-lights i:nth-child(2){background:#fbbf24}.preview-lights i:nth-child(3){background:#34d399}.preview-title{margin-left:auto;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0;color:#1e293b;font-weight:700}.product-preview-screen{height:${screenHeight}px;overflow:hidden;background:#fff}.product-preview-screen iframe{display:block;width:100%;height:100%;border:0;background:#fff}.product-preview-screen img{display:block;width:100%;height:auto;border:0;background:#fff;transform:scale(1.16);transform-origin:top center}`;
+  // No browser chrome on covers: the composited surface shows the clean
+  // product document only — no traffic-light dots, no "ACTUAL PRODUCT PAGE"
+  // bar, no title strip. (labelHeight/fontSize are kept in the signature so
+  // existing call sites stay unchanged; they are no longer rendered.)
+  return `.product-preview-screen{height:${screenHeight}px;overflow:hidden;background:#fff}.product-preview-screen iframe{display:block;width:100%;height:100%;border:0;background:#fff}.product-preview-screen img{display:block;width:100%;height:auto;border:0;background:#fff;transform:scale(1.16);transform-origin:top center}`;
 }
 
 function coverProductPreview(productHtml, title, zoom) {
   if (/^data:image\/(?:jpeg|png|webp);base64,/i.test(String(productHtml || ''))) {
-    return `<div class="product-preview-label"><span>ACTUAL PRODUCT PAGE</span><span class="preview-title">${esc(title)}</span></div><div class="product-preview-screen"><img class="product-preview-raster" src="${esc(productHtml)}" alt="Actual rendered product page"></div>`;
+    return `<div class="product-preview-screen"><img class="product-preview-raster" src="${esc(productHtml)}" alt="${esc(title)}"></div>`;
   }
   const source = String(productHtml || '<!doctype html><html><body><main><h1>Product preview unavailable</h1><p>Regenerate this cover to include the real deliverable.</p></main></body></html>');
   const viewport = `<meta name="viewport" content="width=700"><style>html{zoom:${zoom};transform-origin:top left;overflow:hidden}body{max-width:700px!important;overflow:hidden}</style>`;
@@ -1563,7 +1567,7 @@ function coverProductPreview(productHtml, title, zoom) {
     : `<!doctype html><html><head>${viewport}</head><body>${source}</body></html>`;
   // Escaping the full document keeps </iframe> and quotes inside the srcdoc
   // attribute. The empty sandbox deliberately disables scripts and privileges.
-  return `<div class="product-preview-label"><span class="preview-lights"><i></i><i></i><i></i></span><span>REAL PRODUCT PREVIEW</span><span class="preview-title">${esc(title)}</span></div><div class="product-preview-screen"><iframe title="${esc(title)} — actual product preview" sandbox="" srcdoc="${esc(withViewport)}"></iframe></div>`;
+  return `<div class="product-preview-screen"><iframe title="${esc(title)} — actual product preview" sandbox="" srcdoc="${esc(withViewport)}"></iframe></div>`;
 }
 
 const COVER_MASTER = Object.freeze({ width: 1200, height: 1800 });
@@ -1589,15 +1593,17 @@ function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, c
   // (and letting the tablet's matte screen show through the corner) makes it read
   // as glass rather than a pasted-on rectangle.
   const screenRadius = adaptive ? Math.max(18, Math.round(S.width * 0.06)) : 4;
-  const labelH = Math.max(32, Math.min(44, Math.round(screenH * 0.07)));
+  // No label bar on covers (browser chrome removed) — the product document
+  // fills the whole composited slot.
+  const labelH = 0;
   // Exact rectangle the product page raster occupies, in 1200x1800 master
   // coordinates. Emitted as data attributes so the cover QA gate can re-locate
   // the page without re-deriving the layout math (and without drifting from it).
   const contentX = adaptive ? S.x : S.x + insetX;
-  const contentY = (adaptive ? S.y : S.y + insetY) + labelH;
+  const contentY = adaptive ? S.y : S.y + insetY;
   const contentW = screenW;
-  const contentH = Math.max(0, screenH - labelH);
-  const previewCss = coverPreviewStyles(labelH, Math.max(100, screenH - labelH), 11);
+  const contentH = Math.max(0, screenH);
+  const previewCss = coverPreviewStyles(labelH, Math.max(100, screenH), 11);
   // Avoid text colliding with a centered or left-leaning detected tablet screen:
   // when the screen's vertical span overlaps the bottom copy band and its
   // horizontal span enters the left copy column, constrain or compact the copy block.
@@ -1639,7 +1645,7 @@ body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
 .ts-ben .ck{width:${compactCopy ? 34 : 46}px;height:${compactCopy ? 34 : 46}px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-size:${compactCopy ? 18 : 26}px;font-weight:900;flex-shrink:0}
 .ts-foot{position:absolute;z-index:3;left:0;right:0;bottom:180px;background:rgba(12,12,13,.72);height:96px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:1px solid rgba(255,255,255,.16)}
 .ts-format{font-size:21px;font-weight:800;letter-spacing:2px;color:#e4e4e7}
-  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:inset 0 0 26px rgba(15,23,42,.10);' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? screenRadius + 'px' : '10px'}}
+  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:inset 0 0 26px rgba(15,23,42,.10), 0 16px 38px -12px rgba(0,0,0,.55);' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? screenRadius + 'px' : '10px'}}
   .ts-device{${adaptive ? 'display:none' : `position:absolute;inset:0;background:#f4f4f5;border-radius:22px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px #d4d4d8;overflow:hidden`}}
   .ts-screen{position:absolute;left:${adaptive ? 0 : insetX}px;top:${adaptive ? 0 : insetY}px;width:${screenW}px;height:${screenH}px;background:#fff;border-radius:${screenRadius}px;overflow:hidden}
   .ts-screen::after{content:"";pointer-events:none;position:absolute;inset:0;background:rgba(255,248,232,.07)}

@@ -147,41 +147,47 @@ test('detectWhiteRect: rejects bright round props (tape rolls) that lack a dark 
     `detected rect should hug the bezeled screen, got ${JSON.stringify(r)}`);
 });
 
-test('buildArtPrompt: photo generation specifies a blank portrait tablet slot and hard negatives', () => {
+test('buildArtPrompt: photo generation specifies a blank portrait compositing surface and hard negatives', () => {
   const p = coverArt.buildArtPrompt(creatorProf, product, 'photo-cover');
-  for (const token of ['1200x1800', 'blank white tablet', 'flat-lay', 'right 46%', 'vertically centered', 'approximately 46% of frame width and 42% of frame height', 'leave the left 54% visually quiet', 'no text', 'no labels', 'no writing', 'no logos', 'no screen content', 'no documents']) {
+  for (const token of ['1200x1800', 'blank white', 'flat-lay', 'right 46%', 'vertically centered', 'approximately 46% of frame width and 42% of frame height', 'leave the left 54% visually quiet', 'no text', 'no labels', 'no writing', 'no logos', 'no screen content', 'no documents', 'nothing on the blank surface']) {
     assert.ok(p.toLowerCase().includes(token.toLowerCase()), `missing blank-slot instruction: ${token}`);
   }
   assert.doesNotMatch(p, /notebook with colorful sticky notes|screen glow|monitor/i);
 });
 
-test('buildArtPrompt: no scene invites bright screen-decoy props (tape rolls, clipboards, open paper)', () => {
-  // Every photo-cover prompt must exclude the props that fool the screen
-  // detector into gluing the product page onto a prop instead of the tablet.
-  const p = coverArt.buildArtPrompt(creatorProf, product, 'photo-cover').toLowerCase();
-  assert.match(p, /no tape rolls/);
-  assert.match(p, /no clipboards/);
-  assert.match(p, /no open journals|no open books/);
-  assert.match(p, /no loose paper sheets/);
-  assert.match(p, /exactly one blank white tablet/);
-  assert.match(p, /dark inner rim clearly outlines all four sides/,
-    'the working covers are the bezeled ones — the prompt must demand the rim');
-
-  // Spot-check the trade scenes that USED to ship a decoy prop. The prompt
-  // now bans them by name ("no tape rolls"), so match POSITIVE prop phrasing
-  // only — a bare /gaffer tape/ would trip over its own ban line.
-  const scenes = [
-    [{ name: 'Photographer', slug: 'photographer' }, /are a camera battery[^,]*, a lens cloth and a roll of|props?:[^,]*gaffer/],
-    [{ name: 'Electrician', slug: 'electrician' }, /props?:[^,]*roll of electrical tape/],
-    [{ name: 'Plumber', slug: 'plumber' }, /props?:[^,]*teflon tape/],
-    [{ name: 'Mold Inspector', slug: 'mold-inspector' }, /props?:[^,]*clipboard/],
-    [{ name: 'Tax Consultant', slug: 'tax-consultant' }, /props?:[^,]*paper ledger|and a short stack of blank cream paper/],
-    [{ name: 'Recovery Coach', slug: 'recovery-coach' }, /props?:[^,]*open journal/]
+test('buildArtPrompt: every product type composites onto its own natural surface', () => {
+  // The surface is matched to the product's real end use — printables sit on
+  // paper/clipboards, data tools on a laptop screen, social packs on a phone —
+  // instead of one generic tablet on every cover.
+  const cases = [
+    ['checklist', /exactly one blank white clipboard holding one blank sheet of paper/],
+    ['invoice', /exactly one neat stack of three blank white paper sheets/],
+    ['spreadsheet', /exactly one open laptop with a large blank white screen/],
+    ['booking', /exactly one open laptop with a large blank white screen/],
+    ['roi', /exactly one open laptop with a large blank white screen/],
+    ['website', /exactly one open laptop with a large blank white screen/],
+    ['social', /exactly one smartphone lying flat with its blank white screen/],
+    ['bundle', /exactly one stack of document folders topped with blank white paper/],
+    ['journal', /exactly one open blank white notebook with empty pages/],
   ];
-  for (const [prof, decoy] of scenes) {
-    const sp = coverArt.buildArtPrompt(prof, { type: 'checklist' }, 'photo-cover').toLowerCase();
-    assert.doesNotMatch(sp, decoy, `${prof.name} still ships a screen-decoy prop`);
+  for (const [type, re] of cases) {
+    const p = coverArt.buildArtPrompt(creatorProf, { type }, 'photo-cover').toLowerCase();
+    assert.match(p, re, `${type} must specify its own compositing surface`);
+    assert.match(p, /completely blank with nothing on it/);
   }
+  // Unknown types fall back to a plain sheet of paper.
+  const fallback = coverArt.buildArtPrompt(creatorProf, { type: 'future-type' }, 'photo-cover').toLowerCase();
+  assert.match(fallback, /exactly one blank white sheet of paper/);
+  // Hard negatives that fool the white-rect detector stay banned.
+  const p = coverArt.buildArtPrompt(creatorProf, { type: 'spreadsheet' }, 'photo-cover').toLowerCase();
+  assert.match(p, /no tape rolls/);
+  assert.match(p, /no second device/);
+  assert.match(p, /no extra paper beyond the specified surface/);
+  // A role whose props include the surface itself (mold inspector's clipboard
+  // on a checklist cover) must not be allowed to draw a second one.
+  const mold = coverArt.buildArtPrompt({ name: 'Mold Inspector', slug: 'mold-inspector' }, { type: 'checklist' }, 'photo-cover').toLowerCase();
+  assert.match(mold, /never overlapping it or duplicating it/,
+    'the surface must never be duplicated by the role props');
 });
 
 test('Lucid Origin output dimensions are validated rather than center-cropped', () => {
