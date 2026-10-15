@@ -162,6 +162,46 @@ Owner ask: "finish the project with a minimum of 8/10 quality across the board, 
 - Also wired all 15 Innovative product types (`playbook`, `pricing-bible`, `interactive-tool`, `profit-calculator`, `sop-package`, `business-in-a-box`, etc.) in `fileFactory.ensureProductFile` and `fileFactory.buildPreviewHTML` so they generate real deliverables and real cover previews instead of falling through to the generic fallback card; removed non-existent `buildEmailScriptsHTML`/`buildSOPPackageHTML` calls in `server/index.js`; fixed missing `<tr>` row wrappers in `buildTablePreviewHTML`; and eliminated the redundant double-render in `marketplace.requirePublishableCover` self-heal.
 - Verification: 76/76 tests pass across `cover-copy`, `cover-art-prompts`, `cover-safety`, `design-critic`, `preview-surface`, `lifestyle-mockup`, `marketplace-copy`, `etsy-heal`, `lockdown`, and `smoke`; visual Puppeteer/Chromium renders verified.
 
+## ── 2026-10-15: cover redesign — profession-realistic surfaces (cover-v10) ──
+- **Owner feedback**: covers were "sloppy" — every product composited onto a
+  generic floating tablet with fake browser chrome ("ACTUAL PRODUCT PAGE",
+  traffic-light dots, title bar, future "LAST REFRESHED" dates), and the
+  surface never matched the product. Husband-is-a-roofer reality check: **no
+  roofer works off a MacBook on a rooftop** — trades carry clipboards, rugged
+  tablets and phones.
+- **cover-v10** (COVER_VERSION bump forces full regeneration):
+  - `coverProductPreview` (designStudio.js): browser chrome REMOVED from both
+    raster and HTML paths — the clean product document fills the slot.
+  - `buildArtPrompt` (coverArt.js): per-product-kind surface
+    (printable/screen/phone), overridden per PROFESSION by what the trade
+    actually carries — clipboard for field printables, rugged tablet for data
+    tools, phone for social kits; laptops kept ONLY for desk-bound professions
+    (tax, notary, creators, photographers, wedding). Surface clauses never say
+    "desk" so they can't contradict rooftop/basement scenes. A "never
+    overlapping it or duplicating it" guard stops role props drawing a second
+    surface (mold inspector's clipboard). Prompt hardened for perfectly
+    perpendicular flat-lay (zero tilt).
+  - PROFESSION_SCENES: beekeeping, drone surveying, appliance repair and
+    pyrotechnics gained real field scenes (previously fell to the generic
+    default and shipped a laptop).
+  - Composite drop-shadow REMOVED: on screens it read as a sticker floating
+    above the display; the art's own lighting grounds physical surfaces.
+- **All 91 covers regenerated + pushed** (tmp/cover-regenerate.js — force
+  re-render → catbox → Gumroad attach; 150s watchdog, serial mode for
+  remainder batches). Storefront rebuilt from per-product API fetches (the
+  list endpoint only exposes 10 products; GET /v2/products/:id covers all 91)
+  and re-pushed. Vision-verified: checklist 8/10, social 9/10, invoice 7/10,
+  roofing tablet 7/10, recovery booking 8/10, beekeeping tablet 8/10.
+- **Known remaining gap**: when the AI draws a device at a perspective angle
+  the flat overlay still reads slightly pasted-on — proper fix is a
+  four-corner projective transform in the composite (not yet built). GitHub
+  mockup repos reviewed (CTDave001 = static-template box detection;
+  devonjhills = listing-content automation; matrixprompter = Gemini
+  image-to-image) — none adoptable: image models garble the text-heavy
+  documents we sell.
+- Tests: 350 pass / 0 fail / 4 skipped. Commits 3ff070e, dc49ebb, 46c1613,
+  06e6e11 pushed to origin/main.
+
 ## ── 2026-10-13: ADAPTIVE COVER PLACEMENT (template lands ON the photo's tablet) ──
 - Owner feedback: the template must sit INSIDE the photo's white tablet rectangle,
   not float beside a blank tablet. Root cause: composite used a hard-coded CSS slot
