@@ -1,10 +1,56 @@
-node_modules
-data
-generated
-logs
-uploads
-backups
-tmp
+# ═══════════════════════════════════════════════════════════════════════════
+# DOCKER BUILD CONTEXT — what ships into the NicheGate image.
+#
+# Docker's COPY ignores .gitignore. The prior version of this file omitted
+# previews/ and covers/ai/, leaving ~1GB in every build context — that is what
+# has been failing Railway deploys with "out of space". It also baked the local
+# .env (every secret) into the image.
+#
+# On Railway, data/, previews/, generated/ and covers/ai/ all resolve under
+# RAILWAY_VOLUME_MOUNT_PATH (/app/data) at runtime, so the image must NOT
+# contain them — they live on the mounted volume and regenerate on demand.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Dependencies — rebuilt inside the image by `npm install --omit=dev`
+node_modules/
+
+# Git history — not needed at runtime
+.git/
+.gitignore
+.gitattributes
+
+# Secrets — NEVER bake into the image. Railway injects these as env vars.
 .env
+.env.*
+!.env.example
+
+# Railway persistent volume contents — the DB and runtime artifacts live on the
+# mounted volume, never in the image.
+data/
+uploads/
+logs/
+runtime/
+backups/
+tmp/
+
+# Runtime caches — regenerated on demand; enormous locally.
+# THE FIX: previews/ (442M) and covers/ai/ (581M) were missing before.
+previews/
+generated/
+covers/ai/
+
+# Cloudflare worker local state
+cf-worker/.wrangler/
+cf-worker/.dev.vars
+
+# Local scratch / legacy (mirrors .gitignore)
+client/_css_part.css
+client/_css_part2.css
+client/_css_part3.css
+client/v2.html
+.freebuff/
+_rlw.js
+
+# Logs
 *.log
-.git
+nichegate-stdout.log
