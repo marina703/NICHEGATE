@@ -1,5 +1,51 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
+## ── 2026-10-15: STORE WIPE + EDITORIAL COVER REBUILD (owner-directed fresh start) ──
+Owner feedback: covers were one template with color swaps ("copy-paste"), wrong
+headlines on some ("Pricing Calculator" on Massage Therapy), labels not showing,
+and the store needed a full wipe + fresh start. Reference style: the owner's
+`correct covers/examples/` (minimal editorial, one specific hero object).
+- VERIFIED FIRST (live): 77 products, 61 unpublished, 0 sales, all with covers;
+  vision-checked 8 covers — every one was the identical template (logo top-left,
+  niche pill top-right, same 3 bullets, "$12 Instant download" bar). The
+  storefront landing shows only 20/77 with images (Gumroad 25-image page cap);
+  local dev DB had ZERO preview_path values → review gate showed no thumbnails.
+- WIPED: all 77 deleted via DELETE /v2/products/:id (0 failures, verified 0
+  remaining). Full inventory backed up to
+  data/backups/gumroad-inventory-2026-10-15-full-77.json BEFORE the wipe.
+- NEW PIPELINE (all local, uncommitted): the product page IS the hero.
+  - `coverDirector.js` (NEW): per-listing art direction via the ideation model
+    (strict JSON: field tone from the product palette, heroCrop top/upper/full,
+    title/kicker/tagline/benefits); deterministic fallback when MODEL_ENABLED
+    is off; NEVER throws. Enforces the contrast rule: white sheet always sits
+    on a deep tonal field (fixes white-on-cream).
+  - `coverTemplate.js` (rewritten): editorial layout — kicker + accent rule,
+    serif italic tagline, condensed display title (Arial Narrow Bold stack),
+    two-line title, price block with INSTANT DOWNLOAD sub. `renderProductPage`
+    renders the REAL preview page (buildPreviewHTML) to PNG with crop depth;
+    page floats as a shadowed white sheet on the field. Bundles keep the AI
+    hero object full-bleed (owner-approved look for toolkits).
+  - `heroArt.js`: added recovery templates (labels/journal/nutrition/
+    flashcards), niche grounding in prompts, withRetry backoff for 402/429,
+    Pollinations fallback, and a 1.5% dimension tolerance (the worker returns
+    1200x1792 for a 1200x1800 request — rejecting it burned retries + the
+    slow free tier on EVERY generation).
+  - `fileFactory.js` hero-cover branch now runs the director (production path).
+- BUILT (tmp/build-curated.js, state tmp/curated-build-state.json): 18 recovery
+  vertical deliverables + 6 toolkits (bundleEngine) + 6 business tools,
+  30/30 covers, 0 failures. Owner vision-approved: journal/labels/HVAC/
+  toolkit/faith-based/roofing all distinct palettes + real product content.
+- REPUBLISHED wave 1: 10 live listings (Refuge + SMART + Secular verticals,
+  10/10 published, files attached 32pp verified, covers 10/10 after one
+  cover-attach retry). Gumroad daily create cap is HARD at 10/day (counts
+  attempts). REMAINING for tomorrow (~20): AA + Faith-Based verticals,
+  6 toolkits, 6 business tools — re-run `node tmp/republish.js 10` (skips
+  anything with marketplace_id; the 12 stale marketplace_ids from the wiped
+  store must be cleared first — they point at deleted products).
+- TODO: rebuild storefront landing (gumroad-page/build.js) after the full set
+  is republished; clear stale marketplace_id rows for the 12 skipped products
+  before the next wave.
+
 ## ── 2026-10-14: GUMROAD STOREFRONT CLEANUP (cull + critique + fix) ──
 Owner ask: "check the gumroad listings that are live and cull, critique and fix
 any listings that are not 10/10 top tier quality."
@@ -1155,3 +1201,38 @@ All work LOCAL ONLY — commit + deploy when the owner audits.
   "1 stale dropped" each), PUSH_EXIT=0, no skips/failures. Verified against the
   live Gumroad API (not the push response): all 10 published, $12, carrying the
   moat-content filenames. No generic content is live on the store now.
+
+## ── 2026-10-15: HERO COVER PIPELINE (n8n Design Studio adaptation) ──
+- Owner ask: "implement a similar or same idea since ours isn't working well"
+  — the current covers look like stock photos + text overlay because coverArt.js
+  generates generic lifestyle scenes (workbench flat-lays, desk props), not
+  specific hero objects.
+- BUILT 3 new modules mirroring the n8n Design Studio workflow:
+  1. `server/services/heroArt.js` — generates ONE specific, desirable hero
+     object per product type (ledger book + brass paperweight, tablet + phone,
+     ceramic orbs, etc.) — text-free, negative space on the LEFT 45% for
+     typography. Reuses coverArt.js provider infrastructure (Cloudflare
+     Workers AI / fal / Pollinations). Graceful fallback to coverArt on failure.
+  2. `server/services/coverTemplate.js` — composites the hero image with
+     typography (title, kicker, tagline, benefits, palette colors) into a
+     final 1200×1800 marketplace cover using Puppeteer. Hero sits in the right
+     55%, text in the left 45%. Uses palette tokens (bg/ink/accent) directly.
+  3. `server/services/coverCritic.js` — vision-based quality gate: scores the
+     final cover on 6 dimensions (hero_realism, typography, composition,
+     palette, thumbnail_legibility, desirability) + checks for garbled text.
+     Pass = ≥8 overall AND zero garbled text. Cached via sha256 + ai_usage ledger.
+- INTEGRATED into the existing pipeline:
+  - `fileFactory.js`: new `coverStyle: 'hero-cover'` opt-in path in
+    `ensureProductThumbnail` — runs hero → template → critic, falls back to
+    existing paths on failure. Added `parseBrief` helper.
+  - `fileFactory.js`: `writeCoverManifest` now accepts `heroPath` for
+    provenance tracking, and writes a manifest even without `ts-hero` geometry
+    (hero covers don't use the device-mockup layout system).
+  - `server/index.js`: new `POST /api/products/:id/hero-cover` route for
+    on-demand regeneration; bulk `/api/covers/generate` now accepts
+    `coverStyle: 'hero-cover'` in the request body.
+- KEY DESIGN INVARIANT: the entire hero-cover path is opt-in only
+  (`coverStyle: 'hero-cover'`). Existing content-forward and lifestyle paths
+  are unchanged. On any failure, it degrades to the standard pipeline.
+- Tests: 361 pass / 0 fail / 4 skipped (unchanged from baseline). New modules
+  have their own test coverage in the studio test suite.

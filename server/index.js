@@ -2703,6 +2703,31 @@ app.get('/api/products/:id/preview-image', async (req, res) => {
   }
 });
 
+// Regenerate a single product's cover with the hero-cover pipeline (n8n-style:
+// hero object → template composite → vision quality gate).
+app.post('/api/products/:id/hero-cover', async (req, res) => {
+  try {
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+    if (!prof) return res.status(404).json({ error: 'Profession not found' });
+    const theme = fileFactory.fallbackTheme(product);
+    const cover = await fileFactory.ensureProductThumbnail(product, {
+      force: true, coverStyle: 'hero-cover',
+      freshArt: true, freshArtRevision: true, forceQuality: true
+    });
+    if (!cover || !fs.existsSync(cover)) {
+      return res.status(404).json({ error: 'Hero cover generation failed (AI quota or provider unavailable)' });
+    }
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Disposition', `inline; filename="hero-cover-${product.id}.jpg"`);
+    return streamFile(res, cover);
+  } catch (e) {
+    console.error('[HERO-COVER] error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // Lifestyle background (AI photo, images 2-3 in the gallery) — free tier.
 app.get('/api/products/:id/lifestyle-image', async (req, res) => {
   try {
@@ -2739,7 +2764,7 @@ app.post('/api/covers/generate', async (req, res) => {
       const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(p.profession_id);
       if (!prof) { failed++; items.push({ id: p.id, ok: false, reason: 'missing_profession' }); continue; }
       const art = await coverArt.ensureCoverArt(p, prof, {}, { coverClass: String(body.coverClass || 'standard') });
-      const thumb = await fileFactory.ensureProductThumbnail(p, { force: true });
+      const thumb = await fileFactory.ensureProductThumbnail(p, { force: true, coverStyle: body.coverStyle || undefined });
       if (thumb) {
         generated++;
         items.push({ id: p.id, ok: true, preview_path: thumb, art: art ? `/api/products/${p.id}/lifestyle-image` : null });
@@ -2831,9 +2856,11 @@ let cronJob = null;
 let discoveryCron = null;
 let stewardCron = null;
 let jobCron = null;
+let janitorCron = null;
 let cycleLock = false;
 let discoveryLock = false;
 let jobLock = false;
+let janitorLock = false;
 
 function startCron() {
   if (cronJob) return;
@@ -2896,7 +2923,30 @@ function startCron() {
     });
     jobCron.start();
   }
-  console.log('[CRON] Automation scheduler started (every 6h) + discovery sweep (every 2h) + steward pings (every 3h, cooldown 6h) + job executor (every 1h)');
+  if (!janitorCron) {
+    // Daily volume retention: prune preview/cover caches + orphaned deliverables
+    // older than VOLUME_RETENTION_DAYS (default 30) so the Railway volume never
+    // fills under 24/7 operation. Real delete; referenced deliverables are kept.
+    janitorCron = cron.schedule('40 3 * * *', async () => {
+      if (janitorLock) { console.log('[CRON] Volume janitor skipped — lock held'); return; }
+      janitorLock = true;
+      try {
+        const volumeJanitor = require('./services/volumeJanitor');
+        const r = volumeJanitor.prune({ dryRun: false });
+        if (r.totals.deleted) {
+          console.log('[CRON] Volume janitor pruned', r.totals.deleted, 'file(s), freed', r.totals.freedMB, 'MB');
+          db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+            .run('volume_janitor', `Pruned ${r.totals.deleted} file(s), freed ${r.totals.freedMB}MB (retention ${r.retentionDays}d)`, 'success');
+        }
+      } catch (e) {
+        console.error('[CRON] volume janitor error:', e.message);
+      } finally {
+        janitorLock = false;
+      }
+    });
+    janitorCron.start();
+  }
+  console.log('[CRON] Automation scheduler started (every 6h) + discovery sweep (every 2h) + steward pings (every 3h, cooldown 6h) + job executor (every 1h) + volume janitor (daily)');
 }
 
 app.post('/api/automation/scheduler/start', (req, res) => {

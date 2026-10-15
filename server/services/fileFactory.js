@@ -151,6 +151,18 @@ async function ensureBuildBrief(product, prof) {
   }
 }
 
+// Parse the design brief JSON from a product row (no AI, no side effects).
+function parseBrief(product) {
+  if (!product) return null;
+  try {
+    return typeof product.design_brief === 'string'
+      ? JSON.parse(product.design_brief)
+      : (product.design_brief || null);
+  } catch {
+    return null;
+  }
+}
+
 
 // ── ENSURE FILE — generates the product's file if missing, returns path or null ──
 async function ensureProductFile(product) {
@@ -517,10 +529,12 @@ function parseCoverGeometry(html) {
   return complete ? geometry : null;
 }
 
-function writeCoverManifest(coverPath, { product, prof, html, hadArt }) {
+function writeCoverManifest(coverPath, { product, prof, html, hadArt, heroPath }) {
   if (!coverPath || !fs.existsSync(coverMasterPath(coverPath))) return null;
   const geometry = parseCoverGeometry(html);
-  if (!geometry) return null;
+  // Hero covers (html='') don't carry ts-hero geometry; still write a manifest
+  // so coverQA and other consumers have a provenance record.
+  if (!geometry && !heroPath) return null;
   const manifest = {
     productId: product.id,
     professionSlug: (prof && prof.slug) || null,
@@ -528,7 +542,8 @@ function writeCoverManifest(coverPath, { product, prof, html, hadArt }) {
     coverVersion: COVER_VERSION,
     renderedAt: new Date().toISOString(),
     hadArt: !!hadArt,
-    ...geometry
+    heroPath: heroPath || null,
+    ...(geometry || {})
   };
   try {
     fs.writeFileSync(coverManifestPath(coverPath), JSON.stringify(manifest));
@@ -592,8 +607,72 @@ async function ensureProductThumbnail(product, opts = {}) {
   // as an explicit opt-in (opts.coverStyle === 'lifestyle') for the rare type
   // where a physical-feel scene genuinely helps.
   const wantLifestyle = String(opts.coverStyle || '').toLowerCase() === 'lifestyle';
+  const wantHeroCover = String(opts.coverStyle || '').toLowerCase() === 'hero-cover';
   try {
-    if (!wantLifestyle && typeof ds.buildContentForwardCover === 'function') {
+    if (wantHeroCover) {
+      // ── n8n Design Studio pipeline: hero → template → quality gate ──
+      // Generate a specific hero object, composite it with typography in a
+      // cover template, then run a vision-based quality gate. Falls back
+      // to the lifestyle path if anything fails.
+      try {
+        const heroArt = require('./heroArt');
+        const coverTemplate = require('./coverTemplate');
+        const coverCritic = require('./coverCritic');
+        const coverDirector = require('./coverDirector');
+
+        // The cover director art-directs THIS listing: field tone behind the
+        // sheet, crop depth, and per-product copy (AI when enabled,
+        // deterministic otherwise — never blocks the pipeline).
+        const pageHtml = buildPreviewHTML(product, prof, theme);
+        const concept = await coverDirector.directCover(product, prof, pageHtml);
+        const fresh = opts.freshArt || opts.freshArtRevision === true;
+
+        let heroPath = null;
+        let coverPath = null;
+        if (product.type === 'bundle') {
+          // Toolkits: AI hero object, full-bleed (owner-approved look).
+          heroPath = await heroArt.ensureHeroArt(product, prof, theme, { fresh, forceNew: opts.freshArtRevision === true });
+          if (heroPath && fs.existsSync(heroPath)) {
+            coverPath = await coverTemplate.renderCover(heroPath, concept, { productId: product.id, fresh });
+          }
+        } else {
+          // The REAL product page IS the hero — floating sheet on the field.
+          const pagePng = path.join(coverTemplate.OUT_DIR, `page-${product.id}-${Date.now()}.png`);
+          const pageImg = await coverTemplate.renderProductPage(pageHtml, pagePng, { fresh, crop: concept.heroCrop });
+          if (pageImg) {
+            heroPath = pageImg;
+            coverPath = await coverTemplate.renderCover(pageImg, concept, { productId: product.id, fresh, heroMode: 'page' });
+          }
+        }
+
+        if (coverPath && fs.existsSync(coverPath)) {
+          // Quality gate (vision-based critique)
+          const verdict = await coverCritic.critiqueCover(coverPath, {
+            productId: product.id,
+            force: opts.forceQuality === true
+          });
+
+          if (verdict && verdict.publishAllowed) {
+            // Quality gate passed — use this cover directly
+            db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(coverPath, product.id);
+            product.preview_path = coverPath;
+            // Write the manifest so coverQA can verify geometry later
+            writeCoverManifest(coverPath, { product, prof, html: '', hadArt: true, heroPath });
+            return coverPath;
+          }
+
+          // Quality gate failed — log and fall through to the render+retry path
+          if (verdict && verdict.reason) {
+            console.error('[THUMB] hero cover quality gate:', verdict.reason);
+          }
+        }
+      } catch (e) {
+        console.error('[THUMB] hero cover pipeline:', e.message);
+      }
+      // Fall through to the lifestyle path on any failure
+    }
+
+    if (!wantLifestyle && !wantHeroCover && typeof ds.buildContentForwardCover === 'function') {
       // productHtml is now the cover-page raster (data:image) — the same raster
       // the QA gate re-derives, so the hero card correlates on the publish gate.
       html = ds.buildContentForwardCover(product, prof, theme, realProductHtml, copy, productHtml);
@@ -670,5 +749,6 @@ module.exports = {
   coverMasterPath,
   coverManifestPath,
   readCoverManifest,
-  parseCoverGeometry
+  parseCoverGeometry,
+  parseBrief
 };
