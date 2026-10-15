@@ -52,7 +52,7 @@ const TOOL_SPECS = [
   { name: 'recall', args: '{ "query": "<topic>" }',
     desc: 'Search persistent memory — check past decisions before acting on anything the boss may already have an opinion about.' },
   { name: 'ask_boss', args: '{ "question": "<question>", "detail": "<why it matters>", "options": ["<label>", ...] }',
-    desc: 'Message the boss (Discord + Boss inbox) and pause for their decision. Use for ideas and anything needing their call.' },
+    desc: 'LAST RESORT ONLY — message the boss (Discord + Boss inbox) and pause for their decision. Use ONLY when: real money must be committed, an irreversible action is needed, the boss explicitly said "ask me", or you are blocked on information only the boss has (a missing credential, an unstated preference). NEVER use it for ideas (use brainstorm and recommend), for questions you can answer with snapshot/list tools, or to avoid deciding. You are the default decision-maker.' },
   { name: 'nav', args: '{ "view": "home|catalog|review|trends|discovery|analytics|social|ads|calendar|automation|marketplace|system" }',
     desc: 'Send the operator to a console view.' },
   { name: 'say', args: '{ "text": "<answer>" }',
@@ -168,7 +168,7 @@ function planDeterministic(message) {
     const content = String(message).replace(/^.*?remember\s+(that\s+)?/i, '').trim();
     if (content) return { plan: [{ tool: 'remember', args: { kind: 'note', content } }], say: null };
   }
-  if (has('ask the boss', 'ask boss', 'ask my boss', 'ping the boss', 'what do you think')) {
+  if (has('ask the boss', 'ask boss', 'ask my boss', 'ping the boss')) {
     return { plan: [{ tool: 'ask_boss', args: { question: String(message).trim().slice(0, 200), detail: 'Asked from the command bar.' } }], say: null };
   }
   if (has('backup')) {
@@ -186,8 +186,10 @@ function buildSystemPrompt(context, memory = '') {
   return [
     'You are the NicheGate AI worker: an autonomous operator and SURROGATE for a digital-product shop (Etsy/Gumroad).',
     'You EXECUTE tasks with tools — you are not a chat toy. Be blunt, quantitative, short (max 120 words).',
-    'You act in the operator\'s interest like a chief of staff: do the work yourself when it is safe,',
-    'and when an idea or decision deserves their eyes, call ask_boss so they get a Discord ping.',
+    'You are the DEFAULT DECISION-MAKER. Decide and act like a chief of staff — the boss is NOT in the loop for routine work.',
+    'ask_boss is LAST RESORT, only for: committing real money, an irreversible action, an explicit "ask me" request, or missing info only the boss has (a credential, an unstated preference).',
+    'For ideas: brainstorm and RECOMMEND the best option with a reason — never ask the boss to think for you.',
+    'For questions: answer from live data (snapshot/list tools) with a recommendation — never punt.',
     'Every turn: reply with EXACTLY ONE JSON object and nothing else:',
     '  {"tool": "<name>", "args": { ... }}   to call a tool, or',
     '  {"say": "<final answer>"}             when you are done.',
@@ -291,6 +293,14 @@ async function runAgentTurn({ message, history = [], confirmCall = null, context
       if (call.tool === 'say') {
         const nav = steps.map(s => s.tool === 'nav' && s.result && s.result.view).filter(Boolean).pop() || null;
         return { answer: String(call.args.text || 'Done.'), steps, nav, needsConfirm: null };
+      }
+      // Anti-punt guard: a FIRST-action ask_boss without an explicit boss
+      // request gets redirected — the worker is the default decision-maker.
+      // (A later ask_boss after real tool work can still be legitimate.)
+      if (i === 0 && call.tool === 'ask_boss' && !/ask (the |my )?boss|ping (the )?boss/i.test(String(message))) {
+        messages.push({ role: 'assistant', content: text });
+        messages.push({ role: 'user', content: 'REJECTED: ask_boss is last resort and the boss did not ask to be consulted. Decide yourself: use snapshot/list/brainstorm tools and answer with a recommendation, or execute the safe action directly.' });
+        continue;
       }
       const r = await invoke(call.tool, call.args);
       if (r.needsConfirm) {

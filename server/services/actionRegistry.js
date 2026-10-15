@@ -80,9 +80,9 @@ const ACTIONS = {
   },
   'rebuild-covers': {
     label: 'Rebuild Covers',
-    description: 'Regenerate product preview covers in batches.',
+    description: 'Regenerate product preview covers in batches (parallel waves of 4; default 3 per run so it finishes inside client timeouts — re-run for more).',
     input: {
-      limit: { type: 'number', min: 1, max: 50, default: 10 },
+      limit: { type: 'number', min: 1, max: 50, default: 3 },
       force: { type: 'boolean', default: true }
     },
     singleton: true

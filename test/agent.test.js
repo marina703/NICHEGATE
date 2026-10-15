@@ -32,6 +32,13 @@ describe('agentWorker.parseToolCall', () => {
 });
 
 describe('agentWorker.planDeterministic', () => {
+  it('does not route opinion questions to the boss', () => {
+    // "what do you think" is a request for the worker's recommendation,
+    // not an escalation — it must NOT plan ask_boss.
+    const p = agent.planDeterministic('what do you think about reskinning the social packs?');
+    assert.equal(p, null);
+  });
+
   it('plans concept brainstorming before the generic make branch', () => {
     const p = agent.planDeterministic('brainstorm ideas for beekeeping');
     assert.equal(p.plan[0].tool, 'brainstorm');
@@ -134,5 +141,48 @@ describe('agentWorker.buildSystemPrompt', () => {
     for (const spec of agent.TOOL_SPECS) assert.ok(p.includes(spec.name), spec.name);
     assert.ok(p.includes('Catalog: 3 products'));
     assert.ok(p.includes('EXACTLY ONE JSON object'));
+  });
+});
+
+describe('agentWorker.runAgentTurn anti-punt guard', () => {
+  const cfg = require('../server/services/modelConfig');
+  const router = require('../server/services/modelRouter');
+
+  function withScriptedModel(script) {
+    const wasEnabled = cfg.enabled;
+    const realCall = router.callModel;
+    let i = 0;
+    router.callModel = async () => script[Math.min(i++, script.length - 1)];
+    cfg.enabled = true;
+    return () => { router.callModel = realCall; cfg.enabled = wasEnabled; };
+  }
+
+  it('redirects a first-action ask_boss back to deciding when the boss was not asked', async () => {
+    const restore = withScriptedModel([
+      '{"tool":"ask_boss","args":{"question":"should we reskin the weak listings?"}}',
+      '{"tool":"snapshot","args":{}}',
+      '{"say":"Reskinning the 3 weakest — they score under 6."}'
+    ]);
+    const executed = [];
+    const exec = async (tool) => { executed.push(tool); return { counts: { products: 10 } }; };
+    try {
+      const res = await agent.runAgentTurn({ message: 'what should we do about the weak listings?' }, exec);
+      assert.equal(executed.includes('ask_boss'), false, 'ask_boss must not execute without an explicit boss request');
+      assert.ok(executed.includes('snapshot'), 'worker must consult live data instead of punting');
+      assert.equal(res.needsConfirm, null);
+    } finally { restore(); }
+  });
+
+  it('still escalates when the boss explicitly asks to be consulted', async () => {
+    const restore = withScriptedModel([
+      '{"tool":"ask_boss","args":{"question":"raise prices to $19?"}}',
+      '{"say":"Asked the boss."}'
+    ]);
+    const executed = [];
+    const exec = async (tool) => { executed.push(tool); return { ok: true }; };
+    try {
+      await agent.runAgentTurn({ message: 'ask the boss whether we should raise prices to $19' }, exec);
+      assert.ok(executed.includes('ask_boss'), 'explicit ask must still escalate');
+    } finally { restore(); }
   });
 });

@@ -59,6 +59,34 @@ test('preview batch validates input and keeps non-force selection limited to mis
   } finally { db.close(); }
 });
 
+test('preview batch renders covers concurrently (waves, not one-at-a-time)', async () => {
+  // The regression this covers: sequential renders needed ~100s per cover, so
+  // a batch of 5 exceeded every client/proxy timeout and the console showed
+  // "Rebuild Stopped". With bounded concurrency the batch must overlap renders
+  // (wall time ≈ one render, not N) while still reporting every product once.
+  const db = fixture();
+  try {
+    let inFlight = 0, maxInFlight = 0;
+    const started = [];
+    const render = async p => {
+      inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
+      started.push(p.id);
+      await new Promise(r => setTimeout(r, 30));
+      inFlight--;
+      if (p.id === 2) throw new Error('render failed');
+      if (p.id === 3) return null;
+      return 'new.jpg';
+    };
+    const batch = await generatePreviewBatch(db, render, { force: '1', limit: '8' });
+    assert.ok(maxInFlight >= 2, `renders must overlap (max in flight was ${maxInFlight})`);
+    assert.ok(maxInFlight <= 4, 'concurrency must stay bounded');
+    assert.equal(batch.total, 8);
+    assert.equal(batch.generated, 6);
+    assert.deepEqual(batch.failedIds, [2, 3]);
+    assert.deepEqual([...started].sort((a, b) => a - b), [1, 2, 3, 4, 5, 6, 7, 8], 'every product rendered exactly once');
+  } finally { db.close(); }
+});
+
 test('Worker fails closed and never invokes AI for missing/incorrect keys', async () => {
   const source = fs.readFileSync(path.join(__dirname, '../cf-worker/src/index.js'), 'utf8');
   const { default: worker } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
