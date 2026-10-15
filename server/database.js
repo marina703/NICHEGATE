@@ -9,6 +9,12 @@ runtimeConfig.assertProductionConfig();
 const DB_PATH = runtimeConfig.resolveDatabasePath();
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
+// Reclaim volume headroom BEFORE opening the DB. If the Railway volume has
+// filled with regenerable caches, SQLite would throw "database or disk is full"
+// here and the app could never boot to run its janitor — this breaks that
+// spiral. Safe: only deletes regenerable caches, never the DB or deliverables.
+try { require('./services/bootSpace').ensureBootHeadroom(); } catch (e) { console.error('[BOOT] space reclaim skipped:', e.message); }
+
 const db = new DatabaseSync(DB_PATH);
 
 // Enforce WAL + sensible lock wait so concurrent cron/API writers don't fail fast.
