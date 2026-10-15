@@ -20,7 +20,13 @@ any listings that are not 10/10 top tier quality."
   required (indexed `tags[0]=` is rejected); tags must be ≤20 chars.
 - COVERS: 25 no-cover products backfilled via the standard pipeline (niche →
   profession mapping, local row upsert keyed by marketplace_id, composite
-  cover render in waves of 3, attachGumroadCover). In progress at handoff.
+  cover render in waves of 3, attachGumroadCover) — DONE, 25/25 attached in
+  4.5 min.
+- FINAL STATE (API-verified): 91 products · 91/91 covers · 91/91 tags ·
+  91/91 files · 0 doubled names · 0 duplicates · 13 published. Every listing
+  now carries a clean name, cover, file and SEO tags (was 11/83 clean).
+  The 15 newly-created local rows also close the inventory-tracking gap for
+  the backfilled products (dev DB previously knew only 10 of the 91).
 - Harness: tmp/storefront-cleanup.js (plan|cull|fix) + tmp/cover-backfill.js.
   State: cache/scratch/storefront-cleanup-state.json.
 
