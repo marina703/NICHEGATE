@@ -1,5 +1,29 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
+## ── 2026-10-14: GUMROAD STOREFRONT CLEANUP (cull + critique + fix) ──
+Owner ask: "check the gumroad listings that are live and cull, critique and fix
+any listings that are not 10/10 top tier quality."
+- INVENTORY: the v2 API paginates by CURSOR (response carries next_page_key /
+  next_page_url — the `page` param is IGNORED, which is why a naive sweep sees
+  only the first 10). Full inventory: 119 products on nichegate.gumroad.com;
+  the public storefront collections show 83 of them; unpublished products are
+  STILL URL-accessible (200), so all 119 are customer-reachable.
+- CRITIQUE (83 storefront items): only 11 fully clean. 49 doubled names (the
+  prof-name prefix bug — "AA / 12-Step Recovery AA / 12-Step Recovery Invoice
+  Template"), 22 items with duplicate copies (up to 5x the Freelance invoice),
+  25 missing covers, 119/119 missing tags, 0 sales across everything.
+- CULLED: 28 duplicate copies deleted (keep-best per de-doubled-name group:
+  published > cover > file > clean name > newest; published products are never
+  culled). 119 → 91 products. 0 failures.
+- FIXED: 91/91 keepers PUT with clean names (47 renamed — all doubling gone)
+  + niche SEO tags (0 → 91 tagged). Gumroad API notes: repeated `tags[]=` is
+  required (indexed `tags[0]=` is rejected); tags must be ≤20 chars.
+- COVERS: 25 no-cover products backfilled via the standard pipeline (niche →
+  profession mapping, local row upsert keyed by marketplace_id, composite
+  cover render in waves of 3, attachGumroadCover). In progress at handoff.
+- Harness: tmp/storefront-cleanup.js (plan|cull|fix) + tmp/cover-backfill.js.
+  State: cache/scratch/storefront-cleanup-state.json.
+
 ## ── 2026-10-14: WORKER ANTI-PUNT + COVER REBUILD TIMEOUT FIXES ──
 Owner feedback (same session as the E2E finish pass): "the ai just reverts
 back to 'ive asked boss what to do'" and "cover regeneration failed inside
