@@ -65,7 +65,17 @@ const TYPES = [
   { key: 'profit-calculator', label: 'Profit & Pricing Calculator', emoji: '🧮', price: 15, format: 'xlsx', buyer: 'business', cats: ['business', 'finance'] },
 
   // ── INTERACTIVE WEB-TOOL PRODUCTS (Horizon stretch: highest value, interactive) ──
-  { key: 'interactive-tool', label: 'Interactive Web Calculator', emoji: '⚡', price: 29, format: 'html', buyer: 'business', cats: ['business', 'tech', 'finance'] }
+  { key: 'interactive-tool', label: 'Interactive Web Calculator', emoji: '⚡', price: 29, format: 'html', buyer: 'business', cats: ['business', 'tech', 'finance'] },
+
+  // ── RECOVERY / 12-STEP TRANSCHE (personal, high-empathy printables) ──
+  // Peer-support recovery is non-commercial, but the PEOPLE in recovery buy
+  // personal tools: daily journals, affirmation labels, nutrition guides and
+  // meeting-facilitation cards. These are niche-specific, genuinely useful,
+  // and carry the "Just for Today" / Serenity Prayer language the programs use.
+  { key: 'recovery-journal', label: '"Just for Today" Recovery Journal', emoji: '📔', price: 15, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
+  { key: 'affirmation-labels', label: 'Recovery Affirmation Labels', emoji: '🏷️', price: 8, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
+  { key: 'recovery-nutrition', label: 'Recovery Cleanse & Nutrition Guide', emoji: '🥗', price: 14, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
+  { key: 'meeting-flashcards', label: 'Meeting Facilitator Flashcards', emoji: '🗂️', price: 12, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
 ];
 
 const byKey = new Map(TYPES.map(t => [t.key, t]));

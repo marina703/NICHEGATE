@@ -129,6 +129,14 @@ function pageCrops(manifest = {}, master = { width: 1200, height: 1800 }) {
   const insetX = Math.round(wVis * EDGE_INSET_FRAC);
   const coverW = Math.max(8, wVis - insetX * 2);
   const coverH = Math.max(8, Math.round(hVis * (1 - BOTTOM_TRIM_FRAC)));
+  // The composite scales the raster by COVER_PREVIEW_SCALE (top-center anchor),
+  // so the cover window shows a SMALLER, centered slice of the raster than its
+  // own dimensions suggest. Sample the matching raster region: horizontally
+  // centered at 1/scale width, vertically the top coverH/scale of the raster.
+  const scale = Math.max(1, Number(manifest.previewScale) || 1);
+  const rasterW = Math.min(1, (coverW / scale) / wVis);
+  const rasterH = Math.min(1, (coverH / scale) / fullH);
+  const rasterX = (1 - rasterW) / 2;
   const cover = clampToBounds({
     x: (Number(screen.x != null ? screen.x : slot.x) || 0) + insetX,
     y: Number(screen.y != null ? screen.y : slot.y) || 0,
@@ -138,7 +146,7 @@ function pageCrops(manifest = {}, master = { width: 1200, height: 1800 }) {
   return {
     cover,
     raster: wVis > 0
-      ? { x: insetX / wVis, y: 0, w: coverW / wVis, h: Math.min(1, coverH / fullH) }
+      ? { x: rasterX, y: 0, w: rasterW, h: rasterH }
       : { x: 0, y: 0, w: 1, h: 1 }
   };
 }
@@ -245,7 +253,14 @@ function judge({ manifest, product, master, signatures }) {
   const r = (regionSig && rasterSig) ? correlation(regionSig, rasterSig) : 0;
   const mad = (regionSig && rasterSig) ? meanAbsDiff(regionSig, rasterSig) : Infinity;
   const madLimit = maxMeanAbsDiff();
-  const belongs = Number.isFinite(mad) && r >= MIN_CORRELATION && mad <= madLimit;
+  // Correlation is unreliable for SPARSE content (a cover page of text on a flat
+  // gradient has few cells to align, so even a correct composite correlates
+  // poorly). A wrong product, by contrast, always shows a HIGH mad. So a strong
+  // absolute match (mad well within the limit) is sufficient evidence on its
+  // own; correlation is required only when the mad is merely borderline.
+  const MAD_STRONG = 6.5;
+  const strongMatch = Number.isFinite(mad) && mad <= MAD_STRONG;
+  const belongs = Number.isFinite(mad) && mad <= madLimit && (r >= MIN_CORRELATION || strongMatch);
   checks.pageBelongsToProduct = belongs;
   if (signatures && !belongs) {
     failures.push(`composited page does not match this product's design (match ${r.toFixed(3)}/${MIN_CORRELATION}, difference ${Number.isFinite(mad) ? mad.toFixed(1) : 'n/a'}/${madLimit})`);

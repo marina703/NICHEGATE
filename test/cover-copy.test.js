@@ -129,7 +129,8 @@ test('composite cover uses a raster real-preview slot with DNA styling and no ba
     'rasterized product detail should be modestly enlarged inside the clipped screen for thumbnail legibility');
   assert.match(cover, /rotate\(-[0-9.]+deg\)/);
   assert.match(cover, /box-shadow:0 30px 60px -18px rgba\(0,0,0,.55\)/);
-  assert.match(cover, /rgba\(255,248,232,.07\)/);
+  assert.doesNotMatch(cover, /rgba\(255,248,232,.07\)/,
+    'the warm glass tint was removed — it shifted dark cover pages enough to fail the cover QA mad check');
   assert.match(cover, /\.ts-hero\{[^}]*left:660px/);
   assert.match(cover, /ts-device/, 'fallback slot keeps the drawn tablet device frame');
   assert.match(cover, /ts-screen/, 'template must sit inside the drawn tablet screen, not float beside it');

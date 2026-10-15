@@ -123,6 +123,10 @@ const ds = require('./designStudio');
 function buildInvoiceHTML(prof, theme, opts) { return ds.buildInvoiceHTML(prof, theme, opts); }
 function buildChecklistHTML(prof, theme) { return ds.buildChecklistHTML(prof, theme); }
 function buildJournalHTML(prof, theme, prompts) { return ds.buildJournalHTML(prof, theme, prompts); }
+function buildRecoveryJournalHTML(prof, theme, prompts) { return ds.buildRecoveryJournalHTML(prof, theme, prompts); }
+function buildAffirmationLabelsHTML(prof, theme) { return ds.buildAffirmationLabelsHTML(prof, theme); }
+function buildRecoveryNutritionHTML(prof, theme) { return ds.buildRecoveryNutritionHTML(prof, theme); }
+function buildMeetingFlashcardsHTML(prof, theme) { return ds.buildMeetingFlashcardsHTML(prof, theme); }
 function buildBrandKitHTML(prof, theme) { return ds.buildBrandKitHTML(prof, theme); }
 function buildPlannerHTML(prof, theme) { return ds.buildPlannerHTML(prof, theme); }
 function buildWallArtHTML(prof, theme) { return ds.buildWallArtHTML(prof, theme); }
@@ -139,6 +143,10 @@ module.exports = {
   buildInvoiceHTML,
   buildChecklistHTML,
   buildJournalHTML,
+  buildRecoveryJournalHTML,
+  buildAffirmationLabelsHTML,
+  buildRecoveryNutritionHTML,
+  buildMeetingFlashcardsHTML,
   buildBrandKitHTML,
   buildPlannerHTML,
   buildWallArtHTML,

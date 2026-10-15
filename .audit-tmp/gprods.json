@@ -1,356 +1,6 @@
 {
   "products": [
     {
-      "name": "Refuge Recovery (Buddhist) Checklist Template",
-      "description": "Recovery days go better with structure. This one-page daily checklist gives your Buddhist-path practice a shape you can actually keep: a morning intention, a study cue so the reading happens before the day gets loud, a meditation log with real minutes counted, and an evening review that ends the day honestly.\n\nPrint it, work it, repeat it — or keep it on your phone and check items off as you go. The language respects the path: no fluffy affirmations, no toxic positivity — just the daily forms that make practice stick.\n\nInstant PDF download. Print as many copies as you need, for yourself or your sangha.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/2141tj34sce1uu54y9wifrjtbzi2",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "MoyOEvQBY3g-nspVv6rGrQ==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/ccoluv",
-      "landing_url": "https://nichegate.gumroad.com/l/ccoluv",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "checklist",
-        "buddhist",
-        "refuge recovery"
-      ],
-      "formatted_price": "$12",
-      "published": true,
-      "file_info": {
-        "Size": "259 KB",
-        "Length": "2 pages"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/2141tj34sce1uu54y9wifrjtbzi2",
-          "original_url": "https://public-files.gumroad.com/ngdzaoaqzwlk9d7ydtcyaxqoturd",
-          "thumbnail": null,
-          "id": "0ceb27834dbf5cfa7387d21da8653feb",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/muguivsa1vb3f2zsnt7pux8udfan",
-          "original_url": "https://public-files.gumroad.com/0jhza7k51wv9ail8qgve7u7hl6a0",
-          "thumbnail": null,
-          "id": "f292d9884372bdb1d88b58719351f01b",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/qv7ly8xm85cu2w5h7sdnhqkyt8sx",
-          "original_url": "https://public-files.gumroad.com/lagkrjab5k5y2m4nyc0ewsdqgw7c",
-          "thumbnail": null,
-          "id": "e76b319ba66f806ff5cd9a227638b795",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/8awfnas1tf73jy8dz8swd4ap8s4m",
-          "original_url": "https://public-files.gumroad.com/teyce7h6u7ki9ksb67n7icatt9kf",
-          "thumbnail": null,
-          "id": "073c17a2d7bb985b657978d328fcc8f2",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "0ceb27834dbf5cfa7387d21da8653feb",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "VoApuvbSGz0luDzTnJQMPg==",
-          "name": null,
-          "size": 264756,
-          "url": "https://files.gumroad.com/attachments/9131703016747/c5363019355d0923ef1fd59603ebc579/original/refuge-recovery-checklist-1791752762495.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038783-dP7RfgDKn7B74kMEgEBK4%2Fjl7VpQfdHFxa7SH17N5mg%3D",
-          "filetype": "pdf",
-          "filegroup": "document"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "SMART Recovery (CBT) Checklist Template",
-      "description": "The SMART approach is built on tools, not slogans — so this daily checklist runs on the tools too. Each page walks the CBT arc in plain order: spot the activating event, name the belief behind it, check the consequence, then dispute and replace before the evening review.\n\nThere's an urge-surfacing prompt for the hard days, a cost-benefit line for when motivation dips, and a tomorrow-plan box so momentum survives the night.\n\nOne page. Five minutes. Print a stack for the fridge, the bag, or your meeting group.\n\nInstant PDF download — unlimited personal copies.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/su3ecd42r4br8mrxv7kvuq2d71o9",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "yaZf0pX1fUijJseHww-7Zg==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/icgjdc",
-      "landing_url": "https://nichegate.gumroad.com/l/icgjdc",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "checklist",
-        "cbt",
-        "smart recovery"
-      ],
-      "formatted_price": "$12",
-      "published": true,
-      "file_info": {
-        "Size": "251 KB",
-        "Length": "2 pages"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/su3ecd42r4br8mrxv7kvuq2d71o9",
-          "original_url": "https://public-files.gumroad.com/lebwyjc66dfytbniggbz6gsgm7m5",
-          "thumbnail": null,
-          "id": "908673341c7c49f65e8b435a9a241615",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/u8z0nwd8htat4r22pqsirmem05ov",
-          "original_url": "https://public-files.gumroad.com/7earfj7qdoaimg5yvj1vrzjrehug",
-          "thumbnail": null,
-          "id": "9d38d7894a709987e1adc1f48a436a8d",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/f3ao1wri2jq25eu6cs5p7gb5fdox",
-          "original_url": "https://public-files.gumroad.com/8g9jk26e0cza6c7ywomikgvjfdgz",
-          "thumbnail": null,
-          "id": "1684f082c21d528f3ce8b3bcf8d2d999",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/xgqfzq3znmpyt0kjylohy5dak84w",
-          "original_url": "https://public-files.gumroad.com/ho3lpto2m3utwxa5i9cdl5cajiz2",
-          "thumbnail": null,
-          "id": "5fdf974c7a45f865cbf6a13dc1976d90",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "908673341c7c49f65e8b435a9a241615",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "Njs98BSkxLek6d1q_QP78g==",
-          "name": null,
-          "size": 257010,
-          "url": "https://files.gumroad.com/attachments/9131703016747/3d883bd1a08068fe3ab4207d5eb14788/original/smart-recovery-checklist-1791752764180.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038784-CKbVcT8ojSPc%2FjeAqP61f4TQcP5HQXAiD%2Fsd99JmNc0%3D",
-          "filetype": "pdf",
-          "filegroup": "document"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "AA / 12-Step Recovery Checklist Template",
-      "description": "The daily review is where the program becomes a life. This printable checklist gives your day the classic shape: morning quiet time, a resentment scan caught early, one amends or kind action, a contact touch with your sponsor or home group, and an evening review that closes the day clean.\n\nNo app, no login — a page you fill out by hand with a coffee before the day starts, or at night before bed. Groups use it as a take-home handout; sponsors keep a stack for sponsees.\n\nInstant PDF download — print as many as you need, forever.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/ae6o2r8dwwvd6eelk6m5n5hfiq31",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "E-yew2c-xb1DXMxWit0lgw==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/fgedxq",
-      "landing_url": "https://nichegate.gumroad.com/l/fgedxq",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "checklist",
-        "step recovery"
-      ],
-      "formatted_price": "$12",
-      "published": true,
-      "file_info": {
-        "Size": "256 KB",
-        "Length": "2 pages"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/ae6o2r8dwwvd6eelk6m5n5hfiq31",
-          "original_url": "https://public-files.gumroad.com/surl6l1e5dchn4216nt8s347jas2",
-          "thumbnail": null,
-          "id": "b894cef6cc378a565d564d4d93eaaffe",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/gdyzbnxu9gdmnxu27hy5hd6ujr7l",
-          "original_url": "https://public-files.gumroad.com/zhid8luvokxpq7xbpufmqvzmg9zf",
-          "thumbnail": null,
-          "id": "9b9fa9df4baf7ce0f0355279d037b8fd",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/p1q8rihupmj4l4545lvjuwrt8co6",
-          "original_url": "https://public-files.gumroad.com/nn7s90ohcgk6f8jtuixr9key8iak",
-          "thumbnail": null,
-          "id": "37ec5c4722a706a7c713f92f0187aaea",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/3lxo2d83fcz37d1fuk0qqws7kzdk",
-          "original_url": "https://public-files.gumroad.com/eikk5tmdv06351v61f4e7k46do9f",
-          "thumbnail": null,
-          "id": "2c89bb8685127719f586a9c811e3dcaa",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "b894cef6cc378a565d564d4d93eaaffe",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "NyiHLUquMNP7Ve53TTK-Kg==",
-          "name": null,
-          "size": 261825,
-          "url": "https://files.gumroad.com/attachments/9131703016747/c79d5db1a1955d69caa47b9464d3cb86/original/aa-recovery-checklist-1791752764749.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038784-I6iORxg55Nf%2Bi06kSKDUgFQKOAGoZSRfT4ljZZUWszY%3D",
-          "filetype": "pdf",
-          "filegroup": "document"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
       "name": "HVAC Technician Social Media Templates",
       "description": "30 days of HVAC content that doesn't sound like an ad. Every post is written from inside the trade: why short-cycling is quietly killing compressors, what a $99 tune-up bait offer really costs the customer, when a capacitor is a safety issue and not an upsell, and the seasonal checks homeowners forget until it's 100°F outside.\n\nEach day gives you a hook, a caption, and a posting idea — drop in your company name and go. Built for the tech who'd rather be on a roof than writing captions.\n\nInstant ZIP download — one month of posts, ready to schedule.",
       "require_shipping": false,
@@ -455,7 +105,7 @@
           "id": "5M-WmtNQvbCSCD_Yu_SGSQ==",
           "name": null,
           "size": 1812757,
-          "url": "https://files.gumroad.com/attachments/9131703016747/51223e250e21aeda4235fa61f9d7f653/original/hvac-social-pack-1791752767559.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038784-ec0Hhfl3uQgwkRlHvLJfxp7L2USdXDhzx3U8H7ZDaT0%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/51223e250e21aeda4235fa61f9d7f653/original/hvac-social-pack-1791752767559.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045927-4FuO3jWgmdnnfaxkZPUYXOvcM3TtOvhH2PtRLzt09HE%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -571,7 +221,7 @@
           "id": "AnYWFhQYO4wlQ1Kd6D4xCQ==",
           "name": null,
           "size": 33029,
-          "url": "https://files.gumroad.com/attachments/9131703016747/9eb05b3dab286131ebb5235b5dfbe303/original/roofing-spreadsheet-1791752767617.xlsx?response-content-disposition=attachment&verify=1792038784-eV80SdS6JQHqj794KESwvPBT%2Bk0Z%2FLcT3rVc0tr0kGM%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/9eb05b3dab286131ebb5235b5dfbe303/original/roofing-spreadsheet-1791752767617.xlsx?response-content-disposition=attachment&verify=1792045927-qEN0X3Zg7%2F4nFgdA2f7kct86e%2FQUW3VP4RAiYlJ09%2BI%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -699,7 +349,7 @@
           "id": "WhsQY7uzn06MqIW8G1gCjA==",
           "name": null,
           "size": 272626,
-          "url": "https://files.gumroad.com/attachments/9131703016747/4555d5aca062f569a56b9ed71e06277f/original/appliance-repair-checklist-1791752767633.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038784-y8bjFaTqpenRCygfoWDSIynqv9XZmzpUXbVXkuxiTy0%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/4555d5aca062f569a56b9ed71e06277f/original/appliance-repair-checklist-1791752767633.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045927-bOMDI7pPc19hsOJhXm3ijman6a7SslXTyV32X5UgpcE%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -813,7 +463,7 @@
           "id": "H4MKbcJCsAgjBa-dQcxCEg==",
           "name": null,
           "size": 1816308,
-          "url": "https://files.gumroad.com/attachments/9131703016747/650be2ff7e459fbdc44f829f9535f1e7/original/air-duct-cleaning-social-pack-1791752770301.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038785-v8x3scHVniDtAMMs%2FNh2CdAVXR6s9sWGfbMScOUpoHE%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/650be2ff7e459fbdc44f829f9535f1e7/original/air-duct-cleaning-social-pack-1791752770301.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045928-l3lBlcrJsfasdNqOiRJC4%2FhrENaOA28MltCzwsSWoTA%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -918,7 +568,7 @@
           "id": "XTcbKl4NpwVwD-3p9_CF6A==",
           "name": null,
           "size": 33077,
-          "url": "https://files.gumroad.com/attachments/9131703016747/789531bf35da3172158ee087182dac5c/original/mold-inspector-spreadsheet-1791752770344.xlsx?response-content-disposition=attachment&verify=1792038785-UuSojuJ%2B8t2BBpdRheg9vlQiAax%2BBMHcA5uX2Koip04%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/789531bf35da3172158ee087182dac5c/original/mold-inspector-spreadsheet-1791752770344.xlsx?response-content-disposition=attachment&verify=1792045928-XjFyiOOPX%2FwBg4CvVgPZ%2BERNA3lVwTn%2BCsOFqhtBsYI%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -1034,7 +684,7 @@
           "id": "N0gHWVh87NsqaJsoa_dgVw==",
           "name": null,
           "size": 33023,
-          "url": "https://files.gumroad.com/attachments/9131703016747/b48116feb832c0df8cb02bb421f7df0c/original/energy-auditor-spreadsheet-1791752770349.xlsx?response-content-disposition=attachment&verify=1792038785-jBXbnIPaIMvDnFEbNdq27W2zVcGq1mJf3wzyMNoDcYI%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/b48116feb832c0df8cb02bb421f7df0c/original/energy-auditor-spreadsheet-1791752770349.xlsx?response-content-disposition=attachment&verify=1792045928-oItaQCmMbey1mg%2FY77s0A5ZI7dVSx7ClC8VYOp0rvS4%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -1162,7 +812,7 @@
           "id": "HHDlGS4j4wl07dLBQ1SR3A==",
           "name": null,
           "size": 2299824,
-          "url": "https://files.gumroad.com/attachments/9131703016747/9dcaec76b11a68a5dab82a464310a7c0/original/beekeeping-social-pack-1791752772450.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038785-TGp1hgiZoVuF1mXXw6rku3uwAk%2BJKVqotr7rKbZn3KY%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/9dcaec76b11a68a5dab82a464310a7c0/original/beekeeping-social-pack-1791752772450.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045928-HtXtFistfaVnXebYmIqQ3oM1%2B2KEGxEAVvsDG3LuHcY%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -1278,7 +928,7 @@
           "id": "eiewYMERWHiSRJBlerrAvg==",
           "name": null,
           "size": 80217,
-          "url": "https://files.gumroad.com/attachments/9131703016747/8d88476f116d0a2d84dfb787e4b1fe60/original/tattoo-artist-invoice-1790208037704.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038785-CTjtwTyxStKjnB6zp4fvQJfT3kLiN7friAd%2B0ouz9D4%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/8d88476f116d0a2d84dfb787e4b1fe60/original/tattoo-artist-invoice-1790208037704.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045928-R32Gh199FPk51HvBocRiGuBvQpG37WYBu8YkpT3gS%2Fs%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -1395,111 +1045,9 @@
           "id": "8EelGISJxGOVM0aopfc18w==",
           "name": null,
           "size": 160286,
-          "url": "https://files.gumroad.com/attachments/9131703016747/96fa70d45231939663e90f72d4a1479a/original/fishing-guide-checklist-1790208101418.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038785-htFbRSJLZblcGSliL3he1BGKmDmQE6dp%2FSHwqPyR8Z4%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/96fa70d45231939663e90f72d4a1479a/original/fishing-guide-checklist-1790208101418.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045929-uQG7ofZtM2ART021wQUwTdP7lmV%2FJCNwW7%2F0ZQMPkWg%3D",
           "filetype": "pdf",
           "filegroup": "document"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "AA / 12-Step Recovery Social Media Templates",
-      "description": "AA / 12-Step Recovery Social Media Templates — a Guided instagram templates designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Content Pack with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: AA / 12-Step Recovery professionals, 4th Step Inventory Guide, Daily Reflection Journal, Meeting Attendance Tracker, Sobriety Milestone Planner\n\nTheme: Black Teal | Format: ZIP\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/0xc6ayingagwbnyf4yjbw9z1luna",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "9JPbsFdLB_yzrEkwt9pzpg==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/opqyqsg",
-      "landing_url": "https://nichegate.gumroad.com/l/opqyqsg",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "social media",
-        "small business",
-        "printable"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "3.39 MB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/0xc6ayingagwbnyf4yjbw9z1luna",
-          "original_url": "https://public-files.gumroad.com/s2ah6a7re29gx1jpeun79fws98x4",
-          "thumbnail": null,
-          "id": "0540341e161d8bd09c78edf6f93bfef1",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/7zfgmqsxzjpfqe9zpol1ycugi6el",
-          "original_url": "https://public-files.gumroad.com/2l3bl09iguhv2uecwn0mwt0xeveg",
-          "thumbnail": null,
-          "id": "3f6ca81207b99da290f75726d956f170",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/7oyslwzbcr00lh6z9f16e9rxn9pi",
-          "original_url": "https://public-files.gumroad.com/w9ibjhxultw8q65c6bubwhcx4crp",
-          "thumbnail": null,
-          "id": "9e586e0267e0c845d35fc677006a052c",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "0540341e161d8bd09c78edf6f93bfef1",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "p_ZgrTKZq7vDwpNuDxw8FA==",
-          "name": null,
-          "size": 3558254,
-          "url": "https://files.gumroad.com/attachments/9131703016747/1cdaa7525e5925a7fdfa5534d12a40f1/original/aa-recovery-social-pack-1790208058856.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038786-7LGROR%2Ft8kMGMRhWQcjxkJA3gugduHzP3K8Sng8882c%3D",
-          "filetype": "zip",
-          "filegroup": "archive"
         }
       ],
       "custom_delivery_url": null,
@@ -1624,7 +1172,7 @@
           "id": "uSIb4qot_MQpNd7xqVHHsA==",
           "name": null,
           "size": 3583938,
-          "url": "https://files.gumroad.com/attachments/9131703016747/5ca57ffa4e81085f50c63a49a100875f/original/pyrotechnics-social-pack-1790208041769.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038786-Q4cIvUc5%2BPDW8Xvaa6R6oGoMyYCQyg6oHidSmDxhEbA%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/5ca57ffa4e81085f50c63a49a100875f/original/pyrotechnics-social-pack-1790208041769.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045929-J8Ze4zAvHWyzVnKSOZrJEUblH%2BrAy0jHjsxTULOP4mo%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -1728,7 +1276,7 @@
           "id": "qhMZ4PC-zXCzYIE5Y7upQQ==",
           "name": null,
           "size": 26439,
-          "url": "https://files.gumroad.com/attachments/9131703016747/4771cbc2fa709f15305831a87abc832d/original/massage-therapy-spreadsheet-1790208023911.xlsx?response-content-disposition=attachment&verify=1792038786-tj9d2u9taDBDo%2B03ob9hggh5zCztRrcCX7sv7dLN6Zg%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/4771cbc2fa709f15305831a87abc832d/original/massage-therapy-spreadsheet-1790208023911.xlsx?response-content-disposition=attachment&verify=1792045929-TD%2B%2B7xjUGGQbyX%2BB7o37PFbgtxTf2sBpjeDC%2FWY1IfE%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -1830,7 +1378,7 @@
           "id": "x16_9VUy1dJ_zfL16-iWlA==",
           "name": null,
           "size": 23603,
-          "url": "https://files.gumroad.com/attachments/9131703016747/954979da0b140d075f06ef0db2809de3/original/native-landscaping-booking-1790121784519.xlsx?response-content-disposition=attachment&verify=1792038786-Ic1DZUKVqDGmnqGTqTtdTCjICukt9eFB6LVJmAAwmgI%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/954979da0b140d075f06ef0db2809de3/original/native-landscaping-booking-1790121784519.xlsx?response-content-disposition=attachment&verify=1792045929-sDnJ0YvCK9Eu6tOtLxvwNFCibYy2%2BwAPX%2B7BKjHIuu0%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -1933,7 +1481,7 @@
           "id": "f82LOPjZmZ9wJyY-Uen3KQ==",
           "name": null,
           "size": 23586,
-          "url": "https://files.gumroad.com/attachments/9131703016747/6e14f7694ad781a2e040263489361ad1/original/post-construction-cleaning-booking-1790121768923.xlsx?response-content-disposition=attachment&verify=1792038786-rIt1uKRprqq19TxI5%2BPzDuTyvcTWQfkhlnE%2FK8COIFo%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/6e14f7694ad781a2e040263489361ad1/original/post-construction-cleaning-booking-1790121768923.xlsx?response-content-disposition=attachment&verify=1792045930-NVNKLpdF1YnPCXwOhLaG3VN6MXpbhXYfUCDsT%2BrVc84%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -2037,7 +1585,7 @@
           "id": "-sllkG4I17sDp14W29lbqA==",
           "name": null,
           "size": 23607,
-          "url": "https://files.gumroad.com/attachments/9131703016747/bc2bdb9ae6af721ae75e19b297fc11f1/original/mobile-notary-booking-1790121753019.xlsx?response-content-disposition=attachment&verify=1792038787-1YJKW11fXtEyQ%2BkdQEEDX%2BjUGcsulkFitm9kcXRcLOc%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/bc2bdb9ae6af721ae75e19b297fc11f1/original/mobile-notary-booking-1790121753019.xlsx?response-content-disposition=attachment&verify=1792045930-aHxvLCeL1w9zlzbrEP6FC80Uta%2FiUNBN2E4b%2B0rng5g%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -2154,218 +1702,7 @@
           "id": "WxTlI2FDu3YaQvLxOtTkMA==",
           "name": null,
           "size": 84188,
-          "url": "https://files.gumroad.com/attachments/9131703016747/2c59452747c51f2df7cf0e9c6da02ecb/original/drone-surveying-invoice-1790121742566.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038787-%2B%2FAHVfLY43PYI6214lbiRoDwiwbNVAm1Qjr7lme4FyQ%3D",
-          "filetype": "pdf",
-          "filegroup": "document"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Faith-Based Recovery (Biblical) Social Media Templates",
-      "description": "Faith-Based Recovery (Biblical) Social Media Templates — a Guided instagram templates designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Content Pack with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Faith-Based Recovery (Biblical) professionals, Bible Verse Recovery Journal, Scripture Memory Cards, Faith-Based Relapse Prevention Plan, 12-Step + Scripture Workbook\n\nTheme: Black Teal | Format: ZIP\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/bqn7d8ajsoreezgniz67daesvba8",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "SbelILK1V2oiCQMgTmVujQ==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/pjsrrc",
-      "landing_url": "https://nichegate.gumroad.com/l/pjsrrc",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "social media",
-        "small business",
-        "printable",
-        "faith",
-        "biblical",
-        "based recovery"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "3.45 MB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/bqn7d8ajsoreezgniz67daesvba8",
-          "original_url": "https://public-files.gumroad.com/imni5yyz7ajf70ghm0h863rzxof3",
-          "thumbnail": null,
-          "id": "bf4ceb5c19db7cf9d2c8591898ff0195",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/era32mq8jzpll99pagza5o42p92g",
-          "original_url": "https://public-files.gumroad.com/0xlfjz3goqduovgbb3yoedogwaft",
-          "thumbnail": null,
-          "id": "2a1091042bddb87bfb1aa3d51d1754af",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/88esdf2ohjwq1g6i1zufa6c277ps",
-          "original_url": "https://public-files.gumroad.com/51fxp7312dighlrnxv6mb824oi8o",
-          "thumbnail": null,
-          "id": "437b1e6e52e5e0d322ad85ddcc7b4fab",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "bf4ceb5c19db7cf9d2c8591898ff0195",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "ExaW1NnyxsRC4-ba5Pavdw==",
-          "name": null,
-          "size": 3614160,
-          "url": "https://files.gumroad.com/attachments/9131703016747/51bc6ba6de7b550a04a3f36123bc5d78/original/faith-recovery-social-pack-1790121728042.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038787-rR7FKgTGX1XddiDevkBr2rCn1EjZJLyBXAfXA4FCJ8A%3D",
-          "filetype": "zip",
-          "filegroup": "archive"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Secular Recovery (LifeRing/SOS) Checklist Template",
-      "description": "Secular Recovery (LifeRing/SOS) Checklist Template — a Guided service checklist designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Quality Checklist with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Secular Recovery (LifeRing/SOS) professionals, Personal Recovery Plan, Weekly Check-In Worksheet, Sober Activity Planner, Community Connection Tracker\n\nTheme: Black Teal | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/tgmqdve7fgerbgiwzcx1ljpoz8z9",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "UNatY3LAE0fvftVvlXtJow==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/ffnjtj",
-      "landing_url": "https://nichegate.gumroad.com/l/ffnjtj",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "checklist",
-        "sos",
-        "secular recovery",
-        "lifering"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "158 KB",
-        "Length": "3 pages"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/tgmqdve7fgerbgiwzcx1ljpoz8z9",
-          "original_url": "https://public-files.gumroad.com/kwe25iuviiodp1pv4f940pkc6gq9",
-          "thumbnail": null,
-          "id": "d1370adfd6ca12d468e8ed0b019f45bd",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/dyw555a6haxzuhdtad1ki2n9jg24",
-          "original_url": "https://public-files.gumroad.com/5spjb4k44cr30wbyf2jvnnb8bfh0",
-          "thumbnail": null,
-          "id": "b6fa83383d2c070ba13081c81d42b187",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/k0kq2ujdrss9sxgr622uziefztu2",
-          "original_url": "https://public-files.gumroad.com/29avtgl44z7mn2lizsyg986h90zl",
-          "thumbnail": null,
-          "id": "56c7c3d01fc6df715e4b5afd88d987e1",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "d1370adfd6ca12d468e8ed0b019f45bd",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "sKs0KfJsqlSTxs6SNz1yjg==",
-          "name": null,
-          "size": 161571,
-          "url": "https://files.gumroad.com/attachments/9131703016747/2a9a41759be38159f6a758c07e2bc2e8/original/secular-recovery-checklist-1790121701154.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038787-ay1Osxd2uCNUDYh2aZTeFz5DA9JsIBhtYLR9sIAU198%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/2c59452747c51f2df7cf0e9c6da02ecb/original/drone-surveying-invoice-1790121742566.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045930-cLONdQc1C32%2BQLyomG9CrgSGknuWOvFgQcuK%2Btg12PU%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -2470,7 +1807,7 @@
           "id": "eDPvwrcTZNQIZwbdCkGLnQ==",
           "name": null,
           "size": 26487,
-          "url": "https://files.gumroad.com/attachments/9131703016747/57db7d5309961695d8873fdf188e7bbe/original/mobile-notary-spreadsheet-1790121658872.xlsx?response-content-disposition=attachment&verify=1792038787-aRE2dL9nKWKUrp3YBYnGepESP4iiynvjXu2g8gfE9OQ%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/57db7d5309961695d8873fdf188e7bbe/original/mobile-notary-spreadsheet-1790121658872.xlsx?response-content-disposition=attachment&verify=1792045930-xWDXly13p9xIEHMW9wf59xkMftPFukxThoUq7p%2BK%2FGc%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -2587,113 +1924,7 @@
           "id": "TjPnr3jNjnBFCbOGZf4IAw==",
           "name": null,
           "size": 160472,
-          "url": "https://files.gumroad.com/attachments/9131703016747/1230cc3c33e1fa180058f3246a65e23a/original/pyrotechnics-checklist-1790121639410.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038787-RlrLzcor4QHFQp6nTjM8gtmYqVQ%2FKLitrOB%2FZiWMiH0%3D",
-          "filetype": "pdf",
-          "filegroup": "document"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Faith-Based Recovery (Biblical) Invoice Template",
-      "description": "Faith-Based Recovery (Biblical) Invoice Template — a Guided editable invoice designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Service Invoice with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Faith-Based Recovery (Biblical) professionals, Bible Verse Recovery Journal, Scripture Memory Cards, Faith-Based Relapse Prevention Plan, 12-Step + Scripture Workbook\n\nTheme: Auto Theme | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/s7jmz8fotky995i6ixh6393oktmz",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "nF4U3owHHXjO9KUFHnYOng==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/biuiji",
-      "landing_url": "https://nichegate.gumroad.com/l/biuiji",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "faith",
-        "invoice",
-        "biblical",
-        "based recovery"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "90.8 KB",
-        "Length": "2 pages"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/s7jmz8fotky995i6ixh6393oktmz",
-          "original_url": "https://public-files.gumroad.com/46mkc5q27cnqumbxbfe3j2gzrciu",
-          "thumbnail": null,
-          "id": "72c4e50eefad6ad4b1804551bbaddce2",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/5udlf0vcswa00x00wmr2qfnhgw9u",
-          "original_url": "https://public-files.gumroad.com/tjk69n4ytyoab3bhyqbwdte6c4om",
-          "thumbnail": null,
-          "id": "34e7dbce18cbaad14d0ebaf7a955b553",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/s4e75jwuthf8b10xp7vr4z3bp5ao",
-          "original_url": "https://public-files.gumroad.com/u1xj552qtrddrhxo5rqta2qoc5hc",
-          "thumbnail": null,
-          "id": "c19aa5e63c7b67022840c32eaa484ebf",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "72c4e50eefad6ad4b1804551bbaddce2",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "TW7TzP0LFc5RRc55i_iY6A==",
-          "name": null,
-          "size": 92940,
-          "url": "https://files.gumroad.com/attachments/9131703016747/e60612dda18720cf6078521c462ec046/original/faith-recovery-invoice-1790121620634.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038788-UHSxPU1064dDyAgwb2FScf7JCQgThGp0oBPjqXXkL8Y%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/1230cc3c33e1fa180058f3246a65e23a/original/pyrotechnics-checklist-1790121639410.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045931-QDDSqU3gldSa0EZsKX8Cmq1PADgWFaAoM%2B41NFRU4uU%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -2795,7 +2026,7 @@
           "id": "3we3sde7Y9Sm5jYQgP0E6g==",
           "name": null,
           "size": 2787440,
-          "url": "https://files.gumroad.com/attachments/9131703016747/84eb532b16d4589f8e9f74062654b77f/original/roofing-social-pack-1790035367116.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038788-c1X1BGItZ4ZsG6d%2BwxhN9B53JogmUM2PuExHqNU2kcw%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/84eb532b16d4589f8e9f74062654b77f/original/roofing-social-pack-1790035367116.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045931-ksImx53v%2FuVMpGwNSjE1FXg5qHjfhzJKplHOQu3sCfg%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -2911,7 +2142,7 @@
           "id": "YpNZ4pE_WsN_xXPvzUEj0A==",
           "name": null,
           "size": 82535,
-          "url": "https://files.gumroad.com/attachments/9131703016747/06cef18bc5257adfc027fd443558f2c8/original/appliance-repair-invoice-1790035326475.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038788-JbmTsbYIpRp6vcluzvNbt91OkWS7P5hP3zFgGaqmnUs%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/06cef18bc5257adfc027fd443558f2c8/original/appliance-repair-invoice-1790035326475.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045931-wqgf9%2F4DSpKYlHvvvoV%2FdkYzxfcF82zdbSg7vCD52tc%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -3016,7 +2247,7 @@
           "id": "KNGAbIDsMoGl7a-SBYTiIw==",
           "name": null,
           "size": 83406,
-          "url": "https://files.gumroad.com/attachments/9131703016747/b89e03e13aada21703cc7420c06c4197/original/mold-inspector-invoice-1790035299188.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038788-G0d8aqtMw%2Feh9q16iYwlf7RfcehS%2BTRbWusz%2BTo7R0Q%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/b89e03e13aada21703cc7420c06c4197/original/mold-inspector-invoice-1790035299188.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045931-jBYG9OPJHPLb6DRDa8aYszP%2F1CZ7RDnb6m7olLBRcLg%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -3120,7 +2351,7 @@
           "id": "kwD1mzJSmsHlAKgS8Cad0Q==",
           "name": null,
           "size": 160805,
-          "url": "https://files.gumroad.com/attachments/9131703016747/580350e16cd81b69e7f0772f1c5ced69/original/native-landscaping-checklist-1790035273451.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038788-V7b8ZEfvgRUxe1gc7zljchPH5GACEb6KhaKGr2IxhzI%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/580350e16cd81b69e7f0772f1c5ced69/original/native-landscaping-checklist-1790035273451.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045931-cGmiSOULOxfpaGgkPHCdc3%2BvJ6ShHQH3UcFOB2ZadEU%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -3225,7 +2456,7 @@
           "id": "wGH4InFb5csgYzg08-Fm0Q==",
           "name": null,
           "size": 80773,
-          "url": "https://files.gumroad.com/attachments/9131703016747/e9eeb01ce67068a1f058768def3ebb86/original/post-construction-cleaning-invoice-1790035250309.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038788-4RYgehrVbjuXo5ywWv1g6SDCtbuTL5DoAL28nZu7tUQ%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/e9eeb01ce67068a1f058768def3ebb86/original/post-construction-cleaning-invoice-1790035250309.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045932-eWFJ%2Bm3%2FAsPKR6YEkfZt%2BJJW9n41FqKUP70eEzBpNrI%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -3366,7 +2597,7 @@
           "id": "4N41J-CUCPvAYvJCaUuvoQ==",
           "name": null,
           "size": 81577,
-          "url": "https://files.gumroad.com/attachments/9131703016747/8e9ffea1256bce353a9d6fbc8224cddc/original/beekeeping-invoice-1790035216283.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038789-OUp1O%2F3XIzpJAV%2BqDR3DoSRSd93FkNziM0K0s3uEL0M%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/8e9ffea1256bce353a9d6fbc8224cddc/original/beekeeping-invoice-1790035216283.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045932-I%2BlvgnoDgWEAREac6y3aO3unc1b97hqJJNm0yRfblu4%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -3505,426 +2736,9 @@
           "id": "q5U4RCoVd04OCM5OJ14yZA==",
           "name": null,
           "size": 4685,
-          "url": "https://files.gumroad.com/attachments/9131703016747/aa0679e1ad1ae2f0cbeabeeca4bbcb78/original/drone-surveying-social-pack-1789948938450.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038789-pb7rt9AI5gq0D8pSUzNRv%2BlBzzJpmB0Mvm%2Bm0o19RV4%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/aa0679e1ad1ae2f0cbeabeeca4bbcb78/original/drone-surveying-social-pack-1789948938450.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045932-EjorQQxUrMQKjszeUNzPH0AaAloclWKBlTRvIGqD3WA%3D",
           "filetype": "zip",
           "filegroup": "archive"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Secular Recovery (LifeRing/SOS) Social Media Templates",
-      "description": "Secular Recovery (LifeRing/SOS) Social Media Templates — a Guided instagram templates designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Content Pack with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Secular Recovery (LifeRing/SOS) professionals, Personal Recovery Plan, Weekly Check-In Worksheet, Sober Activity Planner, Community Connection Tracker\n\nTheme: Auto Theme | Format: ZIP\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/ubtpew38sm197uctwewj84xduytf",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "Rpd2QBSm8YM-wNed0jOMCw==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/nhflnz",
-      "landing_url": "https://nichegate.gumroad.com/l/nhflnz",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "social media",
-        "small business",
-        "printable",
-        "sos",
-        "secular recovery",
-        "lifering"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "3.37 MB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/ubtpew38sm197uctwewj84xduytf",
-          "original_url": "https://public-files.gumroad.com/j6dqvcmbsqah5ytesz27xr3vftxu",
-          "thumbnail": null,
-          "id": "b84364fcabe6ac7a510073ac203b67d0",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/8lfdowovhp0lfxggbp2o0wc19zui",
-          "original_url": "https://public-files.gumroad.com/a7r599jz3y7y9pv2dfdbgowdqu5t",
-          "thumbnail": null,
-          "id": "f3159beb22c136ca561b34ff261c82c0",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/bx7lpmxf6g1uf706c2at904xmfl0",
-          "original_url": "https://public-files.gumroad.com/16kzuq3em8f4ek6oyjheu1520iqg",
-          "thumbnail": null,
-          "id": "1e7abdbd3311a8e1e2beb26d60ccc022",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "b84364fcabe6ac7a510073ac203b67d0",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "4pFWGQjyGnr8Bzvl8VA8fg==",
-          "name": null,
-          "size": 3531679,
-          "url": "https://files.gumroad.com/attachments/9131703016747/79ef4760b523ff0a415face9d75a913b/original/secular-recovery-social-pack-1789948926601.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038789-fIuC%2Be7OJfHml8iQbswfC9u%2B6xfyN0YNHyZK9H7xJuk%3D",
-          "filetype": "zip",
-          "filegroup": "archive"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Women's Recovery (WFS) Social Media Templates",
-      "description": "Women's Recovery (WFS) Social Media Templates — a Guided instagram templates designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Content Pack with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Women's Recovery (WFS) professionals, 13 Statements Study Guide, Daily Affirmation Journal, Emotional Growth Tracker, Self-Esteem Worksheets\n\nTheme: Auto Theme | Format: ZIP\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/ixf51pm1k0lihac5gc5ddgso99xb",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "CUk674x5hbHXSkZTxKMXfQ==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/akgqov",
-      "landing_url": "https://nichegate.gumroad.com/l/akgqov",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "social media",
-        "small business",
-        "printable",
-        "wfs",
-        "women's recovery"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "3.43 MB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/ixf51pm1k0lihac5gc5ddgso99xb",
-          "original_url": "https://public-files.gumroad.com/89frpxgh5gr0e4clnrg2yrz1egis",
-          "thumbnail": null,
-          "id": "ffd5422f9d274b73d3fa32d48441239f",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/aflbstzqjexcg81260xv4ep1mjef",
-          "original_url": "https://public-files.gumroad.com/szllyhesr2i05b2flt61fbassrtf",
-          "thumbnail": null,
-          "id": "64afa41764b79d955814dc504c14f804",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/dwikg36647jgztw16ckcg964whrc",
-          "original_url": "https://public-files.gumroad.com/s02kop07r383uy8igsw13wrzh93s",
-          "thumbnail": null,
-          "id": "d78fef5b6d7d0adc66cffe3e351860a0",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "ffd5422f9d274b73d3fa32d48441239f",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "aetu1LtIsm5mr5d6bqHFDg==",
-          "name": null,
-          "size": 3597382,
-          "url": "https://files.gumroad.com/attachments/9131703016747/5d3cbbeb9e421cec175a5d3546439a63/original/womens-recovery-social-pack-1789948910557.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038789-6fZF7aVfLMV614q9bHCRd64UWMG7gQ2VDWrUCCqBesc%3D",
-          "filetype": "zip",
-          "filegroup": "archive"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "SMART Recovery (CBT) Booking Form",
-      "description": "SMART Recovery (CBT) Booking Form — a Guided appointment template designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Scheduling Form with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: SMART Recovery (CBT) professionals, ABC Worksheet (CBT), Cost-Benefit Analysis, Urge Log / Trigger Tracker, Hierarchy of Values\n\nTheme: Auto Theme | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/m5abmi2dgp4gb8dqe4ljh8e7seq5",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "r_6P6Xgq4bI_qoT3qYQVdA==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/jogqvw",
-      "landing_url": "https://nichegate.gumroad.com/l/jogqvw",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "cbt",
-        "smart recovery",
-        "booking form"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "23.1 KB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/m5abmi2dgp4gb8dqe4ljh8e7seq5",
-          "original_url": "https://public-files.gumroad.com/4e0y6kdyxyurdsr7byoa6fngam49",
-          "thumbnail": null,
-          "id": "ac0bff393a742f323c94651f654dff3c",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/484rumegxl68k49f1c4xqfujjkqn",
-          "original_url": "https://public-files.gumroad.com/5n1oyaeam980vifqa7tfw404ej98",
-          "thumbnail": null,
-          "id": "5abd31c23c888ba3add865bf8aea554f",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/gybrwj3ruwfx8lxlcswpr7op1aye",
-          "original_url": "https://public-files.gumroad.com/ez68iwvlvj96dw0m9nrdgleyo0km",
-          "thumbnail": null,
-          "id": "5e87e01c7cc09ed641ae8fe50e00a6cd",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "ac0bff393a742f323c94651f654dff3c",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "V5ybj6oYc_jj1i6vkx-DlQ==",
-          "name": null,
-          "size": 23620,
-          "url": "https://files.gumroad.com/attachments/9131703016747/61bdfced0f21dacb25f38c57e0e2fbe7/original/smart-recovery-booking-1789948882550.xlsx?response-content-disposition=attachment&verify=1792038789-PxuEp1Q8v%2BWWc3Q7sMK%2BaWL0fS8mlta0O16Fml5zG9g%3D",
-          "filetype": "xlsx",
-          "filegroup": "url"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "AA / 12-Step Recovery Invoice Template",
-      "description": "AA / 12-Step Recovery Invoice Template — a Guided editable invoice designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Service Invoice with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: AA / 12-Step Recovery professionals, 4th Step Inventory Guide, Daily Reflection Journal, Meeting Attendance Tracker, Sobriety Milestone Planner\n\nTheme: Auto Theme | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/yqyytft854s7goiro4748r2r0vdp",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "iLtN5ItLL8vvpzCNYEJD0w==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/udphet",
-      "landing_url": "https://nichegate.gumroad.com/l/udphet",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "invoice",
-        "step recovery"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "90.6 KB",
-        "Length": "2 pages"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/yqyytft854s7goiro4748r2r0vdp",
-          "original_url": "https://public-files.gumroad.com/p265bct6h91esn69zj4l8ldr960e",
-          "thumbnail": null,
-          "id": "d15d80707b0778bf943da031862f0f61",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/q4oxrxgedlplrstqsac34lzz48uy",
-          "original_url": "https://public-files.gumroad.com/wccakrgew3gvy71pxcwsssxpb0fc",
-          "thumbnail": null,
-          "id": "e3c81ce9dd7f6bae737d864ea9d6e1e9",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/8hxg1dxc2y9w9xqtr7oxbkx3felh",
-          "original_url": "https://public-files.gumroad.com/42rz3bwzfpz4qyvifzn973vk0rdi",
-          "thumbnail": null,
-          "id": "f1257dedb36a217733136a4a36869f67",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "d15d80707b0778bf943da031862f0f61",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "g2dshohmz4WJhAlQhNeNKA==",
-          "name": null,
-          "size": 92791,
-          "url": "https://files.gumroad.com/attachments/9131703016747/77d31541a29d009712743a629333e973/original/aa-recovery-invoice-1789948867478.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038790-0FtjfIu7NG92GilJaKxZXWsK%2BldKEPo37JdRyI%2B0BX4%3D",
-          "filetype": "pdf",
-          "filegroup": "document"
         }
       ],
       "custom_delivery_url": null,
@@ -4039,7 +2853,7 @@
           "id": "qsH33d1CJdKJXAZgwMNl7w==",
           "name": null,
           "size": 81160,
-          "url": "https://files.gumroad.com/attachments/9131703016747/2cc4196a22a772457e8dda6ba522e625/original/pyrotechnics-invoice-1789948855453.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038790-qzT5iVV%2Bmgl3zVaJPMQAWF09fqQOh8ZIL6RpDG2h1RQ%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/2cc4196a22a772457e8dda6ba522e625/original/pyrotechnics-invoice-1789948855453.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045933-YvcNeKhQ5JFUDEsyXNvIFgkJPH4iiFkkNilKTRC134s%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -4143,7 +2957,7 @@
           "id": "Pg44uMtFdl3JMqOpZSZ4ZA==",
           "name": null,
           "size": 161802,
-          "url": "https://files.gumroad.com/attachments/9131703016747/95cc3ef2d843b77ae153e49133988c4d/original/wedding-photography-checklist-1789948842825.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038790-Ef%2BPMlbD8x6BINzVFoG3Vg1Dh%2FmbF%2Fa1Z0da2%2B3J2mo%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/95cc3ef2d843b77ae153e49133988c4d/original/wedding-photography-checklist-1789948842825.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045933-t5pJajFSYjUv4N2HGuu3%2BjMH7wulLF6n58JMMXIQEI8%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -4247,7 +3061,7 @@
           "id": "pYN6tRofiuZgSG1I161nFw==",
           "name": null,
           "size": 154690,
-          "url": "https://files.gumroad.com/attachments/9131703016747/985087391be93bea5cab0de5c5e44b4e/original/tattoo-artist-checklist-1789948829255.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038790-HHhYTexxh6u7D3iI78f%2BHaRco1lbxwBNwvqD%2Bn4kJQ4%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/985087391be93bea5cab0de5c5e44b4e/original/tattoo-artist-checklist-1789948829255.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045933-fYXV4p0CCcSu1YHi7AyHmwDP7EuSrKWAbOv8jaC0IUE%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -4351,7 +3165,7 @@
           "id": "iYYWOM-DpmSlI4yBxkyXhg==",
           "name": null,
           "size": 81433,
-          "url": "https://files.gumroad.com/attachments/9131703016747/374720c5039711c65a72bf8a36aaf5c4/original/massage-therapy-invoice-1789948813726.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038790-Lbuck2lrgokLfF17V%2FJBlzQhLuOiyFJs0pqjMnXFMQw%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/374720c5039711c65a72bf8a36aaf5c4/original/massage-therapy-invoice-1789948813726.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045933-UMOZH6PtsKhHLP5I%2Fi3xuLh89FD3%2Ffm23jf0PW%2FXo2I%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -4479,7 +3293,7 @@
           "id": "faupJJvzW3LV2CY4tHO5-Q==",
           "name": null,
           "size": 156484,
-          "url": "https://files.gumroad.com/attachments/9131703016747/54e21167795b425cef7daa388c522dd5/original/hvac-checklist-1789776022688.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038790-po83Wg0CUZWci0fb9oe8zT6IOqrfYm1B0SpgmTVGTZI%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/54e21167795b425cef7daa388c522dd5/original/hvac-checklist-1789776022688.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045934-UCOYKHdOJSAuiwF0I%2BGBfh3YqkSqznotFs7C7iPwTUo%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -4620,7 +3434,7 @@
           "id": "-6iQpEtUtuwTMo4uBGHiBQ==",
           "name": null,
           "size": 161118,
-          "url": "https://files.gumroad.com/attachments/9131703016747/247c413cb33d2ba4fe11e21bd3861dc2/original/drone-surveying-checklist-1789689628832.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038791-dQedeYZJ2rJQS4L7DwE5OY68lm9yHUAl70auYko%2Beqk%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/247c413cb33d2ba4fe11e21bd3861dc2/original/drone-surveying-checklist-1789689628832.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045934-5xFSbjbfj1r9D3Af%2BT5uZEV5OxJjUqUywbv5cJ%2FHFlA%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -4748,359 +3562,9 @@
           "id": "YqUJE6xyR4_OzkUyRsVmXQ==",
           "name": null,
           "size": 160752,
-          "url": "https://files.gumroad.com/attachments/9131703016747/553354fb82404a022db44bd908a37eeb/original/air-duct-cleaning-checklist-1789689627688.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038792-BIfvcvtcq4EQwomNzQMgwQ6yPRgTO3DaED4fHSCmSE4%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/553354fb82404a022db44bd908a37eeb/original/air-duct-cleaning-checklist-1789689627688.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045934-4XmOwJx7WZ0%2BaeNInLvEWJJcKFShcRIQDrZwaHXmc6s%3D",
           "filetype": "pdf",
           "filegroup": "document"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Faith-Based Recovery (Biblical) Spreadsheet Template",
-      "description": "Faith-Based Recovery (Biblical) Spreadsheet Template — a Guided calculator designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Pricing Tool with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Faith-Based Recovery (Biblical) professionals, Bible Verse Recovery Journal, Scripture Memory Cards, Faith-Based Relapse Prevention Plan, 12-Step + Scripture Workbook\n\nTheme: Auto Theme | Format: XLSX\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/lql66drg76zsu2cugti5so0euh4m",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "SL8LLLr-fxgVRqhB4WPPuQ==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/aceonc",
-      "landing_url": "https://nichegate.gumroad.com/l/aceonc",
-      "thumbnail_url": null,
-      "tags": [
-        "excel",
-        "template",
-        "small business",
-        "printable",
-        "faith",
-        "spreadsheet",
-        "biblical",
-        "based recovery"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "26 KB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/lql66drg76zsu2cugti5so0euh4m",
-          "original_url": "https://public-files.gumroad.com/d0q07try4ixtha1jxvjwzcf3laig",
-          "thumbnail": null,
-          "id": "78cda027eebfadee7699bd22b2913823",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/33qtv09xghom43xz7g90qeoiwm7b",
-          "original_url": "https://public-files.gumroad.com/i7ccwlisiubilfrqy8tqlrf2xvjp",
-          "thumbnail": null,
-          "id": "7eb453fc6b6a681ae99112a72d6589ce",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/uxsabwg458hn0271nbfzagb6ybgd",
-          "original_url": "https://public-files.gumroad.com/3bf5voq36g7crz6vgidts3yneivj",
-          "thumbnail": null,
-          "id": "956aacfa1390a7883cfde582c366ddfa",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/asnm7jmx0a75mgtfh3vmagajqweq",
-          "original_url": "https://public-files.gumroad.com/ljrfgycnt7zy2a92j9e147c5cbag",
-          "thumbnail": null,
-          "id": "e25c08b1d3ef740fb7d3c6361a8f6397",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "78cda027eebfadee7699bd22b2913823",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "ygbtI0QhP-CPJegrmsKAcg==",
-          "name": null,
-          "size": 26583,
-          "url": "https://files.gumroad.com/attachments/9131703016747/3af12f1f940f720d2d4ca5fe0c6ae6bb/original/faith-recovery-spreadsheet-1789689626722.xlsx?response-content-disposition=attachment&verify=1792038792-bqHqrMmBIN5E6XTyfRlngEKhgujS8gNC3nMqo8Gswn0%3D",
-          "filetype": "xlsx",
-          "filegroup": "url"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Women's Recovery (WFS) Booking Form",
-      "description": "Women's Recovery (WFS) Booking Form — a Guided appointment template designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Scheduling Form with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Women's Recovery (WFS) professionals, 13 Statements Study Guide, Daily Affirmation Journal, Emotional Growth Tracker, Self-Esteem Worksheets\n\nTheme: Auto Theme | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/7kogll0pl9190nn3ogry64orlvlb",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "5pWChpO1MI4fq5ggi7t9AQ==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/wfquxb",
-      "landing_url": "https://nichegate.gumroad.com/l/wfquxb",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "wfs",
-        "booking form",
-        "women's recovery"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "23.1 KB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/7kogll0pl9190nn3ogry64orlvlb",
-          "original_url": "https://public-files.gumroad.com/qti343pbvxvd81d1n00ltlm22ji8",
-          "thumbnail": null,
-          "id": "5486139741dc1668ffb8591097c88a8c",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/mgnpd5jogirgrhzzj4slfn8hhqq1",
-          "original_url": "https://public-files.gumroad.com/j4ia3lout4n2whanchjsvue0uqu3",
-          "thumbnail": null,
-          "id": "7a3a30c8e4de4fa42378503a5391e054",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/cp6uzj268ywygm2uiaeg65m9vw2y",
-          "original_url": "https://public-files.gumroad.com/45m86as4gha38g3azcymruw8db8k",
-          "thumbnail": null,
-          "id": "5bd40faf0aba63f00f0e3bd6ca1d58fc",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/jo3kohow23py8jpnumhy1souh9q1",
-          "original_url": "https://public-files.gumroad.com/og21ku8ri091fb525z9bcujfamu1",
-          "thumbnail": null,
-          "id": "bb8377a82ceb97863c436261e77f900d",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "5486139741dc1668ffb8591097c88a8c",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "6DuG4_-N7IiUWruB8L035w==",
-          "name": null,
-          "size": 23654,
-          "url": "https://files.gumroad.com/attachments/9131703016747/e7efa0fcead99f9ca42a008ffdbe93af/original/womens-recovery-booking-1789689621338.xlsx?response-content-disposition=attachment&verify=1792038792-zDsRCk%2BOnkqYGVC5IOpQAkKj4QIrCneKoDjMYLUJhoM%3D",
-          "filetype": "xlsx",
-          "filegroup": "url"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Refuge Recovery (Buddhist) Booking Form",
-      "description": "Refuge Recovery (Buddhist) Booking Form — a Guided appointment template designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Scheduling Form with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Refuge Recovery (Buddhist) professionals, Meditation Log &amp; Guide, Dharma Study Workbook, Mindfulness Tracker, Inventory of Suffering Guide\n\nTheme: Auto Theme | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/eqtv79hvohqq0pk9k343oy3l09f1",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "6tgcoGOwjMy4beSy9sWr_Q==",
-      "url": null,
-      "price": 1200,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/dfpkc",
-      "landing_url": "https://nichegate.gumroad.com/l/dfpkc",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "buddhist",
-        "booking form",
-        "refuge recovery"
-      ],
-      "formatted_price": "$12",
-      "published": false,
-      "file_info": {
-        "Size": "23.1 KB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/eqtv79hvohqq0pk9k343oy3l09f1",
-          "original_url": "https://public-files.gumroad.com/ublzj8k5qnm02hymxqw0ipgq4tgu",
-          "thumbnail": null,
-          "id": "172d37db0506e0c24098c4dd536445eb",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/fapjswn9p9nloup3cryr5gjm2etz",
-          "original_url": "https://public-files.gumroad.com/16p567izlujtg43urvgce03dr9ci",
-          "thumbnail": null,
-          "id": "1d5e84e8ef014b1755ce7c0b3cec6a65",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/fc45l4v5fctsshw013lnbqar3pjf",
-          "original_url": "https://public-files.gumroad.com/9n5tatchmf4012poa1jh0jq69vcp",
-          "thumbnail": null,
-          "id": "1343760e892d48fc88f260898f016435",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/lcpuqw7h4p3eoaz5l9bge74epofn",
-          "original_url": "https://public-files.gumroad.com/kosa595tx7k4ziaa49zg9itaz6ve",
-          "thumbnail": null,
-          "id": "7c559a21c14254ad3a55687057a1fecc",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "172d37db0506e0c24098c4dd536445eb",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "N_SLC4NMyOF7mXJTTBrG9g==",
-          "name": null,
-          "size": 23649,
-          "url": "https://files.gumroad.com/attachments/9131703016747/68abb9f80c928bd3c2a438cee155b314/original/refuge-recovery-booking-1789689620311.xlsx?response-content-disposition=attachment&verify=1792038792-Wnkh8Y4kSdzJnClhYglkTRU2FeRLEn7GM8mqX7Xn%2FSc%3D",
-          "filetype": "xlsx",
-          "filegroup": "url"
         }
       ],
       "custom_delivery_url": null,
@@ -5251,7 +3715,7 @@
           "id": "Hyqw-9E2vq15ALb9FWcWow==",
           "name": null,
           "size": 26522,
-          "url": "https://files.gumroad.com/attachments/9131703016747/9b1b5e9365e9c7424ade757304c58fb0/original/pyrotechnics-spreadsheet-1789689613296.xlsx?response-content-disposition=attachment&verify=1792038792-64FaxTUCSSNQojO3ilfs27VZG1GbR1NbkSP04uEC3Dw%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/9b1b5e9365e9c7424ade757304c58fb0/original/pyrotechnics-spreadsheet-1789689613296.xlsx?response-content-disposition=attachment&verify=1792045935-C8XC5B5bQol4PrIhbY06pxYL4EUpaPuRhLxq2LeNxro%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -5353,7 +3817,7 @@
           "id": "y7P6PyRD0T-wfnk0QtkzRg==",
           "name": null,
           "size": 2789294,
-          "url": "https://files.gumroad.com/attachments/9131703016747/615f16ca9d507d0c77cb985cf137bfbc/original/appliance-repair-social-pack-1789689911744.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038792-ZNvuEXBTiRGPo7puZ1S1x3G341itR5bhThS00TczWjQ%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/615f16ca9d507d0c77cb985cf137bfbc/original/appliance-repair-social-pack-1789689911744.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045935-NlkPPqnlbYQUKmxk38BhsBFFIJgLAx%2FDyDvWTURwW6I%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -5445,7 +3909,7 @@
           "id": "Xw1Ganx2Vss0dHgaPl4Www==",
           "name": null,
           "size": 26473,
-          "url": "https://files.gumroad.com/attachments/9131703016747/0776038a698569b475d0a9e27d6b6eb5/original/air-duct-cleaning-spreadsheet-1789689857466.xlsx?response-content-disposition=attachment&verify=1792038793-jeIeK68CLY3T1ZHlOIyBb3FH%2BmpmpHaatH3LLfEZeuc%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/0776038a698569b475d0a9e27d6b6eb5/original/air-duct-cleaning-spreadsheet-1789689857466.xlsx?response-content-disposition=attachment&verify=1792045935-%2FRuSszVEpQMJzEwjUl%2BJ0aAGPLf3KwH7aL4o%2FC2pib8%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -5537,7 +4001,7 @@
           "id": "MeD1NazXAPLHcjSeXn54qA==",
           "name": null,
           "size": 23614,
-          "url": "https://files.gumroad.com/attachments/9131703016747/fb5c4e091fb108226fdbfb0ee4cb7706/original/mold-inspector-booking-1789689807733.xlsx?response-content-disposition=attachment&verify=1792038793-cM%2FBLpDgiALdKwpopYkGDJkfserPB9Z4cXCMEv0p0TA%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/fb5c4e091fb108226fdbfb0ee4cb7706/original/mold-inspector-booking-1789689807733.xlsx?response-content-disposition=attachment&verify=1792045935-U%2Bwm1o02hGqrUI3IHz0xjhfZB2a9p7%2BpST0PviAYroM%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -5629,7 +4093,7 @@
           "id": "gcI0ShLbCmQYsShSr3sbyg==",
           "name": null,
           "size": 26480,
-          "url": "https://files.gumroad.com/attachments/9131703016747/c84b8e34da237e37b8e1223e72967139/original/native-landscaping-spreadsheet-1789689798153.xlsx?response-content-disposition=attachment&verify=1792038793-2VHZc4uzjTaYWdUDWr8qy4BdOatXt7UqjbvrARHXh2Q%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/c84b8e34da237e37b8e1223e72967139/original/native-landscaping-spreadsheet-1789689798153.xlsx?response-content-disposition=attachment&verify=1792045935-RotbSuYprcgANa7HfAtxPOxF2Tf9hbWspUNi%2Fs%2FDI%2Bo%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -5722,7 +4186,7 @@
           "id": "1GexCW98sUwYLPAEfhbrxg==",
           "name": null,
           "size": 81861,
-          "url": "https://files.gumroad.com/attachments/9131703016747/ec53a0001307950d4bcffa957d3f821b/original/mobile-notary-invoice-1789689629998.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038793-xQtie6BORBR3vZVKWfK%2FNsj0DHc6zthu33wCQaaYM%2B8%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/ec53a0001307950d4bcffa957d3f821b/original/mobile-notary-invoice-1789689629998.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045935-wMLltDMtokSFzexiE9UeymGAC4YlIazHUA2PPiW5teU%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -5812,7 +4276,7 @@
           "id": "V3USFlVaYD97klX72mly-Q==",
           "name": null,
           "size": 3241958,
-          "url": "https://files.gumroad.com/attachments/9131703016747/ecdbcbbedbf648e75cf1f33da5738603/original/wedding-photography-social-pack-1789603311774.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038793-pUS0PQNM2NGsLbIBexJGxC4%2FSb%2BTGeBo%2FwxC4pT7FMY%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/ecdbcbbedbf648e75cf1f33da5738603/original/wedding-photography-social-pack-1789603311774.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045936-nMaGAmCNDCQiFDyqYJZTa7c7XQRoVJbSkdaKscT%2BF8M%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -5903,7 +4367,7 @@
           "id": "9OTgwzg2iDlOSnYyVBsJfw==",
           "name": null,
           "size": 23549,
-          "url": "https://files.gumroad.com/attachments/9131703016747/df2df5e5862f6febf49e787453bb19f7/original/tattoo-artist-booking-1789603301196.xlsx?response-content-disposition=attachment&verify=1792038793-nelQMCLc56tWRr3kqLOlfHrCj3A16pABAi7Ydi3HJ9s%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/df2df5e5862f6febf49e787453bb19f7/original/tattoo-artist-booking-1789603301196.xlsx?response-content-disposition=attachment&verify=1792045936-G4cQCTo9EuvjOMwsSaXoKUvYCsHUJaPOqgNt%2FlNCLbk%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -5994,7 +4458,7 @@
           "id": "py3cG6_KQZqlUq_TaKQl2A==",
           "name": null,
           "size": 23572,
-          "url": "https://files.gumroad.com/attachments/9131703016747/eb2abbbe152db7c1b72620373a28b71b/original/massage-therapy-booking-1789603292308.xlsx?response-content-disposition=attachment&verify=1792038794-rh3dIkv1CsQBXwkAAN%2B8n1AUIPOZKnId1N0OF5Vudiw%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/eb2abbbe152db7c1b72620373a28b71b/original/massage-therapy-booking-1789603292308.xlsx?response-content-disposition=attachment&verify=1792045936-dXQiY3bWtKUMqT7dJQrNm22xHpdKwnlZDxm4Hzxw57w%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -6085,7 +4549,7 @@
           "id": "NNPj-xo4F2JCMpP268-PRQ==",
           "name": null,
           "size": 23569,
-          "url": "https://files.gumroad.com/attachments/9131703016747/d45c4bb1f172ab599ff0f70c61311aa6/original/hvac-booking-1789603283601.xlsx?response-content-disposition=attachment&verify=1792038794-ZFksnVbGTYhJBiUCTF0DGPIH1eeGKcEKMnTTTI%2FNQGE%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/d45c4bb1f172ab599ff0f70c61311aa6/original/hvac-booking-1789603283601.xlsx?response-content-disposition=attachment&verify=1792045936-jg4Cu0zj0C%2BreAwqfgtTskp%2F6P39ben1yAMcHVug7ao%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -6177,7 +4641,7 @@
           "id": "6zLptS9BclEEPlpTkCMU7Q==",
           "name": null,
           "size": 160085,
-          "url": "https://files.gumroad.com/attachments/9131703016747/99bb40c2bfb7b30ee09083ca7223f97d/original/roofing-checklist-1789603275489.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038794-7m9bTjmpIvgu0w1aZsnA8JcXZOp8zziuMS0YfNRASAY%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/99bb40c2bfb7b30ee09083ca7223f97d/original/roofing-checklist-1789603275489.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045936-Vlybl06mB7kRy2%2FtjyluNaJskrgT0Ncx1DoZqFyVq5U%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -6270,7 +4734,7 @@
           "id": "Rs-QcD3O1FbQ5oTV-DU8hQ==",
           "name": null,
           "size": 26476,
-          "url": "https://files.gumroad.com/attachments/9131703016747/903c32e006cc51117aab6c313060f845/original/fishing-guide-spreadsheet-1789603267189.xlsx?response-content-disposition=attachment&verify=1792038794-U%2F4E9yrYXx6d27WlzcYdfFND6SiavcmMJn5jPcm5l0A%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/903c32e006cc51117aab6c313060f845/original/fishing-guide-spreadsheet-1789603267189.xlsx?response-content-disposition=attachment&verify=1792045937-Mn5Lnv%2Bp7opn3dXsj2vCkYIe5l8tYttH459MYrXnbHI%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -6362,7 +4826,7 @@
           "id": "xUuC8RZe3-eJqlAzaTkw-g==",
           "name": null,
           "size": 83002,
-          "url": "https://files.gumroad.com/attachments/9131703016747/8492091f7ee6aa700850d233a3af95a7/original/air-duct-cleaning-invoice-1789603248325.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038794-fFTuWjVVXVM6M2pUgxs6dei0RSoCt7U%2FHXU%2BK%2BWbirI%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/8492091f7ee6aa700850d233a3af95a7/original/air-duct-cleaning-invoice-1789603248325.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045937-byLCf0Eq%2FY9FbF2ByjAMQsDXiIe7MARPD03Pp6%2Biz2g%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -6455,7 +4919,7 @@
           "id": "-txSBFl07_LLYXdZMqEMGw==",
           "name": null,
           "size": 160661,
-          "url": "https://files.gumroad.com/attachments/9131703016747/8eb295f1aeb1807905624b21972cff20/original/mold-inspector-checklist-1789603239042.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038794-1K0my3%2Ff6rW2ygXBiFPL5Mf%2FHny3O0UEA5ouwIeDT4A%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/8eb295f1aeb1807905624b21972cff20/original/mold-inspector-checklist-1789603239042.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045937-wPm1Go71iNK2Qt5D%2BnWob2LkFiRLDVtJHJWesQogEKU%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -6545,7 +5009,7 @@
           "id": "p4lRschToXRUodpyoIiz_w==",
           "name": null,
           "size": 3609841,
-          "url": "https://files.gumroad.com/attachments/9131703016747/6e6321a85f9e0a3e528ca1f550ae061b/original/native-landscaping-social-pack-1789603228335.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038795-QYdQvo1q5qn5dhCUbz6YtUze2q2Z3qrdz1KNWxLi%2BfI%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/6e6321a85f9e0a3e528ca1f550ae061b/original/native-landscaping-social-pack-1789603228335.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045937-H4B1NQjyaghvH5THea%2FASFGz6eoFWxukv974OGbsa10%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -6662,7 +5126,7 @@
           "id": "o1c4pBjo1-i2P-zjsiL4kw==",
           "name": null,
           "size": 26466,
-          "url": "https://files.gumroad.com/attachments/9131703016747/1001b3be356fa3cce3edde43719d90f4/original/post-construction-cleaning-spreadsheet-1789516834226.xlsx?response-content-disposition=attachment&verify=1792038795-fpn1Ytxsl9%2FADQYJUkHmhjiHRg4q7%2F6VB1BxPq7dQ7I%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/1001b3be356fa3cce3edde43719d90f4/original/post-construction-cleaning-spreadsheet-1789516834226.xlsx?response-content-disposition=attachment&verify=1792045937-CR7WBXtprNI8wKPLkeyzq%2FphGSd2unjd5Bf1W877vjU%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -6776,7 +5240,7 @@
           "id": "nGz3hJypasjZYwQrySrNDg==",
           "name": null,
           "size": 3517387,
-          "url": "https://files.gumroad.com/attachments/9131703016747/25a80c5ac68a71f4220418467dab2222/original/energy-auditor-social-pack-1789516826858.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038795-ODarUyVLVCsjqYVU0HkSRueVpUTj2XIXS87UTVUpX3s%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/25a80c5ac68a71f4220418467dab2222/original/energy-auditor-social-pack-1789516826858.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045938-tOptBHfUjS3Dwz%2BKEDYwvPmCzxZBeR1E%2Fnp8lFhWDnc%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -6904,7 +5368,7 @@
           "id": "Rdr6KyaVSoN8q12zZl2pVQ==",
           "name": null,
           "size": 23594,
-          "url": "https://files.gumroad.com/attachments/9131703016747/f63da68400bfada4b3fa9ef227845565/original/beekeeping-booking-1789516817511.xlsx?response-content-disposition=attachment&verify=1792038795-B%2FETaBDoXKPJefYZLMtGzqzZQZsFSNIEVGLX8wI%2FoxU%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/f63da68400bfada4b3fa9ef227845565/original/beekeeping-booking-1789516817511.xlsx?response-content-disposition=attachment&verify=1792045938-FiUGFKOdYH%2BUjKFlnjG5FjC2BAWjuQYyTNU%2BEXJiWA8%3D",
           "filetype": "xlsx",
           "filegroup": "url"
         }
@@ -7019,7 +5483,7 @@
           "id": "Ug9BWjFgppcc6rotJBg7QQ==",
           "name": null,
           "size": 2803430,
-          "url": "https://files.gumroad.com/attachments/9131703016747/3c8cf112b4fff8d2714212be92a60efd/original/mobile-notary-social-pack-1789516809207.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038795-RNGIFQUmhzstbJFEohcw%2BL3lAip0cBD1bPM6u9N0rX4%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/3c8cf112b4fff8d2714212be92a60efd/original/mobile-notary-social-pack-1789516809207.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045938-va4JQr5NYv7cB7kY77JGuaXRIxvz0uNwRE49%2BdgSZRg%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -7137,7 +5601,7 @@
           "id": "Vuo3TjCqLYEgwpPa_-VLew==",
           "name": null,
           "size": 310963,
-          "url": "https://files.gumroad.com/attachments/9131703016747/f21dcbc649044fc1b02aa66dd1b60da7/original/freelancers-survival-kit-1789447830946.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038795-0YvXVi8xpaZh1tHYJ3xY4xo60Oj%2BID5VwOfa1%2BEOZIU%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/f21dcbc649044fc1b02aa66dd1b60da7/original/freelancers-survival-kit-1789447830946.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045938-QP4FpsFsgTKgA0%2BaL8pPxgBDdGs9OfSPf341JTGKdN8%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -7256,7 +5720,7 @@
           "id": "PUcXL7XUEpHJfDFrytLzag==",
           "name": null,
           "size": 80144,
-          "url": "https://files.gumroad.com/attachments/9131703016747/fcfb247f4dcd6e303094f0f3c59da972/original/solo-business-tool-1789447829719.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792038796-ZBJSSkW8%2BAF1ZwMForOeCQE6%2F0R%2BMOs7VY4AMG6U3jQ%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/fcfb247f4dcd6e303094f0f3c59da972/original/solo-business-tool-1789447829719.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045938-r5P1lSlYPRt1cV3dRj3sk3r%2FbzP6%2FbJuGbwfEH%2FCnos%3D",
           "filetype": "pdf",
           "filegroup": "document"
         }
@@ -7385,244 +5849,9 @@
           "id": "PK_lnf8VMcBhzx8Vse-wzw==",
           "name": null,
           "size": 26527,
-          "url": "https://files.gumroad.com/attachments/9131703016747/c283974d845c06665e147ecbd1f4440e/original/drone-surveying-spreadsheet-1789384685595.xlsx?response-content-disposition=attachment&verify=1792038796-gLXJVm7JBi%2Fz%2BCEOIH2F260AhXHWJm3OSQrJdRPNNHs%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/c283974d845c06665e147ecbd1f4440e/original/drone-surveying-spreadsheet-1789384685595.xlsx?response-content-disposition=attachment&verify=1792045938-%2FbvX8iAInEwEVmJtl%2Ffbkrp0VxWS8yxqwrB%2F86YXIG8%3D",
           "filetype": "xlsx",
           "filegroup": "url"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Complete Toolkit — Secular Recovery (LifeRing/SOS)",
-      "description": "Secular Recovery (LifeRing/SOS) Complete Toolkit — a Guided template bundle designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Business Toolkit with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Secular Recovery (LifeRing/SOS) professionals, Personal Recovery Plan, Weekly Check-In Worksheet, Sober Activity Planner, Community Connection Tracker\n\nTheme: Onyx Volt | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/23n9pcczdibnfevxu4y9sejo3snq",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "tia4CbFueDV4fNCb-CSQsw==",
-      "url": null,
-      "price": 2900,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/ghfgfk",
-      "landing_url": "https://nichegate.gumroad.com/l/ghfgfk",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "printable",
-        "bundle",
-        "toolkit",
-        "sos",
-        "complete toolkit",
-        "secular recovery",
-        "lifering"
-      ],
-      "formatted_price": "$29",
-      "published": false,
-      "file_info": {
-        "Size": "912 KB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/23n9pcczdibnfevxu4y9sejo3snq",
-          "original_url": "https://public-files.gumroad.com/kgy9r9jdhzralh8b43ohitkes295",
-          "thumbnail": null,
-          "id": "de3c5a31354a706ae403005cf0bc3b34",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/8g4ch5tq4tba360uf57r3kovg6do",
-          "original_url": "https://public-files.gumroad.com/5vwxex3b26d3iqclwh7le9g9d7su",
-          "thumbnail": null,
-          "id": "a019b28ec27ee92177213a10d1b4c233",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/fnjh1ealqoj4anj8oqsvzdi8t6fb",
-          "original_url": "https://public-files.gumroad.com/oxq4p4kx91b96g2qjmxly75oso1p",
-          "thumbnail": null,
-          "id": "90603a328347bf9eec0eef14ac3f21d0",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/bybplx99w0hv8t3633pte4tnio86",
-          "original_url": "https://public-files.gumroad.com/wcu13u1fuitipglgca27vpryst1u",
-          "thumbnail": null,
-          "id": "b10d3b7553c1962ffeea7dc33bf69ddf",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "de3c5a31354a706ae403005cf0bc3b34",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "4XWLiiFwGcZ_6zRdCn4qGw==",
-          "name": null,
-          "size": 933735,
-          "url": "https://files.gumroad.com/attachments/9131703016747/8d3cc9238db6d3835933536536d8b09c/original/secular-recovery-complete-toolkit-1788415057303.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038796-pPw4H5ZirgBeQu50a7aXF%2BBR%2BiVoQxuHLG1d%2Fum3dvc%3D",
-          "filetype": "zip",
-          "filegroup": "archive"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Complete Toolkit — AA / 12-Step Recovery",
-      "description": "AA / 12-Step Recovery Complete Toolkit — a Guided template bundle designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Business Toolkit with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: AA / 12-Step Recovery professionals, 4th Step Inventory Guide, Daily Reflection Journal, Meeting Attendance Tracker, Sobriety Milestone Planner\n\nTheme: Onyx Volt | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/ohvhfoqde9j9fuw8yh8pdzvhnh26",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "DVBNRsF9_SPHVa8jZeTmEw==",
-      "url": null,
-      "price": 2900,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/aozsae",
-      "landing_url": "https://nichegate.gumroad.com/l/aozsae",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "bundle",
-        "toolkit",
-        "complete toolkit",
-        "step recovery"
-      ],
-      "formatted_price": "$29",
-      "published": false,
-      "file_info": {
-        "Size": "934 KB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/ohvhfoqde9j9fuw8yh8pdzvhnh26",
-          "original_url": "https://public-files.gumroad.com/g63ptstymcpy4ykn2ms8rz93ybts",
-          "thumbnail": null,
-          "id": "6a734371087d8995a37e19a949913db2",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/9t9ceuolu6bwtzqaz3pmp4xsu4ws",
-          "original_url": "https://public-files.gumroad.com/astan5karok2mhznv7vxypqony7i",
-          "thumbnail": null,
-          "id": "7a5cc6848ca2c081bf00a6ab1f94cd39",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/a2mz7x8dkfnaduv7vkb8a7xidasw",
-          "original_url": "https://public-files.gumroad.com/wznvgcoidrx106pq15oio79370hg",
-          "thumbnail": null,
-          "id": "cf156f02ecf485cdd42b77c868c8abe2",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/86tmpfwhe8ojn8vbhbw8w9yeptqa",
-          "original_url": "https://public-files.gumroad.com/latay3tdvzp51ahrg0a91sl3nxp9",
-          "thumbnail": null,
-          "id": "71e7782566e071c004d002622dc7d52d",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "6a734371087d8995a37e19a949913db2",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "2sFZwnZzDZ1DXPez_Ia22w==",
-          "name": null,
-          "size": 956412,
-          "url": "https://files.gumroad.com/attachments/9131703016747/690b7dbe4c3c890c81c789026a413dd8/original/aa-recovery-complete-toolkit-1788415056588.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038796-spTSHj5uX9NwgRBa4R38sQo4jpaFzRfTKgYuF50DwDg%3D",
-          "filetype": "zip",
-          "filegroup": "archive"
         }
       ],
       "custom_delivery_url": null,
@@ -7750,479 +5979,7 @@
           "id": "jmSsiquAaDYZRepRB_OMOA==",
           "name": null,
           "size": 940032,
-          "url": "https://files.gumroad.com/attachments/9131703016747/10c1b5500a9e82c6effae05be071cb0b/original/pyrotechnics-complete-toolkit-1788415055879.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038796-mNsA3wQNxSQ2jG2fdQA%2BdV7hmhhS6CllE3%2BxuR22f5M%3D",
-          "filetype": "zip",
-          "filegroup": "archive"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Complete Toolkit — Faith-Based Recovery (Biblical)",
-      "description": "Faith-Based Recovery (Biblical) Complete Toolkit — a Guided template bundle designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Business Toolkit with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Faith-Based Recovery (Biblical) professionals, Bible Verse Recovery Journal, Scripture Memory Cards, Faith-Based Relapse Prevention Plan, 12-Step + Scripture Workbook\n\nTheme: Onyx Volt | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/82qqrxmde9xb9guanorfko2t488z",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "za81qx7cz5CWYCYgZRHpiA==",
-      "url": null,
-      "price": 2900,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/rriix",
-      "landing_url": "https://nichegate.gumroad.com/l/rriix",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "printable",
-        "faith",
-        "bundle",
-        "toolkit",
-        "biblical",
-        "complete toolkit",
-        "based recovery"
-      ],
-      "formatted_price": "$29",
-      "published": false,
-      "file_info": {
-        "Size": "960 KB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/82qqrxmde9xb9guanorfko2t488z",
-          "original_url": "https://public-files.gumroad.com/mgudv5jjbjsvlenriec24g00g3a0",
-          "thumbnail": null,
-          "id": "379c4e5fab4bc669942e1c704d562718",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/mybw3qqvthharc5v0rmrcwhr17et",
-          "original_url": "https://public-files.gumroad.com/fzawyeuw6cm3fev5bwvap4472x5o",
-          "thumbnail": null,
-          "id": "fc5eba0bf12b235efcdf4f912badf1cf",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/dlh0e3rne0pc19lulrmkpxye5p6q",
-          "original_url": "https://public-files.gumroad.com/3185aiddazi4ulxctd1hi8em4dcy",
-          "thumbnail": null,
-          "id": "daae3ba493756326f29c4ac581eda66a",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/vfviz3rwipcht5yqyoe1wlsqylvo",
-          "original_url": "https://public-files.gumroad.com/jtuct3c4pgnwyok85em07fsjnxly",
-          "thumbnail": null,
-          "id": "74cbf0214b5621dc889dbaca8120078a",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "379c4e5fab4bc669942e1c704d562718",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "YIZqMDxde62KeRkSjMSeyQ==",
-          "name": null,
-          "size": 983429,
-          "url": "https://files.gumroad.com/attachments/9131703016747/af3073f3805fb510320f83b04846f145/original/faith-recovery-complete-toolkit-1788415010241.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038797-IjRGQy2G%2FEtcDZyK9EIxGyOyZHSdJ79zH1JI8R20tao%3D",
-          "filetype": "zip",
-          "filegroup": "archive"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Complete Toolkit — Women's Recovery (WFS)",
-      "description": "Women's Recovery (WFS) Complete Toolkit — a Guided template bundle designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Business Toolkit with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Women's Recovery (WFS) professionals, 13 Statements Study Guide, Daily Affirmation Journal, Emotional Growth Tracker, Self-Esteem Worksheets\n\nTheme: Onyx Volt | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/hz045bta3qj77t949pgqtku4s8av",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "8WGZSSvj0--Lra0yAQwAKw==",
-      "url": null,
-      "price": 2900,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/vsfat",
-      "landing_url": "https://nichegate.gumroad.com/l/vsfat",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "bundle",
-        "toolkit",
-        "wfs",
-        "complete toolkit",
-        "women's recovery"
-      ],
-      "formatted_price": "$29",
-      "published": false,
-      "file_info": {
-        "Size": "929 KB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/hz045bta3qj77t949pgqtku4s8av",
-          "original_url": "https://public-files.gumroad.com/idy2znf03dtndh9rcv6t6rrhkcyj",
-          "thumbnail": null,
-          "id": "0413e68afff940a98fe99d6654366dc1",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/8f6s2stuljmvq8mc32jyhr0x8bpe",
-          "original_url": "https://public-files.gumroad.com/6fodfljbypbx6qc2efzwprqr1kyc",
-          "thumbnail": null,
-          "id": "0f20b62c1e0e32c69214e6bfbac2e8d5",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/05zigkmz26rigozpe2j5ij9davdn",
-          "original_url": "https://public-files.gumroad.com/74zfzqi272jsqnaspixuyz872cmc",
-          "thumbnail": null,
-          "id": "3236de44dcd39943d90fd4f279c7f43b",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/1k85zfsice15180g6oljmu5cq6fu",
-          "original_url": "https://public-files.gumroad.com/vgb67jmoj9q6uncthfc4rfwsp5mi",
-          "thumbnail": null,
-          "id": "68ce61c5d9ccaab4b539d3a91367db9c",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "0413e68afff940a98fe99d6654366dc1",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "3LE1dVLhjs0sbEyjONExnw==",
-          "name": null,
-          "size": 951567,
-          "url": "https://files.gumroad.com/attachments/9131703016747/4a13d061991f51f67b5c705a41f9e294/original/womens-recovery-complete-toolkit-1788415008910.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038797-eFAwVCLR3%2FKLtTX5nJRYFa5H8y4dCFULeEadShRynlM%3D",
-          "filetype": "zip",
-          "filegroup": "archive"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Complete Toolkit — Refuge Recovery (Buddhist)",
-      "description": "Refuge Recovery (Buddhist) Complete Toolkit — a Guided template bundle designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Business Toolkit with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: Refuge Recovery (Buddhist) professionals, Meditation Log &amp; Guide, Dharma Study Workbook, Mindfulness Tracker, Inventory of Suffering Guide\n\nTheme: Onyx Volt | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/4olknc4w1ladlbqs6e8rw2rwehjc",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "40W2YgwGqYW-aQa6w1qjIA==",
-      "url": null,
-      "price": 2900,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/ucudov",
-      "landing_url": "https://nichegate.gumroad.com/l/ucudov",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "bundle",
-        "toolkit",
-        "buddhist",
-        "complete toolkit",
-        "refuge recovery"
-      ],
-      "formatted_price": "$29",
-      "published": false,
-      "file_info": {
-        "Size": "936 KB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/4olknc4w1ladlbqs6e8rw2rwehjc",
-          "original_url": "https://public-files.gumroad.com/28oe3fucjd0y504yl6241squdxg3",
-          "thumbnail": null,
-          "id": "317a385dfd249bcb76de6e6284881c01",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/5aztjtu5ucjo5mbg9feaimejxcdo",
-          "original_url": "https://public-files.gumroad.com/h76q1ekl28cc7binwr3tt65glwyl",
-          "thumbnail": null,
-          "id": "0e37679ce340138b14835dfd41bb065a",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/o2j5un2qjsu6oi9ehlu94vgp602g",
-          "original_url": "https://public-files.gumroad.com/g2femubir1idkkv4p751wjuk8u00",
-          "thumbnail": null,
-          "id": "7204c4ba85cfa50f36e0eb79d490f1cb",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/5rjm154nrihphxkonwur6lczrtsv",
-          "original_url": "https://public-files.gumroad.com/6xdlcycwgg6gslzoa1cfd4rqqree",
-          "thumbnail": null,
-          "id": "5d193449fa0197a0560e65dd55791043",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "317a385dfd249bcb76de6e6284881c01",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "P1JuI7-cYsKbtwppg3tj-w==",
-          "name": null,
-          "size": 958198,
-          "url": "https://files.gumroad.com/attachments/9131703016747/dea5d9b4a9aada7438bbdf0d60dde341/original/refuge-recovery-complete-toolkit-1788415007617.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038797-4CgYKP9eO6skDo1B7a3jdvrmUxxFFTKunsJhuFPlCTI%3D",
-          "filetype": "zip",
-          "filegroup": "archive"
-        }
-      ],
-      "custom_delivery_url": null,
-      "sales_count": 0,
-      "sales_usd_cents": 0
-    },
-    {
-      "name": "Complete Toolkit — SMART Recovery (CBT)",
-      "description": "SMART Recovery (CBT) Complete Toolkit — a Guided template bundle designed to make your business look elite.\n\nWHAT'S INCLUDED:\n• Business Toolkit with a clean, modern layout\n• Fully editable — customize colors, text, and fonts\n• Instant download, use forever\n• Commercial license for unlimited client projects\n\nPERFECT FOR: SMART Recovery (CBT) professionals, ABC Worksheet (CBT), Cost-Benefit Analysis, Urge Log / Trigger Tracker, Hierarchy of Values\n\nTheme: Onyx Volt | Format: PDF\nInstant download after purchase.",
-      "require_shipping": false,
-      "preview_url": "https://public-files.gumroad.com/vbufxyqm635ngb7kpt78i0gi3x50",
-      "custom_receipt": null,
-      "customizable_price": null,
-      "custom_permalink": null,
-      "subscription_duration": null,
-      "id": "3vE1hmpC-DNyPBZELrjP_Q==",
-      "url": null,
-      "price": 2900,
-      "currency": "usd",
-      "taxonomy_id": 266,
-      "category": "other",
-      "category_label": "Other",
-      "short_url": "https://nichegate.gumroad.com/l/ikbpy",
-      "landing_url": "https://nichegate.gumroad.com/l/ikbpy",
-      "thumbnail_url": null,
-      "tags": [
-        "template",
-        "small business",
-        "printable",
-        "bundle",
-        "toolkit",
-        "cbt",
-        "smart recovery",
-        "complete toolkit"
-      ],
-      "formatted_price": "$29",
-      "published": false,
-      "file_info": {
-        "Size": "932 KB"
-      },
-      "max_purchase_count": null,
-      "deleted": false,
-      "custom_fields": [],
-      "custom_summary": null,
-      "is_tiered_membership": false,
-      "recurrences": null,
-      "covers": [
-        {
-          "url": "https://public-files.gumroad.com/vbufxyqm635ngb7kpt78i0gi3x50",
-          "original_url": "https://public-files.gumroad.com/d5i6jxxxewoj5xdjjgu26ggphy6o",
-          "thumbnail": null,
-          "id": "694e157f0e73e3e0ea9c89599c97655f",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/0ljfnvc9x43kqggr266j5042mxy8",
-          "original_url": "https://public-files.gumroad.com/ymvfbex9536i4kehsd6kg0aoz2a4",
-          "thumbnail": null,
-          "id": "b4f7f488dd5cf8f9d5087a8906eaa2e8",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/il3cwb297282o68j5k4ta5nfa9j9",
-          "original_url": "https://public-files.gumroad.com/dafwov6f0v1lyi2f8940h188gf52",
-          "thumbnail": null,
-          "id": "9ed895d284083ce0ac39a1fb9b3ac645",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        },
-        {
-          "url": "https://public-files.gumroad.com/at6dpvbabp6101csknbd1adwy3ru",
-          "original_url": "https://public-files.gumroad.com/ev6x6lu6two4jg9yqdd7t2onkkg9",
-          "thumbnail": null,
-          "id": "7be9d842a90233a1c01616f429928760",
-          "type": "image",
-          "filetype": "jpg",
-          "width": 670,
-          "height": 837,
-          "native_width": 1200,
-          "native_height": 1500
-        }
-      ],
-      "main_cover_id": "694e157f0e73e3e0ea9c89599c97655f",
-      "bundle_products": [],
-      "variants": [],
-      "custom_html": null,
-      "refund_policy": {
-        "refund_period": "inherit",
-        "title": null,
-        "fine_print": null,
-        "inherited": true
-      },
-      "rich_content": [],
-      "has_same_rich_content_for_all_variants": false,
-      "main_section_index": 0,
-      "sections": [],
-      "files": [
-        {
-          "id": "utaotmE5EH984wm55Jhiqg==",
-          "name": null,
-          "size": 953892,
-          "url": "https://files.gumroad.com/attachments/9131703016747/43c426cf03b7760d3c920e29a5449b7c/original/smart-recovery-complete-toolkit-1788415006195.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038797-htBFt7NcExpqE4iSyBk31zUPP45nIPgcLZR%2BLCZhPGo%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/10c1b5500a9e82c6effae05be071cb0b/original/pyrotechnics-complete-toolkit-1788415055879.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045939-jtsM0oEipHtD0HHB7IOaj%2Fzc0OciDRya40hSmz3wup0%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -8339,7 +6096,7 @@
           "id": "lxDj6GvLPAgMtPie28W8uQ==",
           "name": null,
           "size": 78960,
-          "url": "https://files.gumroad.com/attachments/9131703016747/c47fb314d7bab7c7c9b6cb161875429e/original/wedding-photography-complete-toolkit-1788415003587.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038797-6SUQJttcFFW4zNbFtsn3AD8ZZLSHvho4uHQ5znMTOpk%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/c47fb314d7bab7c7c9b6cb161875429e/original/wedding-photography-complete-toolkit-1788415003587.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045940-Y3jiZ8PZOw78q1ASgiFZcqAEhG6gDva3db0Cu%2BAGYkA%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -8456,7 +6213,7 @@
           "id": "t3QkT50TunDmdVCwwj9FrQ==",
           "name": null,
           "size": 75599,
-          "url": "https://files.gumroad.com/attachments/9131703016747/e8078262033424bbc800ebc252c78dc9/original/tattoo-artist-complete-toolkit-1788415002902.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038797-9gxZJr6GWCVA29d84i69mQlJT67KIdwH7NZqmvGs8k8%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/e8078262033424bbc800ebc252c78dc9/original/tattoo-artist-complete-toolkit-1788415002902.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045940-ZZ5UwlAQiyzVlOlEPfyIs7aiJdKRcrw7GW%2B9CCWna6E%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -8549,7 +6306,7 @@
           "id": "DvFIDtmpiJLIw7TwXluswg==",
           "name": null,
           "size": 70866,
-          "url": "https://files.gumroad.com/attachments/9131703016747/5bdbcdf6c540af9f6a6abd4051f0e661/original/free-starter-pack-1788415169231.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038798-I%2FvlsO0EEwtiokcw54m9FWrEE2GKpRBcHETnToUjbDY%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/5bdbcdf6c540af9f6a6abd4051f0e661/original/free-starter-pack-1788415169231.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045940-L2SZAKUy%2B6hcw6nAI%2BeVny%2B28mRrZ7NjqdO9hoxlsl8%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -8643,7 +6400,7 @@
           "id": "46LK-9-1Q26PYtqx5iHS0A==",
           "name": null,
           "size": 60786,
-          "url": "https://files.gumroad.com/attachments/9131703016747/18ed69ae7f0feeab5c7311d5df96540e/original/fishing-guide-complete-toolkit-1789158403540.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038798-TxrVg7s5w70MHaQmadjkzRetDDl9Nfh8Lp9F27jEqnY%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/18ed69ae7f0feeab5c7311d5df96540e/original/fishing-guide-complete-toolkit-1789158403540.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045940-6vA2boBi1qiifanREqI6MDOCKxax%2F2%2FiArj8PGkxdkU%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -8736,7 +6493,7 @@
           "id": "XzCjxKMFhkXx4qR0fjLrEQ==",
           "name": null,
           "size": 60254,
-          "url": "https://files.gumroad.com/attachments/9131703016747/d36d13d7d946b61bbdd9685d7c8095a9/original/air-duct-cleaning-complete-toolkit-1789158403159.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038798-FmVyynReO3akkJm93be%2BLm%2Bscho767aOp0YUekLSMLg%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/d36d13d7d946b61bbdd9685d7c8095a9/original/air-duct-cleaning-complete-toolkit-1789158403159.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045940-flLKKoJZdYdb%2BmAVzmCv7N0p9ASGWxadkJLnO1h%2FNSg%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -8830,7 +6587,7 @@
           "id": "Ic8hO6ZPloMwMk-y7xBu7Q==",
           "name": null,
           "size": 60900,
-          "url": "https://files.gumroad.com/attachments/9131703016747/ebbfb555c8dd30ba89090c5818746c1d/original/mold-inspector-complete-toolkit-1789158402998.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038798-Ctn2RmTiMFGFrf6hHiUjXQp%2B5D%2FB22vpaHHeCTFuYmg%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/ebbfb555c8dd30ba89090c5818746c1d/original/mold-inspector-complete-toolkit-1789158402998.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045940-LRI%2BO42cDZbIsWjoki7huVU6sKlmgeL18uvkF9XG5pM%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -8923,7 +6680,7 @@
           "id": "d86nX9KXYeXfnl2GNzr9qQ==",
           "name": null,
           "size": 60570,
-          "url": "https://files.gumroad.com/attachments/9131703016747/9f88113ae8578cfec3d9ef893efb104a/original/native-landscaping-complete-toolkit-1789158402798.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038798-ETIOtbXBK2rWPhcxaLzEXfbycyDCA1LBEwDJKYLdORs%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/9f88113ae8578cfec3d9ef893efb104a/original/native-landscaping-complete-toolkit-1789158402798.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045941-f7oPeMbVmYN4TdASUhgspvZT3Iqo1tAusEQN5etMRXk%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -9016,7 +6773,7 @@
           "id": "eLlxNp8GMoQIKFtqP8cMgg==",
           "name": null,
           "size": 60974,
-          "url": "https://files.gumroad.com/attachments/9131703016747/a39f59a0f5861c3ef499adb81625b817/original/energy-auditor-complete-toolkit-1789158402427.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038798-EVXMeOeHIB%2FGnlWPrh96Wgar2CKGPdcI6Yx1ljrmDN8%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/a39f59a0f5861c3ef499adb81625b817/original/energy-auditor-complete-toolkit-1789158402427.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045941-oePlFE4lW8Jmc1bDDQR9aca7b4C1z7ZEd1QVcZ13ahc%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -9122,7 +6879,7 @@
           "id": "qpebVWoP9ifILd6uD-Q_zQ==",
           "name": null,
           "size": 62012,
-          "url": "https://files.gumroad.com/attachments/9131703016747/fdb0f4fd8d9539aa0936280e7ac03fa7/original/beekeeping-complete-toolkit-1789158402239.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038799-23N84K5uH0iJ169G685x5KCCHcKPjXhSYcYWEfS0jcc%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/fdb0f4fd8d9539aa0936280e7ac03fa7/original/beekeeping-complete-toolkit-1789158402239.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045941-xWpHCT6FxgssNW35RuOhzJaOCWuA%2B1AzfASilKaDofU%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -9216,7 +6973,7 @@
           "id": "a22R-st845nF6Kzh3ls4eQ==",
           "name": null,
           "size": 61295,
-          "url": "https://files.gumroad.com/attachments/9131703016747/16e86b72e3c888056eaca001b05a0fb0/original/mobile-notary-complete-toolkit-1789158402056.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038799-IvZ%2FqFAHLpKjxWOngRn3nr2%2Fcurd5zIOuMAlf1oVGco%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/16e86b72e3c888056eaca001b05a0fb0/original/mobile-notary-complete-toolkit-1789158402056.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045941-5%2BphnOa7Vhwkf69d2gSEK6XQZq83Lck7UVe8mVtIHww%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -9322,7 +7079,7 @@
           "id": "a7Qsb88_7-9ntUdX-s3L0g==",
           "name": null,
           "size": 61724,
-          "url": "https://files.gumroad.com/attachments/9131703016747/32f0dac1ed991e587ae2c0312efa626d/original/drone-surveying-complete-toolkit-1789158401886.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038799-fOPPAAazTVIN6OyoPmwW%2BMICLa36WtyLmZN2w3d%2Fvig%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/32f0dac1ed991e587ae2c0312efa626d/original/drone-surveying-complete-toolkit-1789158401886.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045941-5sSYIjYQs3FuEjO8lpAlXvcWSqXTLM2FZm6tiogNVWo%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -9415,7 +7172,7 @@
           "id": "6M7jEOVuDTeKmmCwCHG-kA==",
           "name": null,
           "size": 87949,
-          "url": "https://files.gumroad.com/attachments/9131703016747/15d28e7821f58856fd19909ca6e1fbf3/original/massage-therapy-complete-toolkit-1788415002267.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038799-4iy7r3x8hQ7ZLUnGmu9ppxOB3TY2CwY62ZcTc20586I%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/15d28e7821f58856fd19909ca6e1fbf3/original/massage-therapy-complete-toolkit-1788415002267.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045942-TIsG4KwYxCvyMU2X7y1aD5sUJsjakfTmy3HgKD4wN0Y%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -9508,7 +7265,7 @@
           "id": "M7cV6t7N6WhJQooIWcv6cg==",
           "name": null,
           "size": 71164,
-          "url": "https://files.gumroad.com/attachments/9131703016747/36655bbdaa40016d31886ec2f8072f37/original/hvac-complete-toolkit-1788415001573.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038799-WeOgNC5eF9kGo%2FkBzNq%2B%2BZVRh6HRz6qilswvH3q6WUI%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/36655bbdaa40016d31886ec2f8072f37/original/hvac-complete-toolkit-1788415001573.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045942-3DLiwZYmX9Zhm31mPZ7p4%2F052ykIAVyk0wgvtCbW7ns%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -9589,7 +7346,7 @@
           "id": "LRdjDEwaF0IvViR3HYi9MQ==",
           "name": null,
           "size": 81196,
-          "url": "https://files.gumroad.com/attachments/9131703016747/e7d69c94f04d6af6f55d6a70f9e08b0b/original/roofing-complete-toolkit-1788415000902.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038799-yd4MXkZsaDYD3h8CliGshJGqyvyWeF%2BUY78MzRHI%2FIo%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/e7d69c94f04d6af6f55d6a70f9e08b0b/original/roofing-complete-toolkit-1788415000902.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045942-6TXKT42nSBZgIDfYRyVJwbpIEIPcKlSs%2FzPqlRE1Wr4%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -9694,7 +7451,7 @@
           "id": "kBcc2l3DKNRor6zF1q0cBg==",
           "name": null,
           "size": 78870,
-          "url": "https://files.gumroad.com/attachments/9131703016747/a520e300d49f89afe3435c89caa62753/original/appliance-repair-complete-toolkit-1788414999643.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038800-k9koDpJODWqkt3fXI0p6EXZcXZKz%2BHIsr0VcQPVS7jA%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/a520e300d49f89afe3435c89caa62753/original/appliance-repair-complete-toolkit-1788414999643.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045942-lqaa50zJ6wbSnN8CQmcRgh7%2BwCs%2FyXhfE1rM9d45U5k%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -9788,7 +7545,7 @@
           "id": "djf-yUKFJl9X6gjGZQZjoQ==",
           "name": null,
           "size": 72596,
-          "url": "https://files.gumroad.com/attachments/9131703016747/f4212a13410533ee52488a0c46293cb4/original/post-construction-cleaning-complete-toolkit-1788414997009.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792038800-H1YNHUE7kbfhDu4KjDDmt0mU4wffvpXE0DWiivW9gf4%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/f4212a13410533ee52488a0c46293cb4/original/post-construction-cleaning-complete-toolkit-1788414997009.zip?response-content-disposition=attachment&cache_key=bdc2&verify=1792045942-zwJ0wb2m8slSIbSa8AyWECTM2R50bShVqK1zrH9N878%3D",
           "filetype": "zip",
           "filegroup": "archive"
         }
@@ -9917,9 +7674,453 @@
           "id": "2mhh2EYiNp5PCUhSSX5g_A==",
           "name": null,
           "size": 17315,
-          "url": "https://files.gumroad.com/attachments/9131703016747/9bd3d0efb9f3658e9db122bed2989679/original/drone-surveying-spreadsheet-1788414493365.xlsx?response-content-disposition=attachment&verify=1792038800-NvLXZ1QQOV1v0fD%2FJXabCBVJ6y7gMNMd2CkzJ1xSI34%3D",
+          "url": "https://files.gumroad.com/attachments/9131703016747/9bd3d0efb9f3658e9db122bed2989679/original/drone-surveying-spreadsheet-1788414493365.xlsx?response-content-disposition=attachment&verify=1792045942-hTuQxf6iRvTU%2BwFK2hyDDOQbW8DAx8NnMp%2Fz5K7mEf0%3D",
           "filetype": "xlsx",
           "filegroup": "url"
+        }
+      ],
+      "custom_delivery_url": null,
+      "sales_count": 0,
+      "sales_usd_cents": 0
+    },
+    {
+      "name": "AA / 12-Step Recovery Just for Today Journal",
+      "description": "Service Invoice for AA / 12-Step Recovery, ready to use straight after download.\n\nWHAT'S INSIDE:\n• Review daily intention and commitment\n• Check in with sponsor or accountability partner\n• Attend scheduled meeting (in-person or online)\n• Complete daily reflection or journaling\n\nBUILT FOR: AA / 12-Step Recovery professionals — 4th Step Inventory Guide, Daily Reflection Journal, Meeting Attendance Tracker, Sobriety Milestone Planner.\n\nFormat: PDF · Instant download after purchase.",
+      "require_shipping": false,
+      "preview_url": "https://public-files.gumroad.com/ipldbs7sia3ltd3xjeb1c67eq2ix",
+      "custom_receipt": null,
+      "customizable_price": null,
+      "custom_permalink": null,
+      "subscription_duration": null,
+      "id": "KZWT2tIUANpMcvIK0z_H3A==",
+      "url": null,
+      "price": 1500,
+      "currency": "usd",
+      "taxonomy_id": 266,
+      "category": "other",
+      "category_label": "Other",
+      "short_url": "https://nichegate.gumroad.com/l/cbejt",
+      "landing_url": "https://nichegate.gumroad.com/l/cbejt",
+      "thumbnail_url": null,
+      "tags": [],
+      "formatted_price": "$15",
+      "published": true,
+      "file_info": {
+        "Size": "539 KB",
+        "Length": "32 pages"
+      },
+      "max_purchase_count": null,
+      "deleted": false,
+      "custom_fields": [],
+      "custom_summary": null,
+      "is_tiered_membership": false,
+      "recurrences": null,
+      "covers": [
+        {
+          "url": "https://public-files.gumroad.com/ipldbs7sia3ltd3xjeb1c67eq2ix",
+          "original_url": "https://public-files.gumroad.com/tq8dqev3tx67t60p0a6cakqzghpg",
+          "thumbnail": null,
+          "id": "2b8057cd3a602b4cec58af5a0ec20ebe",
+          "type": "image",
+          "filetype": "jpg",
+          "width": 670,
+          "height": 837,
+          "native_width": 1200,
+          "native_height": 1500
+        }
+      ],
+      "main_cover_id": "2b8057cd3a602b4cec58af5a0ec20ebe",
+      "bundle_products": [],
+      "variants": [],
+      "custom_html": null,
+      "refund_policy": {
+        "refund_period": "inherit",
+        "title": null,
+        "fine_print": null,
+        "inherited": true
+      },
+      "rich_content": [],
+      "has_same_rich_content_for_all_variants": false,
+      "main_section_index": 0,
+      "sections": [],
+      "files": [
+        {
+          "id": "mKmc8bqoFpO8ZZ4RRON3kQ==",
+          "name": null,
+          "size": 551987,
+          "url": "https://files.gumroad.com/attachments/9131703016747/2124684b9315df8d3cb920fb2470dabe/original/aa-recovery-recovery-journal-1792043274064.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045942-5701sxF2P8yGOAESVw8XLUX2oVOxNqRsiTxzMagOCqY%3D",
+          "filetype": "pdf",
+          "filegroup": "document"
+        }
+      ],
+      "custom_delivery_url": null,
+      "sales_count": 0,
+      "sales_usd_cents": 0
+    },
+    {
+      "name": "AA / 12-Step Recovery Recovery Affirmation Labels",
+      "description": "Service Invoice for AA / 12-Step Recovery, ready to use straight after download.\n\nWHAT'S INSIDE:\n• Review daily intention and commitment\n• Check in with sponsor or accountability partner\n• Attend scheduled meeting (in-person or online)\n• Complete daily reflection or journaling\n\nBUILT FOR: AA / 12-Step Recovery professionals — 4th Step Inventory Guide, Daily Reflection Journal, Meeting Attendance Tracker, Sobriety Milestone Planner.\n\nFormat: PDF · Instant download after purchase.",
+      "require_shipping": false,
+      "preview_url": "https://public-files.gumroad.com/ckjtftcdd8zmdkq07zcasr6zctl6",
+      "custom_receipt": null,
+      "customizable_price": null,
+      "custom_permalink": null,
+      "subscription_duration": null,
+      "id": "GemJiXYlk1SckYepI7xb1w==",
+      "url": null,
+      "price": 800,
+      "currency": "usd",
+      "taxonomy_id": 266,
+      "category": "other",
+      "category_label": "Other",
+      "short_url": "https://nichegate.gumroad.com/l/ylrbc",
+      "landing_url": "https://nichegate.gumroad.com/l/ylrbc",
+      "thumbnail_url": null,
+      "tags": [],
+      "formatted_price": "$8",
+      "published": true,
+      "file_info": {
+        "Size": "1.89 MB",
+        "Length": "4 pages"
+      },
+      "max_purchase_count": null,
+      "deleted": false,
+      "custom_fields": [],
+      "custom_summary": null,
+      "is_tiered_membership": false,
+      "recurrences": null,
+      "covers": [
+        {
+          "url": "https://public-files.gumroad.com/ckjtftcdd8zmdkq07zcasr6zctl6",
+          "original_url": "https://public-files.gumroad.com/mwky37nrry1jsojk0lizjhmdqcf0",
+          "thumbnail": null,
+          "id": "d011c8ec854934447e7e7bc4b9954f53",
+          "type": "image",
+          "filetype": "jpg",
+          "width": 670,
+          "height": 837,
+          "native_width": 1200,
+          "native_height": 1500
+        }
+      ],
+      "main_cover_id": "d011c8ec854934447e7e7bc4b9954f53",
+      "bundle_products": [],
+      "variants": [],
+      "custom_html": null,
+      "refund_policy": {
+        "refund_period": "inherit",
+        "title": null,
+        "fine_print": null,
+        "inherited": true
+      },
+      "rich_content": [],
+      "has_same_rich_content_for_all_variants": false,
+      "main_section_index": 0,
+      "sections": [],
+      "files": [
+        {
+          "id": "xbUTUbIeZLPq95G975agFg==",
+          "name": null,
+          "size": 1986894,
+          "url": "https://files.gumroad.com/attachments/9131703016747/d91545b5dfa1ca95c697c8e4b54cdc0c/original/aa-recovery-affirmation-labels-1792043373729.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045943-%2FqtKkLYGen4CKwRAIkcAL9FI0n0Uu22JTXRmipi4Abg%3D",
+          "filetype": "pdf",
+          "filegroup": "document"
+        }
+      ],
+      "custom_delivery_url": null,
+      "sales_count": 0,
+      "sales_usd_cents": 0
+    },
+    {
+      "name": "AA / 12-Step Recovery Cleanse & Nutrition Guide",
+      "description": "Service Invoice for AA / 12-Step Recovery, ready to use straight after download.\n\nWHAT'S INSIDE:\n• Review daily intention and commitment\n• Check in with sponsor or accountability partner\n• Attend scheduled meeting (in-person or online)\n• Complete daily reflection or journaling\n\nBUILT FOR: AA / 12-Step Recovery professionals — 4th Step Inventory Guide, Daily Reflection Journal, Meeting Attendance Tracker, Sobriety Milestone Planner.\n\nFormat: PDF · Instant download after purchase.",
+      "require_shipping": false,
+      "preview_url": "https://public-files.gumroad.com/yis4xc6ol9huvtspc7xr1nx36l6u",
+      "custom_receipt": null,
+      "customizable_price": null,
+      "custom_permalink": null,
+      "subscription_duration": null,
+      "id": "8wVjv9Z3zFPWgO8L1QYk2g==",
+      "url": null,
+      "price": 1400,
+      "currency": "usd",
+      "taxonomy_id": 266,
+      "category": "other",
+      "category_label": "Other",
+      "short_url": "https://nichegate.gumroad.com/l/lgkaqy",
+      "landing_url": "https://nichegate.gumroad.com/l/lgkaqy",
+      "thumbnail_url": null,
+      "tags": [],
+      "formatted_price": "$14",
+      "published": true,
+      "file_info": {
+        "Size": "164 KB",
+        "Length": "4 pages"
+      },
+      "max_purchase_count": null,
+      "deleted": false,
+      "custom_fields": [],
+      "custom_summary": null,
+      "is_tiered_membership": false,
+      "recurrences": null,
+      "covers": [
+        {
+          "url": "https://public-files.gumroad.com/yis4xc6ol9huvtspc7xr1nx36l6u",
+          "original_url": "https://public-files.gumroad.com/ngq572o5x7h3u8xi697109515o09",
+          "thumbnail": null,
+          "id": "4adabdec418604e680ce1700f63ad695",
+          "type": "image",
+          "filetype": "jpg",
+          "width": 670,
+          "height": 837,
+          "native_width": 1200,
+          "native_height": 1500
+        }
+      ],
+      "main_cover_id": "4adabdec418604e680ce1700f63ad695",
+      "bundle_products": [],
+      "variants": [],
+      "custom_html": null,
+      "refund_policy": {
+        "refund_period": "inherit",
+        "title": null,
+        "fine_print": null,
+        "inherited": true
+      },
+      "rich_content": [],
+      "has_same_rich_content_for_all_variants": false,
+      "main_section_index": 0,
+      "sections": [],
+      "files": [
+        {
+          "id": "pPdbyAoSx8FAb5aSNEnBig==",
+          "name": null,
+          "size": 168349,
+          "url": "https://files.gumroad.com/attachments/9131703016747/a806635506c1243f541cc60c0a185ee1/original/aa-recovery-recovery-nutrition-1792043492891.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045943-aJvUi5POM61cIdyWGfnsL8TX%2FrGoWSZK1dRaqcQwKMI%3D",
+          "filetype": "pdf",
+          "filegroup": "document"
+        }
+      ],
+      "custom_delivery_url": null,
+      "sales_count": 0,
+      "sales_usd_cents": 0
+    },
+    {
+      "name": "Faith-Based Recovery (Biblical) Just for Today Journal",
+      "description": "Service Invoice for Faith-Based Recovery (Biblical), ready to use straight after download.\n\nWHAT'S INSIDE:\n• Review daily intention and commitment\n• Check in with sponsor or accountability partner\n• Attend scheduled meeting (in-person or online)\n• Complete daily reflection or journaling\n\nBUILT FOR: Faith-Based Recovery (Biblical) professionals — Bible Verse Recovery Journal, Scripture Memory Cards, Faith-Based Relapse Prevention Plan, 12-Step + Scripture Workbook.\n\nFormat: PDF · Instant download after purchase.",
+      "require_shipping": false,
+      "preview_url": "https://public-files.gumroad.com/u1gax0fiiqs4tyqvhqejj2p7hirg",
+      "custom_receipt": null,
+      "customizable_price": null,
+      "custom_permalink": null,
+      "subscription_duration": null,
+      "id": "iIT8H2KZ1l6DXbw4gJVGUg==",
+      "url": null,
+      "price": 1500,
+      "currency": "usd",
+      "taxonomy_id": 266,
+      "category": "other",
+      "category_label": "Other",
+      "short_url": "https://nichegate.gumroad.com/l/vhzggy",
+      "landing_url": "https://nichegate.gumroad.com/l/vhzggy",
+      "thumbnail_url": null,
+      "tags": [],
+      "formatted_price": "$15",
+      "published": true,
+      "file_info": {
+        "Size": "559 KB",
+        "Length": "32 pages"
+      },
+      "max_purchase_count": null,
+      "deleted": false,
+      "custom_fields": [],
+      "custom_summary": null,
+      "is_tiered_membership": false,
+      "recurrences": null,
+      "covers": [
+        {
+          "url": "https://public-files.gumroad.com/u1gax0fiiqs4tyqvhqejj2p7hirg",
+          "original_url": "https://public-files.gumroad.com/0451k7kvbc1uwesdzj0tjwgwakdb",
+          "thumbnail": null,
+          "id": "281b7e44036cb5c7ba0d485f04af3079",
+          "type": "image",
+          "filetype": "jpg",
+          "width": 670,
+          "height": 837,
+          "native_width": 1200,
+          "native_height": 1500
+        }
+      ],
+      "main_cover_id": "281b7e44036cb5c7ba0d485f04af3079",
+      "bundle_products": [],
+      "variants": [],
+      "custom_html": null,
+      "refund_policy": {
+        "refund_period": "inherit",
+        "title": null,
+        "fine_print": null,
+        "inherited": true
+      },
+      "rich_content": [],
+      "has_same_rich_content_for_all_variants": false,
+      "main_section_index": 0,
+      "sections": [],
+      "files": [
+        {
+          "id": "BE_MF8AY85MCLkUUf00vjA==",
+          "name": null,
+          "size": 572101,
+          "url": "https://files.gumroad.com/attachments/9131703016747/1c7c38f7e007dd4ed60ca2cf6ee8f385/original/faith-recovery-recovery-journal-1792043566025.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045944-T6BTaE5CDFhtCxXakkCOrocaOsv3h%2BnzeJo%2Bmzr0Zuk%3D",
+          "filetype": "pdf",
+          "filegroup": "document"
+        }
+      ],
+      "custom_delivery_url": null,
+      "sales_count": 0,
+      "sales_usd_cents": 0
+    },
+    {
+      "name": "Faith-Based Recovery (Biblical) Recovery Affirmation Labels",
+      "description": "Service Invoice for Faith-Based Recovery (Biblical), ready to use straight after download.\n\nWHAT'S INSIDE:\n• Review daily intention and commitment\n• Check in with sponsor or accountability partner\n• Attend scheduled meeting (in-person or online)\n• Complete daily reflection or journaling\n\nBUILT FOR: Faith-Based Recovery (Biblical) professionals — Bible Verse Recovery Journal, Scripture Memory Cards, Faith-Based Relapse Prevention Plan, 12-Step + Scripture Workbook.\n\nFormat: PDF · Instant download after purchase.",
+      "require_shipping": false,
+      "preview_url": "https://public-files.gumroad.com/gm2qbar8kv0sr5x9ut7vwr2npz32",
+      "custom_receipt": null,
+      "customizable_price": null,
+      "custom_permalink": null,
+      "subscription_duration": null,
+      "id": "GlQeXbxiqfU5IqzH4uJXTw==",
+      "url": null,
+      "price": 800,
+      "currency": "usd",
+      "taxonomy_id": 266,
+      "category": "other",
+      "category_label": "Other",
+      "short_url": "https://nichegate.gumroad.com/l/xzxta",
+      "landing_url": "https://nichegate.gumroad.com/l/xzxta",
+      "thumbnail_url": null,
+      "tags": [],
+      "formatted_price": "$8",
+      "published": true,
+      "file_info": {
+        "Size": "1.9 MB",
+        "Length": "4 pages"
+      },
+      "max_purchase_count": null,
+      "deleted": false,
+      "custom_fields": [],
+      "custom_summary": null,
+      "is_tiered_membership": false,
+      "recurrences": null,
+      "covers": [
+        {
+          "url": "https://public-files.gumroad.com/gm2qbar8kv0sr5x9ut7vwr2npz32",
+          "original_url": "https://public-files.gumroad.com/7dl8guqedphjxvgijzpkz3pq1mp8",
+          "thumbnail": null,
+          "id": "b753c9951a015a9de617d8ae016e6e62",
+          "type": "image",
+          "filetype": "jpg",
+          "width": 670,
+          "height": 837,
+          "native_width": 1200,
+          "native_height": 1500
+        }
+      ],
+      "main_cover_id": "b753c9951a015a9de617d8ae016e6e62",
+      "bundle_products": [],
+      "variants": [],
+      "custom_html": null,
+      "refund_policy": {
+        "refund_period": "inherit",
+        "title": null,
+        "fine_print": null,
+        "inherited": true
+      },
+      "rich_content": [],
+      "has_same_rich_content_for_all_variants": false,
+      "main_section_index": 0,
+      "sections": [],
+      "files": [
+        {
+          "id": "CrejQIlJGWx3ovy2KrkPzQ==",
+          "name": null,
+          "size": 1987191,
+          "url": "https://files.gumroad.com/attachments/9131703016747/003aecce112700bf0ec79a6c52f65663/original/faith-recovery-affirmation-labels-1792043580937.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045944-OIJqfBwID%2B%2FXwprOYYWFinRt9YSprpAY1bjjzFM6kPM%3D",
+          "filetype": "pdf",
+          "filegroup": "document"
+        }
+      ],
+      "custom_delivery_url": null,
+      "sales_count": 0,
+      "sales_usd_cents": 0
+    },
+    {
+      "name": "Faith-Based Recovery (Biblical) Cleanse & Nutrition Guide",
+      "description": "Service Invoice for Faith-Based Recovery (Biblical), ready to use straight after download.\n\nWHAT'S INSIDE:\n• Review daily intention and commitment\n• Check in with sponsor or accountability partner\n• Attend scheduled meeting (in-person or online)\n• Complete daily reflection or journaling\n\nBUILT FOR: Faith-Based Recovery (Biblical) professionals — Bible Verse Recovery Journal, Scripture Memory Cards, Faith-Based Relapse Prevention Plan, 12-Step + Scripture Workbook.\n\nFormat: PDF · Instant download after purchase.",
+      "require_shipping": false,
+      "preview_url": "https://public-files.gumroad.com/rbzel2x19n0pfgpnjw2aphofu3uf",
+      "custom_receipt": null,
+      "customizable_price": null,
+      "custom_permalink": null,
+      "subscription_duration": null,
+      "id": "KWxeimXE_dvTgouC_2HvPA==",
+      "url": null,
+      "price": 1400,
+      "currency": "usd",
+      "taxonomy_id": 266,
+      "category": "other",
+      "category_label": "Other",
+      "short_url": "https://nichegate.gumroad.com/l/bsbrf",
+      "landing_url": "https://nichegate.gumroad.com/l/bsbrf",
+      "thumbnail_url": null,
+      "tags": [],
+      "formatted_price": "$14",
+      "published": true,
+      "file_info": {
+        "Size": "165 KB",
+        "Length": "4 pages"
+      },
+      "max_purchase_count": null,
+      "deleted": false,
+      "custom_fields": [],
+      "custom_summary": null,
+      "is_tiered_membership": false,
+      "recurrences": null,
+      "covers": [
+        {
+          "url": "https://public-files.gumroad.com/rbzel2x19n0pfgpnjw2aphofu3uf",
+          "original_url": "https://public-files.gumroad.com/dj759g5gdfvn4wumami9bxj0dzrq",
+          "thumbnail": null,
+          "id": "fb0843776469074a9162aa175b56fe9b",
+          "type": "image",
+          "filetype": "jpg",
+          "width": 670,
+          "height": 837,
+          "native_width": 1200,
+          "native_height": 1500
+        }
+      ],
+      "main_cover_id": "fb0843776469074a9162aa175b56fe9b",
+      "bundle_products": [],
+      "variants": [],
+      "custom_html": null,
+      "refund_policy": {
+        "refund_period": "inherit",
+        "title": null,
+        "fine_print": null,
+        "inherited": true
+      },
+      "rich_content": [],
+      "has_same_rich_content_for_all_variants": false,
+      "main_section_index": 0,
+      "sections": [],
+      "files": [
+        {
+          "id": "fHJZscp7ZPcA3s2S7kTL4g==",
+          "name": null,
+          "size": 168519,
+          "url": "https://files.gumroad.com/attachments/9131703016747/f6d2845e5fb86ab5441b368827140631/original/faith-recovery-recovery-nutrition-1792043658552.pdf?response-content-disposition=attachment&cache_key=JgIv6Zpa1UJksOZKIgrHJg&verify=1792045944-FlN1UDyxwldhpKwixiNzQl%2BeUOgVXI2Rj0LwdjfXfY8%3D",
+          "filetype": "pdf",
+          "filegroup": "document"
         }
       ],
       "custom_delivery_url": null,

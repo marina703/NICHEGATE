@@ -173,6 +173,14 @@ async function ensureProductFile(product) {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildChecklistHTML(prof, theme), `${prof.slug}-checklist-${stamp}.pdf`);
   } else if (type === 'journal') {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildJournalHTML(prof, theme, getRecoveryPrompts(prof)), `${prof.slug}-journal-${stamp}.pdf`);
+  } else if (type === 'recovery-journal') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildRecoveryJournalHTML(prof, theme, getRecoveryPrompts(prof)), `${prof.slug}-recovery-journal-${stamp}.pdf`);
+  } else if (type === 'affirmation-labels') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildAffirmationLabelsHTML(prof, theme), `${prof.slug}-affirmation-labels-${stamp}.pdf`);
+  } else if (type === 'recovery-nutrition') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildRecoveryNutritionHTML(prof, theme), `${prof.slug}-recovery-nutrition-${stamp}.pdf`);
+  } else if (type === 'meeting-flashcards') {
+    filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildMeetingFlashcardsHTML(prof, theme), `${prof.slug}-meeting-flashcards-${stamp}.pdf`);
   } else if (type === 'brand') {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildBrandKitHTML(prof, theme), `${prof.slug}-brand-kit-${stamp}.pdf`);
   } else if (type === 'decision-matrix') {
@@ -266,6 +274,10 @@ function buildPreviewHTML(product, prof, theme) {
   if (t === 'invoice') return pdfGen.buildInvoiceHTML(prof, theme);
   if (t === 'checklist') return pdfGen.buildChecklistHTML(prof, theme);
   if (t === 'journal') return pdfGen.buildJournalHTML(prof, theme, getRecoveryPrompts(prof));
+  if (t === 'recovery-journal') return pdfGen.buildRecoveryJournalHTML(prof, theme, getRecoveryPrompts(prof));
+  if (t === 'affirmation-labels') return pdfGen.buildAffirmationLabelsHTML(prof, theme);
+  if (t === 'recovery-nutrition') return pdfGen.buildRecoveryNutritionHTML(prof, theme);
+  if (t === 'meeting-flashcards') return pdfGen.buildMeetingFlashcardsHTML(prof, theme);
   if (t === 'brand') return pdfGen.buildBrandKitHTML(prof, theme);
   if (t === 'website') return buildWebsiteHTML(prof, theme);
   if (t === 'social') return zipGen.buildSocialPostHTML(prof, theme);
@@ -476,6 +488,7 @@ function parseCoverGeometry(html) {
     slot: { x: num('slot-x'), y: num('slot-y'), width: num('slot-width'), height: num('slot-height') },
     screen: { x: num('screen-x'), y: num('screen-y'), width: num('screen-width'), height: num('screen-height') },
     labelHeight: num('label-height'),
+    previewScale: Number.isFinite(num('preview-scale')) ? num('preview-scale') : 1,
     deviceRotate: Number.isFinite(num('device-rotate')) ? num('device-rotate') : 0
   };
   const complete = geometry.slot.width != null && geometry.screen.width != null && geometry.labelHeight != null;

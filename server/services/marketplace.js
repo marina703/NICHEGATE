@@ -285,7 +285,11 @@ function conceptFor(product) {
 
 function listingCopyFor(product, prof, seoData) {
   const c = conceptFor(product);
-  const title = (c ? c.name : prof.name + ' ' + (seoData.shortTitle || seoData.title))
+  // Prefer the product's own name as the title base — generateSEO's shortTitle
+  // already embeds the profession name, so prepending prof.name doubled it
+  // ("AA / 12-Step Recovery AA / 12-Step Recovery Invoice") for concept-less
+  // products (e.g. the recovery printables whose types SEO doesn't know).
+  const title = (c ? c.name : (product.name || prof.name + ' ' + (seoData.shortTitle || seoData.title)))
     .replace(/\s+/g, ' ').trim().substring(0, 140);
   let description = seoData.description;
   if (c) {

@@ -771,6 +771,261 @@ function buildJournalHTML(prof, theme, prompts) {
   </div>
   <div class="page">${dayBlocks}</div>`, theme);
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// RECOVERY / 12-STEP PRODUCT BUILDERS
+// Peer-support recovery is non-commercial, but people IN recovery buy personal
+// tools. These carry the program's own language ("Just for Today", the
+// Serenity Prayer) and a calm, sophisticated, cute aesthetic — a set that
+// looks intentional together, not random per-niche DNA.
+// ═══════════════════════════════════════════════════════════════════════════
+const RECOVERY_PALETTE = {
+  primary: '#2c4a3e',   // deep forest sage
+  accent: '#6f9384',    // soft sage
+  bg: '#f6f1e7',        // warm cream
+  ink: '#2b2620',
+  gold: '#b08d57',      // warm brass
+  rose: '#c48b8b',      // dusty rose
+  line: '#d9cfc0',
+};
+const SERENITY_PRAYER = 'God, grant me the serenity to accept the things I cannot change, courage to change the things I can, and wisdom to know the difference.';
+
+// ── "JUST FOR TODAY" RECOVERY JOURNAL ────────────────────────────────────
+function buildRecoveryJournalHTML(prof, theme, prompts) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  const P = RECOVERY_PALETTE;
+  const niche = prof.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+  const daySets = prompts && prompts.length ? prompts : [
+    ['What am I grateful for today?', 'What challenged me and how did I respond?', 'How did I practice acceptance today?', 'One thing I learned about myself', 'My intention for tomorrow'],
+    ['What fear did I face today?', 'How was I of service to someone?', 'What am I holding onto that I can release?', 'What spiritual principle did I practice?', 'What do I need for tomorrow?']
+  ];
+  // Build 30 days cycling through the prompt sets.
+  const days = Array.from({ length: 30 }, (_, i) => daySets[i % daySets.length]);
+  const dayBlocks = days.map((qs, i) => `
+    <div class="jpage">
+      <div class="jpage-head">
+        <div class="jft">Just for Today</div>
+        <div class="serenity">${esc(SERENITY_PRAYER)}</div>
+      </div>
+      <div class="dateline">Date: ______________________&nbsp;&nbsp;·&nbsp;&nbsp;Day ${i + 1} of 30</div>
+      ${qs.map((q) => `<div class="q"><div class="qtext">${esc(q)}</div><div class="lines"></div><div class="lines"></div></div>`).join('')}
+      <div class="grat">
+        <div class="grat-head">Three things I'm grateful for</div>
+        <div class="grat-lines"><span>1.</span><span>2.</span><span>3.</span></div>
+      </div>
+      <div class="jpage-foot">${esc(niche)} · One day at a time</div>
+    </div>`).join('');
+
+  return _sh(`${niche} — Just for Today Journal`, `
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Georgia,'Times New Roman',serif;color:${P.ink};background:${P.bg};line-height:1.6;font-size:13px}
+    @page{size:A4;margin:10mm}
+    .cover{min-height:1080px;background:linear-gradient(165deg,${P.primary} 0%,#1f382e 100%);color:#f6f1e7;padding:90px 60px;display:flex;flex-direction:column;justify-content:center;position:relative;page-break-after:always}
+    .cover::before{content:"";position:absolute;inset:18px;border:1px solid rgba(246,241,231,.22);border-radius:6px;pointer-events:none}
+    .cover .orn{font-size:1.6rem;color:${P.gold};letter-spacing:8px;margin-bottom:18px}
+    .cover h1{font-size:3.4rem;font-weight:400;letter-spacing:2px;line-height:1.05;margin:0 0 8px;font-style:italic}
+    .cover .sub{font-size:1.05rem;opacity:.82;max-width:440px;margin-top:14px;font-style:italic}
+    .cover .rule{width:90px;height:2px;background:${P.gold};margin:30px 0}
+    .cover .niche{font-size:.8rem;letter-spacing:4px;text-transform:uppercase;color:${P.accent}}
+    .cover .foot{position:absolute;bottom:48px;left:60px;right:60px;display:flex;justify-content:space-between;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;opacity:.6}
+    .jpage{page-break-inside:avoid;background:#fffdf8;border:1px solid ${P.line};border-radius:14px;padding:26px 30px;margin-bottom:22px;min-height:940px;position:relative}
+    .jpage-head{text-align:center;border-bottom:2px solid ${P.accent};padding-bottom:14px;margin-bottom:16px}
+    .jft{font-size:1.7rem;font-style:italic;color:${P.primary};letter-spacing:1px}
+    .serenity{font-size:.8rem;color:${P.accent};font-style:italic;margin-top:6px;max-width:520px;margin-left:auto;margin-right:auto}
+    .dateline{font-size:.72rem;color:#9a8f7d;letter-spacing:1px;margin-bottom:16px}
+    .q{margin:12px 0}
+    .qtext{font-size:.86rem;color:#3a342c;font-weight:600;margin-bottom:4px}
+    .lines{border-bottom:1px dotted #b3a48c;height:22px}
+    .grat{margin-top:18px;border-top:1px dashed ${P.line};padding-top:12px}
+    .grat-head{font-size:.78rem;color:${P.primary};font-weight:700;letter-spacing:.5px;margin-bottom:8px}
+    .grat-lines{display:flex;gap:10px}
+    .grat-lines span{flex:1;border-bottom:1px dotted #b3a48c;height:26px;font-size:.8rem;color:#9a8f7d}
+    .jpage-foot{position:absolute;bottom:14px;left:30px;right:30px;text-align:center;font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:#b8ac97}
+  `, `
+  <div class="cover">
+    <div class="orn">❦</div>
+    <h1>Just for Today</h1>
+    <div class="sub">A daily recovery journal — one page a day, honest reflection, steady progress. Meet yourself where you are.</div>
+    <div class="rule"></div>
+    <div class="niche">${esc(prof.name)}</div>
+    <div class="foot"><span>30 Days of Reflection</span><span>NicheGate</span></div>
+  </div>
+  ${dayBlocks}`, { primary: P.primary, accent: P.accent, bg: P.bg });
+}
+
+// ── RECOVERY AFFIRMATION LABELS ──────────────────────────────────────────
+const RECOVERY_AFFIRMATIONS = [
+  'Just for today', 'One day at a time', 'Progress, not perfection',
+  'I am enough', 'This too shall pass', 'Breathe. You are safe.',
+  'I choose recovery', 'Let go and let God', 'Keep coming back',
+  'Easy does it', 'First things first', 'I am stronger than my urges',
+  'Today I am honest', 'Growth over comfort', 'I deserve this healing',
+  'Act as if', 'One moment at a time', 'I am not alone'
+];
+function buildAffirmationLabelsHTML(prof, theme) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  const P = RECOVERY_PALETTE;
+  const niche = prof.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+  // Two sheets: 12 round labels (2.5") + 10 rectangular labels (2"x4").
+  const round = RECOVERY_AFFIRMATIONS.slice(0, 12).map(a => `<div class="lbl round"><span>${esc(a)}</span></div>`).join('');
+  const rect = RECOVERY_AFFIRMATIONS.map(a => `<div class="lbl rect"><span>${esc(a)}</span></div>`).join('');
+  return _sh(`${niche} — Recovery Affirmation Labels`, `
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Georgia,'Times New Roman',serif;color:${P.ink};background:${P.bg};line-height:1.5;font-size:13px}
+    @page{size:A4;margin:8mm}
+    .sheet{page-break-after:always;background:#fff;padding:18px}
+    .sheet:last-child{page-break-after:auto}
+    .sheet-head{text-align:center;margin-bottom:14px}
+    .sheet-head .t{font-size:1.3rem;font-style:italic;color:${P.primary}}
+    .sheet-head .h{font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:#9a8f7d;margin-top:4px}
+    .grid-round{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:10px 20px}
+    .grid-rect{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:10px 20px}
+    .lbl{display:flex;align-items:center;justify-content:center;text-align:center;border:1px dashed ${P.line}}
+    .lbl.round{aspect-ratio:1;border-radius:50%;background:linear-gradient(160deg,#fbf7ee,#f1ead9)}
+    .lbl.rect{aspect-ratio:2/1;border-radius:8px;background:linear-gradient(160deg,#fbf7ee,#f3ecdc)}
+    .lbl span{font-size:.82rem;color:${P.primary};font-weight:600;padding:0 10px;font-style:italic}
+    .cut{height:1px;background:${P.line};margin:6px 0}
+    .tips{margin-top:16px;padding:14px 18px;background:#fbf7ee;border:1px solid ${P.line};border-radius:10px;font-size:.74rem;color:#6b6252}
+    .tips b{color:${P.primary}}
+  `, `
+  <div class="sheet">
+    <div class="sheet-head"><div class="t">Just for Today</div><div class="h">${esc(prof.name)} · Round Labels · cut on the dashed circles</div></div>
+    <div class="grid-round">${round}</div>
+    <div class="tips"><b>How to use:</b> print on sticker paper or cardstock. Stick them on your mirror, fridge, wallet, planner or water bottle — anywhere a reminder of your intention helps you through the day.</div>
+  </div>
+  <div class="sheet">
+    <div class="sheet-head"><div class="t">One Day at a Time</div><div class="h">${esc(prof.name)} · Rectangle Labels · cut on the dashed lines</div></div>
+    <div class="grid-rect">${rect}</div>
+    <div class="tips"><b>Tip:</b> these 2×4 labels fit standard Avery 2"×4" shipping labels. Print, cut, and place one in each spot you'll see it — a gentle nudge toward your recovery, all day long.</div>
+  </div>`, { primary: P.primary, accent: P.accent, bg: P.bg });
+}
+
+// ── RECOVERY CLEANSE & NUTRITION GUIDE ───────────────────────────────────
+function buildRecoveryNutritionHTML(prof, theme) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  const P = RECOVERY_PALETTE;
+  const niche = prof.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+  const smoothies = [
+    ['Green Reset', 'Spinach, banana, almond milk, ginger, chia', 'Iron + steady energy without the sugar spike'],
+    ['Berry Calm', 'Blueberries, Greek yogurt, oats, honey, flax', 'Antioxidants + protein to steady mood'],
+    ['Tropical Gut', 'Pineapple, coconut water, mint, lime', 'Digestive enzymes + hydration'],
+    ['Chocolate Heal', 'Cacao, banana, peanut butter, oat milk, dates', 'Curbs chocolate cravings the healthy way']
+  ];
+  const snacks = [
+    'Apple slices with almond butter', 'Hummus with carrot & cucumber sticks', 'Hard-boiled egg + everything seasoning',
+    'Trail mix (nuts, seeds, dark chocolate)', 'Greek yogurt with berries & honey', 'Rice cake with avocado & sea salt',
+    'Celery with peanut butter & raisins', 'Whole-grain toast with mashed banana', 'Cottage cheese with pineapple'
+  ];
+  const days = ['Day 1 — Reset', 'Day 2 — Hydrate', 'Day 3 — Greens', 'Day 4 — Protein', 'Day 5 — Balance', 'Day 6 — Comfort', 'Day 7 — Maintain'];
+  return _sh(`${niche} — Recovery Cleanse & Nutrition Guide`, `
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Georgia,'Times New Roman',serif;color:${P.ink};background:${P.bg};line-height:1.6;font-size:13px}
+    @page{size:A4;margin:12mm}
+    .cover{min-height:1080px;background:linear-gradient(165deg,${P.primary} 0%,#1f382e 100%);color:#f6f1e7;padding:90px 60px;display:flex;flex-direction:column;justify-content:center;position:relative;page-break-after:always}
+    .cover::before{content:"";position:absolute;inset:18px;border:1px solid rgba(246,241,231,.22);border-radius:6px;pointer-events:none}
+    .cover .orn{font-size:2rem;margin-bottom:16px}
+    .cover h1{font-size:2.8rem;font-weight:400;font-style:italic;line-height:1.08;margin:0 0 10px}
+    .cover .sub{font-size:1rem;opacity:.82;max-width:430px;margin-top:12px;font-style:italic}
+    .cover .rule{width:90px;height:2px;background:${P.gold};margin:26px 0}
+    .cover .niche{font-size:.78rem;letter-spacing:4px;text-transform:uppercase;color:${P.accent}}
+    .pg{page-break-inside:avoid;background:#fffdf8;border:1px solid ${P.line};border-radius:14px;padding:28px 32px;margin-bottom:22px}
+    .pg h2{font-size:1.3rem;font-style:italic;color:${P.primary};margin-bottom:10px}
+    .pg p{font-size:.88rem;color:#3a342c;margin-bottom:10px}
+    .pg .lead{font-size:.92rem;color:#4a4438}
+    .row{display:grid;grid-template-columns:1fr 2fr 1.4fr;gap:10px;padding:8px 0;border-bottom:1px dotted ${P.line};font-size:.8rem}
+    .row.head{font-weight:700;color:${P.primary};letter-spacing:.5px;text-transform:uppercase;font-size:.68rem;border-bottom:2px solid ${P.accent}}
+    .row .n{font-weight:600}
+    .row .d{color:#5c5546}
+    .row .b{color:${P.accent};font-style:italic}
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .chip{background:#f1ead9;border:1px solid ${P.line};border-radius:999px;padding:5px 12px;font-size:.76rem;color:#3a342c}
+    .dayplan{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:10px}
+    .day{background:#f6f1e7;border:1px solid ${P.line};border-radius:10px;padding:10px;text-align:center;font-size:.74rem}
+    .day b{display:block;color:${P.primary};font-size:.8rem;margin-bottom:4px}
+    .note{margin-top:14px;padding:12px 16px;background:#fbf7ee;border-left:3px solid ${P.accent};font-size:.78rem;color:#5c5546;font-style:italic}
+  `, `
+  <div class="cover">
+    <div class="orn">🥗</div>
+    <h1>Nourish Your Recovery</h1>
+    <div class="sub">A gentle cleanse and real-food nutrition guide for the body that's healing — because what you eat shapes how you feel.</div>
+    <div class="rule"></div>
+    <div class="niche">${esc(prof.name)}</div>
+  </div>
+  <div class="pg">
+    <h2>Why food matters in recovery</h2>
+    <p class="lead">Early recovery is hard on the body. Blood sugar swings, caffeine crashes and sugar cravings can mimic anxiety and trigger urges. Eating real food on a steady rhythm is one of the most powerful, underrated tools you have.</p>
+    <p>This guide is <b>not</b> a restrictive diet. It's a way to steady your energy, calm your nervous system and give your body what it needs to heal — while you do the deeper work.</p>
+    <div class="note">Always check with your doctor or a registered dietitian before starting any cleanse, especially if you're on medication or in early recovery.</div>
+  </div>
+  <div class="pg">
+    <h2>The sugar-craving buster</h2>
+    <p>When a craving hits, your body is usually asking for <b>protein, water or steady energy</b> — not sugar. Reach for one of these first:</p>
+    <div class="chips">${snacks.map(s => `<span class="chip">${esc(s)}</span>`).join('')}</div>
+    <p style="margin-top:12px">Then drink a full glass of water and wait 10 minutes. Most cravings pass.</p>
+  </div>
+  <div class="pg">
+    <h2>Healing smoothies</h2>
+    <p>Four simple blends that steady blood sugar and taste like a treat:</p>
+    <div class="row head"><span>Smoothie</span><span>Ingredients</span><span>Why it helps</span></div>
+    ${smoothies.map(s => `<div class="row"><span class="n">${esc(s[0])}</span><span class="d">${esc(s[1])}</span><span class="b">${esc(s[2])}</span></div>`).join('')}
+  </div>
+  <div class="pg">
+    <h2>A gentle 7-day rhythm</h2>
+    <p>No deprivation — just a simple daily focus to build the habit:</p>
+    <div class="dayplan">${days.map(d => { const [day, focus] = d.split(' — '); return `<div class="day"><b>${esc(day)}</b>${esc(focus)}</div>`; }).join('')}</div>
+    <div class="note">Day 1: cut refined sugar & processed snacks. Day 2: double your water. Day 3: add a green to every meal. Day 4: protein at breakfast. Day 5: balance each plate. Day 6: a comforting real-food meal. Day 7: pick the habits that felt good and keep going.</div>
+  </div>`, { primary: P.primary, accent: P.accent, bg: P.bg });
+}
+
+// ── MEETING FACILITATOR FLASHCARDS ───────────────────────────────────────
+const MEETING_ROLES = [
+  { role: 'Chair / President', icon: '🎙️', duties: ['Opens the meeting on time and sets the tone', 'Keeps discussion focused and respectful', 'Manages the speaker list fairly', 'Closes the meeting on time'], tip: 'A good chair serves the meeting, not their own opinion.' },
+  { role: 'Vice President', icon: '🤝', duties: ['Steps in when the chair is absent', 'Coordinates speakers and topics for the month', 'Supports newcomers and greeters', 'Helps plan special events'], tip: 'Learn the chair role — you are the backup every single week.' },
+  { role: 'Secretary', icon: '📝', duties: ['Takes accurate, brief meeting notes', 'Tracks attendance and anniversaries', 'Manages the literature and supplies', 'Handles correspondence and the meeting list'], tip: 'Notes should capture decisions and commitments, not every word.' },
+  { role: 'Treasurer', icon: '💰', duties: ['Collects and counts the contributions', 'Keeps a clear, simple ledger', 'Pays the rent and group expenses', 'Reports the balance honestly each month'], tip: 'Prudent reserves — the group\'s tradition of self-support depends on you.' },
+  { role: 'Greeter', icon: '👋', duties: ['Welcomes every person at the door', 'Offers a hand to newcomers', 'Shares literature and meeting info', 'Connects newcomers with a temporary sponsor'], tip: 'The greeter sets whether someone ever comes back.' },
+  { role: 'Coffee & Setup', icon: '☕', duties: ['Arrives early to set up chairs', 'Makes the coffee and tidies the space', 'Resets the room after the meeting', 'Keeps supplies stocked'], tip: 'The invisible job that makes every meeting feel cared-for.' }
+];
+function buildMeetingFlashcardsHTML(prof, theme) {
+  const _sh = (theme && theme.dna) ? shellDNA : shell;
+  const P = RECOVERY_PALETTE;
+  const niche = prof.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+  const card = r => `
+    <div class="fc">
+      <div class="fc-role"><span class="fc-icon">${r.icon}</span>${esc(r.role)}</div>
+      <div class="fc-label">Your duties</div>
+      <ul class="fc-duties">${r.duties.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
+      <div class="fc-tip">${esc(r.tip)}</div>
+    </div>`;
+  // One card per page — large, spacious, unambiguously legible at thumbnail
+  // scale (the design critic flags dense small text as "garbled"). Each card
+  // fills the page so the cover preview shows one clean, complete role card.
+  const pages = MEETING_ROLES.map(r => `<div class="fpage">${card(r)}</div>`);
+  return _sh(`${niche} — Meeting Facilitator Flashcards`, `
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Georgia,'Times New Roman',serif;color:${P.ink};background:${P.bg};line-height:1.55;font-size:13px}
+    @page{size:A4;margin:10mm}
+    .fpage{page-break-after:always;display:flex;flex-direction:column;padding:10px}
+    .fpage:last-child{page-break-after:auto}
+    .fc{background:linear-gradient(165deg,#fffdf8,#f6f1e7);border:1px solid ${P.line};border-radius:18px;padding:40px 44px;position:relative;min-height:920px;box-shadow:0 8px 22px -16px rgba(43,38,32,.4)}
+    .fc::after{content:"cut here";position:absolute;bottom:14px;left:0;right:0;text-align:center;font-size:.66rem;letter-spacing:2px;text-transform:uppercase;color:#c4b89f}
+    .fc-role{font-size:2rem;font-style:italic;color:${P.primary};border-bottom:3px solid ${P.accent};padding-bottom:14px;margin-bottom:22px;display:flex;align-items:center;gap:14px}
+    .fc-icon{font-size:2.2rem}
+    .fc-label{font-size:.8rem;letter-spacing:2px;text-transform:uppercase;color:#9a8f7d;margin-bottom:12px}
+    .fc-duties{list-style:none;margin:0 0 20px}
+    .fc-duties li{font-size:1.25rem;color:#3a342c;padding:11px 0 11px 30px;position:relative;line-height:1.4}
+    .fc-duties li::before{content:"✓";position:absolute;left:0;color:${P.accent};font-weight:700;font-size:1.3rem}
+    .fc-tip{position:absolute;bottom:44px;left:44px;right:44px;font-size:1.05rem;font-style:italic;color:${P.primary};background:#f1ead9;border-radius:10px;padding:12px 16px}
+    .intro{background:#fffdf8;border:1px solid ${P.line};border-radius:14px;padding:26px 30px;margin-bottom:20px}
+    .intro h1{font-size:1.7rem;font-style:italic;color:${P.primary};margin-bottom:10px}
+    .intro p{font-size:1rem;color:#3a342c}
+  `, `
+  <div class="intro">
+    <h1>Meeting Facilitator Flashcards</h1>
+    <p>One card per service position — print on cardstock and cut on the lines.</p>
+  </div>
+  ${pages.join('')}`, { primary: P.primary, accent: P.accent, bg: P.bg });
+}
+
 // ── BRAND KIT ────────────────────────────────────────────────────────────
 function buildBrandKitHTML(prof, theme) {
   const _sh = (theme && theme.dna) ? shellDNA : shell;
@@ -1553,7 +1808,7 @@ function coverPreviewStyles(labelHeight, screenHeight, fontSize) {
   // product document only — no traffic-light dots, no "ACTUAL PRODUCT PAGE"
   // bar, no title strip. (labelHeight/fontSize are kept in the signature so
   // existing call sites stay unchanged; they are no longer rendered.)
-  return `.product-preview-screen{height:${screenHeight}px;overflow:hidden;background:#fff}.product-preview-screen iframe{display:block;width:100%;height:100%;border:0;background:#fff}.product-preview-screen img{display:block;width:100%;height:auto;border:0;background:#fff;transform:scale(1.16);transform-origin:top center}`;
+  return `.product-preview-screen{height:${screenHeight}px;overflow:hidden;background:#fff}.product-preview-screen iframe{display:block;width:100%;height:100%;border:0;background:#fff}.product-preview-screen img{display:block;width:100%;height:auto;border:0;background:#fff;transform:scale(${COVER_PREVIEW_SCALE});transform-origin:top center}`;
 }
 
 function coverProductPreview(productHtml, title, zoom) {
@@ -1571,6 +1826,12 @@ function coverProductPreview(productHtml, title, zoom) {
 }
 
 const COVER_MASTER = Object.freeze({ width: 1200, height: 1800 });
+// The product preview raster is scaled up slightly and top-center anchored so
+// it fills the composited slot edge-to-edge. The cover QA gate must know this
+// scale to sample the matching raster region (otherwise it compares a wider/
+// taller raster crop than the cover actually shows, and tall dark cover pages
+// like the recovery journal fail the correlation check).
+const COVER_PREVIEW_SCALE = 1.16;
 const MARKETPLACE_SAFE_RECT = Object.freeze({ x: 0, y: 150, width: 1200, height: 1500 });
 const DEVICE_SLOT = Object.freeze({ x: 660, y: 300, width: 480, height: 600 });
 
@@ -1648,12 +1909,11 @@ body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
   .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:inset 0 0 26px rgba(15,23,42,.10);' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? screenRadius + 'px' : '10px'}}
   .ts-device{${adaptive ? 'display:none' : `position:absolute;inset:0;background:#f4f4f5;border-radius:22px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px #d4d4d8;overflow:hidden`}}
   .ts-screen{position:absolute;left:${adaptive ? 0 : insetX}px;top:${adaptive ? 0 : insetY}px;width:${screenW}px;height:${screenH}px;background:#fff;border-radius:${screenRadius}px;overflow:hidden}
-  .ts-screen::after{content:"";pointer-events:none;position:absolute;inset:0;background:rgba(255,248,232,.07)}
   ${previewCss}
 </style></head><body>
 <div class="ts">
   ${bg}
-  <div class="ts-hero" data-slot-x="${S.x}" data-slot-y="${S.y}" data-slot-width="${S.width}" data-slot-height="${S.height}" data-adaptive="${adaptive ? '1' : '0'}" data-screen-x="${contentX}" data-screen-y="${contentY}" data-screen-width="${contentW}" data-screen-height="${contentH}" data-label-height="${labelH}" data-device-rotate="${adaptive ? 0 : -1.5}"><div class="ts-device"></div><div class="ts-screen">${realPreview}</div></div>
+  <div class="ts-hero" data-slot-x="${S.x}" data-slot-y="${S.y}" data-slot-width="${S.width}" data-slot-height="${S.height}" data-adaptive="${adaptive ? '1' : '0'}" data-screen-x="${contentX}" data-screen-y="${contentY}" data-screen-width="${contentW}" data-screen-height="${contentH}" data-label-height="${labelH}" data-preview-scale="${COVER_PREVIEW_SCALE}" data-device-rotate="${adaptive ? 0 : -1.5}"><div class="ts-device"></div><div class="ts-screen">${realPreview}</div></div>
   <div class="ts-inner">
     <div class="ts-top"><div class="ts-brand">NICHEGATE</div><div class="ts-kicker">${esc(kicker)}</div></div>
     <div class="ts-mid">
@@ -1996,6 +2256,7 @@ module.exports = {
   buildSocialPostHTML, buildSocialStoryHTML, buildSocialCarouselHTML,
   buildPlannerHTML, buildWallArtHTML, buildWorksheetHTML, buildPartyPrintableHTML,
   buildPyroBatchHTML, buildPyroLiftFuseHTML, buildPyroShootLogHTML,
+  buildRecoveryJournalHTML, buildAffirmationLabelsHTML, buildRecoveryNutritionHTML, buildMeetingFlashcardsHTML,
   thumbCoverCopy, accentForCover, heroSnippetForCover, buildThumbStopperCover, buildPlainCover,
   COVER_MASTER, MARKETPLACE_SAFE_RECT, DEVICE_SLOT,
   buildLifestyleMockupHTML,
