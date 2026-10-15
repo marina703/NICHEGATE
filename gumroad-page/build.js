@@ -56,7 +56,9 @@ for (const p of products) {
     url: p.short_url || p.url,
     price: p.formatted_price || ('$' + (p.price / 100).toFixed(2)),
     priceCents: p.price || 0,
-    thumb: p.preview_url || (Array.isArray(p.covers) && p.covers[0] && p.covers[0].url) || '',
+    // covers[] is ordered oldest-first — replaced covers stay in the array, so
+    // the LAST entry is the current cover. covers[0] is the stale original.
+    thumb: p.preview_url || (Array.isArray(p.covers) && p.covers.length && p.covers[p.covers.length - 1].url) || '',
     sales: p.sales_count || 0,
   };
   if (!item.url) continue;
@@ -67,6 +69,8 @@ const all = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
 
 // Gumroad reviewer caps a page at 25 images: curate covers for the top 20
 // (by real sales, then cover availability) — the rest render as deco text cards.
+// Every featured thumb URL is probed first: a stale cover URL that 404s would
+// show a broken-image tile, so dead URLs fall back to the text card.
 const FEATURE_LIMIT = 20;
 const featured = new Set(
   [...all].sort((a, b) => (b.sales - a.sales) || ((b.thumb ? 1 : 0) - (a.thumb ? 1 : 0)) || a.name.localeCompare(b.name))
@@ -74,6 +78,22 @@ const featured = new Set(
     .filter(i => i.thumb)
     .map(i => i.url)
 );
+const { execSync } = require('child_process');
+const https = require('https');
+const liveThumbs = new Set();
+// Populated by the async probe pass before any card renders; until then every
+// card is a text card (safe default — never a broken image).
+let showThumbFor = () => false;
+function probe(url) {
+  return new Promise((resolve) => {
+    const req = https.get(url, { timeout: 12000 }, (res) => {
+      res.resume();
+      resolve(res.statusCode === 200);
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+  });
+}
 
 const groups = RULES.map(r => ({ ...r, items: all.filter(i => classify(i.name) === r.key) }))
   .filter(g => g.items.length)
@@ -84,7 +104,7 @@ if (ungrouped.length) groups.push({ key: 'more', label: 'More Toolkits', icon: '
 // ---- card + section rendering --------------------------------------------
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const card = i => {
-  const showThumb = i.thumb && featured.has(i.url);
+  const showThumb = showThumbFor(i);
   return `
         <a class="card${showThumb ? '' : ' card-text'}" href="${esc(i.url)}">
           ${showThumb
@@ -109,68 +129,71 @@ const hasFree = all.some(i => i.priceCents === 0);
 const TYPE_RE = /\b(spreadsheet|checklist|invoice|template|booking form|booking|social media kit|social media|social kit|calculator|planner|agreement|contract|guide|kit|bundle|tracker|form|temps|temp)\b/gi;
 const nicheCount = new Set(all.map(i => i.name.replace(TYPE_RE, ' ').replace(/\s*\/\s*$/, '').replace(/\s+/g, ' ').trim().toLowerCase()).filter(Boolean)).size;
 
+(async () => {
+  // Probe each featured cover URL before trusting it: a stale URL that 404s
+  // would render a broken-image tile, so dead URLs fall back to the text card.
+  for (const i of all) {
+    if (!i.thumb || !featured.has(i.url)) continue;
+    if (await probe(i.thumb)) liveThumbs.add(i.url);
+  }
+  showThumbFor = i => i.thumb && liveThumbs.has(i.url);
+  console.log('live featured covers:', liveThumbs.size, '/', featured.size);
+
 const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="light">
 <meta name="description" content="NicheGate — plug-and-play business toolkits for ${nicheCount}+ niches. Spreadsheets, checklists, invoices & social kits, ready the day you open for business.">
 <title>NicheGate — Empowerment Gateway to Growth</title>
 <style>
   :root {
-    --bg: #f2f0ec; --panel: #ffffff; --ink: #17130f; --ink-2: #5c554d; --ink-3: #8a8178;
-    --line: #e3ddd4; --teal: #0f8b8d; --pink: #c2426d; --gold: #b98a2f;
-    --chip: #f6f3ee; --shadow: 0 1px 2px rgba(23,19,15,.06), 0 10px 30px rgba(23,19,15,.07);
-    --hero: #100d0b;
+    --bg: #faf7f2; --panel: #ffffff; --ink: #1a1512; --ink-2: #5c534a; --ink-3: #8a7f74;
+    --line: #e9e2d6; --teal: #0d7a7c; --pink: #c0345f; --gold: #a97b1f;
+    --chip: #f4efe6; --shadow: 0 1px 2px rgba(26,21,18,.05), 0 10px 30px rgba(26,21,18,.06);
+    --shadow-hi: 0 2px 6px rgba(26,21,18,.07), 0 22px 50px rgba(26,21,18,.13);
+    --hero: #14100d;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0d0b09; --panel: #171310; --ink: #f5efe6; --ink-2: #b3a89a; --ink-3: #7d7366;
-      --line: #2a231d; --teal: #4fd1c5; --pink: #ff7fa8; --gold: #d9ab4a;
-      --chip: #201a15; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 34px rgba(0,0,0,.5);
-    }
-  }
-  [data-theme="light"] { --bg:#f2f0ec; --panel:#fff; --ink:#17130f; --ink-2:#5c554d; --ink-3:#8a8178; --line:#e3ddd4; --teal:#0f8b8d; --pink:#c2426d; --gold:#b98a2f; --chip:#f6f3ee; --shadow:0 1px 2px rgba(23,19,15,.06),0 10px 30px rgba(23,19,15,.07); }
-  [data-theme="dark"]  { --bg:#0d0b09; --panel:#171310; --ink:#f5efe6; --ink-2:#b3a89a; --ink-3:#7d7366; --line:#2a231d; --teal:#4fd1c5; --pink:#ff7fa8; --gold:#d9ab4a; --chip:#201a15; --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 34px rgba(0,0,0,.5); }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 Georgia, 'Times New Roman', serif; -webkit-font-smoothing: antialiased; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
   a { color: inherit; }
 
-  /* hero: the brand's black plate, banner artwork under a scrim, deco corner glows */
-  .hero { position: relative; background: linear-gradient(rgba(16,13,11,.80), rgba(16,13,11,.88)), url('%%BANNER%%') center 30%/cover no-repeat, var(--hero); overflow: hidden; border-bottom: 1px solid var(--line); }
+  /* hero: light warm paper, neon corner glows, subtle art-deco hatch */
+  .hero { position: relative; overflow: hidden; border-bottom: 1px solid var(--line);
+    background:
+      radial-gradient(70% 100% at 8% 0%, rgba(13,122,124,.10), transparent 60%),
+      radial-gradient(70% 100% at 92% 0%, rgba(192,52,95,.09), transparent 60%),
+      linear-gradient(180deg, #fdfbf7, var(--bg));
+  }
   .hero::before, .hero::after {
     content: ""; position: absolute; top: 0; bottom: 0; width: 46%;
     background:
-      radial-gradient(60% 90% at 0% 100%, rgba(79,209,197,.16), transparent 60%),
-      repeating-linear-gradient(115deg, rgba(79,209,197,.05) 0 2px, transparent 2px 26px);
+      radial-gradient(60% 90% at 0% 100%, rgba(13,122,124,.14), transparent 60%),
+      repeating-linear-gradient(115deg, rgba(13,122,124,.05) 0 2px, transparent 2px 26px);
   }
   .hero::after {
     right: 0; left: auto;
     background:
-      radial-gradient(60% 90% at 100% 100%, rgba(255,127,168,.16), transparent 60%),
-      repeating-linear-gradient(-115deg, rgba(255,127,168,.05) 0 2px, transparent 2px 26px);
+      radial-gradient(60% 90% at 100% 100%, rgba(192,52,95,.13), transparent 60%),
+      repeating-linear-gradient(-115deg, rgba(192,52,95,.05) 0 2px, transparent 2px 26px);
   }
-  .hero-inner { position: relative; z-index: 1; text-align: center; padding: 46px 20px 42px; }
-  .hero-logo { width: 148px; height: 148px; border-radius: 18px; display: block; margin: 0 auto 20px;
-    box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 18px 50px rgba(0,0,0,.55); }
-  .hero h1 { margin: 0; font: 700 clamp(2rem, 5.5vw, 3rem)/1.05 Georgia, serif; letter-spacing: .14em; text-transform: uppercase; color: #fff; }
-  .hero h1 .t { color: #6ee7de; }
-  .hero h1 .g { color: #ff8fb2; }
-  .hero .tag { margin: 10px auto 0; color: #c9bfae; font: 400 .95rem/1.5 Georgia, serif; letter-spacing: .34em; text-transform: uppercase; }
-  .hero .tag b { color: #6ee7de; font-weight: 400; }
-  .hero .tag i { color: #ff8fb2; font-style: normal; }
-  .hero .rule { width: 220px; height: 10px; margin: 22px auto 0; color: #a89468; }
-  .hero p.lede { color: #e8e1d4; max-width: 620px; margin: 18px auto 0; font-size: 1.02rem; }
+  .hero-inner { position: relative; z-index: 1; text-align: center; padding: 44px 20px 40px; }
+  .hero-logo { width: 128px; height: 128px; border-radius: 16px; display: block; margin: 0 auto 16px;
+    box-shadow: 0 0 0 1px rgba(26,21,18,.10), 0 16px 40px rgba(26,21,18,.22); }
+  .hero h1 { margin: 0; font: 700 clamp(2.1rem, 5.5vw, 3.1rem)/1.05 Georgia, serif; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); }
+  .hero h1 .t { color: var(--teal); }
+  .hero h1 .g { color: var(--pink); }
+  .hero .tag { margin: 10px auto 0; color: var(--ink-2); font: 400 .95rem/1.5 Georgia, serif; letter-spacing: .34em; text-transform: uppercase; }
+  .hero .tag b { color: var(--teal); font-weight: 400; }
+  .hero .tag i { color: var(--pink); font-style: normal; }
+  .hero .rule { width: 220px; height: 10px; margin: 22px auto 0; color: var(--gold); }
+  .hero p.lede { color: var(--ink-2); max-width: 620px; margin: 18px auto 0; font-size: 1.02rem; }
   .hero .stats { display: flex; gap: 26px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
-  .hero .stat { color: #c9bfae; font-size: .8rem; letter-spacing: .18em; text-transform: uppercase; }
-  .hero .stat b { display: block; font: 700 1.5rem Georgia, serif; color: #fff; letter-spacing: 0; }
-  .theme-toggle { position: absolute; top: 14px; right: 14px; z-index: 2; background: rgba(255,255,255,.06);
-    color: #e8e1d4; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 7px 14px;
-    font: 600 .72rem/1 Georgia, serif; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
-  .theme-toggle:hover { background: rgba(255,255,255,.12); }
+  .hero .stat { color: var(--ink-2); font-size: .8rem; letter-spacing: .18em; text-transform: uppercase; }
+  .hero .stat b { display: block; font: 700 1.5rem Georgia, serif; color: var(--ink); letter-spacing: 0; }
 
   /* collections */
   main { padding: 26px 0 10px; }
@@ -188,13 +211,14 @@ const html = `<!doctype html>
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
   .card { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line);
     border-radius: 12px; overflow: hidden; text-decoration: none; box-shadow: var(--shadow);
-    transition: transform .15s ease, border-color .15s ease; }
-  .card:hover { transform: translateY(-2px); border-color: var(--teal); }
+    transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+  .card:hover { transform: translateY(-2px); border-color: var(--teal); box-shadow: var(--shadow-hi); }
   .card-thumb { aspect-ratio: 4/3; background: var(--chip); }
-  .card-text .card-blank { aspect-ratio: auto; height: 6px; padding: 2px 14px 0; font-size: .8rem; opacity: .5; }
-  .card-text .card-body { padding-top: 10px; }
   .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .card-blank { display: flex; align-items: center; justify-content: center; color: var(--ink-3); font-size: 1.4rem; }
+  /* text cards (no featured cover): a warm tinted panel with the deco mark —
+     intentional design, not a broken-image tile */
+  .card-blank { aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, var(--chip), #efe8db); color: var(--ink-3); font-size: 1.5rem; letter-spacing: .3em; }
   .card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
   .card-type { color: var(--ink-3); font: 600 .62rem/1 Georgia, serif; letter-spacing: .16em; text-transform: uppercase; }
   .card h3 { margin: 0; font: 700 .98rem/1.35 Georgia, serif; color: var(--ink); }
@@ -222,7 +246,7 @@ const html = `<!doctype html>
   footer a:hover { color: var(--ink); }
 
   @media (max-width: 640px) {
-    .hero-logo { width: 118px; height: 118px; }
+    .hero-logo { width: 104px; height: 104px; }
     .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
     .follow form { flex-direction: column; }
     .hero .tag { letter-spacing: .2em; }
@@ -231,9 +255,18 @@ const html = `<!doctype html>
 </head>
 <body>
 <header class="hero">
-  <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme">Theme ◐</button>
   <div class="hero-inner">
-    <img class="hero-logo" src="%%LOGO%%" alt="NicheGate logo" width="148" height="148">
+    <svg class="hero-logo" viewBox="0 0 100 100" role="img" aria-label="NicheGate logo">
+      <rect width="100" height="100" rx="14" fill="#14100d"/>
+      <path d="M30 78 L30 22 L70 78 L70 22" fill="none" stroke="url(#ng)" stroke-width="7" stroke-linecap="square"/>
+      <path d="M24 86 h52" stroke="#a97b1f" stroke-width="2"/>
+      <path d="M46 86 l4 -6 l4 6 z" fill="#a97b1f"/>
+      <defs>
+        <linearGradient id="ng" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#f472b6"/>
+        </linearGradient>
+      </defs>
+    </svg>
     <h1><span class="t">Niche</span><span class="g">Gate</span></h1>
     <p class="tag"><b>Empowerment</b> Gateway to <i>Growth</i></p>
     <svg class="rule" viewBox="0 0 220 10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1">
@@ -265,27 +298,9 @@ const html = `<!doctype html>
   <div class="wrap">
     <span class="deco">◆ ◇ ◆</span>
     <span>NicheGate — Empowerment Gateway to Growth</span>
-    <a href="https://marinablow.gumroad.com/">All products →</a>
+    <a href="https://nichegate.gumroad.com/">All products →</a>
   </div>
 </footer>
-<script>
-  // progressive enhancement only: page is fully functional without it
-  (function () {
-    try {
-      var saved = localStorage.getItem('ng-theme');
-      if (saved) document.documentElement.setAttribute('data-theme', saved);
-    } catch (e) {}
-    var btn = document.querySelector('[data-theme-toggle]');
-    if (!btn) return;
-    btn.addEventListener('click', function () {
-      var cur = document.documentElement.getAttribute('data-theme');
-      var sys = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      var next = (cur || sys) === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      try { localStorage.setItem('ng-theme', next); } catch (e) {}
-    });
-  })();
-</script>
 </body>
 </html>
 `;
@@ -293,3 +308,4 @@ const html = `<!doctype html>
 fs.writeFileSync(__dirname + '/landing.html', html.replace('%%LOGO%%', process.env.LOGO_SRC || './assets-remote/logo.jpg').replace('%%BANNER%%', process.env.BANNER_SRC || './assets-remote/banner.jpg'));
 console.log('landing.html written:', (html.length / 1024).toFixed(1) + 'KB',
   '| products:', total, '| niches:', nicheCount, '| collections:', groups.map(g => g.key + ':' + g.items.length).join(' '));
+})().catch(e => { console.error('build failed:', e.message); process.exit(1); });
