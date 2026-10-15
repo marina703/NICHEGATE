@@ -22,9 +22,18 @@ any listings that are not 10/10 top tier quality."
   profession mapping, local row upsert keyed by marketplace_id, composite
   cover render in waves of 3, attachGumroadCover) — DONE, 25/25 attached in
   4.5 min.
+- STOREFRONT PUSH — DONE. The storefront is a STATIC custom landing page
+  (September build: 83 products, 3 doubled names) that never auto-updates
+  from product changes — that's why the cleanup was invisible on
+  nichegate.gumroad.com. Rebuilt from the 91-product catalog and pushed via
+  PUT /v2/user/custom_html (needs a token with edit_profile scope; the old
+  .env token carried view_profile only → 401). Verified live: 91 products
+  displayed, 0 doubled names. build.js now includes all non-deleted products
+  (the public API cannot flip the published flag on existing products).
 - FINAL STATE (API-verified): 91 products · 91/91 covers · 91/91 tags ·
-  91/91 files · 0 doubled names · 0 duplicates · 13 published. Every listing
-  now carries a clean name, cover, file and SEO tags (was 11/83 clean).
+  91/91 files · 0 doubled names · 0 duplicates · 13 published. Storefront
+  displays all 91. Every listing now carries a clean name, cover, file and
+  SEO tags (was 11/83 clean).
   The 15 newly-created local rows also close the inventory-tracking gap for
   the backfilled products (dev DB previously knew only 10 of the 91).
 - Harness: tmp/storefront-cleanup.js (plan|cull|fix) + tmp/cover-backfill.js.
