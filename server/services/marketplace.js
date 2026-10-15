@@ -237,8 +237,13 @@ async function attachEtsyListingImages(product, listingId, shopId) {
   const token = await ensureEtsyApiToken();
   const paths = [];
   try {
-    const { ensureProductThumbnail } = require('./fileFactory');
-    const cover = await ensureProductThumbnail(product);
+    // Prefer the product's own (cover-director) cover when present —
+    // regenerating here would discard a better, newer cover with old art.
+    let cover = product && product.preview_path && fs.existsSync(product.preview_path) ? product.preview_path : null;
+    if (!cover) {
+      const { ensureProductThumbnail } = require('./fileFactory');
+      cover = await ensureProductThumbnail(product);
+    }
     if (cover && fs.existsSync(cover)) paths.push(cover);
   } catch { /* cover optional */ }
   try {
