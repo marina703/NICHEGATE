@@ -120,7 +120,8 @@ export const dataApi = {
   caps: () => request('/caps'),
   optimization: (id) => request(`/products/${id}/optimization`),
   designScore: (id) => request(`/products/${id}/design-score`),
-  designScores: () => request('/design/scores')
+  designScores: () => request('/design/scores'),
+  jobs: () => request('/jobs')
 };
 
 export const dataActions = {
@@ -160,7 +161,15 @@ export const dataActions = {
   serpScan: () => api.post('/discovery/serp-scan'),
   drainQueue: () => api.post('/discovery/search-queue/drain'),
   designCritique: (id, opts) => api.post(`/products/${id}/design-critique`, opts || {}),
-  reskinProduct: (id, opts) => api.post(`/products/${id}/reskin`, opts || {})
+  reskinProduct: (id, opts) => api.post(`/products/${id}/reskin`, opts || {}),
+  // Jobs — persistent multi-step projects the agent drives autonomously.
+  createJob: (prompt) => api.post('/jobs', { prompt }),
+  runJobs: () => api.post('/jobs/run'),
+  approveJob: (id) => api.post(`/jobs/${id}/approve`),
+  rejectJob: (id) => api.post(`/jobs/${id}/reject`),
+  pauseJob: (id) => api.post(`/jobs/${id}/pause`),
+  resumeJob: (id) => api.post(`/jobs/${id}/resume`),
+  deleteJob: (id) => api.del(`/jobs/${id}`)
 };
 
 // ── live run stream (SSE, with polling fallback signalled to caller) ────

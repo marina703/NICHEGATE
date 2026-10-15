@@ -440,6 +440,27 @@ function migrateProfessions() {
     );
   }
 
+  // ── JOBS — persistent multi-step projects the agent drives autonomously ──
+  // A job is a natural-language prompt turned into a step plan (brainstorm →
+  // generate → optimize → publish). The cron executor advances one step per
+  // pass; publish steps pause for human approval (the `gate`). Progress is a
+  // JSON log so a job survives restarts and reports what the AI decided.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      prompt TEXT NOT NULL,
+      plan TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'planned',
+      step_index INTEGER NOT NULL DEFAULT 0,
+      progress TEXT,
+      niche TEXT,
+      created_by TEXT DEFAULT 'operator',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs (status, id)'); } catch (e) { /* exists */ }
+
 }
 
 function seedProfessions() {

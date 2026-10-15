@@ -24,6 +24,7 @@ const state = {
   searchQueue: null, opportunity: null, radarHealth: null, designScores: null,
   bi: null,
   newsletter: null, autoStatus: null, runs: [], actions: [],
+  jobs: [],
   calendarMonth: new Date().toISOString().slice(0, 7),
   filters: { status: 'all', type: 'all', q: '', page: 1 },
   reviewPage: 1,
@@ -124,6 +125,7 @@ async function loadViewData(view) {
       if (caps) state.caps = caps;
       break;
     }
+    case 'jobs': { const r = await safe(() => dataApi.jobs()); if (r) state.jobs = r.jobs || []; break; }
     case 'marketplace': { const r = await safe(() => dataApi.setup()); if (r) state.setup = r; break; }
     case 'system': {
       const [rd, ms, pay, br, runs, mem, allAsks, ws] = await Promise.all([
@@ -198,6 +200,7 @@ function renderNav() {
   // `counts.review` is a narrower status bucket that excludes drafts, so using
   // it made the rail say 0 while the queue held a dozen drafts.
   const queued = state.products.length ? reviewQueue(state.products).length : (c.review || 0);
+  const jobsAwaiting = (state.jobs || []).filter(j => j.status === 'awaiting-approval').length;
   const expanded = railExpanded();
   rail.classList.toggle('expanded', expanded);
 
@@ -210,6 +213,7 @@ function renderNav() {
     if (item.badge === 'review' && queued) badge = `<span class="badge">${queued > 99 ? '99+' : queued}</span>`;
     if (item.badge === 'busy' && (eng.cycleBusy || eng.discoveryBusy)) badge = '<span class="badge" style="background:var(--violet);color:#fff">●</span>';
     if (item.badge === 'blockers' && blockers) badge = `<span class="badge" style="background:var(--red);color:#fff">${blockers}</span>`;
+    if (item.badge === 'jobs-awaiting' && jobsAwaiting) badge = `<span class="badge" style="background:var(--amber);color:#1a1207">${jobsAwaiting > 99 ? '99+' : jobsAwaiting}</span>`;
     html += `<button class="rail-link ${state.view === item.view ? 'active' : ''}" data-action="go" data-view="${item.view}"
       title="${esc(item.label)}" aria-label="${esc(item.label)}">${icon(item.icon)}<span class="rail-text">${esc(item.label)}</span>${badge}</button>`;
   }
@@ -327,6 +331,62 @@ function summarize(result) {
     else if (Array.isArray(v)) parts.push(`${k}: ${v.length}`);
   }
   return parts.slice(0, 4).join(' · ');
+}
+
+// ── jobs — persistent multi-step projects the agent drives autonomously ──
+async function refreshJobs() {
+  const r = await safe(() => dataApi.jobs());
+  if (r) state.jobs = r.jobs || [];
+  render();
+}
+
+async function createJob() {
+  const prompt = window.prompt('Describe the project — e.g. "build a tax-season product line for bookkeepers, then publish it"');
+  if (!prompt || !prompt.trim()) return;
+  if (state.busy) { toast('warning', 'Busy', 'Another action is already running.'); return; }
+  state.busy = true;
+  try {
+    const res = await dataActions.createJob(prompt.trim());
+    toast('success', 'Job created', `Planned ${res.job.plan.length} steps — the agent runs it on a schedule; publishing waits for your approval.`);
+    await refreshJobs();
+  } catch (e) {
+    fail(e);
+  } finally {
+    state.busy = false;
+  }
+}
+
+async function runJobsNow() {
+  if (state.busy) { toast('warning', 'Busy', 'Another action is already running.'); return; }
+  state.busy = true;
+  try {
+    const res = await dataActions.runJobs();
+    const adv = res.advanced || [];
+    toast('success', 'Jobs advanced', adv.length ? adv.map(s => `#${s.id}→${s.status}`).join(', ') : 'Nothing to run');
+    await refreshJobs();
+  } catch (e) {
+    fail(e);
+  } finally {
+    state.busy = false;
+  }
+}
+
+async function jobAct(action, id, verb) {
+  if (state.busy) { toast('warning', 'Busy', 'Another action is already running.'); return; }
+  state.busy = true;
+  try {
+    const fns = {
+      approve: dataActions.approveJob, reject: dataActions.rejectJob,
+      pause: dataActions.pauseJob, resume: dataActions.resumeJob, del: dataActions.deleteJob
+    };
+    await fns[action](id);
+    toast('success', `Job ${verb}`, `Job #${id}`);
+    await refreshJobs();
+  } catch (e) {
+    fail(e);
+  } finally {
+    state.busy = false;
+  }
 }
 
 // ── visual HTML editor ─────────────────────────────────────────────────
@@ -873,6 +933,13 @@ document.addEventListener('click', async (e) => {
         });
         break;
       }
+      case 'job-create': await createJob(); break;
+      case 'job-run': await runJobsNow(); break;
+      case 'job-approve': await jobAct('approve', id, 'approved'); break;
+      case 'job-reject': await jobAct('reject', id, 'rejected'); break;
+      case 'job-pause': await jobAct('pause', id, 'paused'); break;
+      case 'job-resume': await jobAct('resume', id, 'resumed'); break;
+      case 'job-delete': await jobAct('del', id, 'deleted'); break;
       case 'funnel': {
         const map = { discover: 'all', generate: 'draft', review: 'needs-review', approve: 'approved', publish: 'listed' };
         state.filters.status = map[el.dataset.stage] || 'all';

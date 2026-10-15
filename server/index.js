@@ -2825,8 +2825,10 @@ app.get('/api/export/profession/:id/zip', (req, res) => {
 let cronJob = null;
 let discoveryCron = null;
 let stewardCron = null;
+let jobCron = null;
 let cycleLock = false;
 let discoveryLock = false;
+let jobLock = false;
 
 function startCron() {
   if (cronJob) return;
@@ -2867,7 +2869,29 @@ function startCron() {
     stewardCron = cron.schedule('23 */3 * * *', () => { if (stewardEnabled()) runStewardPass().catch(() => {}); });
     stewardCron.start();
   }
-  console.log('[CRON] Automation scheduler started (every 6h) + discovery sweep (every 2h) + steward pings (every 3h, cooldown 6h)');
+  if (!jobCron) {
+    // Every hour: advance each active job by one step. A job is a persistent
+    // multi-step project (generate → optimize → publish) the operator started
+    // from a natural-language prompt. Publish steps pause for approval, so
+    // this is safe to run unattended.
+    jobCron = cron.schedule('5 * * * *', async () => {
+      if (jobLock) { console.log('[CRON] Job executor skipped — lock held'); return; }
+      jobLock = true;
+      try {
+        const summary = await jobEngine.runDueJobs(jobToolDispatch);
+        if (summary.length) {
+          console.log('[CRON] Job executor advanced', summary.length, 'job(s):',
+            summary.map(s => `#${s.id}→${s.status}`).join(', '));
+        }
+      } catch (e) {
+        console.error('[CRON] job executor error:', e.message);
+      } finally {
+        jobLock = false;
+      }
+    });
+    jobCron.start();
+  }
+  console.log('[CRON] Automation scheduler started (every 6h) + discovery sweep (every 2h) + steward pings (every 3h, cooldown 6h) + job executor (every 1h)');
 }
 
 app.post('/api/automation/scheduler/start', (req, res) => {
@@ -3224,6 +3248,89 @@ async function generateForNiche(niche, count, step = () => {}, opts = {}) {
     }
   }
   return { niche: prof.name, professionId: prof.id, created };
+}
+
+// ── JOB TOOL DISPATCH ─────────────────────────────────────────────────────
+// The tool dispatcher the job engine's executor calls to run each step. It
+// mirrors the chat agent's tools but is a focused, self-contained subset
+// (generate / brainstorm / optimize / publish / push_etsy / set_status) so a
+// scheduled job can drive the SAME pipeline the operator drives by chat.
+// Returns the tool's result; the executor records it in the job's progress.
+async function jobToolDispatch(tool, args = {}) {
+  switch (tool) {
+    case 'brainstorm': {
+      const niche = String(args.niche || '').trim().slice(0, 80);
+      if (!niche) return { error: 'niche is required' };
+      const count = Math.min(5, Math.max(1, parseInt(args.count) || 3));
+      const type = String(args.type || 'checklist').trim();
+      const conceptEngine = require('./services/conceptEngine');
+      const results = await conceptEngine.brainstormConcepts({ name: niche, slug: '' }, type, count, args.brief || null, null);
+      return { niche, type, directions: results.map(r => ({ index: r.index, name: r.concept.name, pitch: r.concept.pitch })) };
+    }
+    case 'generate': {
+      const idea = String(args.idea || '').trim().slice(0, 120);
+      if (!idea) return { error: 'idea is required' };
+      const count = Math.min(6, Math.max(1, parseInt(args.count) || 3));
+      const r = await generateForNiche(idea, count, () => {}, { origin: 'job' });
+      return { niche: r.niche, created: r.created || [] };
+    }
+    case 'generate_for_trend': {
+      const id = parseInt(args.trendId);
+      const trend = trends.getAllTrends().find(t => t.id == id);
+      if (!trend) return { error: `trend ${args.trendId} not found` };
+      const r = await generateForNiche(trend.niche || trend.name, Math.min(6, parseInt(args.count) || 3), () => {}, { origin: 'engine' });
+      return { niche: r.niche, created: r.created || [] };
+    }
+    case 'optimize': {
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(parseInt(args.id));
+      if (!product) return { error: `product ${args.id} not found` };
+      return await optimizer.apply(product, { deploy: true });
+    }
+    case 'publish': {
+      const id = parseInt(args.id);
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+      if (!product) return { error: `product ${args.id} not found` };
+      if (product.status !== 'approved') return { error: `product ${id} must be approved first (now: ${product.status})` };
+      const result = await mp.publishProduct(product);
+      db.prepare('UPDATE products SET status = ?, marketplace = ?, marketplace_id = ? WHERE id = ?')
+        .run('listed', result.platform, result.listingId || null, product.id);
+      db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+        .run('published', product.id, `Listed on ${result.platform} (job)`, 'success');
+      return { id, name: product.name, platform: result.platform, listingId: result.listingId || null };
+    }
+    case 'push_etsy': {
+      const id = parseInt(args.id);
+      const capRow = db.prepare("SELECT value FROM settings WHERE key = 'etsy_daily_cap'").get();
+      const pubRow = db.prepare("SELECT value FROM settings WHERE key = 'etsy_published_today'").get();
+      const capNum = capRow ? parseInt(capRow.value) || 20 : 20;
+      const pubNum = pubRow ? parseInt(pubRow.value) || 0 : 0;
+      if (pubNum >= capNum) return { error: `Daily Etsy limit reached (${pubNum}/${capNum}).` };
+      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+      if (!product) return { error: `product ${args.id} not found` };
+      const result = await mp.publishToEtsy(product);
+      if (result && result.listing_id) {
+        db.prepare("UPDATE products SET status = 'listed' WHERE id = ?").run(product.id);
+        db.prepare("UPDATE settings SET value = ? WHERE key = 'etsy_published_today'").run(String(pubNum + 1));
+        return { id, listing_id: result.listing_id, remaining: capNum - pubNum - 1 };
+      }
+      return { error: 'Failed to publish to Etsy', details: result || null };
+    }
+    case 'set_status': {
+      const id = parseInt(args.id);
+      const status = String(args.status || '').trim();
+      const product = db.prepare('SELECT id FROM products WHERE id = ?').get(id);
+      if (!product) return { error: `product ${args.id} not found` };
+      db.prepare('UPDATE products SET status = ? WHERE id = ?').run(status, id);
+      return { id, status };
+    }
+    case 'run_action': {
+      const name = String(args.name || '');
+      if (!actionRegistry || typeof actionRegistry.run !== 'function') return { error: 'action registry unavailable' };
+      return await actionRegistry.run(name, args.input || {}, () => {});
+    }
+    default:
+      return { error: `tool "${tool}" is not available to jobs` };
+  }
 }
 
 // ── Named action handlers (deterministic; no AI required) ──
@@ -3877,6 +3984,106 @@ app.post('/api/console/agent', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// ------------------------------------------------------------------------
+// JOBS — persistent multi-step projects the agent drives autonomously.
+// POST /api/jobs takes a natural-language prompt, plans it into steps, and
+// starts it running. The cron executor advances one step per pass; publish
+// steps pause for approval. The operator can also drive the executor on
+// demand via POST /api/jobs/run (used by tests + the dashboard).
+// ------------------------------------------------------------------------
+const jobEngine = require('./services/jobEngine');
+
+app.post('/api/jobs', async (req, res) => {
+  try {
+    const prompt = String(req.body && req.body.prompt || '').trim();
+    if (!prompt) return res.status(400).json({ error: 'prompt is required' });
+    const job = await jobEngine.createJob(prompt, req.body && req.body.createdBy ? String(req.body.createdBy) : 'operator');
+    res.json({ ok: true, job });
+  } catch (e) {
+    console.error('[ERROR] POST /api/jobs -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/jobs', (req, res) => {
+  try {
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+    res.json({ ok: true, jobs: jobEngine.listJobs(limit) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/jobs/:id', (req, res) => {
+  try {
+    const job = jobEngine.getJob(parseInt(req.params.id));
+    if (!job) return res.status(404).json({ error: 'job not found' });
+    res.json({ ok: true, job });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Manually advance every active job by one step (same logic the cron runs).
+app.post('/api/jobs/run', async (req, res) => {
+  try {
+    const summary = await jobEngine.runDueJobs(jobToolDispatch);
+    res.json({ ok: true, advanced: summary });
+  } catch (e) {
+    console.error('[ERROR] POST /api/jobs/run -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/jobs/:id/approve', (req, res) => {
+  try {
+    const job = jobEngine.approveJob(parseInt(req.params.id));
+    if (job.error) return res.status(400).json(job);
+    res.json({ ok: true, job });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/jobs/:id/reject', (req, res) => {
+  try {
+    const job = jobEngine.rejectJob(parseInt(req.params.id));
+    if (job.error) return res.status(400).json(job);
+    res.json({ ok: true, job });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/jobs/:id/pause', (req, res) => {
+  try {
+    const job = jobEngine.pauseJob(parseInt(req.params.id));
+    if (job.error) return res.status(400).json(job);
+    res.json({ ok: true, job });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/jobs/:id/resume', (req, res) => {
+  try {
+    const job = jobEngine.resumeJob(parseInt(req.params.id));
+    if (job.error) return res.status(400).json(job);
+    res.json({ ok: true, job });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/jobs/:id', (req, res) => {
+  try {
+    res.json({ ok: true, ...jobEngine.deleteJob(parseInt(req.params.id)) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 
 // ------------------------------------------------------------------------
 // SERVE CLIENT

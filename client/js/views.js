@@ -24,6 +24,7 @@ export const NAV = [
   { group: 'research', view: 'analytics', label: 'Analytics', icon: 'analytics' },
 
   { group: 'ops', view: 'automation', label: 'Automation', icon: 'automation', badge: 'busy' },
+  { group: 'ops', view: 'jobs', label: 'Jobs', icon: 'sparkles', badge: 'jobs-awaiting' },
   { group: 'ops', view: 'marketplace', label: 'Market', icon: 'marketplace' },
   { group: 'ops', view: 'system', label: 'System', icon: 'system', badge: 'blockers' },
   { group: 'ops', view: 'social', label: 'Social', icon: 'social' },
@@ -35,7 +36,7 @@ export const CRUMBS = {
   home: 'Briefing', catalog: 'Catalog', review: 'Review',
   discovery: 'Discovery', trends: 'Trends', social: 'Social',
   ads: 'Ads', calendar: 'Calendar', analytics: 'Analytics',
-  automation: 'Automation', marketplace: 'Market', system: 'System'
+  automation: 'Automation', jobs: 'Jobs', marketplace: 'Market', system: 'System'
 };
 
 // ── shared fragments ───────────────────────────────────────────────────
@@ -1135,4 +1136,70 @@ export function system(s) {
         </div></div>`;
 }
 
-export const VIEWS = { home, catalog, review, discovery, trends, social, ads, calendar, analytics, automation, marketplace, system };
+// ═══════════════════════════════════════════════════════════════════════
+// JOBS — persistent multi-step projects the agent drives autonomously.
+// Each job is a natural-language prompt planned into steps (brainstorm →
+// generate → optimize → publish). The cron executor advances one step per
+// hour; publish steps pause for approval here. Every dynamic value is
+// escaped; every action is a [data-action] wired in console.js.
+// ═══════════════════════════════════════════════════════════════════════
+function jobStatusPill(status) {
+  const map = {
+    running: 'ok', 'awaiting-approval': 'warn', planned: 'info',
+    done: 'ok', paused: 'info', failed: 'bad'
+  };
+  return `<span class="pill ${map[status] || 'info'}"><span class="dot"></span>${esc(titleCase(String(status || '').replace(/-/g, ' ')))}</span>`;
+}
+
+export function jobs(s) {
+  const list = s.jobs || [];
+  const awaiting = list.filter(j => j.status === 'awaiting-approval').length;
+  const active = list.filter(j => j.status === 'running').length;
+
+  const rows = list.map(j => {
+    const progress = j.progress || { log: [], created: [] };
+    const createdCount = (progress.created || []).length;
+    const steps = j.plan || [];
+    const stepNum = Math.min((j.step_index || 0) + (j.status === 'awaiting-approval' ? 0 : 1), steps.length);
+    const currentTool = steps[j.step_index] ? steps[j.step_index].tool : '—';
+    const lastLog = (progress.log || []).slice(-1)[0];
+
+    const actions = [];
+    if (j.status === 'awaiting-approval') {
+      actions.push(`<button class="btn green sm" data-action="job-approve" data-id="${j.id}">${icon('check')} Approve Publish</button>`);
+      actions.push(`<button class="btn red sm" data-action="job-reject" data-id="${j.id}">${icon('x')} Reject</button>`);
+    }
+    if (j.status === 'running' || j.status === 'awaiting-approval') {
+      actions.push(`<button class="btn ghost sm" data-action="job-pause" data-id="${j.id}">Pause</button>`);
+    }
+    if (j.status === 'paused') {
+      actions.push(`<button class="btn sm" data-action="job-resume" data-id="${j.id}">Resume</button>`);
+    }
+    actions.push(`<button class="btn ghost sm" data-action="job-delete" data-id="${j.id}" title="Delete job">${icon('trash')}</button>`);
+
+    return `
+    <div class="rrow">
+      <div>
+        <div class="nm">${esc((j.prompt || '').slice(0, 90))}</div>
+        <div class="mt">Job #${j.id} · by ${esc(j.created_by || 'operator')} · ${esc(timeAgo(j.created_at))}</div>
+        <div class="flex mt8" style="gap:8px;align-items:center;flex-wrap:wrap">
+          ${jobStatusPill(j.status)}
+          <span class="hint">Step ${stepNum}/${steps.length} · ${esc(titleCase(currentTool.replace(/_/g, ' ')))}</span>
+          ${createdCount ? `<span class="hint">· ${fmtNum(createdCount)} product(s) created</span>` : ''}
+        </div>
+        ${lastLog ? `<div class="hint mt8" title="${esc(lastLog.note || '')}">↳ ${esc((lastLog.note || 'done').slice(0, 80))}</div>` : ''}
+      </div>
+      <div class="acts">${actions.join('')}</div>
+    </div>`;
+  }).join('');
+
+  return head('⚙️ Jobs', `Multi-step projects the agent drives autonomously. ${fmtNum(active)} running · ${fmtNum(awaiting)} awaiting your approval.`,
+    `<button class="btn ghost" data-action="job-run" title="Advance every active job by one step now">${icon('bolt')} Run Now</button>`)
+  + `<div class="btn-row">
+      <button class="btn primary" data-action="job-create">${icon('sparkles')} New Job</button>
+      <span class="hint" style="align-self:center">Describe a project — the AI plans it into steps and runs it on a schedule. Publishing waits for your approval.</span>
+    </div>
+    ${list.length ? `<div class="rows">${rows}</div>` : empty('No jobs yet. Create one to let the agent design and prepare a product line autonomously.')}`;
+}
+
+export const VIEWS = { home, catalog, review, discovery, trends, social, ads, calendar, analytics, automation, jobs, marketplace, system };
