@@ -289,6 +289,10 @@ function init() {
   // Generative art direction: the product's design brief (the "skin" — content
   // lives in concept/brief/services). JSON: mood, palette, fonts, motif, …
   try { db.exec('ALTER TABLE products ADD COLUMN design_brief TEXT'); } catch (e) { /* column already exists */ }
+  // R0.3 idempotency: sha256(profession|type|brief) so a re-run cannot insert the
+  // same product twice. Lookup index, not UNIQUE — legacy rows have no key.
+  try { db.exec('ALTER TABLE products ADD COLUMN dedupe_key TEXT'); } catch (e) { /* column already exists */ }
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_products_dedupe_key ON products (dedupe_key)'); } catch (e) { /* exists */ }
 
   // ── DESIGN QUALITY (Design Quality Upgrade, Phases 1-3) ───────────────────
   // Render→critique→revise scores. `scores` is strict JSON
@@ -389,11 +393,26 @@ function init() {
     console.error('[DB] migrate skipped (concurrent init):', e.message);
   }
   try {
-    fixProfessionEmoji();
-  } catch (e) {
-    console.error('[DB] emoji repair skipped:', e.message);
+      fixProfessionEmoji();
+    } catch (e) {
+      console.error('[DB] emoji repair skipped:', e.message);
+    }
+
+    // ── R0.5: PER-CYCLE METRICS ────────────────────────────────────────
+    // Store key metrics from each automation cycle for trending and analysis
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS cycle_metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        products_made INTEGER,
+        listed INTEGER,
+        pass_rate REAL,
+        avg_cover_score REAL,
+        niches_found INTEGER,
+        recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    try { db.exec('CREATE INDEX IF NOT EXISTS idx_cycle_metrics_recorded_at ON cycle_metrics (recorded_at DESC)'); } catch (e) { /* exists */ }
   }
-}
 
 // Repairs profession emojis that an earlier encoding pass wrote as "??"/"?".
 // Safe on every boot: only touches rows whose emoji is still a placeholder.

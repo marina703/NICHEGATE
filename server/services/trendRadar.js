@@ -7,6 +7,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { db } = require('../database');
+const { TokenBucket } = require('./tokenBucket');
 
 const RADAR_URL = 'https://trends.google.com/trending/rss?geo=US';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -61,6 +62,13 @@ function getSourceHealth() { return { ...sourceHealth }; }
 const REJECT_RE = /\b(?:vs\.?|score|election|congress|senate|president|trump|biden|obama|harris|walz|vance|democrat|republican|gop|ballot|polls?|senator|governor|mayor|white house|capitol|nfl|nba|mlb|nhl|ufc|fifa|world cup|playoffs?|touchdown|home ?run|grand slam|hat trick|knockout|championship|mvp|super bowl|died|dies|death|killed|shooting|war|bomb|missile|strike|outage|downdetector|down for everyone|disney\+?|netflix|hulu|taylor swift|celebrity|box office|emmy|oscar|grammy|onlyfans|porn|xxx|crypto crash|bitcoin price|stock market today|dow jones|nasdaq|lottery|powerball|wrestlemania|lafleur|rodgers|mahomes|kelce|lebron|curry|ohtani|judge|soto|harper|trout|ossoff|warnock|hern[aá]ndez|altuve|betts|freeman|acuna|tatis|wembanyama|doncic|jokic|giannis|burrow|allen|jackson|hurts|purdy|stray kids|bts|blackpink|mrbeast|kai cenat|pokimane|ninja|pewdiepie|logan paul|tate|nelk)\b/i;
 
 const STOP_WORDS = new Set(['the','a','an','and','or','of','for','to','in','on','with','my','your','our','is','are','this','that','from','how','what','why','when']);
+
+// Token bucket for Reddit API rate limiting (default: 1 request per second, burst capacity of 5)
+// This is conservative for unauthenticated Reddit API access
+const REDDIT_TOKEN_BUCKET = new TokenBucket(
+  Number(process.env.REDDIT_API_REFILL_RATE || 1), // tokens per second
+  Number(process.env.REDDIT_API_BURST_CAPACITY || 5) // max tokens
+);
 
 function parseTraffic(str) {
   const m = String(str || '').toUpperCase().match(/([\d.]+)\s*([KM])/);
@@ -170,18 +178,20 @@ async function fetchRedditRising() {
   // NOTE: www.reddit.com 403s datacenter IPs (Railway ams). old.reddit.com still serves public JSON.
   const bases = ['https://old.reddit.com', 'https://www.reddit.com'];
   for (const src of REDDIT_SOURCES) {
-    let done = false;
-    for (const base of bases) {
-      try {
-        const resp = await axios.get(`${base}/r/${src.sub}/rising.json?limit=4`, {
-          timeout: 8000,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://old.reddit.com/',
-          }
-        });
+      let done = false;
+      for (const base of bases) {
+        try {
+          // Wait for token from rate limiter before making Reddit API call
+          await REDDIT_TOKEN_BUCKET.waitForToken();
+          const resp = await axios.get(`${base}/r/${src.sub}/rising.json?limit=4`, {
+            timeout: 8000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'application/json, text/plain, */*',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Referer': 'https://old.reddit.com/',
+            }
+          });
       for (const child of resp.data?.data?.children || []) {
           const d = child.data || {};
           if (d.title) {

@@ -241,16 +241,32 @@ app.get('/api/auth/status', (req, res) => {
   res.json({ enabled: auth.enabled(), authed: auth.isValidToken(auth.tokenFrom(req)) });
 });
 // -- HEALTH ENDPOINT (Railway healthcheck + monitoring) --
-app.get('/api/health', (req, res) => {
-  const dbOk = db.prepare('SELECT 1').get();
-  res.json({
-    ok: !!dbOk,
+// R0.5 deep check: DB round-trip, when the last automation cycle completed, and
+// the review-queue depth. Served at /api/health and /health (both auth-exempt).
+function healthPayload() {
+  const dbOk = !!db.prepare('SELECT 1').get();
+  let lastCycle = null;
+  let reviewQueue = 0;
+  try {
+    const row = db.prepare("SELECT MAX(created_at) AS t FROM automation_log WHERE action = 'auto_cycle_done'").get();
+    if (row && row.t) lastCycle = new Date(String(row.t).replace(' ', 'T') + 'Z').toISOString();
+    reviewQueue = db.prepare("SELECT COUNT(*) AS c FROM products WHERE status IN ('pending-review', 'reviewing')").get().c;
+  } catch (e) {
+    console.error('[HEALTH] deep check partial:', e.message);
+  }
+  return {
+    ok: dbOk,
+    lastCycle,
+    reviewQueue,
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV || 'development',
     products: db.prepare('SELECT COUNT(*) as c FROM products').get().c,
     professions: db.prepare('SELECT COUNT(*) as c FROM professions').get().c
-  });
+  };
+}
+app.get(['/api/health', '/health'], (req, res) => {
+  res.json(healthPayload());
 });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1629,8 +1645,25 @@ app.patch('/api/professions/:id/status', (req, res) => {
 // API: PRODUCTS
 // ------------------------------------------------------------------------
 app.get('/api/products', (req, res) => {
-  const rows = db.prepare('SELECT p.*, pr.emoji as prof_emoji, pr.name as prof_name FROM products p JOIN professions pr ON p.profession_id = pr.id ORDER BY p.created_at DESC').all();
-  res.json(rows);
+    const rows = db.prepare(`
+        SELECT p.*, 
+               pr.emoji as prof_emoji, 
+               pr.name as prof_name,
+               ds.overall as quality_score
+        FROM products p 
+        JOIN professions pr ON p.profession_id = pr.id
+        LEFT JOIN (
+            SELECT product_id, overall 
+            FROM design_scores 
+            WHERE id IN (
+                SELECT MAX(id) 
+                FROM design_scores 
+                GROUP BY product_id
+            )
+        ) ds ON p.id = ds.product_id
+        ORDER BY p.created_at DESC
+    `).all();
+    res.json(rows);
 });
 
 app.get('/api/products/profession/:id', (req, res) => {
@@ -3034,6 +3067,25 @@ function getWebhookUrl() {
   return [stored, process.env.DISCORD_WEBHOOK_URL].find(runtimeConfig.isDiscordWebhookUrl) || '';
 }
 
+// R0.5 per-cycle metrics, stored as JSON on the auto_cycle_done row. Every field
+// is measured from this cycle or the last 24h of cover scores; absent data is null.
+function cycleMetrics(ctx) {
+  const qa = Number(ctx.qualityApproved || 0);
+  const qg = Number(ctx.qualityGrounded || 0);
+  let avgCover = null;
+  try {
+    const row = db.prepare("SELECT AVG(overall) AS a FROM cover_scores WHERE created_at >= datetime('now','-1 day') AND overall > 0").get();
+    avgCover = row && row.a != null ? Math.round(row.a * 10) / 10 : null;
+  } catch { avgCover = null; }
+  return {
+    products_made: Number(ctx.generated || 0),
+    listed: Number(ctx.listed || 0),
+    pass_rate: qa + qg > 0 ? Math.round((qa / (qa + qg)) * 100) / 100 : null,
+    avg_cover_score: avgCover,
+    niches_found: Array.isArray(ctx.found) ? ctx.found.length : 0
+  };
+}
+
 async function runAutoCycle() {
   if (cycleLock) {
     console.log('[AUTO] Cycle already running — skipped');
@@ -3041,10 +3093,40 @@ async function runAutoCycle() {
   }
   cycleLock = true;
   try {
-    return await automationCycle.runFullCycle({
+    const result = await automationCycle.runFullCycle({
       checkIsReviewDay,
       syncGumroadSales
     });
+    // R0.5: a completed cycle is the heartbeat /api/health reports as lastCycle.
+        try {
+          db.prepare("INSERT INTO automation_log (action, details, status) VALUES ('auto_cycle_done', ?, 'success')").run(JSON.stringify(cycleMetrics(result)));
+        } catch (e) {
+          console.error('[AUTO] could not record cycle heartbeat:', e.message);
+        }
+
+        // ── R0.5: PER-CYCLE METRICS ────────────────────────────────────────
+                // Also store metrics in dedicated table for easier trending and analysis
+              try {
+                const metrics = cycleMetrics(result);
+                db.prepare(`
+                  INSERT INTO cycle_metrics (
+                    products_made, 
+                    listed, 
+                    pass_rate, 
+                    avg_cover_score, 
+                    niches_found
+                  ) VALUES (?, ?, ?, ?, ?)
+                ).run(
+                  metrics.products_made || 0,
+                  metrics.listed || 0,
+                  metrics.pass_rate || 0,
+                  metrics.avg_cover_score || 0,
+                  metrics.niches_found || 0
+                );
+              } catch (e) {
+                console.error('[AUTO] could not record cycle metrics:', e.message);
+              }
+    return result;
   } catch (e) {
     console.error('[AUTO] cycle error:', e.message);
     db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
@@ -4210,9 +4292,22 @@ function startServer() {
   return server;
 }
 
-if (require.main === module) startServer();
+if (require.main === module) {
+  // R0.2 crash guards: an unhandled rejection or exception is logged with a clear
+  // [FATAL] tag and exits non-zero, so the host restart policy brings the process
+  // back cleanly instead of leaving the automation loop silently wedged.
+  process.on('unhandledRejection', (reason) => {
+    console.error('[FATAL] unhandledRejection:', reason);
+    process.exit(1);
+  });
+  process.on('uncaughtException', (err) => {
+    console.error('[FATAL] uncaughtException:', err);
+    process.exit(1);
+  });
+  startServer();
+}
 
-module.exports = { app, startServer };
+module.exports = { app, startServer, cycleMetrics };
 
 
 

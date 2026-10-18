@@ -6,6 +6,7 @@ const { db } = require('../database');
 const seo = require('./seoEngine');
 const demandSignals = require('./demandSignals');
 const { ensureProductFile } = require('./fileFactory');
+const { TokenBucket } = require('./tokenBucket');
 
 // Warm the demand-signal cache for a profession (honest no-op without SERPER key
 // or on fetch failure) so generateSEO can merge live marketplace language.
@@ -20,6 +21,12 @@ async function warmDemand(prof) {
 
 const ETSY_API_BASE = 'https://openapi.etsy.com/v3';
 const GUMROAD_API_BASE = 'https://api.gumroad.com/v2';
+
+// Token bucket for Etsy API rate limiting (default: 4 requests per second, burst capacity of 8)
+const ETSY_TOKEN_BUCKET = new TokenBucket(
+  Number(process.env.ETSY_API_REFILL_RATE || 4), // tokens per second
+  Number(process.env.ETSY_API_BURST_CAPACITY || 8) // max tokens
+);
 
 // Etsy v3 requires BOTH the keystring and shared secret in x-api-key on every request.
 function etsyApiKey() {
@@ -211,15 +218,17 @@ async function listOnEtsy(product, shopId) {
   };
   
   let resp;
-  try {
-    resp = await axios.post(`${ETSY_API_BASE}/application/shops/${shopId}/listings`, listing, {
-      headers: { 
-        Authorization: `Bearer ${token.access_token}`, 
-        'x-api-key': etsyApiKey() 
-      },
-      timeout: 60000
-    });
-  } catch (e) {
+    try {
+      // Wait for token from rate limiter before making Etsy API call
+      await ETSY_TOKEN_BUCKET.waitForToken();
+      resp = await axios.post(`${ETSY_API_BASE}/application/shops/${shopId}/listings`, listing, {
+        headers: { 
+          Authorization: `Bearer ${token.access_token}`, 
+          'x-api-key': etsyApiKey() 
+        },
+        timeout: 60000
+      });
+    } catch (e) {
     // Surface Etsy's field-level validation errors — axios drops the body on
     // non-2xx, and 'status code 400' alone is undiagnosable.
     const body = (e && e.response && e.response.data) || null;
@@ -257,21 +266,23 @@ async function attachEtsyListingImages(product, listingId, shopId) {
   if (!paths.length) return { ok: false, attached: 0, error: 'no gallery images available' };
 
   let attached = 0;
-  for (let i = 0; i < paths.length && attached < 8; i++) {
-    try {
-      const fd = new FormData();
-      fd.append('image', new Blob([fs.readFileSync(paths[i])], { type: 'image/jpeg' }), `img${i+1}.jpg`);
-      fd.append('rank', String(attached));
-      const r = await axios.post(
-        `${ETSY_API_BASE}/application/shops/${shopId}/listings/${listingId}/images`,
-        fd,
-        { headers: { ...etsyAuthHeaders(token.access_token), ...(fd.getHeaders ? fd.getHeaders() : {}) }, timeout: 45000 }
-      );
-      if (r.data && r.data.listing_image_id) attached++;
-    } catch (e) {
-      console.error(`[ETSYSLOGAUTO] image ${i} attach skipped:`, e.response?.status || e.message);
+    for (let i = 0; i < paths.length && attached < 8; i++) {
+      try {
+        const fd = new FormData();
+        fd.append('image', new Blob([fs.readFileSync(paths[i])], { type: 'image/jpeg' }), `img${i+1}.jpg`);
+        fd.append('rank', String(attached));
+        // Wait for token from rate limiter before making Etsy API call
+        await ETSY_TOKEN_BUCKET.waitForToken();
+        const r = await axios.post(
+          `${ETSY_API_BASE}/application/shops/${shopId}/listings/${listingId}/images`,
+          fd,
+          { headers: { ...etsyAuthHeaders(token.access_token), ...(fd.getHeaders ? fd.getHeaders() : {}) }, timeout: 45000 }
+        );
+        if (r.data && r.data.listing_image_id) attached++;
+      } catch (e) {
+        console.error(`[ETSYSLOGAUTO] image ${i} attach skipped:`, e.response?.status || e.message);
+      }
     }
-  }
   return { ok: attached > 0, attached };
 }
 
@@ -288,14 +299,43 @@ function conceptFor(product) {
   } catch { return null; }
 }
 
-function listingCopyFor(product, prof, seoData) {
+function listingCopyFor(product, prof, seoData, opts = {}) {
   const c = conceptFor(product);
-  // Prefer the product's own name as the title base — generateSEO's shortTitle
-  // already embeds the profession name, so prepending prof.name doubled it
-  // ("AA / 12-Step Recovery AA / 12-Step Recovery Invoice") for concept-less
-  // products (e.g. the recovery printables whose types SEO doesn't know).
-  const title = (c ? c.name : (product.name || prof.name + ' ' + (seoData.shortTitle || seoData.title)))
-    .replace(/\s+/g, ' ').trim().substring(0, 140);
+  // Strip a doubled word left by the "{prof} {prof-tail} {type}" name pattern —
+  // e.g. "AA / 12-Step Recovery Recovery Affirmation Labels" reads broken.
+  const cleanTitle = (s) => {
+    let t = String(s || '').replace(/\s+/g, ' ').trim();
+    const profNoun = String((prof && prof.name) || '').trim();
+    if (profNoun && t.toLowerCase().startsWith(profNoun.toLowerCase())) {
+      const rest = t.slice(profNoun.length).trim();
+      const words = rest.split(' ');
+      const profLast = (profNoun.split(/\s+/).pop() || '').toLowerCase();
+      if (words.length > 1 && words[0].toLowerCase() === profLast) {
+        t = `${profNoun} ${words.slice(1).join(' ')}`.trim();
+      }
+    }
+    return t.replace(/\b(\w+) \1\b/i, '$1');
+  };
+  // ── The listing agent's approved spec wins over template copy ──
+  // (products.listing_json, written by listingAgent.directListing after its
+  // lint passes; every publish path — Gumroad + Etsy — reads it here.
+  // Callers computing the TRUE pre-agent copy (the optimizer's rollback
+  // baseline) pass { ignoreAgentCopy: true } so agent writes never mask the
+  // original — otherwise rollback-to-original would restore the optimized copy.)
+  if (product.listing_json && !opts.ignoreAgentCopy) {
+    try {
+      const agent = JSON.parse(product.listing_json);
+      if (agent && agent.title && agent.description) {
+        return {
+          title: cleanTitle(agent.title).substring(0, 140),
+          description: String(agent.description).substring(0, 4999),
+          tags: Array.isArray(agent.tags) ? agent.tags.slice(0, 13) : (seoData.tags || []).slice(0, 13),
+          source: 'agent'
+        };
+      }
+    } catch { /* fall through to engine copy */ }
+  }
+  const title = cleanTitle(c ? c.name : (product.name || prof.name + ' ' + (seoData.shortTitle || seoData.title))).substring(0, 140);
   let description = seoData.description;
   if (c) {
     const pitch = c.pitch || '';

@@ -541,7 +541,7 @@ export function review(s) {
   const { items, per, page, slice } = reviewPage(s.products, s.reviewPage);
 
   const rows = slice.map(p => `
-    <div class="rrow" data-review-id="${p.id}">
+    <div class="rrow${p.quality_score !== null && p.quality_score < 85 ? ' grounded' : ''}" data-review-id="${p.id}">
       <div class="rt">${img(p)}</div>
       <div>
         <div class="nm">${esc(p.name)}</div>

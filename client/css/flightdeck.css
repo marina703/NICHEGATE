@@ -406,3 +406,20 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:4px}
 .trend.sel{border-color:var(--amber);background:rgba(245,158,11,.06)}
 .tag.sel{border-color:var(--amber);background:rgba(245,158,11,.10)}
 .flex.sel{border-color:var(--amber)!important;background:rgba(245,158,11,.06)!important}
+
+
+/* GROUNDED ITEMS STYLING - Quality score < 85 */
+.rrow.grounded {
+    border-left: 3px solid #ff9800;
+    background-color: rgba(255, 152, 0, 0.05);
+}
+
+.rrow.grounded:hover {
+    background-color: rgba(255, 152, 0, 0.1);
+}
+
+/* Optional: dim the content slightly to indicate it needs improvement */
+.rrow.grounded .nm,
+.rrow.grounded .mt {
+    color: #bfbfbf;
+}
