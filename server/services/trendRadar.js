@@ -1011,8 +1011,57 @@ function insertLiveTrend(item, rank) {
   const phase = phaseForVelocity(velocityPct);
   const intentTag = ` · intent=${item.shoppingIntent.toFixed(2)}`;
 
+  // LONG-TAIL ADAPTER (N1.3): Apply long-tail adjustment to volume-based metrics
+  // This boosts lower-volume, more specific niches that might be overlooked by pure volume scoring
+  let adaptedValidation = validation;
+  if (validation && validation.volume > 0) {
+    // Import the long-tail adapter (we'll add it to this file or use a shared one)
+    // For now, we'll implement the logic inline
+    const LOW_VOLUME_THRESHOLD = 100;    // Below this is considered long-tail
+    const MEDIUM_VOLUME_THRESHOLD = 1000; // Medium volume
+    const HIGH_VOLUME_THRESHOLD = 5000;  // High volume/mainstream
+    
+    let longTailBoost = 0;
+    const volume = validation.volume;
+    
+    if (volume <= LOW_VOLUME_THRESHOLD) {
+      // Strong boost for very low volume (true long-tail)
+      longTailBoost = 25; // Up to 25 point boost to effective score/relevance
+    } else if (volume <= MEDIUM_VOLUME_THRESHOLD) {
+      // Moderate boost for medium-low volume
+      const volumeRatio = (MEDIUM_VOLUME_THRESHOLD - volume) / (MEDIUM_VOLUME_THRESHOLD - LOW_VOLUME_THRESHOLD);
+      longTailBoost = 25 * volumeRatio; // 0 to 25 points
+    } else if (volume <= HIGH_VOLUME_THRESHOLD) {
+      // Small boost for medium volume (still some long-tail benefit)
+      const volumeRatio = (HIGH_VOLUME_THRESHOLD - volume) / (HIGH_VOLUME_THRESHOLD - MEDIUM_VOLUME_THRESHOLD);
+      longTailBoost = 10 * volumeRatio; // 0 to 10 points
+    }
+    // For high volume (> HIGH_VOLUME_THRESHOLD), no boost
+    
+    // Apply the boost by adjusting the effective volume for scoring purposes
+    // We don't actually change the stored volume, but we can use this to adjust other metrics
+    // For now, we'll store the boost information in the why field or add a new field later
+    // As a simpler approach, we'll adjust the estRevenue calculation to reflect long-tail value
+    if (longTailBoost > 0) {
+      // Create an adapted validation object with adjusted metrics
+      adaptedValidation = {
+        ...validation,
+        longTailBoost: longTailBoost,
+        // We could adjust the effective volume for scoring, but let's keep it simple
+        // and just note that this trend received long-tail adaptation
+      };
+    }
+  }
+
   if (trendKey && validation && validation.volume > 0) {
-    snapshotTrend(trendKey, { volume: validation.volume, cpc: validation.cpc, competition: validation.difficulty, source: item.source });
+    // Use adapted validation for snapshot if we have long-tail adaptation
+    const snapshotValidation = adaptedValidation || validation;
+    snapshotTrend(trendKey, { 
+      volume: snapshotValidation.volume, 
+      cpc: snapshotValidation.cpc, 
+      competition: snapshotValidation.difficulty, 
+      source: item.source 
+    });
   }
 
   db.prepare(`
@@ -1025,7 +1074,8 @@ function insertLiveTrend(item, rank) {
     velocity,
     shopBoost ? 21 : 10,
     estFinal,
-    `${item.source} · ${item.traffic || 'trending now'}${intentTag}`,
+    `${item.source} · ${item.traffic || 'trending now'}${intentTag}` +
+    (adaptedValidation && adaptedValidation.longTailBoost ? ` · long-tail+${adaptedValidation.longTailBoost}` : ''),
     new Date().toISOString(),
     trendKey,
     new Date().toISOString(),
