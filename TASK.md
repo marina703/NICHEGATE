@@ -1,5 +1,50 @@
 # Goal: NicheGate — Autonomous Digital Product Factory
 
+## ── 2026-10-16 (late): BLUEPRINT LEDGER — vetted, built, dropped ──
+Source: `profiles/swiper/.hermes/plans/2026-10-16_055000-nichegate-10-10-blueprint.md`.
+RULINGS (my calls; the owner delegated them):
+- Brainstorm gate waived by owner instruction ("execute if beneficial, alter, or remove").
+  Ran inline, no worktree: the shared checkout holds others' uncommitted work; a worktree would split it.
+- R0.3 dedupe = sha256(profession|type|brief), blocks any live (not rejected/archived) twin. Lookup index, NOT UNIQUE (legacy rows have no key). Cost if wrong: a legit sibling with an identical brief is blocked — low.
+- P2.3 "≥60 types" NOT reached: added 8 operational formats (48 total). Padding to 60 with unreviewed types costs more than it returns. New types are NOT in CATEGORY_MIX, so autonomous generation never emits them. Cost if wrong: they only appear when requested explicitly.
+- N1.1 bounded: 14 seeds, one fission call per sweep, output still vetted by insertUniverseTrend. NOT the 5,000-niche target. Cost if wrong: one ideation call per 6h cycle; a few extra vetted niches.
+- P2.1 floor 60, 2 regenerations, then template fallback. Cost if wrong: up to 3 ideation calls per concept on a weak run.
+DROPPED (already covered or unsafe to change blind):
+- L5.1 listing critic: listingAgent already gates tag count; seoEngine.listingCopyGate already checks description. Adding a regen loop would touch files with others' uncommitted edits.
+- Q7.1 publish gate: taskPublishQueue is already env-locked in production (AUTO_START + AUTO_PUBLISH both required); manual publishes are owner-initiated.
+- D4.1 premium design system / D4.3 print bleed: subjective taste work with no acceptance test beyond the blueprint's own; print bleed adds nothing for digital downloads.
+- C3.4 hero model swap: changing the cover model id without a live call to verify it resolves is a blind spend change.
+- C3.6 A/B covers: doubles image spend per product; not justified without measured revenue lift.
+- C3.5 garble guard build test: needs live vision calls; cannot be hermetic.
+DONE THIS PASS (verified):
+- R0.3 dedupe: test/dedupe-key.test.js 1/1 (identical live twin blocked; case/whitespace ignored; sibling allowed; rejected does not block).
+- R0.5 metrics: cycleMetrics exported; checked pass_rate 3/4=0.75, empty ctx -> zeros/nulls. NOT run through a full real cycle row.
+- P2.1 concept gate: test/ideation-novelty.test.js 4/4 (generic <40; 1+2 regenerations; specific retry accepted; AI-off = 0 calls).
+- P2.3 types: 8 added; real swipe-file PDF rendered via ensureProductFile (%PDF-, 97KB), probe rows cleaned (verified 0 leftover).
+- N1.1 fission: test/niche-fission.test.js 5/5; wired into discovery.sweep behind cfg.enabled.
+SUITE: `node --test` → 694 tests, 656 pass, 30 fail. The 30 are the SAME pre-existing set as before any edit (diff empty).
+DEFERRED (real work remaining): R0.4 DB reconnect.
+
+## ── 2026-10-16: BLUEPRINT PHASE 0 + C3.3 (partial, uncommitted) ──
+Source: `profiles/swiper/.hermes/plans/2026-10-16_055000-nichegate-10-10-blueprint.md`.
+DONE (verified):
+- R0.2 crash guards — `server/index.js` entry logs `[FATAL]` and exits 1 on
+  unhandledRejection/uncaughtException (Node already crashes on these; this makes it explicit + labeled).
+- R0.5 health — `/api/health` and `/health` return `ok`, `lastCycle` (from
+  `automation_log` action `auto_cycle_done`, written after each successful `runAutoCycle`), `reviewQueue`. Smoke-tested 200.
+- R0.6 backups — already existed (`backupDatabase` in index.js + catalogRecovery). Not changed.
+- C3.3 critic regen loop — `coverCritic.critiqueUntilPass` (max 3 candidates, only a
+  passing candidate is returned, stops early when AI is off). Wired into the
+  `hero-cover` path in `fileFactory.js`. Retries force fresh art/raster; they do NOT
+  perturb the prompt (blueprint asked for that — not done). Tests: `test/cover-critic-loop.test.js` 4/4.
+NOT DONE (deferred, honest): N1 niche engine (fission/adapters), P2 productTypes
+(40 → ≥60), P2.1 novelty floor, Q7.1 publish gate change (lives in `marketplace.js`,
+which has someone else's uncommitted edits — left alone), D4/L5 critics, dedupe_key
+unique index (R0.3), per-cycle `metrics` row (R0.5), default content-forward cover path
+has no critic loop (only the hero-cover path does).
+TESTS: `node --test` → 684 tests, 646 pass, 30 fail. The 30 failures are PRE-EXISTING
+(identical set on the untouched tree before these edits); none introduced here.
+
 ## ── 2026-10-15 (PM): ETSY OAUTH RECONNECTED — production verified ──
 - Railway CLI on this box: the `railway` in PATH is a broken bun shim
   ("could not create process"); the WORKING binary is the WinGet Node install:
