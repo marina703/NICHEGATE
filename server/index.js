@@ -1649,11 +1649,11 @@ app.get('/api/products', (req, res) => {
         SELECT p.*, 
                pr.emoji as prof_emoji, 
                pr.name as prof_name,
-               ds.overall as quality_score
+               ds.scores as ds_scores
         FROM products p 
         JOIN professions pr ON p.profession_id = pr.id
         LEFT JOIN (
-            SELECT product_id, overall 
+            SELECT product_id, scores 
             FROM design_scores 
             WHERE id IN (
                 SELECT MAX(id) 
@@ -1663,7 +1663,19 @@ app.get('/api/products', (req, res) => {
         ) ds ON p.id = ds.product_id
         ORDER BY p.created_at DESC
     `).all();
-    res.json(rows);
+    res.json(rows.map(r => {
+      let quality_score = null;
+      if (r.ds_scores) {
+        try {
+          const parsed = JSON.parse(r.ds_scores);
+          if (parsed && Number.isFinite(parsed.overall)) {
+            quality_score = parsed.overall <= 10 ? Math.round(parsed.overall * 10) : Math.round(parsed.overall);
+          }
+        } catch {}
+      }
+      const { ds_scores, ...rest } = r;
+      return { ...rest, quality_score };
+    }));
 });
 
 app.get('/api/products/profession/:id', (req, res) => {

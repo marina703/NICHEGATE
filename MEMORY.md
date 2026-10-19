@@ -1,18 +1,5 @@
 # MEMORY.md — persistent agent memory for NicheGate
 
-## E2E finish pass (2026-10-14)
-- Suite on arrival: 341 tests / 1 FAIL (design-critic fixture used cover-v8 while COVER_VERSION is v9 — cache-reuse test needs isCurrentCoverPath). After fixes: 349/345 pass/0 fail/4 skipped.
-- `streamFile(res, absPath)` in server/index.js wraps every file-stream response: pipe() does NOT forward read-stream errors, so a failed read after headers were sent used to surface as a silent 200 with an empty body. All 7 sites use it now.
-- GET /api/marketplace/etsy/callback with no `code` returns 400 (a malformed OAuth redirect is not a server fault).
-- Autonomy wiring (all default-OFF or deterministic): taskQualityGate auto-approves FLIGHT_READY (≥85) drafts when QUALITY_AUTO_APPROVE=true (manual products excluded; production publish locks unchanged); agent tool `brainstorm {niche,type,count}` (deterministic planner routes "brainstorm ideas for X"/"what should we make for X" BEFORE the generic make branch); forecastTrend attaches to every generated concept (feeds the noveltyScore boost); forecastProductEngagement persists on every social post + 🔥/⚡/💤 badge in the Social view.
-- Tool-measurement gotchas on this box: `curl -o /dev/null` reports bytes=0 for real streamed bodies (verify images to a real file); the bundled Node 26 exits "stdin is not a tty" under background terminal jobs (foreground bounded jobs; pty=true + explicit cd for servers; killing the PTY shell leaves the node child orphaned — kill by port afterward).
-
-## Product north star (owner-confirmed 2026-10-14)
-- NicheGate has no customer-facing storefront; the product UI is a private command-center hub.
-- End state: AI runs the full loop—discover and forecast demand, create/edit digital content, quality-check it, publish to external marketplaces, measure outcomes, and improve.
-- Gumroad/Etsy are external publishing destinations, not a NicheGate store. Current human gates and explicit production opt-ins are transitional safety controls, not the final autonomy goal.
-- Autogeneration dedupe must count `draft`, `pending-review`, `approved`, `listed`, and `published` product types; status progression is not a reason to recreate the same inventory.
-
 ## Etsy refresh and eBay 403 (2026-10-12)
 - Etsy OAuth `/public/oauth/token` expects `application/x-www-form-urlencoded`.
   Send refresh grants as URLSearchParams with grant_type, client_id, refresh_token;

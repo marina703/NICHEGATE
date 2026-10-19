@@ -9,56 +9,20 @@ runtimeConfig.assertProductionConfig();
 const DB_PATH = runtimeConfig.resolveDatabasePath();
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-// Reclaim volume headroom BEFORE opening the DB. If the Railway volume has
-// filled with regenerable caches, SQLite would throw "database or disk is full"
-// here and the app could never boot to run its janitor — this breaks that
-// spiral. Safe: only deletes regenerable caches, never the DB or deliverables.
-try { require('./services/bootSpace').ensureBootHeadroom(); } catch (e) { console.error('[BOOT] space reclaim skipped:', e.message); }
+const db = new DatabaseSync(DB_PATH);
 
-function createDBConnection() {
-  const db = new DatabaseSync(DB_PATH);
-  // Enforce WAL + sensible lock wait so concurrent cron/API writers don't fail fast.
-  // busy_timeout MUST be set first: the WAL switch takes a lock, and without this
-  // wait it fails instantly whenever another process (parallel test file, cron,
-  // API) holds the file — leaving the connection with no lock wait at all.
-  db.exec('PRAGMA busy_timeout = 5000;');
-  db.exec('PRAGMA statement_timeout = 30000;'); // 30 seconds statement timeout
-  db.exec('PRAGMA synchronous = NORMAL;');
-  db.exec('PRAGMA foreign_keys = ON;');
-  try {
-    db.exec('PRAGMA journal_mode = WAL;');
-  } catch (e) {
-    console.error('[DB] pragma init:', e.message);
-  }
-  return db;
+// Enforce WAL + sensible lock wait so concurrent cron/API writers don't fail fast.
+// busy_timeout MUST be set first: the WAL switch takes a lock, and without this
+// wait it fails instantly whenever another process (parallel test file, cron,
+// API) holds the file — leaving the connection with no lock wait at all.
+db.exec('PRAGMA busy_timeout = 5000;');
+db.exec('PRAGMA synchronous = NORMAL;');
+db.exec('PRAGMA foreign_keys = ON;');
+try {
+  db.exec('PRAGMA journal_mode = WAL;');
+} catch (e) {
+  console.error('[DB] pragma init:', e.message);
 }
-
-let dbInstance = createDBConnection();
-
-// Proxy that reconnects on certain errors and retries once
-const db = new Proxy(dbInstance, {
-  get(target, prop) {
-    if (typeof target[prop] === 'function') {
-      return function(...args) {
-        try {
-          return target[prop].apply(target, args);
-        } catch (e) {
-          // Retry on lock or I/O errors
-          if (e.code === 'SQLITE_ERROR' && 
-              (e.message.includes('database is locked') || 
-               e.message.includes('disk I/O error') ||
-               e.message.includes('database disk image is malformed'))) {
-            // Reconnect once
-            dbInstance = createDBConnection();
-            return dbInstance[prop].apply(dbInstance, args);
-          }
-          throw e;
-        }
-      };
-    }
-    return target[prop];
-  }
-});
 
 function init() {
   db.exec(`
@@ -88,6 +52,14 @@ function init() {
       preview_path TEXT,
       marketplace_id TEXT,
       marketplace TEXT,
+      origin TEXT,
+      brief TEXT,
+      dedupe_key TEXT,
+      listing_json TEXT,
+      previous_listing_json TEXT,
+      parent_product_id INTEGER,
+      amplified INTEGER DEFAULT 0,
+      design_brief TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -211,6 +183,18 @@ function init() {
 
   // Flight Deck run stream — every console action/automation step is a "run".
   db.exec(`
+    CREATE TABLE IF NOT EXISTS jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      prompt TEXT NOT NULL,
+      plan TEXT,
+      status TEXT DEFAULT 'running',
+      step_index INTEGER DEFAULT 0,
+      progress INTEGER DEFAULT 0,
+      created_by TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS action_runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       action TEXT NOT NULL,
@@ -304,7 +288,7 @@ function init() {
   // Migration: AI product concept (differentiated name + pitch + why-not-generic)
   try { db.exec('ALTER TABLE products ADD COLUMN concept TEXT'); } catch (e) { /* column already exists */ }
   // Origin tag: 'manual' (Make-this / hand-fed) vs 'engine' (auto-generated).
-  // The publish queue excludes manual products unless AUTO_PUBLISH_MANUAL=true.
+  // The deploy policy reads it — manual products never auto-publish.
   try { db.exec('ALTER TABLE products ADD COLUMN origin TEXT'); } catch (e) { /* column already exists */ }
   // Optimized listing copy (title/tags/description) written by the optimizer.
   try { db.exec('ALTER TABLE products ADD COLUMN listing_json TEXT'); } catch (e) { /* column already exists */ }
@@ -319,10 +303,7 @@ function init() {
   // Generative art direction: the product's design brief (the "skin" — content
   // lives in concept/brief/services). JSON: mood, palette, fonts, motif, …
   try { db.exec('ALTER TABLE products ADD COLUMN design_brief TEXT'); } catch (e) { /* column already exists */ }
-  // R0.3 idempotency: sha256(profession|type|brief) so a re-run cannot insert the
-  // same product twice. Lookup index, not UNIQUE — legacy rows have no key.
   try { db.exec('ALTER TABLE products ADD COLUMN dedupe_key TEXT'); } catch (e) { /* column already exists */ }
-  try { db.exec('CREATE INDEX IF NOT EXISTS idx_products_dedupe_key ON products (dedupe_key)'); } catch (e) { /* exists */ }
 
   // ── DESIGN QUALITY (Design Quality Upgrade, Phases 1-3) ───────────────────
   // Render→critique→revise scores. `scores` is strict JSON
@@ -423,26 +404,11 @@ function init() {
     console.error('[DB] migrate skipped (concurrent init):', e.message);
   }
   try {
-      fixProfessionEmoji();
-    } catch (e) {
-      console.error('[DB] emoji repair skipped:', e.message);
-    }
-
-    // ── R0.5: PER-CYCLE METRICS ────────────────────────────────────────
-    // Store key metrics from each automation cycle for trending and analysis
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS cycle_metrics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        products_made INTEGER,
-        listed INTEGER,
-        pass_rate REAL,
-        avg_cover_score REAL,
-        niches_found INTEGER,
-        recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    try { db.exec('CREATE INDEX IF NOT EXISTS idx_cycle_metrics_recorded_at ON cycle_metrics (recorded_at DESC)'); } catch (e) { /* exists */ }
+    fixProfessionEmoji();
+  } catch (e) {
+    console.error('[DB] emoji repair skipped:', e.message);
   }
+}
 
 // Repairs profession emojis that an earlier encoding pass wrote as "??"/"?".
 // Safe on every boot: only touches rows whose emoji is still a placeholder.
@@ -498,27 +464,6 @@ function migrateProfessions() {
     );
   }
 
-  // ── JOBS — persistent multi-step projects the agent drives autonomously ──
-  // A job is a natural-language prompt turned into a step plan (brainstorm →
-  // generate → optimize → publish). The cron executor advances one step per
-  // pass; publish steps pause for human approval (the `gate`). Progress is a
-  // JSON log so a job survives restarts and reports what the AI decided.
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS jobs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      prompt TEXT NOT NULL,
-      plan TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'planned',
-      step_index INTEGER NOT NULL DEFAULT 0,
-      progress TEXT,
-      niche TEXT,
-      created_by TEXT DEFAULT 'operator',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-  try { db.exec('CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs (status, id)'); } catch (e) { /* exists */ }
-
 }
 
 function seedProfessions() {
@@ -555,6 +500,10 @@ function seedProfessions() {
     insert.run(p.id, p.emoji, p.name, p.slug, 'researching', p.tier, p.colors, p.services, p.hashtags);
   }
 }
+
+// Test runs use an empty throwaway database (see runtimeConfig), so the schema
+// must exist before any suite queries it. init() is idempotent.
+if (process.env.NODE_TEST_CONTEXT && !process.env.USE_DEV_DB_IN_TEST) init();
 
 module.exports = { db, init, DB_PATH };
 
