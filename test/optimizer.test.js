@@ -176,3 +176,35 @@ test('conceptEngine.generateConcept accepts a brief and bare niche strings witho
   assert.ok(r === null || (typeof r === 'object' && typeof r.name === 'string'));
   if (!cfg.enabled) assert.equal(r, null);
 });
+
+test('listingAgent: lintListing catches doubled words, foreign terms, and tag length violations', () => {
+  const listingAgent = require('../server/services/listingAgent');
+  const problems = listingAgent.lintListing({
+    title: 'AA Recovery Recovery Affirmation Labels',
+    description: 'Includes a full invoice and pricing tool for your business.',
+    tags: ['tag1', 'this-tag-is-way-too-long-for-etsy']
+  }, { type: 'affirmation-labels' });
+  assert.ok(problems.some(p => /doubled word/i.test(p)), 'detects doubled word');
+  assert.ok(problems.some(p => /foreign term/i.test(p)), 'detects foreign term');
+  assert.ok(problems.some(p => /tag over 20 chars/i.test(p)), 'detects tag >20 chars');
+});
+
+test('marketplace.ensureListingCopy populates listing_json and listingCopyFor respects ignoreAgentCopy', async () => {
+  const profId = makeProfession({ services: '[["Affirmation Print","$8"]]', hashtags: '["#recovery"]' });
+  const pid = makeProduct(profId, { name: 'AA / 12-Step Recovery Recovery Affirmation Labels', type: 'affirmation-labels' });
+  try {
+    const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(profId);
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(pid);
+    await mp.ensureListingCopy(product, prof);
+    assert.ok(product.listing_json, 'listing_json written before publish');
+    const seoData = seo.generateSEO(prof, product.type, product.theme, []);
+    const agentCopy = mp.listingCopyFor(product, prof, seoData);
+    assert.ok(!/\b(\w+) \1\b/i.test(agentCopy.title), 'doubled word stripped in title');
+    const origCopy = mp.listingCopyFor(product, prof, seoData, { ignoreAgentCopy: true });
+    assert.notEqual(origCopy.source, 'agent', 'ignoreAgentCopy bypasses listing_json');
+  } finally {
+    db.prepare('DELETE FROM products WHERE id = ?').run(pid);
+    db.prepare('DELETE FROM professions WHERE id = ?').run(profId);
+  }
+});
+

@@ -190,6 +190,9 @@ test('verifyCover: a verified cover passes and is cached against the exact file'
       deps: { ...passingDeps, extract: async () => { extractCalls++; return { region: richSeries(), raster: richSeries() }; } }
     });
     assert.equal(second.cached, true);
+    // A cached pass must still clear the publish gate (regression: it used to read as 'undefined' failure).
+    assert.equal(second.publishAllowed, true);
+    assert.equal(second.status, 'pass');
     assert.equal(extractCalls, 0, 'an unchanged artifact must not be re-inspected');
 
     // Changing the artifact invalidates the cache.

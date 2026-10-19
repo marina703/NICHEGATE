@@ -36,7 +36,7 @@ test('Horizon 3: seasonal.isSeasonalWindowActive correctly identifies active pea
   }
 });
 
-test('Horizon 3: pinEngine duePins handles live token and marks pins posted', async () => {
+test('Horizon 3: pinEngine duePins does not mark pins posted without a channel', async () => {
   const prof = db.prepare('INSERT INTO professions (name, slug) VALUES (?, ?)').run(`Pin Prof ${Date.now()}`, `pin-prof-${Date.now()}`);
   const profId = prof.lastInsertRowid;
   const prod = db.prepare("INSERT INTO products (profession_id, name, type, price, status) VALUES (?, ?, 'spreadsheet', '$19.00', 'listed')")
@@ -49,10 +49,9 @@ test('Horizon 3: pinEngine duePins handles live token and marks pins posted', as
 
   try {
     const due = await pinEngine.duePins(10);
-    assert.ok(Array.isArray(due));
-    assert.ok(due.length >= 1);
+    assert.deepEqual(due, []);
     const updated = db.prepare("SELECT status FROM pins WHERE product_id = ?").get(prod);
-    assert.equal(updated.status, 'posted');
+    assert.equal(updated.status, 'scheduled');
   } finally {
     db.prepare('DELETE FROM pins WHERE product_id = ?').run(prod);
     db.prepare('DELETE FROM products WHERE id = ?').run(prod);

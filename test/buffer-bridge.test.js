@@ -7,7 +7,8 @@ process.env.ADMIN_PASSWORD = 'buffer-test-only-2026';
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { db } = require('../server/database');
+const { db, init } = require('../server/database');
+init(); // test DB starts empty: create the schema first
 const buffer = require('../server/services/bufferBridge');
 const pinEngine = require('../server/services/pinEngine');
 
@@ -100,40 +101,78 @@ test('bufferBridge: GraphQL payload carries channel/assets/board/dueAt', async (
   }
 });
 
+function insertDuePin(tag) {
+  const prof = db.prepare('INSERT INTO professions (name, slug) VALUES (?, ?)').run(`Buf ${tag} ${Date.now()}`, `buf-${tag}-${Date.now()}`);
+  const profId = prof.lastInsertRowid;
+  const prod = db.prepare("INSERT INTO products (profession_id, name, type, price, status) VALUES (?, ?, 'checklist', '$19.00', 'listed')")
+    .run(profId, `Buffer ${tag} Item`).lastInsertRowid;
+  db.prepare(`INSERT INTO pins (product_id, title, description, board_hint, target_url, status, scheduled_for)
+              VALUES (?, 'Buf Pin', 'desc', 'general', NULL, 'scheduled', ?)`)
+    .run(prod, new Date(Date.now() - 3600000).toISOString());
+  return { profId, prod };
+}
+
+function cleanupDuePin({ profId, prod }) {
+  db.prepare('DELETE FROM pins WHERE product_id = ?').run(prod);
+  db.prepare('DELETE FROM products WHERE id = ?').run(prod);
+  db.prepare('DELETE FROM professions WHERE id = ?').run(profId);
+  db.prepare("DELETE FROM marketplace_tokens WHERE platform = 'pinterest'").run();
+}
+
 test('pinEngine: duePins prefers the direct Pinterest token over Buffer', async () => {
   setSetting('buffer_api_token', 'tok_precedence');
   setSetting('buffer_channel_id', 'chan_precedence');
   setSetting('buffer_board_service_id', 'board_precedence');
   setSetting('public_base_url', 'https://pin.example.com');
-  // Make the buffer bridge claim readiness regardless of image existence
+
   const realReady = buffer.bufferReady;
+  const realPublish = buffer.publishToBuffer;
   buffer.bufferReady = () => true;
-  const realPinUrl = buffer.pinImagePublicUrl;
-  buffer.pinImagePublicUrl = () => 'https://pin.example.com/x.jpg';
+  const bufferCalls = [];
+  buffer.publishToBuffer = async (pin) => { bufferCalls.push(pin); return { skipped: true, reason: 'should_not_run' }; };
 
-  // Insert a fake Pinterest token so the direct path is chosen
+  const axios = require('axios');
+  const realPost = axios.post;
+  const pinterestAuth = [];
+  axios.post = async (url, body, cfg) => {
+    if (url !== 'https://api.pinterest.com/v5/pins') throw new Error('unexpected url ' + url);
+    pinterestAuth.push(cfg.headers.Authorization);
+    return { status: 201, data: { id: 'pin_direct_1' } };
+  };
+
   db.prepare("INSERT OR REPLACE INTO marketplace_tokens (platform, access_token) VALUES ('pinterest', 'tok_direct_win')").run();
-
-  const prof = db.prepare('INSERT INTO professions (name, slug) VALUES (?, ?)').run(`Buf Prof ${Date.now()}`, `buf-prof-${Date.now()}`);
-  const profId = prof.lastInsertRowid;
-  const prod = db.prepare("INSERT INTO products (profession_id, name, type, price, status) VALUES (?, ?, 'checklist', '$19.00', 'listed')")
-    .run(profId, 'Buffer Precedence Item').lastInsertRowid;
-  db.prepare(`INSERT INTO pins (product_id, title, description, board_hint, target_url, status, scheduled_for)
-              VALUES (?, 'Buf Pin', 'desc', 'general', NULL, 'scheduled', ?)`)
-    .run(prod, new Date(Date.now() - 3600000).toISOString());
-
+  const ids = insertDuePin('precedence');
   try {
     const due = await pinEngine.duePins(10);
-    assert.ok(Array.isArray(due));
-    const status = db.prepare("SELECT status FROM pins WHERE product_id = ?").get(prod);
-    assert.equal(status.status, 'posted');
+    assert.ok(due.some(d => d.product_id === ids.prod));
+    assert.deepEqual(pinterestAuth, ['Bearer tok_direct_win']);
+    assert.equal(bufferCalls.length, 0, 'Buffer must not be used when the direct token exists');
+    const row = db.prepare('SELECT status, posted_at FROM pins WHERE product_id = ?').get(ids.prod);
+    assert.equal(row.status, 'posted');
+    assert.ok(row.posted_at);
   } finally {
     buffer.bufferReady = realReady;
-    buffer.pinImagePublicUrl = realPinUrl;
-    db.prepare('DELETE FROM pins WHERE product_id = ?').run(prod);
-    db.prepare('DELETE FROM products WHERE id = ?').run(prod);
-    db.prepare('DELETE FROM professions WHERE id = ?').run(profId);
-    db.prepare("DELETE FROM marketplace_tokens WHERE platform = 'pinterest'").run();
+    buffer.publishToBuffer = realPublish;
+    axios.post = realPost;
+    cleanupDuePin(ids);
+  }
+});
+
+test('pinEngine: a failed dispatch is marked failed with the reason, never posted', async () => {
+  db.prepare("INSERT OR REPLACE INTO marketplace_tokens (platform, access_token) VALUES ('pinterest', 'tok_fail')").run();
+  const axios = require('axios');
+  const realPost = axios.post;
+  axios.post = async () => { throw new Error('pinterest 401 unauthorized'); };
+  const ids = insertDuePin('failure');
+  try {
+    await pinEngine.duePins(10);
+    const row = db.prepare('SELECT status, note, posted_at FROM pins WHERE product_id = ?').get(ids.prod);
+    assert.equal(row.status, 'failed');
+    assert.match(row.note, /pinterest 401 unauthorized/);
+    assert.equal(row.posted_at, null);
+  } finally {
+    axios.post = realPost;
+    cleanupDuePin(ids);
   }
 });
 
