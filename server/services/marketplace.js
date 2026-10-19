@@ -188,6 +188,24 @@ async function autoRefreshEtsyTokenIfExpiring(leadMinutes = 30) {
   return { refreshed: false, reason: 'not_expiring_soon' };
 }
 
+async function ensureListingCopy(product, prof) {
+  if (!product) return;
+  if (product.listing_json) return;
+  try {
+    const listingAgent = require('./listingAgent');
+    const spec = await listingAgent.directListing(product, prof);
+    if (spec && spec.title && spec.description) {
+      const json = JSON.stringify(spec);
+      product.listing_json = json;
+      if (product.id != null) {
+        db.prepare('UPDATE products SET listing_json = ? WHERE id = ?').run(json, product.id);
+      }
+    }
+  } catch (e) {
+    console.error('[LISTING AGENT] ensureListingCopy fallback:', e.message);
+  }
+}
+
 async function listOnEtsy(product, shopId) {
   const token = db.prepare('SELECT * FROM marketplace_tokens WHERE platform = ?').get('etsy');
   if (!token) throw new Error('Etsy not connected. Visit /setup to connect.');
@@ -198,6 +216,7 @@ async function listOnEtsy(product, shopId) {
   }
   
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+  await ensureListingCopy(product, prof);
   const demandTags = await warmDemand(prof);
   const seoData = seo.generateSEO(prof, product.type, product.theme, demandTags);
   const copy = listingCopyFor(product, prof, seoData);
@@ -730,6 +749,7 @@ async function publishToGumroadReal(product) {
   const token = process.env.GUMROAD_ACCESS_TOKEN;
   const priceCents = Math.round((parseFloat(product.price.replace('$', '')) || 12) * 100);
   const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+  await ensureListingCopy(product, prof);
   const demandTags = await warmDemand(prof);
   const seoData = seo.generateSEO(prof, product.type, product.theme, demandTags);
   const copy = listingCopyFor(product, prof, seoData);
@@ -737,7 +757,7 @@ async function publishToGumroadReal(product) {
   // 1. Upload the deliverable → canonical file_url
   const fileUrl = await uploadGumroadFile(filePath);
 
-  // 2. Create the product WITH the file attached, concept-aware copy
+  // 2. Create the product WITH the file attached, concept-aware copy + SEO tags
   const form = new URLSearchParams({
     access_token: token,
     name: copy.title.substring(0, 200),
@@ -745,6 +765,10 @@ async function publishToGumroadReal(product) {
     description: copy.description.substring(0, 2000),
     'files[][url]': fileUrl
   });
+  for (const tag of (copy.tags || []).slice(0, 13)) {
+    const cleanTag = String(tag || '').trim().slice(0, 20);
+    if (cleanTag) form.append('tags[]', cleanTag);
+  }
   let createResp;
   try {
     createResp = await axios.post(`${GUMROAD_API_BASE}/products`, form.toString(), {
@@ -770,10 +794,13 @@ async function publishToGumroadReal(product) {
   // 3. Publish (products are created as unpublished drafts)
   await axios.put(`${GUMROAD_API_BASE}/products/${encodeURIComponent(gumroadId)}/enable?access_token=${token}`, null, { timeout: 20000 });
 
-  // 4. Attach the v3 composite cover (best-effort — never blocks the listing)
+  // 4. Attach the cover (prefer the product's existing cover-director preview)
   try {
-    const { ensureProductThumbnail } = require('./fileFactory');
-    const coverPath = await ensureProductThumbnail(product);
+    let coverPath = product && product.preview_path && fs.existsSync(product.preview_path) ? product.preview_path : null;
+    if (!coverPath) {
+      const { ensureProductThumbnail } = require('./fileFactory');
+      coverPath = await ensureProductThumbnail(product);
+    }
     if (coverPath) await attachGumroadCover(gumroadId, coverPath);
   } catch (e) {
     console.error('[PUBLISH] Gumroad cover attach skipped:', e.message);
@@ -1009,6 +1036,7 @@ module.exports = {
   GUMROAD_DAILY_LIMIT,
   conceptFor,
   listingCopyFor,
+  ensureListingCopy,
   attachEtsyListingImages
 };
 

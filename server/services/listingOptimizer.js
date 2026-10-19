@@ -41,7 +41,9 @@ function wordsFrom(parts) {
 // Deterministic copy upgrade on top of what publish would use today.
 function optimizeCopy(product, prof) {
   const base = seo.generateSEO(prof, product.type, product.theme);
-  const current = mp.listingCopyFor(product, prof, base);
+  // ignoreAgentCopy: the "current" snapshot is the ORIGINAL (pre-agent,
+  // pre-optimizer) copy — rollback must restore it verbatim.
+  const current = mp.listingCopyFor(product, prof, base, { ignoreAgentCopy: true });
   const concept = conceptOf(product);
 
   // Title: a bare concept name sells but doesn't get searched — combine the

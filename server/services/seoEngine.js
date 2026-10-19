@@ -24,7 +24,50 @@ const PRODUCT_TERMS = {
   'party-printable': ['Party Printable', 'Invitation Template', 'Party Printables', 'Printable Invitation'],
   'pyro-batch': ['Batch Mixing Worksheet', 'Pyro Batch Sheet', 'Mixing Worksheet', 'Pyro Worksheet'],
   'pyro-lift-fuse': ['Lift & Fuse Worksheet', 'Pyro Lift Charge', 'Fuse Cut Sheet', 'Pyro Worksheet'],
-  'pyro-shoot-log': ['Pre-Shoot Checklist', 'Launch Log', 'Pyro Safety Checklist', 'Pyro Log']
+  'pyro-shoot-log': ['Pre-Shoot Checklist', 'Launch Log', 'Pyro Safety Checklist', 'Pyro Log'],
+  // ── Recovery vertical (consumer printables — NOT B2B service tools) ──
+  'affirmation-labels': ['Affirmation Labels', 'Recovery Labels', 'Printable Labels', 'Sticker Sheet'],
+  'recovery-journal': ['Recovery Journal', 'Guided Journal', 'Daily Journal', 'Journal Printable'],
+  'recovery-nutrition': ['Nutrition Guide', 'Recovery Nutrition', 'Meal Plan', 'Healthy Eating Guide'],
+  'meeting-flashcards': ['Meeting Flashcards', 'Recovery Flashcards', 'Printable Cards', 'Flash Cards']
+};
+
+// Consumer (not professional-tool) product types — different voice, different
+// description structure. These sell to people in recovery, not to trades.
+const RECOVERY_TYPES = new Set(['affirmation-labels', 'recovery-journal', 'recovery-nutrition', 'meeting-flashcards']);
+
+// What each recovery type ACTUALLY contains — mirrors the builders' output.
+const RECOVERY_SPECIFICS = {
+  'affirmation-labels': [
+    'Round cut-out labels with affirmations like "Just for today" and "One day at a time"',
+    'A rectangle label set sized for planners, mirrors, wallets and water bottles',
+    'Dashed cut lines on every label — prints clean on sticker paper or cardstock',
+    'A short "how to use" page with placement ideas that keep intentions visible'
+  ],
+  'recovery-journal': [
+    '30 daily guided pages — one page a day, morning intention to evening review',
+    'The Serenity Prayer and a Day-of-30 marker on every page',
+    'Reflection prompts: gratitude, amends, acceptance, and what you learned',
+    'Print it, or fill it in digitally — both work'
+  ],
+  'recovery-nutrition': [
+    'A gentle cleanse plan built around real, whole foods',
+    'Simple recipes and a daily meal structure for a body in healing',
+    'Grocery list and prep guide so day one actually starts',
+    'Printable PDF — instant download'
+  ],
+  'meeting-flashcards': [
+    'Printable meeting format cards for common meeting types',
+    'Simple prompts that keep a meeting moving and on topic',
+    'Print-and-cut layout — one sheet, several cards'
+  ]
+};
+
+const RECOVERY_OUTCOME = {
+  'affirmation-labels': 'daily reminders that meet you where you are — mirror, fridge, wallet, planner.',
+  'recovery-journal': 'one honest page a day, 30 days of steady reflection.',
+  'recovery-nutrition': 'real food for a body that is healing — no crash diets, no gimmicks.',
+  'meeting-flashcards': 'run the meeting, keep the room, no prep required.'
 };
 
 const TIER_TERMS = {
@@ -85,6 +128,8 @@ function safeJsonArray(value) {
 function moatSpecifics(prof, type) {
   const out = [];
   const push = (v) => { const t = (v && v.text) || v; if (t) out.push(String(t).replace(/\s+/g, ' ').trim().slice(0, 110)); };
+  // Recovery vertical: real consumer content, not the profession's B2B checklist.
+  if (RECOVERY_TYPES.has(type)) return RECOVERY_SPECIFICS[type].slice();
   if (type === 'social') {
     for (let v = 0; v < 3; v++) {
       const a = contentLibrary.socialAngleFor(prof, v);
@@ -97,6 +142,12 @@ function moatSpecifics(prof, type) {
     out.push('P&L tab: monthly and annual profit, expenses and margin');
     out.push('Client ROI tab: a value sheet that justifies premium quotes');
     out.push('Cash Flow and Scenarios tabs: 12-month runway plus three demand cases');
+  } else if (type === 'bundle') {
+    const services = safeJsonArray(prof.services).slice(0, 3).map(s => (Array.isArray(s) ? s[0] : s)).filter(Boolean);
+    out.push(`Complete multi-file toolkit tailored for ${prof.name}`);
+    out.push('Includes editable Invoice, Service Checklist, Pricing Spreadsheet & Booking Form');
+    out.push('Includes Social Media Content Pack, Brand Kit, Planner & Printable assets');
+    if (services.length) out.push(`Pre-configured for ${services.join(', ')} workflows`);
   } else {
     const cat = (contentLibrary.getContentFor && contentLibrary.getContentFor(prof)) || null;
     (Array.isArray(cat && cat.checklist) ? cat.checklist.slice(0, 4) : []).forEach(push);
@@ -124,14 +175,31 @@ function listingCopyGate(description, specifics = []) {
 
 function buildDescription(prof, type, theme, specifics = []) {
   const base = PRODUCT_TERMS[type] || PRODUCT_TERMS.invoice;
+  const fmt = type === 'spreadsheet' ? 'XLSX' : (type === 'social' || type === 'bundle') ? 'ZIP' : 'PDF';
+
+  // ── Recovery vertical: consumer voice, real content, no B2B framing ──
+  if (RECOVERY_TYPES.has(type)) {
+    const inside = (specifics.length ? specifics.slice(0, 4) : RECOVERY_SPECIFICS[type]).map((s) => `• ${s}`);
+    return [
+      `${base[2]} for ${prof.name} — ${RECOVERY_OUTCOME[type]}`,
+      ``,
+      `WHAT'S INSIDE:`,
+      inside.join('\n'),
+      ``,
+      `Print at home or use digitally — instant download, yours to keep.`,
+      ``,
+      `Format: ${fmt} · Instant download after purchase.`
+    ].join('\n');
+  }
+
   const services = safeJsonArray(prof.services).slice(0, 4);
   const serviceList = services.map(s => (Array.isArray(s) ? s[0] : s)).filter(Boolean).join(', ');
-  const fmt = type === 'spreadsheet' ? 'XLSX' : type === 'social' ? 'ZIP' : 'PDF';
   const inside = (specifics.length ? specifics.slice(0, 4).map(s => `• ${s}`) : [`• Ready-to-use ${base[0].toLowerCase()} for ${prof.name}`]).join('\n');
   const OUTCOME = {
     spreadsheet: 'quote jobs in seconds with live formulas, margin and tax built in.',
     booking: 'track bookings, deposits and balances in one sheet.',
-    inventory: 'see stock value and reorder flags at a glance.'
+    inventory: 'see stock value and reorder flags at a glance.',
+    bundle: 'every essential template, calculator, checklist and marketing kit in one instant ZIP download.'
   };
   const lead = OUTCOME[type]
     ? `${base[2]} for ${prof.name} — ${OUTCOME[type]}`
