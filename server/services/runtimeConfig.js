@@ -14,6 +14,21 @@ function resolveDatabasePath(env = process.env, projectRoot = path.resolve(__dir
     const configured = String(env.DB_PATH);
     return path.isAbsolute(configured) ? path.normalize(configured) : path.resolve(projectRoot, configured);
   }
+  if (env.NODE_TEST_CONTEXT && !env.USE_DEV_DB_IN_TEST) {
+    // Test runs never read or write the live database: each worker gets an
+    // empty throwaway file that the suite's own init() populates.
+    const os = require('os');
+    if (!process.env.__NICHEGATE_WORKER_DB) {
+      const tmp = path.join(os.tmpdir(), `nichegate-test-worker-${process.pid}-${Date.now()}.db`);
+      process.env.__NICHEGATE_WORKER_DB = tmp;
+      process.once('exit', () => {
+        for (const s of ['', '-wal', '-shm']) {
+          try { fs.unlinkSync(tmp + s); } catch { /* ignore */ }
+        }
+      });
+    }
+    return process.env.__NICHEGATE_WORKER_DB;
+  }
   if (isRailway(env) && env.RAILWAY_VOLUME_MOUNT_PATH) {
     return path.join(path.resolve(env.RAILWAY_VOLUME_MOUNT_PATH), 'profession-box.db');
   }

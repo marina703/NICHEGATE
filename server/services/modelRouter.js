@@ -50,9 +50,12 @@ function sleep(ms) {
 // One chat completion with retry + backoff. Returns text or null. Never throws.
 // `action` labels the ai_usage ledger row (chat_completion, design_critique, …).
 // `messages` pass through verbatim, so content arrays (vision image parts) work.
-async function callModel({ model, messages, temperature = 0.7, maxTokens, action }) {
+async function callModel({ model, messages, temperature = 0.7, maxTokens, action, target }) {
   if (!cfg.enabled) return null;
 
+  // `target` = { baseUrl, headers } lets a caller route one call to another
+  // OpenAI-compatible provider (e.g. Nous Portal for vision). Default: OpenRouter.
+  const endpoint = target || { baseUrl: cfg.openrouter.baseUrl, headers: headers() };
   const body = {
     model,
     messages,
@@ -63,8 +66,8 @@ async function callModel({ model, messages, temperature = 0.7, maxTokens, action
   let lastErr = null;
   for (let attempt = 0; attempt <= MAX_RETRIES(); attempt++) {
     try {
-      const res = await axios.post(`${cfg.openrouter.baseUrl}/chat/completions`, body, {
-        headers: headers(),
+      const res = await axios.post(`${endpoint.baseUrl}/chat/completions`, body, {
+        headers: endpoint.headers,
         timeout: TIMEOUT_MS(),
         maxBodyLength: Infinity,
         maxContentLength: Infinity
@@ -157,8 +160,16 @@ async function callVision({ prompt, images = [], system, temperature = 0.2, maxT
     ...images.filter(Boolean).slice(0, 4).map(url => ({ type: 'image_url', image_url: { url } }))
   ];
   if (content.length < 2) return null; // no image, nothing to look at
+  // VISION_PROVIDER=nous routes vision through Nous Portal (OpenAI-compatible,
+  // key in NOUSPORTAL_API_KEY). Anything else keeps the OpenRouter default.
+  const useNous = String(process.env.VISION_PROVIDER || '').toLowerCase() === 'nous' && process.env.NOUSPORTAL_API_KEY;
+  const target = useNous ? {
+    baseUrl: process.env.VISION_BASE_URL || 'https://inference-api.nousresearch.com/v1',
+    headers: { Authorization: `Bearer ${process.env.NOUSPORTAL_API_KEY}`, 'Content-Type': 'application/json' }
+  } : undefined;
   return callModel({
-    model: cfg.openrouter.visionModel,
+    target,
+    model: useNous ? (process.env.VISION_MODEL || 'anthropic/claude-haiku-5.5') : cfg.openrouter.visionModel,
     messages: [
       ...(system ? [{ role: 'system', content: String(system).slice(0, 2000) }] : []),
       { role: 'user', content }
@@ -212,6 +223,7 @@ function status() {
 module.exports = {
   resetCycleCounter,
   callsUsed,
+  underCap,
   cheapSummarize,
   scoreOptions,
   generateIdeas,
