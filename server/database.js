@@ -15,20 +15,50 @@ fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 // spiral. Safe: only deletes regenerable caches, never the DB or deliverables.
 try { require('./services/bootSpace').ensureBootHeadroom(); } catch (e) { console.error('[BOOT] space reclaim skipped:', e.message); }
 
-const db = new DatabaseSync(DB_PATH);
-
-// Enforce WAL + sensible lock wait so concurrent cron/API writers don't fail fast.
-// busy_timeout MUST be set first: the WAL switch takes a lock, and without this
-// wait it fails instantly whenever another process (parallel test file, cron,
-// API) holds the file — leaving the connection with no lock wait at all.
-db.exec('PRAGMA busy_timeout = 5000;');
-db.exec('PRAGMA synchronous = NORMAL;');
-db.exec('PRAGMA foreign_keys = ON;');
-try {
-  db.exec('PRAGMA journal_mode = WAL;');
-} catch (e) {
-  console.error('[DB] pragma init:', e.message);
+function createDBConnection() {
+  const db = new DatabaseSync(DB_PATH);
+  // Enforce WAL + sensible lock wait so concurrent cron/API writers don't fail fast.
+  // busy_timeout MUST be set first: the WAL switch takes a lock, and without this
+  // wait it fails instantly whenever another process (parallel test file, cron,
+  // API) holds the file — leaving the connection with no lock wait at all.
+  db.exec('PRAGMA busy_timeout = 5000;');
+  db.exec('PRAGMA statement_timeout = 30000;'); // 30 seconds statement timeout
+  db.exec('PRAGMA synchronous = NORMAL;');
+  db.exec('PRAGMA foreign_keys = ON;');
+  try {
+    db.exec('PRAGMA journal_mode = WAL;');
+  } catch (e) {
+    console.error('[DB] pragma init:', e.message);
+  }
+  return db;
 }
+
+let dbInstance = createDBConnection();
+
+// Proxy that reconnects on certain errors and retries once
+const db = new Proxy(dbInstance, {
+  get(target, prop) {
+    if (typeof target[prop] === 'function') {
+      return function(...args) {
+        try {
+          return target[prop].apply(target, args);
+        } catch (e) {
+          // Retry on lock or I/O errors
+          if (e.code === 'SQLITE_ERROR' && 
+              (e.message.includes('database is locked') || 
+               e.message.includes('disk I/O error') ||
+               e.message.includes('database disk image is malformed'))) {
+            // Reconnect once
+            dbInstance = createDBConnection();
+            return dbInstance[prop].apply(dbInstance, args);
+          }
+          throw e;
+        }
+      };
+    }
+    return target[prop];
+  }
+});
 
 function init() {
   db.exec(`

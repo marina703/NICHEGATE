@@ -23,7 +23,10 @@ DONE THIS PASS (verified):
 - P2.3 types: 8 added; real swipe-file PDF rendered via ensureProductFile (%PDF-, 97KB), probe rows cleaned (verified 0 leftover).
 - N1.1 fission: test/niche-fission.test.js 5/5; wired into discovery.sweep behind cfg.enabled.
 SUITE: `node --test` → 694 tests, 656 pass, 30 fail. The 30 are the SAME pre-existing set as before any edit (diff empty).
-DEFERRED (real work remaining): R0.4 DB reconnect.
+- R0.4 DB reconnect: wrap database.js connection with reconnect + a 30s statement timeout (verified).
+- Fixed vetting is not defined in trendScanner.js by moving require('./vettingEngine') to module level.
+- Fixed no such column: velocity_pct in index.js by using COALESCE(measured_velocity, 0) AS velocity_pct in the buildStewardBrief query.
+
 
 ## ── 2026-10-16: BLUEPRINT PHASE 0 + C3.3 (partial, uncommitted) ──
 Source: `profiles/swiper/.hermes/plans/2026-10-16_055000-nichegate-10-10-blueprint.md`.

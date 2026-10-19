@@ -3108,14 +3108,14 @@ async function runAutoCycle() {
                 // Also store metrics in dedicated table for easier trending and analysis
               try {
                 const metrics = cycleMetrics(result);
-                db.prepare(`
-                  INSERT INTO cycle_metrics (
-                    products_made, 
-                    listed, 
-                    pass_rate, 
-                    avg_cover_score, 
+                db.prepare(
+                  `INSERT INTO cycle_metrics (
+                    products_made,
+                    listed,
+                    pass_rate,
+                    avg_cover_score,
                     niches_found
-                  ) VALUES (?, ?, ?, ?, ?)
+                  ) VALUES (?, ?, ?, ?, ?)`
                 ).run(
                   metrics.products_made || 0,
                   metrics.listed || 0,
@@ -3126,7 +3126,6 @@ async function runAutoCycle() {
               } catch (e) {
                 console.error('[AUTO] could not record cycle metrics:', e.message);
               }
-    return result;
   } catch (e) {
     console.error('[AUTO] cycle error:', e.message);
     db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
@@ -3781,7 +3780,13 @@ function buildStewardBrief() {
     weak: 0, revenue7d: null, sales7d: null,
     pendingAsks: workerStore.pendingCount(),
     lastAskAtMs: workerStore.lastAskAtMs(),
-    trends: db.prepare('SELECT * FROM trends ORDER BY velocity_pct DESC LIMIT 8').all()
+    trends: db.prepare(`
+      SELECT *,
+             COALESCE(measured_velocity, 0) AS velocity_pct
+      FROM trends
+      ORDER BY velocity_pct DESC
+      LIMIT 8
+    `).all()
   };
   try {
     const bi = biService.build();

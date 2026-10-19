@@ -1,6 +1,8 @@
 const { db } = require('../database');
 const { computeVelocityScore, grade, scoreTrends } = require('./velocityEngine');
 const nicheServices = require('./nicheServices');
+const radar = require('./trendRadar');
+const vetting = require('./vettingEngine');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TREND SCANNER — detection, lifecycle, and scoring
@@ -29,7 +31,6 @@ const TREND_POOL = [
 async function scanForTrends() {
   // 1. Live radar
   try {
-    const radar = require('./trendRadar');
     const live = await radar.scanLiveTrends(3);
     if (live && live.length) {
       db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
@@ -41,8 +42,6 @@ async function scanForTrends() {
   }
 
   // 2. Curated pool fallback — rank by vetting score instead of a random shuffle
-  const radar = require('./trendRadar');
-  const vetting = require('./vettingEngine');
   const tracked = new Set(db.prepare('SELECT name FROM trends').all().map(a => radar.normalizeNicheKey(a.name)));
   const available = TREND_POOL.filter(t => !tracked.has(radar.normalizeNicheKey(t.name)));
   if (available.length === 0) return null;
