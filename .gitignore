@@ -18,6 +18,17 @@ tmp/
 generated/
 previews/
 covers/ai/
+covers/heroes/
+covers/templates/
+director-test-out/
+hero-test-out/
+page-test-out/
+correct covers/
+logo assets/
+old NICHEGATE-main -/
+gumroad-page/dist-assets/
+nichegate-stdout.log
+.audit-tmp/
 
 # ── Worker secrets + local state (wrangler) ──
 cf-worker/.dev.vars

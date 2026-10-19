@@ -1,14 +1,14 @@
 +------------------------------------------------------------+
   NicheGate  |  Full Stack Server
-  Port: 0  Host: 0.0.0.0
+  Port: 5000  Host: 0.0.0.0
   DB: SQLite (WAL mode)
-  Professions: 40 seeded
+  Professions: 24 seeded
 +------------------------------------------------------------+
 
-Open: http://localhost:0/
+Open: http://localhost:5000/
 API docs available at endpoints under /api/*
 
 [READY] ⚠️ Etsy keys are set but OAuth is not completed (no token stored). Connect at /setup.
-[READY] ℹ️ 56 draft product(s) not yet approved/listed.
-[READY] Launch blockers: none (Etsy not connected, 70 real sale(s))
+[READY] ℹ️ 50 draft product(s) not yet approved/listed.
+[READY] Launch blockers: none (Etsy not connected, 0 real sale(s))
 [AUTO] Auto-generation disabled in settings
