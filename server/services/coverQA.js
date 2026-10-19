@@ -123,17 +123,19 @@ function pageCrops(manifest = {}, master = { width: 1200, height: 1800 }) {
   const screen = manifest.screen || {};
   const slot = manifest.slot || {};
   const wVis = Number(screen.width != null ? screen.width : slot.width) || 0;
-  const fullH = Math.round(wVis * RASTER_ASPECT);
-  const screenH = Number(screen.height != null ? screen.height : slot.height) || fullH;
-  const hVis = Math.max(8, Math.min(fullH, screenH));
+  // Use unrounded wVis * RASTER_ASPECT so vertical sampling matches the
+  // browser's exact layout height of the scaled raster (rounding fullH by up to
+  // 0.5px shifts high-contrast table borders by ~0.5px over 600px, inflating MAD).
+  const fullH = wVis * RASTER_ASPECT;
+  const screenH = Number(screen.height != null ? screen.height : slot.height) || Math.round(fullH);
+  // CSS `transform: scale(scale)` with `transform-origin: top center` stretches
+  // the visual height of the image to `fullH * scale`, clipped by `.product-preview-screen`
+  // at `screenH`.
+  const scale = Math.max(1, Number(manifest.previewScale) || 1);
+  const hVis = Math.max(8, Math.min(Math.round(fullH * scale), screenH));
   const insetX = Math.round(wVis * EDGE_INSET_FRAC);
   const coverW = Math.max(8, wVis - insetX * 2);
   const coverH = Math.max(8, Math.round(hVis * (1 - BOTTOM_TRIM_FRAC)));
-  // The composite scales the raster by COVER_PREVIEW_SCALE (top-center anchor),
-  // so the cover window shows a SMALLER, centered slice of the raster than its
-  // own dimensions suggest. Sample the matching raster region: horizontally
-  // centered at 1/scale width, vertically the top coverH/scale of the raster.
-  const scale = Math.max(1, Number(manifest.previewScale) || 1);
   const rasterW = Math.min(1, (coverW / scale) / wVis);
   const rasterH = Math.min(1, (coverH / scale) / fullH);
   const rasterX = (1 - rasterW) / 2;
@@ -308,7 +310,8 @@ async function verifyCover(product, opts = {}) {
 
     // Cached pass for an unchanged artifact.
     if (!opts.force && manifest && manifest.qaVerified && manifest.qaVerified.ok === true && manifest.qaVerified.sha256 === sha) {
-      return { ...manifest.qaVerified, cached: true, productId: product && product.id, coverPath };
+      // A cached pass must carry the same verdict shape as a fresh one; the gate reads publishAllowed.
+      return { ...manifest.qaVerified, ok: true, publishAllowed: true, status: 'pass', reason: null, cached: true, productId: product && product.id, coverPath };
     }
 
     if (!manifest) {
@@ -343,7 +346,7 @@ async function verifyCover(product, opts = {}) {
     // Cache only passes — a failure should be re-checked after a re-render.
     if (result.ok && sha) {
       try {
-        const next = { ...manifest, qaVerified: { ok: true, sha256: sha, at: new Date().toISOString(), metrics: result.metrics } };
+        const next = { ...manifest, qaVerified: { ok: true, publishAllowed: true, status: 'pass', reason: null, sha256: sha, at: new Date().toISOString(), metrics: result.metrics } };
         fs.writeFileSync(fileFactory.coverManifestPath(coverPath), JSON.stringify(next));
       } catch (e) { console.error('[COVER QA] manifest cache write:', e.message); }
     }

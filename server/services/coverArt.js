@@ -613,6 +613,40 @@ async function viaFal(prompt, outPath, seed = undefined) {
   return writeNativePortrait(outPath, Buffer.from(bin.data));
 }
 
+function listCachedCandidateArt(prof, product, dims = {}) {
+  try {
+    if (!fs.existsSync(OUT_DIR)) return [];
+    const files = fs.readdirSync(OUT_DIR).filter(f => /\.(img|jpg|png)$/i.test(f));
+    const slug = (prof && prof.slug) || '';
+    const type = (product && product.type) || '';
+    const exactPrefix = `${slug}-${type}-`;
+    const profPrefix = `${slug}-`;
+    const candidates = [
+      ...files.filter(f => slug && type && f.startsWith(exactPrefix)),
+      ...files.filter(f => slug && f.startsWith(profPrefix) && !f.startsWith(exactPrefix)),
+      ...files.filter(f => /^(mobile-notary|solo-business|tax-prep|etsy-seller)-/.test(f))
+    ];
+    const valid = [];
+    const seen = new Set();
+    for (const f of candidates) {
+      const full = path.join(OUT_DIR, f);
+      if (seen.has(full)) continue;
+      seen.add(full);
+      try {
+        if (fs.statSync(full).size > 20000 && isNativePortraitImage(fs.readFileSync(full), dims)) {
+          valid.push(full);
+        }
+      } catch { /* skip unreadable */ }
+    }
+    return valid;
+  } catch { return []; }
+}
+
+function findCachedSiblingArt(prof, product, dims = {}) {
+  const list = listCachedCandidateArt(prof, product, dims);
+  return list.length ? list[0] : null;
+}
+
 // Ensure a lifestyle background exists for this product. Returns path or null.
 async function ensureCoverArt(product, prof, theme = {}, opts = {}) {
   try {
@@ -626,6 +660,10 @@ async function ensureCoverArt(product, prof, theme = {}, opts = {}) {
     const seed = opts.forceNew ? Math.floor(Math.random() * 2147483647) : undefined;
     const out = seed === undefined ? basePath : basePath.replace(/\.img$/, `-r${seed}.img`);
     if (!opts.fresh && fs.existsSync(basePath) && fs.statSync(basePath).size > 20000 && isNativePortraitImage(fs.readFileSync(basePath), dims)) return basePath;
+    if (!opts.fresh && !opts.forceNew) {
+      const sibling = findCachedSiblingArt(prof, product, dims);
+      if (sibling) return sibling;
+    }
     const prompt = promptFor(prof, product, theme);
     if (prov === 'cloudflare') return await viaCloudflare(prompt, out, seed, coverModel);
     if (prov === 'fal') return await viaFal(prompt, out, seed);
@@ -633,6 +671,8 @@ async function ensureCoverArt(product, prof, theme = {}, opts = {}) {
   } catch (e) {
     lastCoverError = { at: new Date().toISOString(), reason: classifyCoverError(e), message: String(e.message || '').slice(0, 300) };
     console.error('[COVERART] failed:', e.message);
+    const sibling = findCachedSiblingArt(prof, product, {});
+    if (sibling) return sibling;
     return null;
   }
 }
@@ -801,5 +841,6 @@ module.exports = {
   PROFESSION_SCENES, professionScene,
   STYLE_PROFILES, BANNED_SCENE_TERMS, cachePath, ensureCoverArt, provider, OUT_DIR,
   workerRequestBody, getImageDimensions, imageDataUri, isNativePortraitImage, writeNativePortrait,
-  detectWhiteRect, resolveCoverModel, classifyCoverError, coverProviderState, MODEL_ALLOWLIST
+  detectWhiteRect, resolveCoverModel, classifyCoverError, coverProviderState, MODEL_ALLOWLIST,
+  listCachedCandidateArt, findCachedSiblingArt
 };

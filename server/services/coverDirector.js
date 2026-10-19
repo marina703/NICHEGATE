@@ -53,6 +53,17 @@ function pageSummary(html) {
     .slice(0, 700);
 }
 
+/** Shorten copy to at most n chars at a word boundary. Never leaves an unclosed
+ *  "(" behind, which previously rendered as e.g. "(11 deliverables" on covers. */
+function clipText(s, n) {
+  const t = String(s || '');
+  if (t.length <= n) return t;
+  let cut = t.slice(0, n);
+  const space = cut.lastIndexOf(' ');
+  if (space > n * 0.6) cut = cut.slice(0, space);
+  return cut.replace(/\s*\([^)]*$/, '').replace(/[\s,;:\-–]+$/, '');
+}
+
 function parseHex(hex) {
   const h = String(hex || '').replace('#', '');
   if (!/^[0-9a-f]{6}$/i.test(h)) return null;
@@ -130,11 +141,11 @@ async function directCover(product, prof, pageHtml) {
       field: parseHex(spec.field) ? '#' + spec.field.replace('#', '').toLowerCase() : fallback.field,
       fieldTone: spec.fieldTone === 'light' ? 'light' : 'dark',
       heroCrop: ['top', 'upper', 'full'].includes(spec.heroCrop) ? spec.heroCrop : 'upper',
-      title: clean(spec.title || fallback.title).slice(0, 60),
-      kicker: clean(spec.kicker || fallback.kicker).slice(0, 40),
-      tagline: clean(spec.tagline || fallback.tagline).slice(0, 90),
+      title: clipText(clean(spec.title || fallback.title), 60),
+      kicker: clipText(clean(spec.kicker || fallback.kicker), 40),
+      tagline: clipText(clean(spec.tagline || fallback.tagline), 90),
       benefits: Array.isArray(spec.benefits) && spec.benefits.length
-        ? spec.benefits.slice(0, 3).map((b) => clean(b).slice(0, 50))
+        ? spec.benefits.slice(0, 3).map((b) => clipText(clean(b), 50))
         : fallback.benefits,
       price: fallback.price,
       accent,
@@ -145,4 +156,4 @@ async function directCover(product, prof, pageHtml) {
   }
 }
 
-module.exports = { directCover, deterministicSpec, extractJson, pageSummary, shift, luminance };
+module.exports = { directCover, deterministicSpec, extractJson, pageSummary, shift, luminance, clipText };

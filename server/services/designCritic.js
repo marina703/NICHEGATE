@@ -80,13 +80,30 @@ function parseCritique(text) {
   return { scores, critique };
 }
 
+// When the reply is cut off mid-critique (token cap) the JSON is invalid, but the
+// scores and verdict flags come first. Recover them by key; null if any score is missing.
+function salvageCoverJson(text) {
+  const out = {};
+  for (const key of COVER_RUBRIC) {
+    const m = text.match(new RegExp(`"${key}"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`));
+    if (!m) return null;
+    out[key] = Number(m[1]);
+  }
+  const flag = name => { const m = text.match(new RegExp(`"${name}"\\s*:\\s*(true|false)`)); return m ? m[1] === 'true' : undefined; };
+  out.zero_garbled_text = flag('zero_garbled_text');
+  out.text_violation = flag('text_violation');
+  return out;
+}
+
 function parseCoverCritique(text) {
   if (!text) return null;
   const cleaned = String(text).replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
   const start = cleaned.indexOf('{'), end = cleaned.lastIndexOf('}');
-  if (start < 0 || end < start) return null;
+  if (start < 0) return null;
   let obj;
-  try { obj = JSON.parse(cleaned.slice(start, end + 1)); } catch { return null; }
+  // end < start covers a reply truncated before its closing brace; salvage handles that case.
+  try { obj = JSON.parse(cleaned.slice(start, end + 1)); } catch { obj = salvageCoverJson(cleaned); }
+  if (!obj) return null;
   const scores = {};
   for (const key of COVER_RUBRIC) {
     const score = clampScore(obj[key]);
@@ -118,14 +135,18 @@ async function scoreCoverVariant(product, shots) {
       prompt: [
         `Critique the complete cover for ${String(product.name || '').slice(0, 100)}. Score 0-10 for preview_composite_realism (shadow, plausible placement), focal_hierarchy (real preview is hero), thumbnail_legibility at 250px, and dna_consistency with the brief.`,
         'Hard binary verdict: zero_garbled_text is true ONLY if there is no garbled or pseudo-text anywhere in either photo or preview. Otherwise false.',
-        'JSON only: {"preview_composite_realism":0,"focal_hierarchy":0,"thumbnail_legibility":0,"dna_consistency":0,"zero_garbled_text":true,"text_violation":false,"critique":"specific notes"}'
+        'JSON only: {"preview_composite_realism":0,"focal_hierarchy":0,"thumbnail_legibility":0,"dna_consistency":0,"zero_garbled_text":true,"text_violation":false,"critique":"max 25 words, the single most important fix"}'
       ].join('\\n'),
       images: shots,
       system: 'Strict cover-review JSON. Inspect pixels; never assume unseen details.',
       temperature: 0.1,
+      maxTokens: 1000,
       action: 'cover_critique'
     });
-    return parseCoverCritique(raw);
+    if (!raw) console.warn(`[CRITIC] cover critique for product ${product.id} returned no reply (AI layer off, budget exhausted, or call failed)`);
+    const parsed = parseCoverCritique(raw);
+    if (raw && !parsed) console.warn(`[CRITIC] cover critique for product ${product.id} unparseable: ${String(raw).slice(0, 160).replace(/\s+/g, ' ')}`);
+    return parsed;
   } catch (e) {
     console.error('[CRITIC] scoreCoverVariant failed:', e.message);
     return null;
@@ -215,6 +236,7 @@ async function scoreVariant(product, shots) {
       images: shots,
       system: 'You are a design director for premium digital products. Strict JSON only. Calibrated and blunt: use the full 0-10 range, judge only what the screenshots show, and never punish a product for its genre.',
       temperature: 0.2,
+      maxTokens: 800,
       action: 'design_critique'
     });
     return parseCritique(raw);
@@ -297,7 +319,8 @@ async function critiqueCover(productOrId, opts = {}) {
     }
     if (!opts.force) {
       const previous = latestCoverScore(id);
-      if (previous && ['pass', 'fail'].includes(previous.status) && previous.artifact_path === product.preview_path && fileFactory.isCurrentCoverPath(previous.artifact_path) && fs.existsSync(previous.artifact_path)) {
+      const previousScored = previous && Number.isFinite(safeParse(previous.scores) && safeParse(previous.scores).overall);
+      if (previous && previousScored && ['pass', 'fail'].includes(previous.status) && previous.artifact_path === product.preview_path && fileFactory.isCurrentCoverPath(previous.artifact_path) && fs.existsSync(previous.artifact_path)) {
         const hash = require('crypto').createHash('sha256').update(fs.readFileSync(previous.artifact_path)).digest('hex');
         if (hash === previous.artifact_sha256) {
           const scores = safeParse(previous.scores);

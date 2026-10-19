@@ -110,7 +110,7 @@ function imageToDataUri(filePath) {
  */
 async function scoreCoverVariant(imageDataUri) {
   if (!ENABLED) return null;
-  if (!cfg.underCap(cfg.caps.maxCallsPerDesignSweep)) return null;
+  if (!router.underCap(cfg.caps.maxCallsPerDesignSweep)) return null;
 
   try {
     const res = await router.callVision({
@@ -118,7 +118,7 @@ async function scoreCoverVariant(imageDataUri) {
       images: [imageDataUri],
       system: COVER_CRITIQUE_PROMPT,
       temperature: 0.3,
-      maxTokens: 800,
+      maxTokens: 600,
       action: 'cover_critique'
     });
     return parseCoverCritique(res);
@@ -299,15 +299,57 @@ async function critiqueCover(coverOrId, opts = {}) {
   }
 }
 
+// ── REGENERATE-UNTIL-PASS (C3.3) ─────────────────────────────────────────────
+
+const MAX_REGEN_TRIES = 3;
+
+/**
+ * Run build → critique until a candidate clears the gate.
+ *
+ * @param {(attempt:number)=>Promise<string|null>} build  renders ONE candidate
+ *        and resolves to its file path (or null when rendering failed).
+ * @param {object} opts { maxTries, critique }  critique(path) → verdict with
+ *        publishAllowed; defaults to critiqueCover.
+ * @returns {Promise<{coverPath:string|null, verdict:object|null, attempts:number}>}
+ *
+ * Never throws. Only a passing candidate is returned — failed files are never
+ * handed back for persistence. Stops early when AI is off, because a retry
+ * cannot change a deterministic "unscored" outcome.
+ */
+async function critiqueUntilPass(build, { maxTries = MAX_REGEN_TRIES, critique = critiqueCover } = {}) {
+  let lastVerdict = null;
+  let attempts = 0;
+  for (let attempt = 1; attempt <= maxTries; attempt++) {
+    attempts = attempt;
+    let coverPath = null;
+    try {
+      coverPath = await build(attempt);
+    } catch (e) {
+      console.error(`[COVER_CRITIC] candidate ${attempt} render failed:`, e.message);
+      coverPath = null;
+    }
+    if (!coverPath || !fs.existsSync(coverPath)) continue;
+
+    const verdict = await critique(coverPath);
+    lastVerdict = verdict;
+    if (verdict && verdict.publishAllowed) return { coverPath, verdict, attempts };
+    if (verdict && verdict.reason === 'ai-disabled') break;
+    console.warn(`[COVER_CRITIC] candidate ${attempt}/${maxTries} below gate (score ${verdict ? verdict.quality_score : 'n/a'}) — regenerating`);
+  }
+  return { coverPath: null, verdict: lastVerdict, attempts };
+}
+
 // ── EXPORTS ───────────────────────────────────────────────────────────────────
 
 module.exports = {
   THRESHOLD,
   ENABLED,
+  MAX_REGEN_TRIES,
   COVER_CRITIQUE_PROMPT,
   parseCoverCritique,
   coverDecision,
   critiqueCover,
+  critiqueUntilPass,
   scoreCoverVariant,
   persistCoverScore,
   latestCoverScore

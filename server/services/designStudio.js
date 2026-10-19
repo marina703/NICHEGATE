@@ -704,12 +704,12 @@ function buildChecklistHTML(prof, theme) {
     .head p{font-size:0.78rem;opacity:0.55;margin-top:3px}
     .grp{margin-bottom:22px;page-break-inside:avoid}
     .grp-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-    .grp-num{width:34px;height:34px;border-radius:10px;background:${theme.accent};color:#fff;font-weight:900;font-size:0.85rem;display:flex;align-items:center;justify-content:center}
-    .grp-title{font-size:1.02rem;font-weight:800;color:${theme.primary}}
-    .grp-tag{margin-left:auto;font-size:0.7rem;font-weight:800;color:${theme.secondary};background:rgba(0,0,0,0.05);padding:4px 12px;border-radius:999px}
-    .item{display:grid;grid-template-columns:26px 1fr 26px;gap:12px;align-items:center;padding:9px 4px;border-bottom:1px dashed #e2e8f0}
-    .box{width:20px;height:20px;border:2px solid ${theme.secondary};border-radius:7px}
-    .txt{font-size:0.9rem;color:#334155}
+    .grp-num{width:34px;height:34px;border-radius:10px;background:${theme.accent};color:#fff;font-weight:900;font-size:0.9rem;display:flex;align-items:center;justify-content:center}
+    .grp-title{font-size:1.12rem;font-weight:800;color:${theme.primary}}
+    .grp-tag{margin-left:auto;font-size:0.8rem;font-weight:800;color:${theme.secondary};background:rgba(0,0,0,0.05);padding:4px 12px;border-radius:999px}
+    .item{display:grid;grid-template-columns:26px 1fr 26px;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px dashed #e2e8f0}
+    .box{width:22px;height:22px;border:2px solid ${theme.secondary};border-radius:7px}
+    .txt{font-size:1.02rem;font-weight:600;color:#1e293b}
     .chk input{transform:scale(1.15);accent-color:${theme.accent}}
     .foot-note{margin-top:22px;background:${theme.primary};color:#fff;border-radius:16px;padding:18px 20px;display:flex;justify-content:space-between;align-items:center}
     .foot-note .lbl{font-size:0.64rem;letter-spacing:2px;text-transform:uppercase;opacity:0.6}
@@ -794,6 +794,14 @@ function buildRecoveryJournalHTML(prof, theme, prompts) {
   const _sh = (theme && theme.dna) ? shellDNA : shell;
   const P = RECOVERY_PALETTE;
   const niche = prof.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+  const slug = String((prof && prof.slug) || '').toLowerCase();
+  const epigraph = slug.includes('secular')
+    ? 'Grant me the serenity to accept the things I cannot change, the courage to change the things I can, and the wisdom to know the difference.'
+    : slug.includes('smart')
+      ? 'Thoughts shape feelings, and feelings shape actions — examine the belief, choose the response that serves your recovery.'
+      : slug.includes('refuge')
+        ? 'With mindfulness and compassion, I meet this moment as it is — suffering can be understood and transformed.'
+        : SERENITY_PRAYER;
   const daySets = prompts && prompts.length ? prompts : [
     ['What am I grateful for today?', 'What challenged me and how did I respond?', 'How did I practice acceptance today?', 'One thing I learned about myself', 'My intention for tomorrow'],
     ['What fear did I face today?', 'How was I of service to someone?', 'What am I holding onto that I can release?', 'What spiritual principle did I practice?', 'What do I need for tomorrow?']
@@ -804,7 +812,7 @@ function buildRecoveryJournalHTML(prof, theme, prompts) {
     <div class="jpage">
       <div class="jpage-head">
         <div class="jft">Just for Today</div>
-        <div class="serenity">${esc(SERENITY_PRAYER)}</div>
+        <div class="serenity">${esc(epigraph)}</div>
       </div>
       <div class="dateline">Date: ______________________&nbsp;&nbsp;·&nbsp;&nbsp;Day ${i + 1} of 30</div>
       ${qs.map((q) => `<div class="q"><div class="qtext">${esc(q)}</div><div class="lines"></div><div class="lines"></div></div>`).join('')}
@@ -827,16 +835,16 @@ function buildRecoveryJournalHTML(prof, theme, prompts) {
     .cover .rule{width:90px;height:2px;background:${P.gold};margin:30px 0}
     .cover .niche{font-size:.8rem;letter-spacing:4px;text-transform:uppercase;color:${P.accent}}
     .cover .foot{position:absolute;bottom:48px;left:60px;right:60px;display:flex;justify-content:space-between;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;opacity:.6}
-    .jpage{page-break-inside:avoid;background:#fffdf8;border:1px solid ${P.line};border-radius:14px;padding:26px 30px;margin-bottom:22px;min-height:940px;position:relative}
+    .jpage{page-break-inside:avoid;background:#fffdf8;border:1px solid ${P.line};border-radius:14px;padding:28px 34px;margin-bottom:22px;min-height:940px;position:relative}
     .jpage-head{text-align:center;border-bottom:2px solid ${P.accent};padding-bottom:14px;margin-bottom:16px}
-    .jft{font-size:1.7rem;font-style:italic;color:${P.primary};letter-spacing:1px}
-    .serenity{font-size:.8rem;color:${P.accent};font-style:italic;margin-top:6px;max-width:520px;margin-left:auto;margin-right:auto}
-    .dateline{font-size:.72rem;color:#9a8f7d;letter-spacing:1px;margin-bottom:16px}
+    .jft{font-size:2rem;font-weight:700;font-style:italic;color:${P.primary};letter-spacing:1px}
+    .serenity{font-size:.94rem;color:${P.accent};font-style:italic;margin-top:6px;max-width:560px;margin-left:auto;margin-right:auto}
+    .dateline{font-size:.84rem;font-weight:600;color:#7a6f5d;letter-spacing:1px;margin-bottom:16px}
     .q{margin:12px 0}
-    .qtext{font-size:.86rem;color:#3a342c;font-weight:600;margin-bottom:4px}
-    .lines{border-bottom:1px dotted #b3a48c;height:22px}
-    .grat{margin-top:18px;border-top:1px dashed ${P.line};padding-top:12px}
-    .grat-head{font-size:.78rem;color:${P.primary};font-weight:700;letter-spacing:.5px;margin-bottom:8px}
+    .qtext{font-size:1.04rem;color:#2b2620;font-weight:700;margin-bottom:4px}
+    .lines{border-bottom:1.5px dotted #b3a48c;height:22px}
+    .grat{margin-top:18px;border-top:1.5px dashed ${P.line};padding-top:12px}
+    .grat-head{font-size:.92rem;color:${P.primary};font-weight:700;letter-spacing:.5px;margin-bottom:8px}
     .grat-lines{display:flex;gap:10px}
     .grat-lines span{flex:1;border-bottom:1px dotted #b3a48c;height:26px;font-size:.8rem;color:#9a8f7d}
     .jpage-foot{position:absolute;bottom:14px;left:30px;right:30px;text-align:center;font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:#b8ac97}
@@ -932,21 +940,21 @@ function buildAffirmationLabelsHTML(prof, theme, variantKey) {
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:${V.font};color:${P.ink};background:${P.bg};line-height:1.5;font-size:13px}
     @page{size:A4;margin:8mm}
-    .sheet{page-break-after:always;background:${V.sheetBg};padding:18px}
+    .sheet{page-break-after:always;background:${V.sheetBg};padding:24px 36px}
     .sheet:last-child{page-break-after:auto}
     .sheet-head{text-align:center;margin-bottom:14px}
-    .sheet-head .t{font-size:1.3rem;${V.italic ? 'font-style:italic;' : ''}color:${P.primary}}
-    .sheet-head .h{font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:#9a8f7d;margin-top:4px}
-    .grid-round{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:10px 20px}
-    .grid-rect{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:10px 20px}
-    .lbl{display:flex;align-items:center;justify-content:center;text-align:center;border:1px dashed ${P.line}}
+    .sheet-head .t{font-size:1.55rem;font-weight:700;${V.italic ? 'font-style:italic;' : ''}color:${P.primary}}
+    .sheet-head .h{font-size:.76rem;letter-spacing:2px;text-transform:uppercase;color:#9a8f7d;margin-top:4px}
+    .grid-round{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:14px 48px}
+    .grid-rect{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:14px 48px}
+    .lbl{display:flex;align-items:center;justify-content:center;text-align:center;border:1.5px dashed ${P.line}}
     .lbl.round{aspect-ratio:1;border-radius:50%;background:${softA}}
     .lbl.rect{aspect-ratio:2/1;border-radius:8px;background:${softB}}
     .lbl.hex{aspect-ratio:1;background:${P.primary};border:0;clip-path:polygon(25% 3%,75% 3%,100% 50%,75% 97%,25% 97%,0 50%)}
     .lbl.tag{aspect-ratio:2/1;background:${P.primary};border:0;border-radius:12px 12px 12px 0}
     .lbl.oval{aspect-ratio:1;border-radius:50%/38%;background:${softA}}
     .lbl.square{aspect-ratio:2/1;border-radius:14px;background:${softB}}
-    .lbl span{font-size:.82rem;color:${V.onShape || P.primary};padding:0 10px;${spanCss}}
+    .lbl span{font-size:1.02rem;font-weight:700;line-height:1.25;color:${V.onShape || P.primary};padding:0 12px;${spanCss}}
     .cut{height:1px;background:${P.line};margin:6px 0}
     .tips{margin-top:16px;padding:14px 18px;background:${V.tipsBg};border:1px solid ${P.line};border-radius:10px;font-size:.74rem;color:#6b6252}
     .tips b{color:${P.primary}}
@@ -1192,8 +1200,8 @@ function buildTablePreviewHTML(product, prof, theme, which) {
     .stat .val{font-size:1.5rem;font-weight:900;margin-top:4px}
     .stat .sub{font-size:0.68rem;color:#64748b;margin-top:2px}
     table{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 14px 34px -24px rgba(15,23,42,0.5)}
-    thead th{font-size:0.62rem;letter-spacing:1.6px;text-transform:uppercase;padding:12px 14px;background:${theme.primary};color:#fff;text-align:left}
-    tbody td{padding:12px 14px;border-bottom:1px solid #edf1f7;font-size:0.84rem}
+    thead th{font-size:0.78rem;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;padding:11px 12px;background:${theme.primary};color:#fff;text-align:left}
+    tbody td{padding:11px 12px;border-bottom:1px solid #edf1f7;font-size:1.02rem;font-weight:600}
     tbody tr:last-child td{border-bottom:none}
     .num{text-align:right;font-variant-numeric:tabular-nums}
     .strong{font-weight:800}
@@ -1244,20 +1252,20 @@ function buildPricingSheetPreviewHTML(product, prof, theme) {
   return shell(`${prof.name} — ${productCopy.deriveTitle(product, prof) || 'Pricing Calculator'}`, `
     .dash-head{display:flex;align-items:center;gap:16px;margin-bottom:20px}
     .dash-head .ic{width:52px;height:52px;border-radius:14px;background:${theme.primary};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
-    .dash-head h1{font-size:1.4rem;font-weight:900;letter-spacing:-0.4px}
-    .dash-head p{font-size:0.74rem;opacity:0.55;margin-top:3px}
+    .dash-head h1{font-size:1.55rem;font-weight:900;letter-spacing:-0.4px}
+    .dash-head p{font-size:0.84rem;opacity:0.65;margin-top:3px;font-weight:600}
     .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
     .stat{background:#fff;border:1px solid rgba(15,23,42,0.07);border-left:4px solid ${theme.accent};border-radius:12px;padding:12px 14px}
-    .stat .lbl{font-size:0.6rem;letter-spacing:1.4px;text-transform:uppercase;opacity:0.5}
-    .stat .val{font-size:1.3rem;font-weight:900;margin-top:4px}
-    .stat .sub{font-size:0.66rem;color:#64748b;margin-top:2px}
+    .stat .lbl{font-size:0.68rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;opacity:0.6}
+    .stat .val{font-size:1.45rem;font-weight:900;margin-top:4px}
+    .stat .sub{font-size:0.74rem;color:#64748b;margin-top:2px;font-weight:600}
     table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden}
-    thead th{font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;padding:12px 14px;background:${theme.primary};color:#fff;text-align:left}
-    tbody td{padding:12px 14px;border-bottom:1px solid #edf1f7;font-size:1.05rem}
+    thead th{font-size:0.88rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:10px 10px;background:${theme.primary};color:#fff;text-align:left}
+    tbody td{padding:10px 10px;border-bottom:1px solid #edf1f7;font-size:1.08rem;font-weight:600}
     .num{text-align:right;font-variant-numeric:tabular-nums}
     .strong{font-weight:800}
-    tfoot td{padding:12px 14px;font-size:1.05rem;background:#f8fafc}
-    tfoot .grand td{font-weight:900;font-size:0.92rem;background:${theme.primary};color:#fff}
+    tfoot td{padding:10px 10px;font-size:1.08rem;font-weight:700;background:#f8fafc}
+    tfoot .grand td{font-weight:900;font-size:1.02rem;background:${theme.primary};color:#fff}
     .hint{margin-top:16px;display:flex;justify-content:space-between;align-items:center;background:${theme.primary};color:#fff;border-radius:12px;padding:12px 16px}
     .hint .lbl{font-size:0.6rem;letter-spacing:1.6px;text-transform:uppercase;opacity:0.6}
     .hint .val{font-size:0.82rem;font-weight:700}
@@ -1385,20 +1393,20 @@ function buildCoverHTML(product, prof, theme, kind) {
   const price = isLead ? 'FREE' : (product.price || '$29');
 
   return shell(`${esc(product.name)} — Kit Cover`, `
-    .wrap{background:${theme.bg};display:flex;align-items:center;justify-content:center;min-height:1100px;padding:60px}
-    .cover{width:700px;background:${theme.primary};color:#fff;border-radius:28px;padding:54px;box-shadow:0 40px 80px -40px rgba(15,23,42,0.6);overflow:hidden;position:relative}
+    .wrap{background:${theme.bg};display:flex;align-items:flex-start;justify-content:center;min-height:1040px;padding:18px 20px}
+    .cover{width:760px;background:${theme.primary};color:#fff;border-radius:24px;padding:38px 42px;box-shadow:0 32px 64px -32px rgba(15,23,42,0.6);overflow:hidden;position:relative}
     .cover::after{content:"${esc(product.emoji || prof.emoji || '📦')}";position:absolute;right:-30px;bottom:-46px;font-size:11rem;opacity:0.07;transform:rotate(-12deg)}
-    .badge{display:inline-block;background:${theme.accent};color:${theme.primary};font-weight:900;font-size:0.72rem;letter-spacing:2px;padding:7px 16px;border-radius:999px;text-transform:uppercase}
-    .mark{font-size:3.4rem;margin:26px 0 6px}
-    h1{font-size:2.6rem;font-weight:900;letter-spacing:-1px;line-height:1.05;margin-bottom:14px}
-    .sub{font-size:0.98rem;opacity:0.75;max-width:460px}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:30px}
-    .item{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:12px;padding:13px 16px;font-size:0.84rem;font-weight:700;display:flex;align-items:center;gap:10px}
+    .badge{display:inline-block;background:${theme.accent};color:${theme.primary};font-weight:900;font-size:0.78rem;letter-spacing:2px;padding:7px 16px;border-radius:999px;text-transform:uppercase}
+    .mark{font-size:2.8rem;margin:16px 0 4px}
+    h1{font-size:2.4rem;font-weight:900;letter-spacing:-1px;line-height:1.05;margin-bottom:10px}
+    .sub{font-size:1.02rem;opacity:0.82;max-width:560px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+    .item{background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.16);border-radius:12px;padding:12px 15px;font-size:0.9rem;font-weight:700;display:flex;align-items:center;gap:10px}
     .item::before{content:"✓";color:${theme.accent};font-weight:900}
-    .bottom{display:flex;justify-content:space-between;align-items:flex-end;margin-top:34px}
+    .bottom{display:flex;justify-content:space-between;align-items:flex-end;margin-top:26px}
     .price{font-size:1.6rem;font-weight:900}
     .price .free{color:${theme.accent};font-size:2rem}
-    .tag{font-size:0.68rem;opacity:0.55;letter-spacing:1.6px;text-transform:uppercase}
+    .tag{font-size:0.72rem;opacity:0.65;letter-spacing:1.6px;text-transform:uppercase}
   `, `
   <div class="wrap"><div class="cover">
     <span class="badge">${isLead ? 'FREE · Lead Magnet' : 'Complete Toolkit'}</span>
@@ -1867,12 +1875,12 @@ function heroSnippetForCover(product, prof, theme) {
   return `<div style="font-size:44px;font-weight:900">${esc(prof.emoji || '')} ${esc(prof.name || '')}</div>`;
 }
 
-function coverPreviewStyles(labelHeight, screenHeight, fontSize) {
+function coverPreviewStyles(labelHeight, screenHeight, fontSize, scale = COVER_PREVIEW_SCALE) {
   // No browser chrome on covers: the composited surface shows the clean
   // product document only — no traffic-light dots, no "ACTUAL PRODUCT PAGE"
   // bar, no title strip. (labelHeight/fontSize are kept in the signature so
   // existing call sites stay unchanged; they are no longer rendered.)
-  return `.product-preview-screen{height:${screenHeight}px;overflow:hidden;background:#fff}.product-preview-screen iframe{display:block;width:100%;height:100%;border:0;background:#fff}.product-preview-screen img{display:block;width:100%;height:auto;border:0;background:#fff;transform:scale(${COVER_PREVIEW_SCALE});transform-origin:top center}`;
+  return `.product-preview-screen{height:${screenHeight}px;overflow:hidden;background:#fff}.product-preview-screen iframe{display:block;width:100%;height:100%;border:0;background:#fff}.product-preview-screen img{display:block;width:100%;height:auto;border:0;background:#fff;transform:scale(${scale});transform-origin:top center}`;
 }
 
 function coverProductPreview(productHtml, title, zoom) {
@@ -1928,7 +1936,11 @@ function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, c
   const contentY = adaptive ? S.y : S.y + insetY;
   const contentW = screenW;
   const contentH = Math.max(0, screenH);
-  const previewCss = coverPreviewStyles(labelH, Math.max(100, screenH), 11);
+  // Adaptive screens show the full 800px document width uncropped (scale=1.0)
+  // so side columns and round labels are never clipped at the screen edges;
+  // fixed fallback slots keep COVER_PREVIEW_SCALE (1.16).
+  const previewScale = adaptive ? 1 : COVER_PREVIEW_SCALE;
+  const previewCss = coverPreviewStyles(labelH, Math.max(100, screenH), 11, previewScale);
   // Avoid text colliding with a centered or left-leaning detected tablet screen:
   // when the screen's vertical span overlaps the bottom copy band and its
   // horizontal span enters the left copy column, constrain or compact the copy block.
@@ -1939,9 +1951,18 @@ function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, c
   const titleSize = compactCopy ? 54 : (availableLeftWidth < 620 ? 74 : 108);
   const subSize = compactCopy ? 22 : (availableLeftWidth < 620 ? 28 : 34);
   const benSize = compactCopy ? 19 : (availableLeftWidth < 620 ? 24 : 28);
-  const copyMaxWidth = (overlapsVertical && S.x > 460 && S.x < 1000) ? `${Math.max(420, S.x - 88)}px` : '100%';
+  // When an adaptive screen sits in the right half of the frame (e.g. x=340..460),
+  // keep the lower-left copy column strictly to the left of S.x so it never
+  // crosses over the composited page (which both breaks QA MAD and triggers
+  // critic overlap complaints).
+  const copyMaxWidth = (overlapsVertical && S.x > 420 && S.x < 1000)
+    ? `${Math.max(320, S.x - 84)}px`
+    : '100%';
   const shownBenefits = compactCopy ? benefits.slice(0, 2) : benefits.slice(0, 3);
   // Copy must clear the footer band (bottom 180px, 96px tall) with a margin.
+  // If a centered tablet (S.x <= 420) extends down into the lower band, place
+  // the copy block above the tablet's top edge when there is room, or below it.
+  const placeCopyTop = overlapsVertical && S.x <= 420 && S.y >= 500;
   const midBottomPad = compactCopy ? 150 : 160;
   const kicker = `${String(prof.name || '').toUpperCase()}`;
   const headingFont = (th.brief && th.brief.fonts && th.brief.fonts.heading) || 'Space Grotesk';
@@ -1956,28 +1977,28 @@ function buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, c
 body{background:#e7e5e1;${fontCss}-webkit-print-color-adjust:exact}
 .ts{position:relative;width:1200px;height:1800px;overflow:hidden;color:#fff}
 .ts-photo{position:absolute;inset:0;background-size:cover;background-position:center 40%}
-.ts-copy-scrim{position:absolute;left:0;right:0;top:${compactCopy ? 1180 : 1080}px;height:${compactCopy ? 420 : 520}px;background:linear-gradient(180deg,transparent 0%,rgba(12,12,13,.16) 18%,rgba(12,12,13,.82) 100%)}
+.ts-copy-scrim{position:absolute;left:0;${(overlapsVertical && S.x > 420) ? `width:${S.x}px;` : 'right:0;'}top:${placeCopyTop ? 150 : (compactCopy ? 1180 : 1080)}px;height:${placeCopyTop ? Math.max(300, S.y - 130) : (compactCopy ? 420 : 520)}px;background:linear-gradient(${placeCopyTop ? '0deg' : '180deg'},transparent 0%,rgba(12,12,13,.16) 18%,rgba(12,12,13,.82) 100%)}
 .ts-fallback{position:absolute;inset:0;background:linear-gradient(140deg,${kc} 0%,#14110f 78%)}
 .ts-inner{position:relative;z-index:3;height:1650px;display:flex;flex-direction:column;padding:206px 64px 0;pointer-events:none}
 .ts-top{display:flex;justify-content:space-between;align-items:center}
 .ts-brand{align-self:flex-start;font-size:17px;font-weight:800;letter-spacing:3px;color:#5eead4;background:rgba(9,9,11,.92);padding:9px 16px;border-radius:3px;box-shadow:0 2px 12px rgba(0,0,0,.45)}
 .ts-kicker{font-size:22px;font-weight:800;letter-spacing:2px;text-transform:uppercase;background:${kc};padding:12px 24px;border-radius:0}
-.ts-mid{margin-top:auto;padding-bottom:${midBottomPad}px;max-width:${copyMaxWidth}}
+.ts-mid{${placeCopyTop ? 'margin-top:24px;padding-bottom:0;background:rgba(12,12,13,.76);padding:24px 32px;border-radius:16px;backdrop-filter:blur(6px);' : `margin-top:auto;padding-bottom:${midBottomPad}px;`}max-width:${copyMaxWidth}}
 .ts-title{font-size:${titleSize}px;font-weight:900;line-height:.97;letter-spacing:-3px;text-shadow:0 8px 34px rgba(0,0,0,.65)}
 .ts-sub{font-size:${subSize}px;font-weight:600;margin-top:${compactCopy ? 12 : 22}px;color:#f4f4f5;text-shadow:0 4px 18px rgba(0,0,0,.7)}
-.ts-bens{margin-top:${compactCopy ? 14 : 34}px;display:flex;flex-direction:column;gap:${compactCopy ? 10 : 14}px}
+.ts-bens{margin-top:${compactCopy ? 14 : 34}px;display:flex;${placeCopyTop ? 'flex-direction:row;flex-wrap:wrap;gap:18px' : `flex-direction:column;gap:${compactCopy ? 10 : 14}px`}}
 .ts-ben{display:flex;align-items:center;gap:16px;font-size:${benSize}px;font-weight:700;text-shadow:0 3px 14px rgba(0,0,0,.75)}
 .ts-ben .ck{width:${compactCopy ? 34 : 46}px;height:${compactCopy ? 34 : 46}px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-size:${compactCopy ? 18 : 26}px;font-weight:900;flex-shrink:0}
 .ts-foot{position:absolute;z-index:3;left:0;right:0;bottom:180px;background:rgba(12,12,13,.72);height:96px;display:flex;justify-content:space-between;align-items:center;padding:0 64px;border-top:1px solid rgba(255,255,255,.16)}
 .ts-format{font-size:21px;font-weight:800;letter-spacing:2px;color:#e4e4e7}
-  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:inset 0 0 26px rgba(15,23,42,.10);' : 'transform:rotate(-1.5deg);'}overflow:hidden;border-radius:${adaptive ? screenRadius + 'px' : '10px'}}
+  .ts-hero{position:absolute;left:${S.x}px;top:${S.y}px;width:${S.width}px;height:${S.height}px;z-index:2;${adaptive ? 'box-shadow:0 28px 56px -14px rgba(0,0,0,.62),0 6px 18px rgba(0,0,0,.38),inset 0 0 26px rgba(15,23,42,.10);' : 'transform:rotate(-1.5deg);box-shadow:0 30px 60px -18px rgba(0,0,0,.55),0 6px 16px rgba(0,0,0,.28);'}overflow:hidden;border-radius:${adaptive ? screenRadius + 'px' : '10px'}}
   .ts-device{${adaptive ? 'display:none' : `position:absolute;inset:0;background:#f4f4f5;border-radius:22px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55),inset 0 0 0 2px #d4d4d8;overflow:hidden`}}
   .ts-screen{position:absolute;left:${adaptive ? 0 : insetX}px;top:${adaptive ? 0 : insetY}px;width:${screenW}px;height:${screenH}px;background:#fff;border-radius:${screenRadius}px;overflow:hidden}
   ${previewCss}
 </style></head><body>
 <div class="ts">
   ${bg}
-  <div class="ts-hero" data-slot-x="${S.x}" data-slot-y="${S.y}" data-slot-width="${S.width}" data-slot-height="${S.height}" data-adaptive="${adaptive ? '1' : '0'}" data-screen-x="${contentX}" data-screen-y="${contentY}" data-screen-width="${contentW}" data-screen-height="${contentH}" data-label-height="${labelH}" data-preview-scale="${COVER_PREVIEW_SCALE}" data-device-rotate="${adaptive ? 0 : -1.5}"><div class="ts-device"></div><div class="ts-screen">${realPreview}</div></div>
+  <div class="ts-hero" data-slot-x="${S.x}" data-slot-y="${S.y}" data-slot-width="${S.width}" data-slot-height="${S.height}" data-adaptive="${adaptive ? '1' : '0'}" data-screen-x="${contentX}" data-screen-y="${contentY}" data-screen-width="${contentW}" data-screen-height="${contentH}" data-label-height="${labelH}" data-preview-scale="${previewScale}" data-device-rotate="${adaptive ? 0 : -1.5}"><div class="ts-device"></div><div class="ts-screen">${realPreview}</div></div>
   <div class="ts-inner">
     <div class="ts-top"><div class="ts-brand">NICHEGATE</div><div class="ts-kicker">${esc(kicker)}</div></div>
     <div class="ts-mid">
