@@ -224,7 +224,7 @@ async function ensureProductFile(product) {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : ds.buildPricingBibleHTML(prof, theme, {}), `${prof.slug}-pricing-bible-${stamp}.pdf`);
   } else if (type === 'seasonal-calendar') {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildPlannerHTML(prof, theme), `${prof.slug}-seasonal-calendar-${stamp}.pdf`);
-  } else if (['sop-package', 'compliance-checklist', 'equipment-guide', 'certification-guide', 'first-year-roadmap', 'email-scripts', 'client-emails', 'prompt-library'].includes(type)) {
+  } else if (['sop-package', 'compliance-checklist', 'equipment-guide', 'certification-guide', 'first-year-roadmap', 'email-scripts', 'client-emails', 'prompt-library', 'swipe-file', 'decision-tree', 'script-bundle', 'audit-checklist', 'client-questionnaire', 'cancellation-save-script', 'review-request-sequence', 'micro-course-pdf'].includes(type)) {
     filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildChecklistHTML(prof, theme), `${prof.slug}-${type}-${stamp}.pdf`);
   } else if (['client-onboarding', 'business-in-a-box', 'marketing-kit'].includes(type)) {
     filePath = await zipGen.createSocialPack(prof, theme);
@@ -235,9 +235,15 @@ async function ensureProductFile(product) {
     filePath = xlsxGen.generateXLSX((type === 'pricing' || type === 'profit-calculator') ? 'spreadsheet' : type, prof, `${prof.slug}-${type}-${stamp}.xlsx`);
   } else if (type === 'social') {
     filePath = await zipGen.createSocialPack(prof, theme);
+  } else if (type === 'bundle') {
+    const bundleEngine = require('./bundleEngine');
+    const res = await bundleEngine.rebuildBundleZip(product, prof);
+    filePath = res || null;
   }
   if (filePath) {
-    db.prepare('UPDATE products SET file_path = ? WHERE id = ?').run(filePath, product.id);
+    if (product.id != null) {
+      db.prepare('UPDATE products SET file_path = ? WHERE id = ?').run(filePath, product.id);
+    }
     product.file_path = filePath;
   }
   return filePath;
@@ -315,7 +321,7 @@ function buildPreviewHTML(product, prof, theme) {
       nicheName: prof.name
     }, theme);
   }
-  if (['sop-package', 'compliance-checklist', 'equipment-guide', 'certification-guide', 'first-year-roadmap', 'email-scripts', 'client-emails', 'prompt-library'].includes(t)) {
+  if (['sop-package', 'compliance-checklist', 'equipment-guide', 'certification-guide', 'first-year-roadmap', 'email-scripts', 'client-emails', 'prompt-library', 'swipe-file', 'decision-tree', 'script-bundle', 'audit-checklist', 'client-questionnaire', 'cancellation-save-script', 'review-request-sequence', 'micro-course-pdf'].includes(t)) {
     return pdfGen.buildChecklistHTML(prof, theme);
   }
   if (['bundle', 'leadmagnet', 'client-onboarding', 'business-in-a-box'].includes(t)) {
@@ -572,7 +578,7 @@ async function productPageRaster(product) {
   const theme = fallbackTheme(product);
   const html = buildPreviewHTML(product, prof, theme);
   if (!html) return null;
-  const focusY = ['playbook', 'pricing-bible'].includes(String(product.type || '').toLowerCase()) ? 300 : 0;
+  const focusY = (t => ['playbook', 'pricing-bible'].includes(t) ? 300 : ['recovery-journal', 'recovery-nutrition', 'journal'].includes(t) ? 1080 : 0)(String(product.type || '').toLowerCase());
   const title = ds.thumbCoverCopy(product, prof)[0];
   return renderProductCoverPreview(html, title, focusY);
 }
@@ -595,18 +601,16 @@ async function ensureProductThumbnail(product, opts = {}) {
   // sits in its lower half, but the preview box is ~1.7:1 landscape and shows only
   // the top ~44% of this raster — start 300px lower so the product headline is inside
   // the visible band instead of an apparently empty screen.
-  const focusY = ['playbook', 'pricing-bible'].includes(String(product.type || '').toLowerCase()) ? 300 : 0;
+  const focusY = (t => ['playbook', 'pricing-bible'].includes(t) ? 300 : ['recovery-journal', 'recovery-nutrition', 'journal'].includes(t) ? 1080 : 0)(String(product.type || '').toLowerCase());
   const realPreview = await renderProductCoverPreview(productHtml, copy[0], focusY);
   if (realPreview) productHtml = realPreview;
   let html = productHtml;
   let hadArt = false;
-  // CONTENT-FORWARD is the default: the real product pages ARE the hero (a
-  // fanned stack on a clean themed background), matching the planner-marketplace
-  // / device-mockup reference style. It is deterministic and needs no AI art.
-  // The old AI-lifestyle composite (photo scene + tiny thumbnail) is kept only
-  // as an explicit opt-in (opts.coverStyle === 'lifestyle') for the rare type
-  // where a physical-feel scene genuinely helps.
-  const wantLifestyle = String(opts.coverStyle || '').toLowerCase() === 'lifestyle';
+  // DIRECTION 4 (TRUE FLUX SCENE + ADAPTIVE SCREEN COMPOSITE) is now the default:
+  // real niche environment photography where the blank tablet/clipboard in the
+  // scene is detected and filled with the live product page. Content-forward
+  // remains available as an explicit opt-in (`opts.coverStyle === 'content-forward'`).
+  const wantContentForward = String(opts.coverStyle || '').toLowerCase() === 'content-forward';
   const wantHeroCover = String(opts.coverStyle || '').toLowerCase() === 'hero-cover';
   try {
     if (wantHeroCover) {
@@ -627,52 +631,54 @@ async function ensureProductThumbnail(product, opts = {}) {
         const concept = await coverDirector.directCover(product, prof, pageHtml);
         const fresh = opts.freshArt || opts.freshArtRevision === true;
 
+        // C3.3 regenerate-until-pass: every try renders a candidate and must clear
+        // the critic gate before anything is written to the product. Retries force
+        // fresh art / a fresh page raster so each candidate is genuinely new.
         let heroPath = null;
-        let coverPath = null;
-        if (product.type === 'bundle') {
-          // Toolkits: AI hero object, full-bleed (owner-approved look).
-          heroPath = await heroArt.ensureHeroArt(product, prof, theme, { fresh, forceNew: opts.freshArtRevision === true });
-          if (heroPath && fs.existsSync(heroPath)) {
-            coverPath = await coverTemplate.renderCover(heroPath, concept, { productId: product.id, fresh });
+        const built = await coverCritic.critiqueUntilPass(async (attempt) => {
+          const retry = attempt > 1;
+          const freshArt = fresh || retry;
+          if (product.type === 'bundle') {
+            // Toolkits: AI hero object, full-bleed (owner-approved look).
+            heroPath = await heroArt.ensureHeroArt(product, prof, theme, { fresh: freshArt, forceNew: opts.freshArtRevision === true || retry });
+            if (!heroPath || !fs.existsSync(heroPath)) return null;
+            return coverTemplate.renderCover(heroPath, concept, { productId: product.id, fresh: freshArt });
           }
-        } else {
           // The REAL product page IS the hero — floating sheet on the field.
-          const pagePng = path.join(coverTemplate.OUT_DIR, `page-${product.id}-${Date.now()}.png`);
-          const pageImg = await coverTemplate.renderProductPage(pageHtml, pagePng, { fresh, crop: concept.heroCrop });
-          if (pageImg) {
-            heroPath = pageImg;
-            coverPath = await coverTemplate.renderCover(pageImg, concept, { productId: product.id, fresh, heroMode: 'page' });
-          }
-        }
-
-        if (coverPath && fs.existsSync(coverPath)) {
-          // Quality gate (vision-based critique)
-          const verdict = await coverCritic.critiqueCover(coverPath, {
+          const pagePng = path.join(coverTemplate.OUT_DIR, `page-${product.id}-${Date.now()}-${attempt}.png`);
+          const pageImg = await coverTemplate.renderProductPage(pageHtml, pagePng, { fresh: freshArt, crop: concept.heroCrop });
+          if (!pageImg) return null;
+          heroPath = pageImg;
+          return coverTemplate.renderCover(pageImg, concept, { productId: product.id, fresh: freshArt, heroMode: 'page' });
+        }, {
+          critique: (candidate) => coverCritic.critiqueCover(candidate, {
             productId: product.id,
             force: opts.forceQuality === true
-          });
+          })
+        });
 
-          if (verdict && verdict.publishAllowed) {
-            // Quality gate passed — use this cover directly
-            db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(coverPath, product.id);
-            product.preview_path = coverPath;
-            // Write the manifest so coverQA can verify geometry later
-            writeCoverManifest(coverPath, { product, prof, html: '', hadArt: true, heroPath });
-            return coverPath;
-          }
-
-          // Quality gate failed — log and fall through to the render+retry path
-          if (verdict && verdict.reason) {
-            console.error('[THUMB] hero cover quality gate:', verdict.reason);
-          }
+        if (built.coverPath) {
+          // Passed the gate — use this cover directly
+          const coverPath = built.coverPath;
+          db.prepare('UPDATE products SET preview_path = ? WHERE id = ?').run(coverPath, product.id);
+          product.preview_path = coverPath;
+          // Write the manifest so coverQA can verify geometry later
+          writeCoverManifest(coverPath, { product, prof, html: '', hadArt: true, heroPath });
+          return coverPath;
         }
+
+        // No candidate passed — log and fall through to the render+retry path
+        if (built.verdict && built.verdict.reason) {
+          console.error('[THUMB] hero cover quality gate:', built.verdict.reason);
+        }
+        console.warn('[THUMB] hero cover: no candidate passed in ' + built.attempts + ' tries — falling through');
       } catch (e) {
         console.error('[THUMB] hero cover pipeline:', e.message);
       }
       // Fall through to the lifestyle path on any failure
     }
 
-    if (!wantLifestyle && !wantHeroCover && typeof ds.buildContentForwardCover === 'function') {
+    if (wantContentForward && typeof ds.buildContentForwardCover === 'function') {
       // productHtml is now the cover-page raster (data:image) — the same raster
       // the QA gate re-derives, so the hero card correlates on the publish gate.
       html = ds.buildContentForwardCover(product, prof, theme, realProductHtml, copy, productHtml);
@@ -680,22 +686,44 @@ async function ensureProductThumbnail(product, opts = {}) {
       // v3: AI lifestyle photo + typography composite (falls back to the plain
       // HTML cover when the free image tier is unavailable — never blocks).
       let artDataUri = null;
+      let slot = null;
+      const coverArt = require('./coverArt');
       try {
-        const coverArt = require('./coverArt');
         const artPath = await coverArt.ensureCoverArt(product, prof, theme, { fresh: opts.freshArt || opts.freshArtRevision === true, forceNew: opts.freshArtRevision === true });
         if (artPath && fs.existsSync(artPath)) {
           artDataUri = coverArt.imageDataUri(fs.readFileSync(artPath));
+          slot = await detectArtScreenSlot(artDataUri, coverArt);
+        }
+        // When the primary art has no detectable screen, or its detected screen
+        // is too narrow (<520px, which downscales table borders and hurts both
+        // thumbnail legibility and QA matching), inspect cached candidate scenes
+        // and prefer the widest detected screen for this profession.
+        if ((!slot || slot.width < 520) && typeof coverArt.listCachedCandidateArt === 'function') {
+          const candidates = coverArt.listCachedCandidateArt(prof, product);
+          let bestUri = artDataUri;
+          let bestSlot = slot;
+          for (const candPath of candidates.slice(0, 14)) {
+            try {
+              const candUri = coverArt.imageDataUri(fs.readFileSync(candPath));
+              const candSlot = await detectArtScreenSlot(candUri, coverArt);
+              if (candSlot && (!bestSlot || (candSlot.width * candSlot.height) > (bestSlot.width * bestSlot.height))) {
+                bestUri = candUri;
+                bestSlot = candSlot;
+                if (bestSlot.width >= 560) break;
+              }
+            } catch { /* skip candidate */ }
+          }
+          artDataUri = bestUri;
+          slot = bestSlot;
         }
       } catch (e) {
         console.error('[THUMB] cover art fetch:', e.message);
       }
       hadArt = !!artDataUri;
       if (typeof ds.buildThumbStopperCover === 'function') {
-        let slot = null;
-        if (artDataUri) {
-          try { slot = await detectArtScreenSlot(artDataUri, require('./coverArt')); } catch (e) { console.error('[THUMB] slot detect:', e.message); }
-          if (!slot) console.warn('[THUMB] no tablet screen detected in the art — using the fixed slot (page will float over the photo)');
-        } else {
+        if (artDataUri && !slot) {
+          console.warn('[THUMB] no tablet screen detected in the art — using the fixed slot (page will float over the photo)');
+        } else if (!artDataUri) {
           console.warn('[THUMB] no cover art available — compositing the product page on the niche accent background');
         }
         html = ds.buildThumbStopperCover(product, prof, theme, artDataUri, productHtml, copy, slot);

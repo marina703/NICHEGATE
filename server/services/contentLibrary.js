@@ -345,7 +345,7 @@ const NICHE = [
     ],
     social: [
       { hook: 'Repair or replace? The 50% rule', sub: 'The honest math every homeowner deserves', cta: 'Book a diagnostic →' },
-      { hook: 'The #1 fridge killer', sub: 'Nobody checks the coils — and it costs them the compressor', cta: 'Save this post →' },
+      { hook: 'The top fridge killer', sub: 'Nobody checks the coils — and it costs them the compressor', cta: 'Save this post →' },
       { hook: 'The 15-minute fire fix', sub: 'Dryer lint in the duct run is the hidden hazard', cta: 'Book a vent clean →' },
       { hook: 'What $89 of diagnostic buys', sub: 'The full test sequence, explained step by step', cta: 'Book your visit →' },
       { hook: 'Before / after', sub: 'Coil cleaning and the temperature drop on camera', cta: 'Follow for more →' },

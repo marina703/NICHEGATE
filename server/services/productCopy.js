@@ -35,7 +35,9 @@ function derivePitch(product, prof) {
   if (brief) {
     const colon = brief.indexOf(':');
     if (colon > 0 && colon < 140) {
-      if (!sub) sub = brief.slice(0, colon).trim();
+      // Drop an unclosed "(..." left by a colon inside parentheses, e.g.
+      // "Complete Toolkit for X (11 deliverables: a, b)" must not yield "...(11 deliverables".
+      if (!sub) sub = brief.slice(0, colon).replace(/\s*\([^)]*$/, '').trim() || null;
       if (!benefits) {
         benefits = brief.slice(colon + 1)
           .split(/,|\band\b/i).map((s) => s.trim().replace(/\.$/, ''))

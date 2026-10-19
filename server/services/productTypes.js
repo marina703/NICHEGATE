@@ -78,6 +78,19 @@ const TYPES = [
   { key: 'affirmation-labels-warm', label: 'Gentle Affirmation Labels', emoji: '🌸', price: 8, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
   { key: 'recovery-nutrition', label: 'Recovery Cleanse & Nutrition Guide', emoji: '🥗', price: 14, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
   { key: 'meeting-flashcards', label: 'Meeting Facilitator Flashcards', emoji: '🗂️', price: 12, format: 'pdf', buyer: 'personal', cats: ['wellness', 'recovery'] },
+
+  // ── P2.3 TRANCHE: operational formats that sell as printable/fill-in kits.
+  // Routed to the checklist layout in fileFactory (every type ships a real PDF).
+  // Not in CATEGORY_MIX, so autonomous generation never picks them — they are
+  // produced only when explicitly requested, keeping unreviewed volume at zero.
+  { key: 'swipe-file', label: 'Client Message Swipe File', emoji: '📑', price: 12, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'decision-tree', label: 'Decision Tree Flowchart', emoji: '🌳', price: 12, format: 'pdf', buyer: 'business', cats: ['business', 'tech'] },
+  { key: 'script-bundle', label: 'Phone & Sales Script Bundle', emoji: '📞', price: 15, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'audit-checklist', label: 'Site Audit Checklist', emoji: '🔍', price: 12, format: 'pdf', buyer: 'business', cats: ['business', 'home'] },
+  { key: 'client-questionnaire', label: 'Client Intake Questionnaire', emoji: '📝', price: 10, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'cancellation-save-script', label: 'Cancellation Save Script', emoji: '🛡️', price: 12, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'review-request-sequence', label: 'Review Request Sequence', emoji: '⭐', price: 12, format: 'pdf', buyer: 'business', cats: ['business'] },
+  { key: 'micro-course-pdf', label: 'Mini Course Workbook', emoji: '🎓', price: 19, format: 'pdf', buyer: 'business', cats: ['business', 'education'] },
 ];
 
 const byKey = new Map(TYPES.map(t => [t.key, t]));
