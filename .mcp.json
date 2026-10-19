@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "etsy-docs": {
+      "type": "http",
+      "url": "https://mcp.api.etsycloud.com/mcp"
+    },
+    "etsy-shop": {
+      "command": "node",
+      "args": ["C:/Users/linde/tools/etsy-mcp-community/dist/mcp.js"],
+      "cwd": "C:/Users/linde/tools/etsy-mcp-community"
+    }
+  }
+}
