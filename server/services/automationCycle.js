@@ -28,7 +28,7 @@ async function taskScan(ctx) {
     console.log('[AUTO] Trend detected: ' + ctx.trend.name);
     db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
       .run('trend_detected', 'Detected: ' + ctx.trend.name, 'warning');
-    await notifier.sendDiscord(ctx.webhookUrl, notifier.formatAlert('trend_detected', ctx.trend));
+    await notifier.sendAlert(ctx.webhookUrl, 'trend_detected', ctx.trend);
   }
   return ctx;
 }
@@ -140,7 +140,7 @@ function taskReviewGate(ctx) {
 
 async function notifyReviewDay(ctx) {
   if (ctx.reviewDay) {
-    await notifier.sendDiscord(ctx.webhookUrl, notifier.formatAlert('review_day', { count: ctx.pendingCount || 0 }));
+    await notifier.sendAlert(ctx.webhookUrl, 'review_day', { count: ctx.pendingCount || 0 });
     console.log('[AUTO] Review day — skipping generation (publish continues), sent alert');
   }
   return ctx;
@@ -171,10 +171,10 @@ function taskGenerate(ctx) {
 
 async function notifyGenerated(ctx) {
   if (ctx.reviewDay) return ctx;
-  await notifier.sendDiscord(ctx.webhookUrl, notifier.formatAlert('product_generated', {
+  await notifier.sendAlert(ctx.webhookUrl, 'product_generated', {
     count: ctx.generated || 0,
     professions: ctx.professionCount || 0
-  }));
+  });
   return ctx;
 }
 
@@ -265,7 +265,7 @@ async function taskPublishQueue(ctx) {
     db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
       .run('auto_list', 'Auto-listed ' + listed + ' approved products', 'success');
     console.log('[AUTO] Auto-listed ' + listed + ' products');
-    await notifier.sendDiscord(ctx.webhookUrl, notifier.formatAlert('auto_listed', { count: listed }));
+    await notifier.sendAlert(ctx.webhookUrl, 'auto_listed', { count: listed });
   }
   return ctx;
 }
@@ -346,7 +346,7 @@ async function runFullCycle(deps) {
   safeTask(ctx, 'quality-gate', () => taskQualityGate(ctx));
   await safeTask(ctx, 'publish-queue', () => taskPublishQueue(ctx));
   safeTask(ctx, 'pin-schedule', () => taskPinSchedule(ctx));
-  safeTask(ctx, 'pin-drain', () => taskPinDrain(ctx));
+  await safeTask(ctx, 'pin-drain', () => taskPinDrain(ctx));
   await safeTask(ctx, 'design-reskin', () => taskDesignReskin(ctx));
   return ctx;
 }
@@ -393,10 +393,10 @@ function taskPinSchedule(ctx) {
 // PHASE 5: mark due pins as posted so the queue stays honest between
 // human Pinterest sessions. Posting itself needs a Pinterest token
 // (optional upgrade); NicheGate owns scheduling + attribution data.
-function taskPinDrain(ctx) {
+async function taskPinDrain(ctx) {
   try {
     const pinEngine = require('./pinEngine');
-    const due = pinEngine.duePins(10);
+    const due = await pinEngine.duePins(10);
     ctx.pinsPosted = due.length;
     if (due.length > 0) console.log('[AUTO] Marked ' + due.length + ' pin(s) as ready/posted');
   } catch (e) {

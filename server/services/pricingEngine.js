@@ -179,13 +179,23 @@ async function autoPromoteWinners() {
 
   for (const w of winners) {
     try {
+      // Suppress repeat promotion of the same product within 24h
+      const recent = db.prepare(
+        `SELECT id FROM automation_log
+         WHERE action = 'price_update' AND product_id = ?
+           AND details LIKE '%auto_pricing_winner%'
+           AND created_at >= datetime('now', '-24 hours')
+         LIMIT 1`
+      ).get(w.productId);
+      if (recent) continue;
+
       const applyRes = await applyPrice(w.productId, w.testPrice, {
         deploy: true,
         reason: `auto_pricing_winner (${w.variant} variant, ${w.units} units @ ${w.unitsPerDay}/day)`
       });
 
       // Mark the test as concluded with winner adopted
-      const tests = readTests();
+      const tests = readTests(true);
       if (tests[w.productId]) {
         tests[w.productId].status = 'promoted_winner';
         tests[w.productId].promotedAt = new Date().toISOString();

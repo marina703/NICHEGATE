@@ -218,35 +218,39 @@ function createPinSync(product) {
   return { id: info.lastInsertRowid, scheduled_for: at.toISOString() };
 }
 
-// Due pins: dispatches each due pin in channel-priority order and marks it
-// posted:
+// Due pins: dispatches each due pin in channel-priority order:
 //   1. Direct Pinterest API v5 when the NicheGate app token exists
 //      (marketplace_tokens or PINTEREST_ACCESS_TOKEN) — the permanent path.
 //   2. Buffer bridge while that app is trial-only: Buffer posts through
 //      Buffer's own Standard-access app so pins are PUBLIC immediately.
+// A pin is marked 'posted' ONLY when a channel returns a publish id. With no
+// channel configured nothing is touched (pins stay scheduled until one exists).
+// A pin whose dispatch fails is marked 'failed' with the reason in note, so it
+// is visible instead of being silently reported as published.
 async function duePins(limit = 10) {
-  const now = new Date().toISOString();
-  const rows = db.prepare(
-    "SELECT * FROM pins WHERE status = 'scheduled' AND scheduled_for <= ? ORDER BY scheduled_for ASC LIMIT ?"
-  ).all(now, limit);
-
   const tokenRow = db.prepare("SELECT access_token FROM marketplace_tokens WHERE platform = 'pinterest'").get();
   const token = tokenRow?.access_token || process.env.PINTEREST_ACCESS_TOKEN;
 
   // Buffer is only the interim path: once the direct token exists it wins.
   const buffer = require('./bufferBridge');
   const useBuffer = !token && buffer.bufferReady({ product_id: 0 });
+  if (!token && !useBuffer) return [];
+
+  const now = new Date().toISOString();
+  const rows = db.prepare(
+    "SELECT * FROM pins WHERE status = 'scheduled' AND scheduled_for <= ? ORDER BY scheduled_for ASC LIMIT ?"
+  ).all(now, limit);
 
   for (const r of rows) {
     let externalPinId = null;
     let channel = 'pinterest';
+    let failure = null;
     if (token) {
       try {
         const published = await publishToPinterestApi(r, token);
-        if (published && published.id) {
-          externalPinId = published.id;
-        }
+        if (published && published.id) externalPinId = published.id;
       } catch (e) {
+        failure = e.message;
         console.error(`[PINTEREST] API dispatch failed for pin #${r.id}:`, e.message);
       }
     }
@@ -256,19 +260,27 @@ async function duePins(limit = 10) {
         if (published && published.external_post_id) {
           externalPinId = published.external_post_id;
           channel = 'buffer';
+        } else if (published && published.reason) {
+          failure = published.reason;
         }
       } catch (e) {
+        failure = e.message;
         console.error(`[BUFFER] dispatch failed for pin #${r.id}:`, e.message);
       }
     }
 
-    db.prepare("UPDATE pins SET status = 'posted', posted_at = ? WHERE id = ?").run(now, r.id);
     if (externalPinId) {
+      db.prepare("UPDATE pins SET status = 'posted', posted_at = ? WHERE id = ?").run(now, r.id);
       db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
         .run(channel === 'buffer' ? 'buffer_publish' : 'pinterest_publish', r.product_id,
           channel === 'buffer'
             ? `Published via Buffer bridge (Buffer post ID: ${externalPinId})`
             : `Published to Pinterest API (Pin ID: ${externalPinId})`, 'success');
+    } else {
+      const reason = String(failure || 'no channel accepted the pin').slice(0, 500);
+      db.prepare("UPDATE pins SET status = 'failed', note = ? WHERE id = ?").run(reason, r.id);
+      db.prepare('INSERT INTO automation_log (action, product_id, details, status) VALUES (?, ?, ?, ?)')
+        .run('pin_publish_error', r.product_id, `Pin #${r.id} not published: ${reason}`, 'error');
     }
   }
   return rows;
