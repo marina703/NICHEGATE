@@ -13,6 +13,9 @@ const cfg = require('./modelConfig');
 
 const GENERIC_WORDS = /\b(template|kit|pack|guide|toolkit|generic|all-purpose|simple|basic|ultimate|bundle|set|collection)\b/i;
 
+const NOVELTY_FLOOR = 60;      // P2.1: raised from 55
+const MAX_NOVELTY_RETRIES = 2; // regenerations before the template fallback
+
 // Strict novelty gate: rejects concepts that read as "yet another template".
 function noveltyScore(c) {
   if (!c || !c.name) return 0;
@@ -216,15 +219,20 @@ async function generateConcept(prof, type, existing, brief, options = {}) {
     '"benefits":["specific benefit 1","benefit 2","benefit 3"],',
     '"differentiator":"Why this is NOT a generic template. What makes it novel for this niche. (max 45 words)"}'
   ].filter(Boolean).join('\n');
-  const raw = await router.generateIdeas(prompt, 'You are a ruthless product strategist for Etsy/Gumroad digital goods. You reject generic, saturated concepts. You find the specific, differentiated, sellable one.');
-  const concept = parseConcept(raw);
-  if (!concept || !concept.name) return null;
-  // Attach the deterministic trend forecast so the novelty gate can reward
-  // seasonal/keyword-trending concepts (noveltyScore reads concept.forecast).
-  // Never throws — a missing forecast simply scores no boost.
-  try { concept.forecast = forecastTrend(prof, type, concept); } catch (_) {}
-  if (noveltyScore(concept) < 55) return null;
-  return concept;
+  // P2.1: a concept under the novelty floor is regenerated (up to 2 retries with
+  // a sharper-angle nudge) instead of being accepted or dropped to the template.
+  for (let attempt = 0; attempt <= MAX_NOVELTY_RETRIES; attempt++) {
+    const nudge = attempt === 0 ? '' : '\nThe previous attempt was too generic. Pick a sharper, more niche-specific angle that only an insider would name.';
+    const raw = await router.generateIdeas(prompt + nudge, 'You are a ruthless product strategist for Etsy/Gumroad digital goods. You reject generic, saturated concepts. You find the specific, differentiated, sellable one.');
+    const concept = parseConcept(raw);
+    if (!concept || !concept.name) continue;
+    // Attach the deterministic trend forecast so the novelty gate can reward
+    // seasonal/keyword-trending concepts (noveltyScore reads concept.forecast).
+    // Never throws — a missing forecast simply scores no boost.
+    try { concept.forecast = forecastTrend(prof, type, concept); } catch (_) {}
+    if (noveltyScore(concept) >= NOVELTY_FLOOR) return concept;
+  }
+  return null;
 }
 
 // Apply a concept to an existing product row: sets name + concept, returns true.

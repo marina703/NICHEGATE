@@ -8,7 +8,6 @@ const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
 const { db } = require('../database');
-const { ensureProductFile } = require('./fileFactory');
 const runtimeConfig = require('./runtimeConfig');
 
 const OUTPUT_DIR = runtimeConfig.resolvePersistentDir('generated');
@@ -18,29 +17,71 @@ const RECOVERY_SLUGS = ['aa-recovery', 'smart-recovery', 'refuge-recovery', 'wom
 const TYPE_PRICES = { invoice: '$12', checklist: '$10', spreadsheet: '$17', booking: '$22', social: '$15', journal: '$15', brand: '$19', website: '$24', tool: '$15', planner: '$12', 'wall-art': '$9', worksheet: '$8', 'party-printable': '$10' };
 
 async function getOrCreateMemberFile(prof, type) {
-  let row = db.prepare(`
+  const { ensureProductFile } = require('./fileFactory');
+  const row = db.prepare(`
     SELECT * FROM products
     WHERE profession_id = ? AND type = ? AND status != 'rejected'
     ORDER BY id DESC LIMIT 1
   `).get(prof.id, type);
 
-  if (!row) {
-    const ins = db.prepare(`
-      INSERT INTO products (profession_id, name, type, price, status, theme, html_content)
-      VALUES (?, ?, ?, ?, 'draft', 'Onyx Volt', '<!-- auto-generated -->')
-    `).run(prof.id, `${prof.name} ${type.charAt(0).toUpperCase() + type.slice(1)}`, type, TYPE_PRICES[type] || '$12');
-    row = db.prepare('SELECT * FROM products WHERE id = ?').get(ins.lastInsertRowid);
+  if (row) {
+    const fp = await ensureProductFile(row);
+    return fp && fs.existsSync(fp) ? fp : null;
   }
 
-  const fp = await ensureProductFile(row);
+  // Synthesize transient product object so we generate the member file on disk
+  // without polluting the catalog review queue with extra draft rows.
+  const tempProduct = {
+    id: null,
+    profession_id: prof.id,
+    name: `${prof.name} ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+    type,
+    price: TYPE_PRICES[type] || '$12',
+    theme: 'Onyx Volt',
+    html_content: '<!-- auto-generated -->'
+  };
+  const fp = await ensureProductFile(tempProduct);
   return fp && fs.existsSync(fp) ? fp : null;
+}
+
+async function rebuildBundleZip(product, prof) {
+  if (!prof && product && product.profession_id) {
+    prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+  }
+  if (!prof) return null;
+  const memberTypes = (prof.tier === 'passion' || RECOVERY_SLUGS.includes(prof.slug))
+    ? [...MEMBER_TYPES, 'journal']
+    : MEMBER_TYPES;
+
+  const members = [];
+  for (const type of memberTypes) {
+    const fp = await getOrCreateMemberFile(prof, type);
+    if (fp) members.push(fp);
+  }
+  if (members.length < 3) return null;
+
+  const zip = new AdmZip();
+  for (const fp of members) zip.addLocalFile(fp, '', path.basename(fp));
+  const zipPath = path.join(OUTPUT_DIR, `${prof.slug}-complete-toolkit-${Date.now()}.zip`);
+  zip.writeZip(zipPath);
+  if (product && product.id) {
+    const brief = `Complete Toolkit for ${prof.name} (${members.length} deliverables: ${memberTypes.join(', ')})`;
+    db.prepare('UPDATE products SET file_path = ?, brief = COALESCE(brief, ?) WHERE id = ?').run(zipPath, brief, product.id);
+    product.file_path = zipPath;
+  }
+  return zipPath;
 }
 
 async function buildBundleForProfession(prof) {
   const existing = db.prepare(`
     SELECT * FROM products WHERE profession_id = ? AND type = 'bundle' LIMIT 1
   `).get(prof.id);
-  if (existing) return { skipped: true, product: existing };
+  if (existing) {
+    if (!existing.file_path || !fs.existsSync(existing.file_path)) {
+      await rebuildBundleZip(existing, prof);
+    }
+    return { skipped: true, product: db.prepare('SELECT * FROM products WHERE id = ?').get(existing.id) };
+  }
 
   const memberTypes = (prof.tier === 'passion' || RECOVERY_SLUGS.includes(prof.slug))
     ? [...MEMBER_TYPES, 'journal']
@@ -57,11 +98,12 @@ async function buildBundleForProfession(prof) {
   for (const fp of members) zip.addLocalFile(fp, '', path.basename(fp));
   const zipPath = path.join(OUTPUT_DIR, `${prof.slug}-complete-toolkit-${Date.now()}.zip`);
   zip.writeZip(zipPath);
+  const brief = `Complete Toolkit for ${prof.name} (${members.length} deliverables: ${memberTypes.join(', ')})`;
 
   const ins = db.prepare(`
-    INSERT INTO products (profession_id, name, type, price, status, theme, html_content, file_path)
-    VALUES (?, ?, 'bundle', '$29', 'approved', 'Onyx Volt', '<!-- bundle -->', ?)
-  `).run(prof.id, `${prof.name} Complete Toolkit`, zipPath);
+    INSERT INTO products (profession_id, name, type, price, status, theme, html_content, file_path, brief)
+    VALUES (?, ?, 'bundle', '$29', 'approved', 'Onyx Volt', '<!-- bundle -->', ?, ?)
+  `).run(prof.id, `${prof.name} Complete Toolkit`, zipPath, brief);
 
   return { skipped: false, product: db.prepare('SELECT * FROM products WHERE id = ?').get(ins.lastInsertRowid) };
 }
@@ -130,4 +172,4 @@ function coverForType(type) {
   return fs.existsSync(p) ? p : null;
 }
 
-module.exports = { buildBundleForProfession, generateAllBundles, buildLeadMagnet, coverForType };
+module.exports = { buildBundleForProfession, rebuildBundleZip, generateAllBundles, buildLeadMagnet, coverForType };

@@ -94,6 +94,30 @@ async function sweep(maxNew = 8) {
     }
   }
 
+  // N1.1 niche fission: one broad seed per sweep is expanded into specific buyer
+  // micro-niches. Text-only and AI-gated — with MODEL_ENABLED off fission returns []
+  // and the sweep behaves exactly as before.
+  try {
+    const { fission, SEEDS } = require('./nicheFission');
+    const seed = SEEDS[Math.floor(Math.random() * SEEDS.length)];
+    const micro = await fission(seed, 6);
+    for (const m of micro) {
+      if (inserted.length >= maxNew) break;
+      const row = insertUniverseTrend({
+        name: m.name,
+        category: 'fission',
+        phase: 'emerging',
+        velocity: '+80%',
+        window: 40,
+        estRevenue: '$2k-6k',
+        why: `${m.buyer || seed} · ${m.why_underserved || m.intent || ''}`.trim()
+      });
+      if (row) inserted.push(row);
+    }
+  } catch (e) {
+    console.error('[DISCOVERY] fission:', e.message);
+  }
+
   try {
     for (const prof of seasonal.getFocusProfessions()) {
       if (inserted.length >= maxNew) break;
