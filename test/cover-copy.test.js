@@ -71,11 +71,11 @@ test('thumbCoverCopy: colon-less brief falls to first sentence, library benefits
   assert.deepEqual(benefits, []);
 });
 
-test('thumbCoverCopy: generic auto-name falls back to the per-type library', () => {
+test('thumbCoverCopy: generic auto-name falls back to the niche-aware per-type library', () => {
   const product = { name: 'Make Money From Pinterest Checklist', type: 'checklist' };
   const [title, sub] = ds.thumbCoverCopy(product, prof);
-  assert.equal(title, 'Service Quality Checklist');
-  assert.equal(sub, 'Never miss a step on the job');
+  assert.equal(title, 'Make Money From Pinterest Checklist');
+  assert.equal(sub, 'Your step-by-step system, ready to use');
 });
 
 test('thumbCoverCopy: library covers roi and decision-matrix (no "noun + type" garbage)', () => {

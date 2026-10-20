@@ -18,7 +18,27 @@ const CONTENT = {
       'Verify utility shutoff locations (water, gas, electric)',
       'Confirm client access and parking arrangements',
       'Schedule waste disposal / dumpster delivery',
-      'Prepare punch-list for final walkthrough'
+      'Prepare punch-list for final walkthrough',
+      'Lay out drop cloths and protect surrounding surfaces',
+      'Confirm job scope matches the signed work order',
+      'Mark underground lines before any digging',
+      'Test circuits and label the breaker panel',
+      'Calibrate measuring tools before cutting',
+      'Stage parts and fasteners in labeled trays',
+      'Seal off work area from dust and debris',
+      'Verify ladder and scaffold stability',
+      'Confirm weather window for exterior work',
+      'Photograph rough-in before enclosing',
+      'Pressure-test lines before final connection',
+      'Torque fasteners to manufacturer spec',
+      'Caulk and weatherproof all penetrations',
+      'Remove and dispose of old materials',
+      'Label shutoffs and leave an ops manual',
+      'Walk the client through maintenance tips',
+      'Collect signatures on the completion form',
+      'Note warranty terms and start the clock',
+      'Store leftover materials for the client',
+      'Schedule the 30-day follow-up call'
     ],
     invoice: [
       { item: 'Service call / diagnostic fee', price: 85 },
@@ -61,7 +81,27 @@ const CONTENT = {
       'Prepare post-session recommendations',
       'Document session notes and progress',
       'Schedule follow-up if needed',
-      'Process payment and send receipt'
+      'Process payment and send receipt',
+      'Screen for contraindications before treatment',
+      'Confirm hydration and pre-session prep',
+      'Warm up equipment to the right temperature',
+      'Position client for comfort and alignment',
+      'Check in on pressure and sensation mid-session',
+      'Offer water and a moment to reorient after',
+      'Note any areas of tension or restriction',
+      'Recommend home care between visits',
+      'Track progress against the client goals',
+      'Update the client care plan',
+      'Sanitize all touch surfaces between clients',
+      'Launder linens at proper temperature',
+      'Restock retail products featured in session',
+      'Log continuing-education per modality',
+      'Confirm rebooking before the client leaves',
+      'Send a 24-hour check-in message',
+      'Flag any referral needs to a specialist',
+      'Archive session notes securely',
+      'Review outcome measures each month',
+      'Ask for a review once results are seen'
     ],
     invoice: [
       { item: 'Initial consultation & assessment', price: 95 },
@@ -103,7 +143,27 @@ const CONTENT = {
       'Confirm deliverable timeline with client',
       'Set up backup storage and file organization',
       'Test all settings before starting',
-      'Prepare editing workspace and presets'
+      'Prepare editing workspace and presets',
+      'Confirm usage rights and license scope',
+      'Build a mood board with the client',
+      'Pack grip, stands and clamps',
+      'Check weather and golden-hour timing',
+      'Charge all spare batteries and power banks',
+      'Format and label cards by scene',
+      'Set white balance and color references',
+      'Shoot reference frames for continuity',
+      'Log audio levels and run a sound check',
+      'Back up footage at end of each day',
+      'Cull and rate selects before editing',
+      'Sync external audio to video',
+      'Apply color grade to match the brief',
+      'Export proxy files for client review',
+      'Collect fonts and brand assets',
+      'Prepare print-ready and web exports',
+      'Add metadata and keyword tags',
+      'Deliver via a shared gallery link',
+      'Archive masters to cold storage',
+      'Request a testimonial on delivery'
     ],
     invoice: [
       { item: 'Creative fee / session rate', price: 350 },
@@ -145,7 +205,27 @@ const CONTENT = {
       'Prepare deliverable draft for review',
       'Schedule progress check-in with client',
       'Confirm filing or submission deadlines',
-      'Archive completed work per retention policy'
+      'Archive completed work per retention policy',
+      'Run a conflict check before onboarding',
+      'Clarify scope, assumptions and out-of-scope',
+      'Confirm point of contact on both sides',
+      'Set the meeting cadence and reporting format',
+      'Gather source data and validate inputs',
+      'Build the working model or framework',
+      'Review draft against the engagement goals',
+      'Circulate for internal QA before sending',
+      'Track action items and owners',
+      'Summarize decisions from each call',
+      'Prepare the client-facing summary',
+      'Confirm e-signature and payment setup',
+      'Log hours against the budget',
+      'Flag risks and recommend mitigations',
+      'Update the project plan weekly',
+      'Store evidence for audit trails',
+      'Send the invoice on completion',
+      'Ask for referrals at project close',
+      'Schedule the quarterly review',
+      'Capture lessons learned for the team'
     ],
     invoice: [
       { item: 'Initial consultation', price: 150 },
@@ -187,7 +267,27 @@ const CONTENT = {
       'Review triggers and plan for high-risk situations',
       'Celebrate one small win from today',
       'Prepare tomorrows priorities',
-      'Practice gratitude - list 3 things'
+      'Practice gratitude - list 3 things',
+      'Read one page from your program literature',
+      'Work the step assigned for the week',
+      'Inventory resentments and make amends where due',
+      'Set a healthy boundary you have been avoiding',
+      'Call your sponsor at a scheduled time',
+      'Write down one thing you are grateful for',
+      'Do a body scan and name where you hold tension',
+      'Plan a sober activity for the weekend',
+      'Notice urges without acting on them',
+      'Share your experience at a meeting',
+      'Update your relapse-prevention plan',
+      'Practice a grounding technique when stressed',
+      'Connect with a peer who is newer in recovery',
+      'Review your reasons for staying sober',
+      'Prepare a response for common triggers',
+      'Spend ten minutes in quiet reflection',
+      'Thank someone who supported your recovery',
+      'List the people who believe in you',
+      'Set one kind intention for someone else',
+      'Rest and protect your early recovery sleep'
     ],
     invoice: [],
     spreadsheet: {
@@ -222,7 +322,27 @@ const CONTENT = {
       'Check equipment temperature calibration',
       'Review recipe scaling for event size',
       'Confirm delivery/pickup timeline',
-      'Prepare garnishes and presentation elements'
+      'Prepare garnishes and presentation elements',
+      'Label and date all prepped items',
+      'Store raw and ready-to-eat separately',
+      'Confirm allergen cross-contact controls',
+      'Portion and weigh for consistent plating',
+      'Chill hot foods within the safe window',
+      'Reheat to the required internal temperature',
+      'Stage servingware and linens',
+      'Assign a point person for each station',
+      'Photograph the final plating for records',
+      'Brief the team on the run of show',
+      'Confirm bar and beverage pairings',
+      'Set up a hand-wash station for guests',
+      'Track waste and adjust par levels',
+      'Pack cold chain for transport',
+      'Confirm on-site reheating capability',
+      'Leave heating and serving instructions',
+      'Break down and sanitize after service',
+      'Reconcile inventory against the event',
+      'Collect feedback from the client',
+      'File the temperature logs'
     ],
     invoice: [
       { item: 'Menu design & tasting consultation', price: 150 },
@@ -803,7 +923,7 @@ const NICHE = [
       ] },
       { match: /dharma|study/i, rows: [
         'Read one passage and note where it lands in your life',
-        'Contemplate the Four Noble Truths as they apply to use',
+        'Contemplate the Four Noble Truths as they apply to you',
         'Study the Eightfold Path — one factor per week',
         'Memorise one passage that steadies you — return to it in craving',
         'Bring the reading to the sangha discussion'
@@ -899,8 +1019,12 @@ function nicheFor(prof) {
 }
 
 // Distinct procedure rows for one checklist group (service section). Resolution:
-// service-keyed rows → niche pool (rotated per group so groups never repeat) →
-// CONTENT category checklist (rotated) → null (builder keeps its last resort).
+// service-keyed rows → niche pool (rotated per group) → CONTENT category
+// checklist (rotated) → null (builder keeps its last resort).
+// NOTE: a niche that ships checklist products MUST carry service-keyed `groups`
+// OR a `pool` of at least `numGroups * count` distinct rows — otherwise two
+// groups rotate onto the same window and duplicate (the builder's safety net is
+// the trade-true content moat, never generic filler).
 function checklistRowsFor(prof, groupTitle, groupIndex = 0, count = 5) {
   const rotate = (arr) => {
     const i = ((Number(groupIndex) || 0) * count) % Math.max(1, arr.length);

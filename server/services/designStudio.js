@@ -681,13 +681,32 @@ function buildChecklistHTML(prof, theme) {
   const services = parseServices(prof);
   const groups = (services.length ? services : [["Standard Service Package", "$100"]]).map((s, g) => {
     // Last-resort routine — only reached when the content moat has nothing.
-    const routine = [
-      `Confirm scope, date &amp; quoted price (${esc(s[1] || 'quote')}) with the client`,
-      `Arrive prepared — tools, supplies and checklist on hand`,
-      `Complete "${esc(s[0])}" step by step, marking each line done`,
-      `Inspect finished work against this checklist before leaving`,
-      `Collect payment, send the receipt and schedule the follow-up`
+    // Last-resort routine — only reached when the content moat has nothing.
+    // Three distinct rotations so groups never render identical item lists.
+    const ROUTINES = [
+      [
+        `Confirm scope, date &amp; quoted price (${esc(s[1] || 'quote')}) with the client`,
+        `Arrive prepared — tools, supplies and checklist on hand`,
+        `Complete "${esc(s[0])}" step by step, marking each line done`,
+        `Inspect finished work against this checklist before leaving`,
+        `Collect payment, send the receipt and schedule the follow-up`
+      ],
+      [
+        `Review the brief and note any client-specific requirements`,
+        `Gather the materials and references you will need`,
+        `Work the steps in order, checking each as you go`,
+        `Photograph or document the result for the record`,
+        `Hand off with a short summary of what was done`
+      ],
+      [
+        `Set up the workspace and confirm safety before you start`,
+        `Follow the process end to end without skipping steps`,
+        `Double-check measurements, counts or quantities`,
+        `Flag anything that looks off before it becomes a problem`,
+        `Close out and confirm the client is satisfied`
+      ]
     ];
+    const routine = ROUTINES[g % ROUTINES.length];
     // Content moat: trade-true, service-keyed rows — distinct per group.
     const moatRows = checklistRowsFor(prof, s[0], g, 5);
     const rows = moatRows ? moatRows.map((r) => esc(r)) : routine;
@@ -701,12 +720,12 @@ function buildChecklistHTML(prof, theme) {
     .head{display:grid;grid-template-columns:64px 1fr;gap:18px;align-items:center;margin-bottom:26px}
     .head .ic{width:64px;height:64px;border-radius:18px;background:${theme.primary};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.9rem;box-shadow:0 14px 30px -14px ${theme.primary}}
     .head h1{font-size:1.55rem;font-weight:900;letter-spacing:-0.4px}
-    .head p{font-size:0.78rem;opacity:0.55;margin-top:3px}
+    .head p{font-size:0.82rem;opacity:0.85;margin-top:3px;font-weight:600}
     .grp{margin-bottom:22px;page-break-inside:avoid}
     .grp-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
     .grp-num{width:34px;height:34px;border-radius:10px;background:${theme.accent};color:#fff;font-weight:900;font-size:0.9rem;display:flex;align-items:center;justify-content:center}
     .grp-title{font-size:1.12rem;font-weight:800;color:${theme.primary}}
-    .grp-tag{margin-left:auto;font-size:0.8rem;font-weight:800;color:${theme.secondary};background:rgba(0,0,0,0.05);padding:4px 12px;border-radius:999px}
+    .grp-tag{margin-left:auto;font-size:0.82rem;font-weight:800;color:#0f172a;background:rgba(15,23,42,0.08);padding:4px 12px;border-radius:999px}
     .item{display:grid;grid-template-columns:26px 1fr 26px;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px dashed #e2e8f0}
     .box{width:22px;height:22px;border:2px solid ${theme.secondary};border-radius:7px}
     .txt{font-size:1.02rem;font-weight:600;color:#1e293b}
@@ -720,7 +739,7 @@ function buildChecklistHTML(prof, theme) {
       <div class="ic">${esc(prof.emoji || '✅')}</div>
       <div><span class="pill">Checklist · ${new Date().getFullYear()} edition</span>
       <h1>${esc(prof.name)} — Quality Checklist</h1>
-      <p>Five non-negotiables per service · print one per job · tick as you go</p></div>
+      <p>Five non-negotiables · print as needed · tick as you go</p></div>
     </div>
     ${groups}
     <div class="foot-note">
@@ -1802,7 +1821,7 @@ function thumbCoverCopy(product, prof) {
   const safeFormat = ({ invoice: 'PDF + DOCX', checklist: 'PDF · Printable', spreadsheet: 'XLSX · Formulas', booking: 'XLSX · Tracker', social: 'PNG + HTML', brand: 'PDF + PNG', journal: 'PDF · 30 days', bundle: 'ZIP · Files', leadmagnet: 'FREE · ZIP', website: 'HTML · Editable', roi: 'XLSX · Formulas', 'decision-matrix': 'PDF · Printable' })[t] || 'Instant download';
   const lib = {
     invoice: ['Professional Invoice Template', 'Get paid faster, look legit', ['Editable in Word / Google Docs', 'Auto-totals + tax line', 'Pro payment terms built in'], 'PDF + DOCX'],
-    checklist: ['Service Quality Checklist', 'Never miss a step on the job', ['Step-by-step sign-off', 'Client-ready finish check', 'Printable + reusable'], 'PDF · Printable'],
+    checklist: [`${noun} Checklist`, 'Your step-by-step system, ready to use', ['Step-by-step sign-off', 'Client-ready finish check', 'Printable + reusable'], 'PDF · Printable'],
     spreadsheet: ['Pricing Calculator', 'Quote jobs in 60 seconds', ['Live Excel formulas', 'Profit margin built in', 'No more undercharging'], 'XLSX · Formulas'],
     booking: ['Booking Tracker', 'Fill your calendar, stay organized', ['Client + date tracking', 'Deposit + balance columns', 'At-a-glance schedule'], 'XLSX · Tracker'],
     social: ['Social Media Pack', '30 days of posts, done', ['Post + story + carousel', 'Captions + hashtags', 'On-brand colors'], 'PNG + HTML'],
