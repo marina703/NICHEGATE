@@ -48,6 +48,56 @@ fs.mkdirSync(GENERATED_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const MAX_SPREADSHEET_PREVIEW_BYTES = 20 * 1024 * 1024;
 
+// Build content payload for design agent based on product type
+function buildDesignContent(product, prof) {
+  const ds = require('./services/designStudio');
+  const contentLib = require('./services/contentLibrary');
+
+  switch (product.type) {
+    case 'checklist': {
+      const services = ds.parseServices(prof);
+      return {
+        services: services.map((s, g) => ({
+          title: s[0],
+          price: s[1],
+          steps: contentLib.checklistRowsFor(prof, s[0], g, 5) || []
+        }))
+      };
+    }
+    case 'invoice': {
+          const cat = contentLib.getContentFor(prof);
+          const safe = cat.invoice.length ? cat.invoice : ds.parseServices(prof).length ? ds.parseServices(prof) : [['Professional Consultation', '$50']];
+          const total = safe.reduce((a, s) => a + (ds.priceNum(s[1]) || 0), 0);
+          return {
+            lines: safe.map(s => ({ service: s[0], rate: ds.priceNum(s[1]) })),
+            total,
+            dueDate: 'Net 30'
+          };
+        }
+    case 'workbook': {
+      // Use existing workbook prompts if available
+      return {
+        sections: [
+          { title: 'Foundations', prompts: ['What is your core offer?', 'Who is your ideal client?', 'What problem do you solve?'] },
+          { title: 'Systems', prompts: ['Map your client journey', 'Define your delivery process', 'Set up tracking'] },
+          { title: 'Growth', prompts: ['Identify your first 10 clients', 'Build referral system', 'Create upsell path'] }
+        ]
+      };
+    }
+    default: {
+      // Fallback: use checklist structure for any type
+      const services = ds.parseServices(prof);
+      return {
+        services: services.map((s, g) => ({
+          title: s[0],
+          price: s[1],
+          steps: contentLib.checklistRowsFor(prof, s[0], g, 5) || []
+        }))
+      };
+    }
+  }
+}
+
 // Stream a file to the response, failing loudly on read errors. An unhandled
 // stream error after headers are sent otherwise surfaces as a silent 200 with
 // an empty body — pipe() does not forward the source stream's error event.
@@ -3430,11 +3480,63 @@ async function jobToolDispatch(tool, args = {}) {
       return { niche: r.niche, created: r.created || [] };
     }
     case 'optimize': {
-      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(parseInt(args.id));
-      if (!product) return { error: `product ${args.id} not found` };
-      return await optimizer.apply(product, { deploy: true });
-    }
-    case 'publish': {
+          const product = db.prepare('SELECT * FROM products WHERE id = ?').get(parseInt(args.id));
+          if (!product) return { error: `product ${args.id} not found` };
+          return await optimizer.apply(product, { deploy: true });
+        }
+        case 'design': {
+          const id = parseInt(args.id);
+          const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+          if (!product) return { error: `product ${args.id} not found` };
+
+          const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+          const fileFactory = require('./services/fileFactory');
+          const theme = fileFactory.fallbackTheme(product);
+
+          // Build content payload based on product type
+          const content = buildDesignContent(product, prof);
+
+          // Get hero image
+          const heroArt = require('./services/heroArt');
+          let heroDataUri = null;
+          try {
+            const heroPath = await heroArt.ensureHeroArt(product, prof, theme);
+            if (heroPath) {
+              const fs = require('fs');
+              if (fs.existsSync(heroPath)) {
+                const b64 = fs.readFileSync(heroPath).toString('base64');
+                const ext = heroPath.match(/\.png$/i) ? 'image/png' : 'image/jpeg';
+                heroDataUri = `data:${ext};base64,${b64}`;
+              }
+            }
+          } catch (e) {
+            console.error('[DESIGN] heroArt failed:', e.message);
+          }
+
+          // Generate designed HTML via design agent
+          const designAgent = require('./services/designAgent');
+          const result = await designAgent.generateHtmlWithFallback({
+            content, theme, prof, type: product.type, heroDataUri
+          });
+
+          // Inject hero if placeholder was used
+          let finalHtml = result.html;
+          if (heroDataUri) {
+            finalHtml = designAgent.injectHeroImage(finalHtml, heroDataUri);
+          }
+
+          // Generate PDF
+          const pdfGen = require('./services/pdfGenerator');
+          const stamp = Date.now();
+          const pdfPath = await pdfGen.generatePDF(finalHtml, `${prof.slug}-${product.type}-${stamp}.pdf`);
+
+          // Store designed HTML and PDF path
+          db.prepare('UPDATE products SET html_content = ?, file_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+            .run(finalHtml, pdfPath, product.id);
+
+          return { id, htmlBytes: finalHtml.length, pdfPath, validation: result.validation, attempts: result.attempts };
+        }
+        case 'publish': {
       const id = parseInt(args.id);
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
       if (!product) return { error: `product ${args.id} not found` };
@@ -4238,6 +4340,34 @@ app.delete('/api/jobs/:id', (req, res) => {
   }
 });
 
+// ------------------------------------------------------------------------
+// COMMAND CENTER AGENT — factory brain endpoints
+// ------------------------------------------------------------------------
+const commandCenter = require('./services/commandCenter');
+
+app.post('/api/command/chat', commandCenter.handleChat);
+app.post('/api/command/campaign', commandCenter.handleCampaign);
+app.post('/api/command/generate', commandCenter.handleGenerate);
+app.post('/api/command/design', commandCenter.handleDesign);
+app.post('/api/command/render', commandCenter.handleRender);
+app.post('/api/command/qa', commandCenter.handleQa);
+app.post('/api/command/publish', commandCenter.handlePublish);
+app.get('/api/command/state', async (req, res) => {
+  try {
+    const state = await commandCenter.queryFactory({ query: 'all' });
+    res.json(state);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/api/command/lessons', async (req, res) => {
+  try {
+    const lessons = db.prepare('SELECT * FROM agent_lessons ORDER BY created_at DESC LIMIT 50').all();
+    res.json({ lessons });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ------------------------------------------------------------------------
 // SERVE CLIENT
@@ -4324,7 +4454,7 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = { app, startServer, cycleMetrics };
+module.exports = { app, startServer, cycleMetrics, jobToolDispatch };
 
 
 

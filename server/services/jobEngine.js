@@ -27,13 +27,14 @@ const GATED_TOOLS = ['publish', 'push_etsy'];
 
 // ── PLAN ──────────────────────────────────────────────────────────────────
 // Deterministic fallback plan when the AI layer is off (or returns junk).
-// brainstorm → generate → optimize each → publish each (gated).
+// brainstorm → generate → optimize → design → publish each (gated).
 function defaultPlan(prompt, niche) {
   const idea = String(prompt || '').slice(0, 120);
   return [
     { tool: 'brainstorm', args: { niche: niche || idea, count: 3 } },
     { tool: 'generate', args: { idea, count: 3 } },
     { tool: 'optimize', args: { id: '{id}' }, forEach: '$created' },
+    { tool: 'design', args: { id: '{id}' }, forEach: '$created' },
     { tool: 'publish', args: { id: '{id}' }, forEach: '$created', gate: true },
   ];
 }

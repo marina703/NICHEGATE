@@ -564,6 +564,7 @@ function baseStyle(theme) {
   const paper = dark ? ((t.brief && t.brief.palette && t.brief.palette.surface) || '#ffffff') : (t.bg || '#ffffff');
   const wash = dark ? '#eef1f5' : (t.bg || '#ffffff');
   return `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
   html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{font-family:${t.font || SYSTEM_FONT};color:${t.primary};background:${wash};line-height:1.55;font-size:13px}
@@ -587,7 +588,7 @@ function shell(title, extraCss, body, theme) {
 <style>${baseStyle(theme)}${extraCss}</style></head><body>${body}</body></html>`;
 }
 // ── INVOICE ──────────────────────────────────────────────────────────────
-function buildInvoiceHTML(prof, theme, opts) {
+function buildInvoiceHTML(prof, theme, opts, heroPath) {
   const _sh = (theme && theme.dna) ? shellDNA : shell;
   const cat = getContentFor(prof);
   const safe = cat.invoice.length ? cat.invoice : parseServices(prof).length ? parseServices(prof) : [["Professional Consultation", "$50"]];
@@ -597,7 +598,7 @@ function buildInvoiceHTML(prof, theme, opts) {
   const due = new Date(Date.now() + 30 * 864e5).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const rows = safe.map((s, i) => {
     const rate = priceNum(s[1]);
-    return `<tr>
+    return `<tr class="${i % 2 === 0 ? 'even' : 'odd'}">
       <td><div class="svc">${esc(s[0])}</div><div class="svc-sub">${esc(prof.name)} · line #${String(i + 1).padStart(2, '0')}</div></td>
       <td class="num">1</td>
       <td class="num">${rate != null ? '$' + rate.toFixed(2) : esc(s[1])}</td>
@@ -605,80 +606,145 @@ function buildInvoiceHTML(prof, theme, opts) {
     </tr>`;
   }).join('');
 
+  // Sophisticated palette derived from theme — Canva-like editorial palette
+  const p = theme.primary || '#0f172a';
+  const a = theme.accent || '#2dd4bf';
+  const navy = p;
+  const cream = '#fdfbf7';
+  const gold = a.replace(/[^,]+\)$/, '0.95)');
+  const sage = '#8fb8b0';
+  const slate = '#334155';
+  const ink = '#1e293b';
+  const muted = '#94a3b8';
+
+  const heroHTML = heroPath
+    ? `<div class="hero" style="background-image:url('${heroPath}')">
+        <div class="hero-scrim"></div>
+        <div class="hero-content">
+          <div class="mh-top">
+            <span class="brand-chip">${esc(prof.emoji || '🧾')} ${esc(prof.name)}</span>
+            <span class="edition">Invoice Template · ${new Date().getFullYear()} Edition</span>
+          </div>
+          <h1>${esc(prof.name)} — Professional Invoice</h1>
+          <p class="tagline">Clean, compliant, ready to send · Net 30 terms</p>
+          <div class="mh-rule"></div>
+        </div>
+      </div>`
+    : `<div class="masthead">
+        <div class="mh-top">
+          <span class="brand-chip">${esc(prof.emoji || '🧾')} ${esc(prof.name)}</span>
+          <span class="edition">Invoice Template · ${new Date().getFullYear()} Edition</span>
+        </div>
+        <h1>${esc(prof.name)} — Professional Invoice</h1>
+        <p class="tagline">Clean, compliant, ready to send · Net 30 terms</p>
+        <div class="mh-rule"></div>
+      </div>`;
+
   return _sh(`${prof.name} — Invoice Template`, `
-    body{background:#eef1f5}
-    .top-grid{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;margin-bottom:34px}
-    .brand{display:flex;align-items:center;gap:16px}
-    .logo-box{width:64px;height:64px;border-radius:18px;background:${theme.primary};color:#fff;display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 14px 30px -14px ${theme.primary}}
-    .brand h1{font-size:1.7rem;font-weight:900;letter-spacing:-0.5px}
-    .brand p{font-size:0.78rem;opacity:0.55;margin-top:2px}
-    .doc-label{text-align:right}
-    .doc-label .big{font-size:2.2rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;line-height:1}
-    .doc-label .id{font-size:0.75rem;opacity:0.5;margin-top:6px}
-    .meta-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:14px;margin-bottom:26px}
-    .field h3{font-size:0.66rem;letter-spacing:1.8px;text-transform:uppercase;opacity:0.45;margin-bottom:8px}
-    .field p{font-size:0.86rem;color:#334155}
-    .field .editable{border-bottom:1px dashed rgba(15,23,42,0.18);padding-bottom:6px;min-height:22px}
-    table{width:100%;border-collapse:collapse;margin-bottom:18px}
-    thead th{font-size:0.64rem;letter-spacing:1.8px;text-transform:uppercase;padding:12px 14px;background:${theme.primary};color:#fff;text-align:left}
-    thead th:first-child{border-radius:12px 0 0 0}
-    thead th:last-child{border-radius:0 12px 0 0}
-    tbody td{padding:13px 14px;border-bottom:1px solid #e8ecf2;font-size:0.86rem}
-    tbody tr:nth-child(even){background:rgba(15,23,42,0.025)}
-    .svc{font-weight:700;color:#1e293b}
-    .svc-sub{font-size:0.72rem;opacity:0.5;margin-top:2px}
+    .page{background:${cream} !important;padding:0 !important;overflow:hidden}
+    .frame{margin:14px;border:2px solid ${gold};border-radius:12px;overflow:hidden;min-height:1044px;position:relative;box-shadow:0 30px 60px -34px rgba(15,23,42,0.5)}
+    .frame::before{content:"";position:absolute;top:14px;left:14px;width:18px;height:18px;border-top:2px solid ${gold};border-left:2px solid ${gold};border-radius:2px 0 0 0;opacity:0.4;pointer-events:none}
+    .frame::after{content:"";position:absolute;bottom:14px;right:14px;width:18px;height:18px;border-bottom:2px solid ${gold};border-right:2px solid ${gold};border-radius:0 0 2px 0;opacity:0.4;pointer-events:none}
+    .hero{position:relative;height:220px;background-size:cover;background-position:center right;display:flex;align-items:flex-end}
+    .hero-scrim{position:absolute;inset:0;background:linear-gradient(90deg, rgba(9,11,18,0.88) 0%, rgba(9,11,18,0.55) 42%, rgba(9,11,18,0.1) 72%, transparent 100%)}
+    .hero-content{position:relative;z-index:1;padding:20px 24px;max-width:70%}
+    .masthead{background:${navy};color:#fff;padding:34px 28px 24px}
+    .mh-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+    .brand-chip{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);padding:6px 13px;border-radius:999px;font-size:0.75rem;font-weight:700;letter-spacing:0.3px}
+    .edition{font-size:0.62rem;font-weight:800;letter-spacing:2.6px;text-transform:uppercase;opacity:0.85}
+    .hero-content h1,.masthead h1{font-family:'Playfair Display','Iowan Old Style','Palatino Linotype',Georgia,serif;font-size:1.95rem;font-weight:800;letter-spacing:-0.5px;line-height:1.05;color:#fff}
+    .hero-content .tagline,.masthead .tagline{margin-top:8px;font-size:0.8rem;opacity:0.9;font-weight:500;color:#fff}
+    .mh-rule{height:3px;width:54px;background:${gold};border-radius:99px;margin-top:12px;box-shadow:0 0 8px ${gold}}
+    .meta-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:14px;padding:0 24px 18px}
+    .field h3{font-size:0.6rem;letter-spacing:1.6px;text-transform:uppercase;opacity:0.5;margin-bottom:6px;color:${slate}}
+    .field p{font-size:0.82rem;color:${ink}}
+    .field .editable{border-bottom:1px dashed ${sage};padding-bottom:4px;min-height:20px;color:${navy}}
+    table{width:100%;border-collapse:collapse;margin:0 24px 18px}
+    thead th{font-size:0.6rem;letter-spacing:1.6px;text-transform:uppercase;padding:12px 14px;background:${navy};color:#fff;text-align:left}
+    thead th:first-child{border-radius:10px 0 0 0}
+    thead th:last-child{border-radius:0 10px 0 0}
+    tbody td{padding:11px 14px;border-bottom:1px solid rgba(51,65,85,0.06);font-size:0.84rem;color:${ink}}
+    tbody tr.odd{background:#fff}
+    tbody tr.even{background:linear-gradient(180deg, #fff 0%, ${cream} 100%)}
+    .svc{font-weight:700;color:${navy}}
+    .svc-sub{font-size:0.7rem;opacity:0.5;margin-top:2px;color:${slate}}
     .num{text-align:right;font-variant-numeric:tabular-nums}
-    .strong{font-weight:800}
-    .totals{display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start}
-    .notes{font-size:0.78rem;color:#64748b;padding-top:6px}
-    .notes .box{border-left:3px solid ${theme.accent};padding:10px 14px;background:rgba(0,0,0,0.03);border-radius:0 10px 10px 0;margin-top:8px}
-    .total-card{background:${theme.primary};color:#fff;border-radius:16px;padding:18px 20px;box-shadow:0 18px 34px -18px ${theme.primary}}
-    .total-card .lbl{font-size:0.64rem;letter-spacing:2px;text-transform:uppercase;opacity:0.6}
-    .total-card .amt{font-size:2rem;font-weight:900;margin:6px 0 2px}
-    .total-card .due{font-size:0.7rem;opacity:0.65}
-    .pay-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-    .pay-chip{font-size:0.68rem;font-weight:700;background:#fff;border:1px solid rgba(15,23,42,0.12);padding:6px 12px;border-radius:999px}
-    .foot{display:flex;justify-content:space-between;gap:16px;margin-top:30px;padding-top:16px;border-top:1px solid #e8ecf2;font-size:0.72rem;color:#64748b}
-    .foot .sig{border-top:1px solid rgba(15,23,42,0.2);width:160px;padding-top:6px;margin-top:14px;text-align:center;font-weight:700;color:#334155}
+    .strong{font-weight:800;color:${navy}}
+    .totals{display:grid;grid-template-columns:1fr 260px;gap:16px;padding:0 24px 18px;align-items:start}
+    .notes{font-size:0.75rem;color:${slate}}
+    .notes .box{border-left:3px solid ${gold};padding:10px 14px;background:rgba(143,184,176,0.08);border-radius:0 10px 10px 0;margin-top:8px}
+    .total-card{background:${navy};color:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 14px 28px -16px rgba(0,0,0,0.3)}
+    .total-card .lbl{font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;opacity:0.6}
+    .total-card .amt{font-size:1.85rem;font-weight:900;margin:4px 0 2px}
+    .total-card .due{font-size:0.68rem;opacity:0.65}
+    .pay-strip{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+    .pay-chip{font-size:0.65rem;font-weight:700;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:5px 11px;border-radius:999px}
+    .foot{display:flex;justify-content:space-between;gap:16px;padding:14px 24px 20px;border-top:1px solid rgba(51,65,85,0.08);font-size:0.7rem;color:${muted}}
+    .foot .sig{border-top:1px solid ${gold};width:150px;padding-top:6px;margin-top:10px;text-align:center;font-weight:700;color:${ink}}
+    .page-num{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:0.6rem;font-weight:700;color:${muted};letter-spacing:1.4px;text-transform:uppercase;opacity:0.7;z-index:10}
+    .watermark{position:absolute;bottom:44px;right:24px;font-family:'Playfair Display',Georgia,serif;font-size:5.5rem;font-weight:900;color:${gold};opacity:0.025;pointer-events:none;transform:rotate(-12deg);white-space:nowrap;z-index:1}
   `, `
   <div class="page">
-    <div class="top-grid">
-      <div class="brand">
-        <div class="logo-box">${esc(prof.emoji || '🧾')}</div>
-        <div><h1>${esc(prof.name)}</h1><p>Professional Services · ${esc(new Date().getFullYear())}</p></div>
+    <div class="frame">
+      ${heroHTML}
+      <div class="meta-grid">
+        <div class="field"><h3>Bill To</h3><p class="editable" contenteditable="true">Client name<br>Client company<br>City, ST 12345</p></div>
+        <div class="field"><h3>Invoice Date</h3><p>${esc(today)}</p></div>
+        <div class="field"><h3>Payment Due</h3><p>${esc(due)}</p></div>
       </div>
-      <div class="doc-label"><div class="big">Invoice</div><div class="id">INV-${String(1000 + (opts2.seed || 1))} · Due Net 30</div></div>
-    </div>
-    <div class="meta-grid">
-      <div class="field"><h3>Bill To</h3><p class="editable" contenteditable="true">Client name<br>Client company<br>City, ST 12345</p></div>
-      <div class="field"><h3>Invoice Date</h3><p>${esc(today)}</p></div>
-      <div class="field"><h3>Payment Due</h3><p>${esc(due)}</p></div>
-    </div>
-    <table>
-      <thead><tr><th>Service / Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="totals">
-      <div class="notes">
-        <div class="box">Thank you for your business. Payment due within 30 days — ACH, credit card, or check accepted.</div>
+      <table>
+        <thead><tr><th>Service / Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="totals">
+        <div class="notes">
+          <div class="box">Thank you for your business. Payment due within 30 days — ACH, credit card, or check accepted.</div>
+        </div>
+        <div class="total-card">
+          <div class="lbl">Total Due</div>
+          <div class="amt">$${total.toFixed(2)}</div>
+          <div class="due">Covers all listed work · No hidden fees</div>
+          <div class="pay-strip"><span class="pay-chip">ACH</span><span class="pay-chip">CARD</span><span class="pay-chip">CHECK</span></div>
+        </div>
       </div>
-      <div class="total-card">
-        <div class="lbl">Total Due</div>
-        <div class="amt">$${total.toFixed(2)}</div>
-        <div class="due">Covers all listed work · No hidden fees</div>
-        <div class="pay-strip"><span class="pay-chip">ACH</span><span class="pay-chip">CARD</span><span class="pay-chip">CHECK</span></div>
+      <div class="foot">
+        <div>Payment terms: Net 30 · Questions? hello@${esc(prof.slug)}.com</div>
+        <div class="sig">Authorized signature</div>
       </div>
-    </div>
-    <div class="foot">
-      <div>Payment terms: Net 30 · Questions? hello@${esc(prof.slug)}.com</div>
-      <div class="sig">Authorized signature</div>
+      <div class="page-num">Page 1 of 1 · NicheGate Financial Systems</div>
+      <div class="watermark">INVOICE</div>
     </div>
   </div>`, theme);
 }
 // ── CHECKLIST ────────────────────────────────────────────────────────────
-function buildChecklistHTML(prof, theme) {
+function buildChecklistHTML(prof, theme, heroPath) {
   const _sh = (theme && theme.dna) ? shellDNA : shell;
   const services = parseServices(prof);
+  const CHECK_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>';
+  const ICON_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9z"/><path d="M9 12l2 2 4-4"/></svg>';
+  // Per-section line-art icons (cycled by index) — gives each service block its
+  // own mark instead of one repeated glyph, echoing Canva's icon system.
+  const SECTION_ICONS = [
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9z"/><path d="M9 12l2 2 4-4"/></svg>',
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c5-3 8-7 8-12V4H4v5c0 5 3 9 8 12z"/><path d="M12 7v6M9 10h6"/></svg>',
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.2 5.2L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.8-.8z"/></svg>',
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5l4 4M16 4l3 3-9 9-4 1 1-4z"/><path d="M4 20l3-1"/></svg>',
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>'
+  ];
+
+  // Sophisticated palette derived from theme — moves beyond stark primary/accent
+  // to a Canva-like editorial palette: deep navy, warm cream, muted gold, sage.
+  const p = theme.primary || '#0f172a';
+  const a = theme.accent || '#2dd4bf';
+  const s = theme.secondary || '#64748b';
+  const navy = p;                              // deep ink
+  const cream = '#fdfbf7';                     // warm paper
+  const gold = a.replace(/[^,]+\)$/, '0.95)'); // muted gold from accent
+  const sage = '#8fb8b0';                      // muted sage
+  const slate = '#334155';                     // mid-tone
+  const ink = '#1e293b';                       // body text
+  const muted = '#94a3b8';                     // meta text
   const groups = (services.length ? services : [["Standard Service Package", "$100"]]).map((s, g) => {
     // Last-resort routine — only reached when the content moat has nothing.
     // Last-resort routine — only reached when the content moat has nothing.
@@ -711,40 +777,109 @@ function buildChecklistHTML(prof, theme) {
     const moatRows = checklistRowsFor(prof, s[0], g, 5);
     const rows = moatRows ? moatRows.map((r) => esc(r)) : routine;
     return `<div class="grp">
-      <div class="grp-head"><span class="grp-num">0${g + 1}</span><span class="grp-title">${esc(s[0])}</span><span class="grp-tag">${esc(s[1] || '')}</span></div>
-      ${rows.map((r) => `<div class="item"><span class="box"></span><span class="txt">${r}</span><span class="chk"><input type="checkbox"></span></div>`).join('')}
+      <div class="grp-head"><span class="grp-ico">${SECTION_ICONS[g % SECTION_ICONS.length]}</span><span class="grp-num">0${g + 1}</span><span class="grp-title">${esc(s[0])}</span><span class="grp-tag">${esc(s[1] || '')}</span></div>
+      ${rows.map((r) => `<div class="item"><span class="chk-ico">${CHECK_SVG}</span><span class="txt">${r}</span></div>`).join('')}
     </div>`;
   }).join('');
 
-  return _sh(`${prof.name} — Service Quality Checklist`, `
-    .head{display:grid;grid-template-columns:64px 1fr;gap:18px;align-items:center;margin-bottom:26px}
-    .head .ic{width:64px;height:64px;border-radius:18px;background:${theme.primary};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.9rem;box-shadow:0 14px 30px -14px ${theme.primary}}
-    .head h1{font-size:1.55rem;font-weight:900;letter-spacing:-0.4px}
-    .head p{font-size:0.82rem;opacity:0.85;margin-top:3px;font-weight:600}
-    .grp{margin-bottom:22px;page-break-inside:avoid}
-    .grp-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-    .grp-num{width:34px;height:34px;border-radius:10px;background:${theme.accent};color:#fff;font-weight:900;font-size:0.9rem;display:flex;align-items:center;justify-content:center}
-    .grp-title{font-size:1.12rem;font-weight:800;color:${theme.primary}}
-    .grp-tag{margin-left:auto;font-size:0.82rem;font-weight:800;color:#0f172a;background:rgba(15,23,42,0.08);padding:4px 12px;border-radius:999px}
-    .item{display:grid;grid-template-columns:26px 1fr 26px;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px dashed #e2e8f0}
-    .box{width:22px;height:22px;border:2px solid ${theme.secondary};border-radius:7px}
-    .txt{font-size:1.02rem;font-weight:600;color:#1e293b}
-    .chk input{transform:scale(1.15);accent-color:${theme.accent}}
-    .foot-note{margin-top:22px;background:${theme.primary};color:#fff;border-radius:16px;padding:18px 20px;display:flex;justify-content:space-between;align-items:center}
-    .foot-note .lbl{font-size:0.64rem;letter-spacing:2px;text-transform:uppercase;opacity:0.6}
-    .foot-note .val{font-weight:800;margin-top:3px}
+  const heroHTML = heroPath
+    ? `<div class="hero" style="background-image:url('${heroPath}')">
+        <div class="hero-scrim"></div>
+        <div class="hero-content">
+          <div class="mh-top">
+            <span class="brand-chip">${esc(prof.emoji || '✅')} ${esc(prof.name)}</span>
+            <span class="edition">Checklist · ${new Date().getFullYear()} Edition</span>
+          </div>
+          <h1>${esc(prof.name)} — Quality Checklist</h1>
+          <p class="tagline">Your step-by-step system · print as needed · tick as you go</p>
+          <div class="mh-rule"></div>
+        </div>
+      </div>`
+    : `<div class="masthead">
+        <div class="mh-top">
+          <span class="brand-chip">${esc(prof.emoji || '✅')} ${esc(prof.name)}</span>
+          <span class="edition">Checklist · ${new Date().getFullYear()} Edition</span>
+        </div>
+        <h1>${esc(prof.name)} — Quality Checklist</h1>
+        <p class="tagline">Your step-by-step system · print as needed · tick as you go</p>
+        <div class="mh-rule"></div>
+      </div>`;
+
+  // "How to use" micro-section — Canva-style quick-start guide
+  const howtoHTML = `
+    <div class="howto">
+      <h2>How to use this checklist</h2>
+      <ol>
+        <li><strong>Print</strong> one copy per job site or keep digital on tablet.</li>
+        <li><strong>Complete</strong> every step in order — each builds on the last.</li>
+        <li><strong>Tick</strong> the box when done; note issues in the margin.</li>
+        <li><strong>Sign off</strong> at the bottom — your quality record.</li>
+      </ol>
+    </div>`;
+
+  return _sh(`${prof.name} — Quality Checklist`, `
+    .page{background:${cream} !important;padding:0 !important;overflow:hidden}
+    .frame{margin:14px;border:2px solid ${gold};border-radius:12px;overflow:hidden;min-height:1044px;position:relative;box-shadow:0 30px 60px -34px rgba(15,23,42,0.5)}
+    .frame::before{content:"";position:absolute;top:14px;left:14px;width:18px;height:18px;border-top:2px solid ${gold};border-left:2px solid ${gold};border-radius:2px 0 0 0;opacity:0.4;pointer-events:none}
+    .frame::after{content:"";position:absolute;bottom:14px;right:14px;width:18px;height:18px;border-bottom:2px solid ${gold};border-right:2px solid ${gold};border-radius:0 0 2px 0;opacity:0.4;pointer-events:none}
+    .hero{position:relative;height:280px;background-size:cover;background-position:center right;display:flex;align-items:flex-end}
+    .hero-scrim{position:absolute;inset:0;background:linear-gradient(90deg, rgba(9,11,18,0.88) 0%, rgba(9,11,18,0.55) 42%, rgba(9,11,18,0.1) 72%, transparent 100%)}
+    .hero-content{position:relative;z-index:1;padding:24px 28px;max-width:72%}
+    .masthead{background:${navy};color:#fff;padding:38px 32px 28px}
+    .mh-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+    .brand-chip{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);padding:6px 13px;border-radius:999px;font-size:0.75rem;font-weight:700;letter-spacing:0.3px}
+    .edition{font-size:0.62rem;font-weight:800;letter-spacing:2.6px;text-transform:uppercase;opacity:0.85}
+    .hero-content h1,.masthead h1{font-family:'Playfair Display','Iowan Old Style','Palatino Linotype',Georgia,serif;font-size:2.1rem;font-weight:800;letter-spacing:-0.5px;line-height:1.03;color:#fff}
+    .hero-content .tagline,.masthead .tagline{margin-top:8px;font-size:0.85rem;opacity:0.92;font-weight:500;color:#fff}
+    .mh-rule{height:3px;width:58px;background:${gold};border-radius:99px;margin-top:14px;box-shadow:0 0 8px ${gold}}
+    .chips{display:flex;gap:7px;flex-wrap:wrap;padding:12px 28px 0}
+    .chip{font-size:0.68rem;font-weight:700;letter-spacing:0.4px;color:${navy};background:linear-gradient(135deg, ${gold} 0%, ${sage} 100%);padding:4px 12px;border-radius:999px;box-shadow:0 2px 6px -2px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.3)}
+    .howto{background:linear-gradient(135deg, rgba(143,184,176,0.08) 0%, rgba(143,184,176,0.03) 100%);border:1px solid ${sage};border-radius:10px;padding:16px 20px;margin:18px 28px 10px;position:relative;z-index:1}
+    .howto::before{content:"";position:absolute;top:-6px;left:22px;width:14px;height:14px;background:${cream};border:1px solid ${sage};border-radius:50%;transform:rotate(45deg);z-index:-1}
+    .howto h2{font-family:'Playfair Display',Georgia,serif;font-size:0.95rem;font-weight:700;color:${navy};margin-bottom:10px;display:flex;align-items:center;gap:8px}
+    .howto h2::before{content:"";width:6px;height:6px;background:${gold};border-radius:50%}
+    .howto ol{margin:0;padding-left:1.2rem;font-size:0.82rem;line-height:1.7;color:${slate}}
+    .howto li{margin-bottom:6px}
+    .howto strong{color:${ink};font-weight:700}
+    .body{padding:16px 28px 20px;position:relative;z-index:1}
+    .body::before{content:"";position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");opacity:0.04;pointer-events:none;z-index:0}
+    .grp{position:relative;z-index:1;margin-bottom:11px;border:1px solid rgba(51,65,85,0.08);border-radius:12px;overflow:hidden;page-break-inside:avoid;box-shadow:0 10px 24px -20px rgba(15,23,42,0.5)}
+    .grp:nth-child(odd){background:linear-gradient(180deg, #fff 0%, ${cream} 100%)}
+    .grp:nth-child(even){background:#fff}
+    .grp-head{display:flex;align-items:center;gap:9px;padding:10px 14px;background:linear-gradient(90deg, ${gold} 0%, ${gold} 5px, rgba(51,65,85,0.02) 5px);border-bottom:1px solid rgba(51,65,85,0.06)}
+    .grp-ico{color:${navy};display:flex;width:20px;height:20px;flex-shrink:0}
+    .grp-num{width:28px;height:28px;border-radius:7px;background:${navy};color:#fff;font-weight:900;font-size:0.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px -2px rgba(0,0,0,0.2)}
+    .grp-title{font-size:0.98rem;font-weight:800;color:${navy}}
+    .grp-tag{margin-left:auto;font-size:0.7rem;font-weight:800;color:${navy};background:${gold};padding:3px 10px;border-radius:999px;box-shadow:0 1px 3px -1px rgba(0,0,0,0.1)}
+    .item{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;padding:9px 14px;border-bottom:1px dashed rgba(51,65,85,0.09)}
+    .item:last-child{border-bottom:none}
+    .chk-ico{color:${gold};display:flex;align-items:center;justify-content:center;width:20px;height:20px;margin-top:1px;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.08))}
+    .txt{font-size:0.95rem;font-weight:600;color:${ink};line-height:1.45}
+    .foot-note{position:relative;z-index:1;margin-top:14px;background:${navy};color:#fff;border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px;box-shadow:0 8px 20px -12px rgba(0,0,0,0.3)}
+    .foot-note .lbl{font-size:0.58rem;letter-spacing:2.2px;text-transform:uppercase;opacity:0.6}
+    .foot-note .val{font-weight:800;margin-top:2px;font-size:0.92rem}
+    .page-num{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:0.62rem;font-weight:700;color:${muted};letter-spacing:1.5px;text-transform:uppercase;opacity:0.7;z-index:10}
+    .watermark{position:absolute;bottom:50px;right:28px;font-family:'Playfair Display',Georgia,serif;font-size:6rem;font-weight:900;color:${gold};opacity:0.03;pointer-events:none;transform:rotate(-12deg);white-space:nowrap;z-index:1}
+    .chip{font-size:0.68rem;font-weight:700;letter-spacing:0.4px;color:${navy};background:linear-gradient(135deg, ${gold} 0%, ${sage} 100%);padding:4px 12px;border-radius:999px;box-shadow:0 2px 6px -2px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.3)}
   `, `
   <div class="page">
-    <div class="head">
-      <div class="ic">${esc(prof.emoji || '✅')}</div>
-      <div><span class="pill">Checklist · ${new Date().getFullYear()} edition</span>
-      <h1>${esc(prof.name)} — Quality Checklist</h1>
-      <p>Five non-negotiables · print as needed · tick as you go</p></div>
-    </div>
-    ${groups}
-    <div class="foot-note">
-      <div><div class="lbl">Total services covered</div><div class="val">${services.length || 1} routines · 5 steps each</div></div>
-      <div style="text-align:right"><div class="lbl">Notes / corrections</div><div class="val" contenteditable="true">______________________</div></div>
+    <div class="frame">
+      ${heroHTML}
+      <div class="chips">
+        <span class="chip">Print-ready PDF</span>
+        <span class="chip">Trade-specific steps</span>
+        <span class="chip">Tick as you go</span>
+      </div>
+      ${howtoHTML}
+      <div class="body">
+        ${groups}
+        <div class="foot-note">
+          <div><div class="lbl">Services covered</div><div class="val">${services.length || 1} routines · 5 steps each</div></div>
+          <div style="text-align:right"><div class="lbl">Notes / corrections</div><div class="val" contenteditable="true" style="opacity:0.85">______________________</div></div>
+        </div>
+      </div>
+      <div class="page-num">Page 1 of 1 · NicheGate Quality Systems</div>
+      <div class="watermark">CHECKLIST</div>
     </div>
   </div>`, theme);
 }

@@ -50,7 +50,7 @@ function sleep(ms) {
 // One chat completion with retry + backoff. Returns text or null. Never throws.
 // `action` labels the ai_usage ledger row (chat_completion, design_critique, …).
 // `messages` pass through verbatim, so content arrays (vision image parts) work.
-async function callModel({ model, messages, temperature = 0.7, maxTokens, action, target }) {
+async function callModel({ model, messages, temperature = 0.7, maxTokens, action, target, timeoutMs }) {
   if (!cfg.enabled) return null;
 
   // `target` = { baseUrl, headers } lets a caller route one call to another
@@ -63,12 +63,13 @@ async function callModel({ model, messages, temperature = 0.7, maxTokens, action
     max_tokens: maxTokens || cfg.limits.maxTokens
   };
 
+  const timeout = timeoutMs || TIMEOUT_MS();
   let lastErr = null;
   for (let attempt = 0; attempt <= MAX_RETRIES(); attempt++) {
     try {
       const res = await axios.post(`${endpoint.baseUrl}/chat/completions`, body, {
         headers: endpoint.headers,
-        timeout: TIMEOUT_MS(),
+        timeout,
         maxBodyLength: Infinity,
         maxContentLength: Infinity
       });

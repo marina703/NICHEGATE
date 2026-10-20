@@ -75,11 +75,16 @@ async function generatePDF(htmlContent, filename) {
       await page.setRequestInterception(true);
       page.on('request', request => {
         const url = request.url();
-        if (url.startsWith('data:') || url === 'about:blank') request.continue();
-        else request.abort();
+        // Allow web fonts (Google Fonts CSS + font binaries) so documents use
+        // real editorial typefaces instead of system-font fallbacks.
+        if (url.startsWith('data:') || url === 'about:blank') return request.continue();
+        if (/^https?:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)\//.test(url)) return request.continue();
+        request.abort();
       });
     }
-    await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.setContent(htmlContent, { waitUntil: 'load', timeout: 30000 }).catch(() => {});
+    // Let web fonts finish loading + painting before rasterizing to PDF.
+    await page.evaluate(() => (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve())).catch(() => {});
     const outputPath = path.join(OUTPUT_DIR, filename);
     await page.pdf({
       path: outputPath,
