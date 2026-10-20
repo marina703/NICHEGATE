@@ -132,7 +132,7 @@ const CONTENT = {
   },
   creative: {
     label: 'Creative & Design',
-    keywords: /photo|tattoo|design|art|illustrat|film|video|music|writ|brand|craft|jewel|ceramic|pottery|paint|draw|architect/i,
+    keywords: /photo|tattoo|design|\barts?\b|\bartist\b|\bartwork\b|illustrat|film|video|music|writ|brand|craft|jewel|ceramic|pottery|paint|draw|architect/i,
     checklist: [
       'Charge and format all memory cards / devices',
       'Clean and inspect all equipment',
@@ -266,7 +266,7 @@ const CONTENT = {
       'Reach out to one person in your support network',
       'Review triggers and plan for high-risk situations',
       'Celebrate one small win from today',
-      'Prepare tomorrows priorities',
+      'Prepare tomorrow’s priorities',
       'Practice gratitude - list 3 things',
       'Read one page from your program literature',
       'Work the step assigned for the week',
