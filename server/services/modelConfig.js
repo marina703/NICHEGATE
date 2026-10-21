@@ -5,7 +5,8 @@
 
 // Master switch: when off, every model call returns null instantly (zero cost).
 // Set MODEL_ENABLED=true in .env to turn the AI layer on.
-const ENABLED = String(process.env.MODEL_ENABLED || 'false').toLowerCase() === 'true' && !!process.env.OPENROUTER_API_KEY;
+const ENABLED = String(process.env.MODEL_ENABLED || 'false').toLowerCase() === 'true'
+  && !!(process.env.OPENROUTER_API_KEY || process.env.NOUSPORTAL_API_KEY);
 
 module.exports = {
   enabled: ENABLED,

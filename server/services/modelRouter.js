@@ -43,6 +43,23 @@ function headers() {
   };
 }
 
+// Single source of truth for provider routing. When VISION_PROVIDER=nous and a
+// Nous key is present, EVERY call goes to Nous Portal (OpenAI-compatible)
+// instead of OpenRouter — whose endpoint 402s with no credits. Keeping this in
+// one place means no call site can accidentally hit the dead endpoint.
+function defaultTarget() {
+  const useNous = String(process.env.VISION_PROVIDER || '').toLowerCase() === 'nous'
+    && !!process.env.NOUSPORTAL_API_KEY;
+  if (!useNous) return undefined;
+  return {
+    baseUrl: process.env.VISION_BASE_URL || 'https://inference-api.nousresearch.com/v1',
+    headers: {
+      Authorization: `Bearer ${process.env.NOUSPORTAL_API_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  };
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -55,7 +72,7 @@ async function callModel({ model, messages, temperature = 0.7, maxTokens, action
 
   // `target` = { baseUrl, headers } lets a caller route one call to another
   // OpenAI-compatible provider (e.g. Nous Portal for vision). Default: OpenRouter.
-  const endpoint = target || { baseUrl: cfg.openrouter.baseUrl, headers: headers() };
+  const endpoint = target || defaultTarget() || { baseUrl: cfg.openrouter.baseUrl, headers: headers() };
   const body = {
     model,
     messages,
@@ -225,6 +242,7 @@ module.exports = {
   resetCycleCounter,
   callsUsed,
   underCap,
+  defaultTarget,
   cheapSummarize,
   scoreOptions,
   generateIdeas,
