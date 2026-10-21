@@ -28,7 +28,7 @@ function channelHealth() {
   return {
     gumroad: { configured: mpStatus.gumroad.configured, connected: mpStatus.gumroad.connected, message: mpStatus.gumroad.message },
     etsy: { configured: mpStatus.etsy.configured, connected: mpStatus.etsy.connected, message: mpStatus.etsy.message },
-    pinterest: { configured: !!pinEngine.attributionReport, connected: pinEngine.attributionReport() !== null, message: pinEngine.attributionReport().note || 'ready' },
+    pinterest: { configured: pinEngine.pinterestConfigured(), connected: pinEngine.pinterestConfigured(), message: pinEngine.pinterestConfigured() ? 'Connected' : 'Pinterest token not connected (PINTEREST_ACCESS_TOKEN or marketplace_tokens)' },
     buffer: { configured: buffer.bufferStatus().configured, connected: buffer.bufferStatus().configured, ...buffer.bufferStatus() },
     tiktok: { configured: tiktokAds.tiktokConfigured(), connected: tiktokAds.tiktokConfigured() && !!process.env.TIKTOK_ADVERTISER_ID, message: tiktokAds.tiktokConfigured() ? 'Ready' : 'TikTok OAuth not connected' },
     reddit: { configured: socialPoster.redditConfigured(), connected: socialPoster.redditConfigured(), message: socialPoster.redditConfigured() ? 'Connected' : 'Reddit OAuth not connected' },

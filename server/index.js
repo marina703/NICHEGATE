@@ -3527,6 +3527,8 @@ app.get('/api/setup/status', async (req, res) => {
   const webhook = settings.find(s => s.key === 'webhook_url')?.value || process.env.DISCORD_WEBHOOK_URL || '';
   const email = settings.find(s => s.key === 'notify_email')?.value || '';
 
+  const mm = require('./services/marketingMetrics');
+  const marketStatus = mm.channelHealth();
   res.json({
     etsy: mpStatus.etsy,
     gumroad: mpStatus.gumroad,
@@ -3534,7 +3536,19 @@ app.get('/api/setup/status', async (req, res) => {
     email: { configured: !!email, address: email ? '***' : null },
     allReady: mpStatus.etsy.connected && mpStatus.gumroad.connected,
     // Buffer bridge (interim Pinterest channel): config surface, no secrets.
-    buffer: require('./services/bufferBridge').bufferStatus()
+    buffer: require('./services/bufferBridge').bufferStatus(),
+    // Marketing bot channels — each reports configured/connected/message so the
+    // operator knows exactly which OAuth token is missing to go fully autonomous.
+    marketing: marketStatus,
+    marketingEnabled: String(process.env.MARKETING_AUTO_ENABLED || '').toLowerCase() === 'true',
+    alertNiche: {
+      professions: (process.env.ALERT_NICHE_PROFESSIONS || '').split(',').map(s=>s.trim()).filter(Boolean),
+      categories: (process.env.ALERT_NICHE_CATEGORIES || '').split(',').map(s=>s.trim()).filter(Boolean),
+      hobbies: (process.env.ALERT_NICHE_HOBBIES || '').split(',').map(s=>s.trim()).filter(Boolean),
+      clubs: (process.env.ALERT_NICHE_CLUBS || '').split(',').map(s=>s.trim()).filter(Boolean),
+      beliefs: (process.env.ALERT_NICHE_BELIEFS || '').split(',').map(s=>s.trim()).filter(Boolean),
+      filterActive: !!(process.env.ALERT_NICHE_PROFESSIONS || process.env.ALERT_NICHE_CATEGORIES || process.env.ALERT_NICHE_HOBBIES || process.env.ALERT_NICHE_CLUBS || process.env.ALERT_NICHE_BELIEFS)
+    }
   });
 });
 

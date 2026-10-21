@@ -7,6 +7,19 @@
 
 const { db } = require('../database');
 
+// ── Channel configuration check (mirrors tiktokAds.redditConfigured etc.) ──
+// Pin dispatch uses a direct Pinterest API v5 token (preferred) or the Buffer
+// bridge (interim while the NicheGate app is trial-only). Reports configured
+// exactly like the other channels so /api/marketing/dashboard & /api/setup/status
+// surface the true connection state instead of "always connected".
+function pinterestConfigured() {
+  try {
+    const row = db.prepare("SELECT access_token FROM marketplace_tokens WHERE platform = 'pinterest'").get();
+    if (row && row.access_token) return true;
+  } catch { /* table empty */ }
+  return !!process.env.PINTEREST_ACCESS_TOKEN || require('./bufferBridge').bufferStatus().configured;
+}
+
 // ── Optimal time slots ────────────────────────────────────────────────────
 // Tailwind's "smart schedule" is engagement-weighted posting windows. This is
 // the same idea: a fixed weekly grid of high-engagement Pinterest slots (UTC
@@ -373,4 +386,4 @@ function attributionReport() {
   return { pins, posted, scheduled, withAttributedUrl: withUrl, note: 'click-side attribution needs the CF worker (stretch)' };
 }
 
-module.exports = { createPin, createPinSync, scheduleForProducts, scheduleForProductsAI, pinNewProductAsync, unpinnedListedProducts, pinPublicImageUrl, duePins, nextSlot, attributionReport, pinterestKeywords, utmFor, attributedUrl, publishToPinterestApi, pinImageUrl, SLOT_GRID };
+module.exports = { createPin, createPinSync, scheduleForProducts, scheduleForProductsAI, pinNewProductAsync, unpinnedListedProducts, pinPublicImageUrl, duePins, nextSlot, attributionReport, pinterestConfigured, pinterestKeywords, utmFor, attributedUrl, publishToPinterestApi, pinImageUrl, SLOT_GRID };
