@@ -447,16 +447,24 @@ async function pushCoverToGumroad(product) {
   return { verdict, publicUrl };
 }
 
-// Anonymous image host so locally-generated covers can be attached to listings
-async function uploadToCatbox(filePath) {
+// Anonymous image host so locally-generated covers can be attached to listings.
+// Catbox rejects requests with no User-Agent (HTTP 200 + empty body), so we
+// always send one and retry once before giving up.
+async function uploadToCatbox(filePath, post = axios.post) {
   const buf = fs.readFileSync(filePath);
-  const fd = new FormData();
-  fd.append('reqtype', 'fileupload');
-  fd.append('fileToUpload', new Blob([buf]), path.basename(filePath));
-  const resp = await axios.post('https://catbox.moe/user/api.php', fd, { timeout: 45000 });
-  const url = String(resp.data || '').trim();
-  if (!url.startsWith('http')) throw new Error('Image host rejected upload');
-  return url;
+  const headers = { 'User-Agent': 'NicheGate/1.0 (+https://nichegate.app)' };
+  let lastBody = '';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const fd = new FormData();
+    fd.append('reqtype', 'fileupload');
+    fd.append('fileToUpload', new Blob([buf]), path.basename(filePath));
+    const resp = await post('https://catbox.moe/user/api.php', fd, { timeout: 45000, headers, maxBodyLength: Infinity });
+    const url = String(resp.data || '').trim();
+    if (url.startsWith('http')) return url;
+    lastBody = url.slice(0, 120) || '(empty body)';
+    await new Promise(r => setTimeout(r, 800));
+  }
+  throw new Error(`Image host rejected upload: ${lastBody}`);
 }
 
 // Attach a branded cover to a Gumroad product (needs a public URL)
@@ -1017,6 +1025,7 @@ async function updateListingCopy(product, copy) {
 
 module.exports = {
   mapGumroadAnchor,
+  uploadToCatbox,
   getEtsyAuthUrl,
   exchangeEtsyToken,
   refreshEtsyToken,
