@@ -293,6 +293,119 @@ function init() {
     )
   `);
 
+  // ── MARKETING BOT: DISTRIBUTION LAYER (Phase 6+) ───────────────────────
+  // TikTok Ads: campaign → ad group → ad hierarchy with performance tracking.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tiktok_ads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER,
+      campaign_id TEXT,
+      adgroup_id TEXT,
+      ad_id TEXT,
+      campaign_name TEXT,
+      adgroup_name TEXT,
+      ad_name TEXT,
+      video_script_index INTEGER,
+      cover_image TEXT,
+      target_url TEXT,
+      budget_daily REAL,
+      budget_total REAL,
+      bid_amount REAL,
+      target_audience TEXT,
+      status TEXT DEFAULT 'draft',
+      is_active INTEGER DEFAULT 1,
+      impressions INTEGER DEFAULT 0,
+      clicks INTEGER DEFAULT 0,
+      spend REAL DEFAULT 0,
+      conversions INTEGER DEFAULT 0,
+      conversions_value REAL DEFAULT 0,
+      ctr REAL DEFAULT 0,
+      cpc REAL DEFAULT 0,
+      cpa REAL DEFAULT 0,
+      roas REAL DEFAULT 0,
+      auto_optimize INTEGER DEFAULT 1,
+      last_synced DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_tiktok_ads_product ON tiktok_ads (product_id)'); } catch (e) { /* exists */ }
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_tiktok_ads_status ON tiktok_ads (status, is_active)'); } catch (e) { /* exists */ }
+
+  // Social posts: Reddit / X posts with scheduling, engagement tracking.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS social_posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER,
+      platform TEXT NOT NULL,
+      community TEXT,
+      post_type TEXT DEFAULT 'value-first',
+      title TEXT,
+      body TEXT,
+      scheduled_for DATETIME,
+      posted_at DATETIME,
+      status TEXT DEFAULT 'draft',
+      external_id TEXT,
+      permalink TEXT,
+      upserted INTEGER DEFAULT 0,
+      engagement_score REAL DEFAULT 0,
+      last_error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_social_posts_platform ON social_posts (platform, status)'); } catch (e) { /* exists */ }
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_social_posts_product ON social_posts (product_id)'); } catch (e) { /* exists */ }
+
+  // ESP subscribers: email capture from lead magnet + landing pages.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS esp_subscribers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      source TEXT,
+      profession_id INTEGER,
+      subscribed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      status TEXT DEFAULT 'active',
+      esp_subscriber_id TEXT,
+      UNIQUE(email)
+    )
+  `);
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_esp_subscribers_email ON esp_subscribers (email)'); } catch (e) { /* exists */ }
+
+  // Marketing campaigns: cross-channel campaign tracking (links products to pins/ads/posts/emails).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS marketing_campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER,
+      name TEXT,
+      channel TEXT,
+      start_date DATETIME,
+      end_date DATETIME,
+      budget REAL,
+      spent REAL DEFAULT 0,
+      conversions INTEGER DEFAULT 0,
+      revenue REAL DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      metrics_json TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Marketing metrics: aggregated cross-channel performance snapshots.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS marketing_metrics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER,
+      channel TEXT NOT NULL,
+      metric_type TEXT,
+      value REAL,
+      currency TEXT,
+      recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_marketing_metrics_product ON marketing_metrics (product_id, channel)'); } catch (e) { /* exists */ }
+
   // Migration: raster preview thumbnails (older DBs won't have this column)
   try { db.exec('ALTER TABLE products ADD COLUMN preview_path TEXT'); } catch (e) { /* column already exists */ }
 

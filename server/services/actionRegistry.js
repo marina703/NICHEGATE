@@ -172,6 +172,36 @@ const ACTIONS = {
     description: 'One reskin attempt for products with real sales but weak design scores (recent catalog only).',
     input: {},
     singleton: true
+  },
+  'marketing-cycle': {
+    label: 'Run Marketing Cycle',
+    description: 'Full autonomous marketing cycle: Pinterest pins, TikTok ads, Reddit/X posts, email sequences, newsletter, metrics.',
+    input: { forceNewsletter: { type: 'boolean', default: false } },
+    singleton: true
+  },
+  'tiktok-ads': {
+    label: 'Create TikTok Ads',
+    description: 'Generate TikTok ad creatives (video scripts + targeting) for hot products and launch/auto-optimize them.',
+    input: { limit: { type: 'number', min: 1, max: 5, default: 3 } },
+    singleton: true
+  },
+  'social-posts': {
+    label: 'Generate Social Posts',
+    description: 'Draft value-first Reddit/X posts for listed products and dispatch any due posts.',
+    input: { limitPerProduct: { type: 'number', min: 1, max: 5, default: 3 } },
+    singleton: true
+  },
+  'email-campaign': {
+    label: 'Generate Email Campaign',
+    description: 'Create + export per-niche launch sequences to the configured ESP webhook.',
+    input: {},
+    singleton: true
+  },
+  'newsletter-generate': {
+    label: 'Generate Newsletter',
+    description: 'Build the weekly newsletter from fresh listings and trending niches.',
+    input: {},
+    singleton: true
   }
 };
 

@@ -244,7 +244,7 @@ function addDesignReference(ref) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       String(ref.title).slice(0, 120),
-      ref.source === 'winner' ? 'winner' : 'manual',
+      ['winner', 'manual', 'template', 'seed', 'analyzed'].includes(ref.source) ? ref.source : 'manual',
       ref.niche_key || null,
       typeof ref.palette === 'string' ? ref.palette.slice(0, 500) : JSON.stringify(ref.palette || []).slice(0, 500),
       typeof ref.fonts === 'string' ? ref.fonts.slice(0, 300) : JSON.stringify(ref.fonts || {}).slice(0, 300),

@@ -18,6 +18,7 @@ export const NAV = [
 
   { group: 'work', view: 'review', label: 'Review', icon: 'review', badge: 'review' },
   { group: 'work', view: 'catalog', label: 'Catalog', icon: 'catalog' },
+  { group: 'work', view: 'design', label: 'Design DNA', icon: 'sparkles' },
 
   { group: 'research', view: 'trends', label: 'Trends', icon: 'trends' },
   { group: 'research', view: 'discovery', label: 'Discovery', icon: 'discovery' },
@@ -33,7 +34,7 @@ export const NAV = [
 ];
 
 export const CRUMBS = {
-  home: 'Briefing', catalog: 'Catalog', review: 'Review',
+  home: 'Briefing', catalog: 'Catalog', review: 'Review', design: 'Design DNA',
   discovery: 'Discovery', trends: 'Trends', social: 'Social',
   ads: 'Ads', calendar: 'Calendar', analytics: 'Analytics',
   automation: 'Automation', jobs: 'Jobs', marketplace: 'Market', system: 'System'
@@ -1202,4 +1203,70 @@ export function jobs(s) {
     ${list.length ? `<div class="rows">${rows}</div>` : empty('No jobs yet. Create one to let the agent design and prepare a product line autonomously.')}`;
 }
 
-export const VIEWS = { home, catalog, review, discovery, trends, social, ads, calendar, analytics, automation, jobs, marketplace, system };
+// ── Design DNA — the taste & learning loop, made visible ─────────────────
+// Ingest a template the owner admires ("our CanYa") → a vision call extracts
+// palette/fonts/layout/motif/taste into the design_references pool that every
+// brief draws from. Rejections with a reason land here as lessons that steer
+// the next render away from the rejected direction.
+export function design(s) {
+  const refs = s.references || [];
+  const lessons = s.lessons || [];
+  const busy = s.designBusy ? ' busy' : '';
+
+  const refRows = refs.length ? refs.map(r => {
+    const palette = Array.isArray(r.palette) ? r.palette : safeParseArr(r.palette);
+    const swatches = (palette || []).slice(0, 4).map(c =>
+      `<span class="sw" style="background:${esc(c)}" title="${esc(c)}"></span>`).join('');
+    return `<div class="flex" style="padding:10px 12px;background:var(--surface);border-radius:var(--radius-xs);margin-bottom:6px;align-items:center">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title || 'Untitled')}</div>
+        <div class="hint">${esc(r.source || 'manual')} · ${esc(r.niche_key || 'any niche')}${r.motif ? ' · ' + esc(r.motif) : ''}</div>
+        ${swatches ? `<div style="margin-top:5px;display:flex;gap:4px">${swatches}</div>` : ''}
+      </div>
+      <button class="btn ghost sm" data-action="ref-delete" data-id="${r.id}" title="Remove">✕</button>
+    </div>`;
+  }).join('') : empty('No references yet — drop a template image below to start the lineage.');
+
+  const lessonRows = lessons.length ? lessons.map(l =>
+    `<div class="flex" style="padding:9px 12px;background:var(--surface);border-radius:var(--radius-xs);margin-bottom:6px">
+      <div style="flex:1">
+        <div style="font-size:.82rem">${esc(l.lesson || '')}</div>
+        <div class="hint">${esc(l.outcome || '')} · ${esc((l.context || '').slice(0, 80))}</div>
+      </div>
+    </div>`).join('') : empty('No lessons yet. Rejecting a job or a cover with a reason writes one here.');
+
+  return head('🎨 Design DNA', 'Feed templates you admire; the factory learns their lineage and steers away from what you reject.', '')
+  + `<div class="grid2 gap14">
+      <div>
+        <div class="panel mb14">
+          <div style="font-weight:600;margin-bottom:6px">Ingest a template</div>
+          <p class="hint" style="margin-bottom:8px">Drop a cover/listing image, or paste a data URI. A vision call extracts palette · fonts · layout · motif · taste.</p>
+          <label id="ref-drop" class="dropzone" style="display:block;padding:18px;text-align:center;border:1.5px dashed var(--border);border-radius:var(--radius-sm);cursor:pointer">
+            <input type="file" id="ref-file" accept="image/*" style="display:none">
+            <span class="hint">Click to choose or drop an image</span>
+          </label>
+          <div class="flex gap8" style="margin-top:8px">
+            <input id="ref-title" class="input" placeholder="Title (optional)" style="flex:1">
+            <input id="ref-niche" class="input" placeholder="Niche (optional)" style="width:130px">
+          </div>
+          <button class="btn primary sm${busy}" data-action="ref-ingest" style="margin-top:8px;width:100%">Analyze &amp; add to pool</button>
+          <div id="ref-status" class="hint" style="margin-top:6px"></div>
+        </div>
+        <div class="panel">
+          <div style="font-weight:600;margin-bottom:8px">Recent lessons (${lessons.length})</div>
+          ${lessonRows}
+        </div>
+      </div>
+      <div class="panel">
+        <div style="font-weight:600;margin-bottom:8px">Reference pool (${refs.length})</div>
+        ${refRows}
+      </div>
+    </div>`;
+}
+
+function safeParseArr(v) {
+  if (Array.isArray(v)) return v;
+  try { return JSON.parse(v || '[]'); } catch { return []; }
+}
+
+export const VIEWS = { home, catalog, review, discovery, trends, social, ads, calendar, analytics, automation, jobs, marketplace, system, design };

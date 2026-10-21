@@ -38,13 +38,95 @@ function getWebhookUrl() {
 async function taskScan(ctx) {
   const found = await discovery.sweep(6);
   ctx.found = found;
-  ctx.trend = found[0] || null;
-  if (ctx.trend) {
-    console.log('[AUTO] Trend detected: ' + ctx.trend.name);
-    db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
-      .run('trend_detected', 'Detected: ' + ctx.trend.name, 'warning');
-    await notifier.sendAlert(ctx.webhookUrl, 'trend_detected', ctx.trend);
+
+// Optional niche filtering: alert on trends matching preferred professions,
+// categories, hobbies, clubs, or beliefs.
+// Env vars (comma-separated):
+//   ALERT_NICHE_PROFESSIONS  — profession slugs (e.g. beekeeping,woodworking)
+//   ALERT_NICHE_CATEGORIES   — category slugs from nicheUniverse (e.g. trades,creative,outdoor)
+//   ALERT_NICHE_HOBBIES      — hobby keywords matched against trend name/why (e.g. beekeeping,pottery)
+//   ALERT_NICHE_CLUBS        — club/community keywords (e.g. recovery,aa-recovery,na)
+//   ALERT_NICHE_BELIEFS      — belief/spiritual keywords (e.g. sober-curious,breathwork)
+// If none are set, behavior defaults to original (first trend) for backward compat.
+const prefProfessions = (process.env.ALERT_NICHE_PROFESSIONS || '').split(',').map(s => s.trim()).filter(s => s);
+const prefCategories = (process.env.ALERT_NICHE_CATEGORIES || '').split(',').map(s => s.trim()).filter(s => s);
+const prefHobbies = (process.env.ALERT_NICHE_HOBBIES || '').split(',').map(s => s.trim().toLowerCase()).filter(s => s);
+const prefClubs = (process.env.ALERT_NICHE_CLUBS || '').split(',').map(s => s.trim().toLowerCase()).filter(s => s);
+const prefBeliefs = (process.env.ALERT_NICHE_BELIEFS || '').split(',').map(s => s.trim().toLowerCase()).filter(s => s);
+
+const hasPrefs = prefProfessions.length || prefCategories.length || prefHobbies.length || prefClubs.length || prefBeliefs.length;
+
+function trendMatchesAlert(trend) {
+  if (!hasPrefs) return true; // no prefs = accept all (backward compat handled below)
+
+  const name = String(trend.name || '').toLowerCase();
+  const why = String(trend.why || '').toLowerCase();
+  const combined = name + ' ' + why;
+
+  // 1. Profession match
+  if (prefProfessions.length) {
+    const prof = discovery.resolveProfessionForTrend(trend);
+    if (prof && prefProfessions.includes(prof.slug)) return true;
   }
+
+  // 2. Category match — check nicheUniverse for the trend's category
+  if (prefCategories.length) {
+    try {
+      const { UNIVERSE } = require('./nicheUniverse');
+      const entry = UNIVERSE.find(u => u.name.toLowerCase() === name.replace(/\\s*\\(seasonal\\)\\s*$/i, '').trim().toLowerCase());
+      if (entry && prefCategories.includes(entry.category)) return true;
+    } catch (e) { /* nicheUniverse unavailable */ }
+    // Also check why field for category hints (e.g. "Discovery · beauty · ...")
+    for (const cat of prefCategories) {
+      if (why.includes(cat.toLowerCase())) return true;
+    }
+  }
+
+  // 3. Hobby keyword match (trend name or why)
+  if (prefHobbies.length) {
+    for (const kw of prefHobbies) {
+      if (combined.includes(kw)) return true;
+    }
+  }
+
+  // 4. Club/community keyword match
+  if (prefClubs.length) {
+    for (const kw of prefClubs) {
+      if (combined.includes(kw)) return true;
+    }
+  }
+
+  // 5. Belief/spiritual keyword match
+  if (prefBeliefs.length) {
+    for (const kw of prefBeliefs) {
+      if (combined.includes(kw)) return true;
+    }
+  }
+
+  return false;
+}
+
+let filtered = hasPrefs
+  ? found.filter(trendMatchesAlert)
+  : found;
+
+ctx.trend = filtered[0] || found[0] || null;
+if (ctx.trend) {
+  const prof = discovery.resolveProfessionForTrend(ctx.trend);
+  const profTag = prof ? ` (profession: ${prof.name})` : '';
+  const categoryTag = (() => {
+    try {
+      const { UNIVERSE } = require('./nicheUniverse');
+      const base = String(ctx.trend.name || '').replace(/\\s*\\(seasonal\\)\\s*$/i, '').trim().toLowerCase();
+      const entry = UNIVERSE.find(u => u.name.toLowerCase() === base);
+      return entry ? ` [${entry.category}]` : '';
+    } catch (e) { return ''; }
+  })();
+  console.log('[AUTO] Trend detected:' + profTag + categoryTag + ' ' + ctx.trend.name);
+  db.prepare('INSERT INTO automation_log (action, details, status) VALUES (?, ?, ?)')
+    .run('trend_detected', 'Detected: ' + ctx.trend.name + profTag + categoryTag, 'warning');
+  await notifier.sendAlert(ctx.webhookUrl, 'trend_detected', ctx.trend);
+}
   return ctx;
 }
 
@@ -364,6 +446,7 @@ async function runFullCycle(deps) {
   safeTask(ctx, 'pin-schedule', () => taskPinSchedule(ctx));
   await safeTask(ctx, 'pin-drain', () => taskPinDrain(ctx));
   await safeTask(ctx, 'design-reskin', () => taskDesignReskin(ctx));
+  await safeTask(ctx, 'marketing-bot', () => taskMarketingBot(ctx));
   return ctx;
 }
 
@@ -468,6 +551,46 @@ async function taskPinDrain(ctx) {
   return ctx;
 }
 
+// PHASE 6+ MARKETING BOT — the autonomous growth engine. Runs the full
+// distribution cycle (pins → TikTok ads → Reddit/X posts → email sequences →
+// newsletter → cross-channel metrics). Self-healing: an unconfigured channel
+// produces ready-to-import creatives instead of failing. Never throws; the
+// marketing step is opt-in via MARKETING_AUTO_ENABLED (default on in dev).
+async function taskMarketingBot(ctx) {
+  try {
+    // Safety: production requires explicit marketing opt-in, same pattern as
+    // the other production gates. Dev defaults to enabled.
+    if (runtimeConfig.isProduction()) {
+      const enabled = String(process.env.MARKETING_AUTO_ENABLED || '').toLowerCase() === 'true';
+      if (!enabled) {
+        ctx.marketingSkipped = 'production marketing requires MARKETING_AUTO_ENABLED=true';
+        console.log('[AUTO] Marketing bot skipped — production marketing must be explicitly enabled');
+        return ctx;
+      }
+    }
+
+    const bot = require('./marketingBot');
+    const result = await bot.runMarketingCycle({});
+    ctx.marketing = {
+      pinsScheduled: result.pinsScheduled,
+      tiktokAdsCreated: result.tiktokAdsCreated,
+      socialPostsScheduled: result.socialPostsScheduled,
+      socialPostsDispatched: result.socialPostsDispatched,
+      emailSequencesGenerated: result.emailSequencesGenerated,
+      newsletterGenerated: result.newsletterGenerated
+    };
+    const parts = [];
+    if (result.pinsScheduled) parts.push(`${result.pinsScheduled} pins`);
+    if (result.tiktokAdsCreated) parts.push(`${result.tiktokAdsCreated} ads`);
+    if (result.socialPostsScheduled) parts.push(`${result.socialPostsScheduled} posts`);
+    if (result.emailSequencesGenerated) parts.push(`${result.emailSequencesGenerated} sequences`);
+    if (parts.length) console.log('[AUTO] Marketing cycle: ' + parts.join(', '));
+  } catch (e) {
+    console.error('[AUTO] marketing bot:', e.message);
+  }
+  return ctx;
+}
+
 module.exports = {
   runFullCycle,
   getVaryTypes,
@@ -481,6 +604,7 @@ module.exports = {
   taskSeasonal,
   taskPublishQueue,
   taskPinDrain,
+  taskMarketingBot,
   taskDesignReskin,
   taskCoverStudio,
   taskQualityGate,

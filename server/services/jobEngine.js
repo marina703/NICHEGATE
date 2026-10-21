@@ -236,12 +236,23 @@ function approveJob(id) {
   return getJob(id);
 }
 
-function rejectJob(id) {
+function rejectJob(id, reason) {
   const job = getJob(id);
   if (!job) return { error: 'job not found' };
-  const progress = logProgress(job, { note: 'rejected by operator' });
+  const note = reason ? `rejected by operator: ${String(reason).slice(0, 500)}` : 'rejected by operator';
+  const progress = logProgress(job, { note });
   db.prepare("UPDATE jobs SET status = 'failed', progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
     .run(JSON.stringify(progress), id);
+  // Close the learning loop: a rejection with a reason becomes a durable lesson
+  // so the next brief can steer away from the rejected direction.
+  if (reason) {
+    try {
+      const created = (job.progress && job.progress.created) || [];
+      const ctx = created.length ? `job ${id} products: ${created.map(c => c.id).join(',')}` : `job ${id}`;
+      db.prepare('INSERT INTO agent_lessons (outcome, context, lesson) VALUES (?, ?, ?)')
+        .run('rejected', ctx, String(reason).slice(0, 1000));
+    } catch (e) { /* never throw from rejection */ }
+  }
   return getJob(id);
 }
 

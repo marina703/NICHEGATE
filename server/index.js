@@ -987,6 +987,92 @@ app.get('/api/design/references', (req, res) => {
   }
 });
 
+// ── REFERENCE INGEST — feed "our CanYa" into the design DNA pool ──────────
+// The pool was programmatic-only before this. Now an operator can submit a
+// template/cover image and a vision call extracts the same five attributes the
+// brief already consumes (palette, fonts, layout, motif, taste_note). The row
+// is stored via swipeFileEngine.addDesignReference and joins the lineage pool
+// that every subsequent brief draws from. Pixels are never stored.
+
+app.post('/api/design/references/analyze', (req, res) => {
+  try {
+    const analyzer = require('./services/referenceAnalyzer');
+    if (!req.body || !req.body.image) return res.status(400).json({ error: 'image is required' });
+    analyzer.analyzeReference(req.body.image, { allowFallback: req.body.allowFallback !== false })
+      .then(dna => {
+        if (!dna) return res.status(422).json({ error: 'could not extract design DNA from that image (unsupported or unreadable)' });
+        res.json({ dna, fallback: !!dna.fallback });
+      })
+      .catch(e => { console.error('[ERROR] POST /api/design/references/analyze -> 500:', e.message); res.status(500).json({ error: e.message }); });
+  } catch (e) {
+    console.error('[ERROR] POST /api/design/references/analyze -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/design/references', (req, res) => {
+  try {
+    const swipe = require('./services/swipeFileEngine');
+    const analyzer = require('./services/referenceAnalyzer');
+    const { image, title, niche_key, source } = req.body || {};
+    if (!image) return res.status(400).json({ error: 'image is required' });
+    analyzer.analyzeReference(image, { allowFallback: true })
+      .then(dna => {
+        if (!dna) return res.status(422).json({ error: 'could not extract design DNA from that image' });
+        const id = swipe.addDesignReference({
+          title: title || `Template ${new Date().toISOString().slice(0, 10)}`,
+          source: source || 'template',
+          niche_key: niche_key || null,
+          palette: dna.palette, fonts: dna.fonts, layout: dna.layout,
+          motif: dna.motif, taste_note: dna.taste_note
+        });
+        res.json({ ok: !!id, id, dna, fallback: !!dna.fallback });
+      })
+      .catch(e => { console.error('[ERROR] POST /api/design/references -> 500:', e.message); res.status(500).json({ error: e.message }); });
+  } catch (e) {
+    console.error('[ERROR] POST /api/design/references -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/design/references/bulk', (req, res) => {
+  try {
+    const swipe = require('./services/swipeFileEngine');
+    const analyzer = require('./services/referenceAnalyzer');
+    const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
+    if (!items.length) return res.status(400).json({ error: 'items[] is required' });
+    const out = [];
+    (async () => {
+      for (const it of items.slice(0, 25)) {
+        const dna = await analyzer.analyzeReference(it.image, { allowFallback: true });
+        if (!dna) { out.push({ ok: false, error: 'no DNA' }); continue; }
+        const id = swipe.addDesignReference({
+          title: it.title || `Template ${out.length + 1}`,
+          source: it.source || 'template',
+          niche_key: it.niche_key || null,
+          palette: dna.palette, fonts: dna.fonts, layout: dna.layout,
+          motif: dna.motif, taste_note: dna.taste_note
+        });
+        out.push({ ok: !!id, id, fallback: !!dna.fallback });
+      }
+      res.json({ ok: out.filter(o => o.ok).length, results: out });
+    })().catch(e => { console.error('[ERROR] POST /api/design/references/bulk -> 500:', e.message); res.status(500).json({ error: e.message }); });
+  } catch (e) {
+    console.error('[ERROR] POST /api/design/references/bulk -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/design/references/:id', (req, res) => {
+  try {
+    const info = db.prepare('DELETE FROM design_references WHERE id = ?').run(parseInt(req.params.id));
+    res.json({ ok: info.changes > 0, deleted: info.changes });
+  } catch (e) {
+    console.error('[ERROR] DELETE /api/design/references/:id -> 500:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/catalog/recovery-status', (req, res) => {
     try {
       const recovery = require('./services/catalogRecovery');
@@ -1306,6 +1392,200 @@ app.post('/api/swipe/hooks/:productId', async (req, res) => {
       res.status(500).json({ error: e.message });
     }
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 6+ — MARKETING BOT (autonomous distribution orchestration)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Dashboard: unified cross-channel health + funnel + performance.
+  app.get('/api/marketing/dashboard', (req, res) => {
+    try {
+      const mm = require('./services/marketingMetrics');
+      res.json({ ok: true, dashboard: mm.marketingDashboard() });
+    } catch (e) {
+      console.error('[ERROR] GET /api/marketing/dashboard -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Per-product marketing view (sales + pins + ads + posts + email per product).
+  app.get('/api/marketing/products', (req, res) => {
+    try {
+      const mm = require('./services/marketingMetrics');
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+      res.json({ ok: true, products: mm.productMarketingView(limit) });
+    } catch (e) {
+      console.error('[ERROR] GET /api/marketing/products -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Run the full marketing cycle (autonomous).
+  app.post('/api/marketing/cycle', async (req, res) => {
+    try {
+      const bot = require('./services/marketingBot');
+      const forceNewsletter = !!(req.body && req.body.forceNewsletter);
+      res.json({ ok: true, result: await bot.runMarketingCycle({ forceNewsletter }) });
+    } catch (e) {
+      console.error('[ERROR] POST /api/marketing/cycle -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // TIKTOK ADS — creative generation + launch + auto-optimization.
+  app.get('/api/tiktok/status', (req, res) => {
+    try {
+      const tiktokAds = require('./services/tiktokAds');
+      res.json({ ok: true, status: tiktokAds.adStatus() });
+    } catch (e) {
+      console.error('[ERROR] GET /api/tiktok/status -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/tiktok/ads', async (req, res) => {
+    try {
+      const tiktokAds = require('./services/tiktokAds');
+      const productId = parseInt(req.body && req.body.productId);
+      if (!productId) {
+        // Batch: create for all eligible products (bounded)
+        const limit = Math.min(5, Math.max(1, parseInt(req.body && req.body.limit) || 3));
+        const eligible = tiktokAds.eligibleProductsForAds(limit);
+        const results = [];
+        let created = 0;
+        for (const p of eligible) {
+          const r = await tiktokAds.createAdForProduct(p.id);
+          if (r.ok) created++;
+          results.push({ productId: p.id, name: p.name, ...r });
+        }
+        return res.json({ ok: true, created, results });
+      }
+      res.json({ ok: true, result: await tiktokAds.createAdForProduct(productId) });
+    } catch (e) {
+      console.error('[ERROR] POST /api/tiktok/ads -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/tiktok/sync', async (req, res) => {
+    try {
+      const tiktokAds = require('./services/tiktokAds');
+      res.json({ ok: true, result: await tiktokAds.syncPerformance() });
+    } catch (e) {
+      console.error('[ERROR] POST /api/tiktok/sync -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/tiktok/optimize', async (req, res) => {
+    try {
+      const tiktokAds = require('./services/tiktokAds');
+      res.json({ ok: true, result: await tiktokAds.autoOptimize() });
+    } catch (e) {
+      console.error('[ERROR] POST /api/tiktok/optimize -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // SOCIAL POSTS — Reddit / X drafting + dispatch.
+  app.get('/api/social/status', (req, res) => {
+    try {
+      const socialPoster = require('./services/socialPoster');
+      res.json({ ok: true, status: socialPoster.socialStatus() });
+    } catch (e) {
+      console.error('[ERROR] GET /api/social/status -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/social/posts', (req, res) => {
+    try {
+      const platform = req.query.platform ? String(req.query.platform) : null;
+      const status = req.query.status ? String(req.query.status) : null;
+      const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 100));
+      let rows = db.prepare('SELECT * FROM social_posts ORDER BY id DESC LIMIT ?').all(limit);
+      if (platform) rows = rows.filter(r => r.platform === platform);
+      if (status) rows = rows.filter(r => r.status === status);
+      res.json({ ok: true, posts: rows });
+    } catch (e) {
+      console.error('[ERROR] GET /api/social/posts -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/social/draft/generate', async (req, res) => {
+    try {
+      const socialPoster = require('./services/socialPoster');
+      const productId = parseInt(req.body && req.body.productId);
+      if (!productId) return res.status(400).json({ error: 'productId required' });
+      const perProduct = Math.min(5, Math.max(1, parseInt(req.body && req.body.limitPerProduct) || 3));
+      const reddit = await socialPoster.generateRedditPosts(productId, perProduct);
+      const x = socialPoster.generateXPosts(productId, perProduct);
+      res.json({ ok: true, reddit, x });
+    } catch (e) {
+      console.error('[ERROR] POST /api/social/draft/generate -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/social/draft/schedule', async (req, res) => {
+    try {
+      const socialPoster = require('./services/socialPoster');
+      const perProduct = Math.min(5, Math.max(1, parseInt(req.body && req.body.limitPerProduct) || 3));
+      res.json({ ok: true, result: await socialPoster.scheduleForProducts(perProduct) });
+    } catch (e) {
+      console.error('[ERROR] POST /api/social/draft/schedule -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/social/draft/dispatch', async (req, res) => {
+    try {
+      const socialPoster = require('./services/socialPoster');
+      const limit = Math.min(50, Math.max(1, parseInt(req.body && req.body.limit) || 20));
+      res.json({ ok: true, result: await socialPoster.dispatchDuePosts(limit) });
+    } catch (e) {
+      console.error('[ERROR] POST /api/social/draft/dispatch -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ESP SUBSCRIBERS — email list capture + export.
+  app.get('/api/esp/subscribers', (req, res) => {
+    try {
+      const rows = db.prepare('SELECT id, email, source, profession_id, subscribed_at, status FROM esp_subscribers ORDER BY id DESC LIMIT 500').all();
+      res.json({ ok: true, count: rows.length, subscribers: rows });
+    } catch (e) {
+      console.error('[ERROR] GET /api/esp/subscribers -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/esp/subscribe', (req, res) => {
+    try {
+      const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'valid email required' });
+      db.prepare('INSERT OR IGNORE INTO esp_subscribers (email, source, status) VALUES (?, ?, ?)')
+        .run(email, (req.body && req.body.source) || 'landing', 'active');
+      res.json({ ok: true, email });
+    } catch (e) {
+      console.error('[ERROR] POST /api/esp/subscribe -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/esp/export', (req, res) => {
+    try {
+      const seqEngine = require('./services/sequenceEngine');
+      const id = parseInt(req.body && req.body.sequenceId);
+      if (!id) return res.status(400).json({ error: 'sequenceId required' });
+      seqEngine.exportSequence(id).then(r => res.json({ ok: true, result: r }))
+        .catch(e => res.status(500).json({ error: e.message }));
+    } catch (e) {
+      console.error('[ERROR] POST /api/esp/export -> 500:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
 
   // PRODUCT PREVIEW — serve PDF for inline preview
   // ═══════════════════════════════════════════════════════════════════════════
@@ -2556,7 +2836,7 @@ app.get('/api/marketplace/etsy/auth', async (req, res) => {
   try {
     // The callback must be the PUBLIC production URL (Etsy validates it against
     // the app's registered callback list) — never a localhost default.
-    const publicOrigin = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'nichegate-production.up.railway.app'}`;
+    const publicOrigin = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'mynichegate.com'}`;
     const result = await mp.getEtsyAuthUrl(req.query.redirectUri || `${publicOrigin}/api/marketplace/etsy/callback`);
     res.json({ authUrl: result.url });
   } catch (e) {
@@ -3779,6 +4059,67 @@ const consoleHandlers = {
       step(`#${c.productId} ${String(c.name).slice(0, 40)} (score ${c.score}) → ${result && result.ok ? 'reskinned' : 'failed'}`, result && result.ok ? 'success' : 'warn');
     }
     return { candidates: candidates.length, reskinned };
+  },
+  'marketing-cycle': async (input, step) => {
+    const bot = require('./services/marketingBot');
+    step('running full marketing cycle (pins → TikTok → social → email → newsletter → metrics)');
+    const res = await bot.runMarketingCycle({ forceNewsletter: input.forceNewsletter });
+    const parts = [];
+    if (res.pinsScheduled) parts.push(`${res.pinsScheduled} pins`);
+    if (res.tiktokAdsCreated) parts.push(`${res.tiktokAdsCreated} ads`);
+    if (res.socialPostsScheduled) parts.push(`${res.socialPostsScheduled} posts drafted`);
+    if (res.socialPostsDispatched) parts.push(`${res.socialPostsDispatched} posts dispatched`);
+    if (res.emailSequencesGenerated) parts.push(`${res.emailSequencesGenerated} sequences`);
+    if (res.newsletterGenerated) parts.push('newsletter');
+    step(`cycle complete: ${parts.length ? parts.join(', ') : 'nothing new'}`, 'success');
+    return res;
+  },
+  'tiktok-ads': async (input, step) => {
+    const tiktokAds = require('./services/tiktokAds');
+    const limit = input.limit || 3;
+    step(`generating TikTok ad creatives (limit ${limit})`);
+    const eligible = tiktokAds.eligibleProductsForAds(limit);
+    step(`${eligible.length} product(s) eligible for a TikTok ad`);
+    let created = 0;
+    const results = [];
+    for (const p of eligible) {
+      const r = await tiktokAds.createAdForProduct(p.id);
+      if (r.ok) created++;
+      results.push({ productId: p.id, name: p.name, mode: r.mode || (r.error ? 'error' : 'ok'), tiktokAdId: r.tiktokAdId || r.adId, error: r.error });
+      step(`#${p.id} ${String(p.name).slice(0, 40)} → ${r.mode === 'live' ? 'live campaign' : r.mode === 'manual' ? 'manual creative' : 'error'}`, r.ok ? 'success' : 'warn');
+    }
+    if (created > 0) {
+      step('syncing + auto-optimizing active ads');
+      await tiktokAds.syncPerformance();
+      const opt = await tiktokAds.autoOptimize();
+      results.optimization = opt;
+    }
+    return { created, results };
+  },
+  'social-posts': async (input, step) => {
+    const socialPoster = require('./services/socialPoster');
+    const perProduct = input.limitPerProduct || 3;
+    step(`generating social posts (limitPerProduct ${perProduct})`);
+    const scheduled = await socialPoster.scheduleForProducts(perProduct);
+    step(`drafted ${scheduled.reddit} Reddit + ${scheduled.x} X posts across ${scheduled.products} product(s)`, 'success');
+    step('dispatching due posts');
+    const dispatched = await socialPoster.dispatchDuePosts(15);
+    step(`dispatched ${dispatched.posted} (skipped ${dispatched.skipped}, errors ${dispatched.errors})`, 'success');
+    return { scheduled: { reddit: scheduled.reddit, x: scheduled.x, products: scheduled.products }, dispatched };
+  },
+  'email-campaign': async (input, step) => {
+    const bot = require('./services/marketingBot');
+    step('generating + exporting launch sequences');
+    const res = await bot.stepEmailCampaign({});
+    step(`generated ${res.emailSequencesGenerated} sequence(s), exported ${res.emailSequencesExported}`, 'success');
+    return res;
+  },
+  'newsletter-generate': async (input, step) => {
+    const bot = require('./services/marketingBot');
+    step('building weekly newsletter');
+    const res = await bot.stepNewsletter({ forceNewsletter: true });
+    step(res.newsletterGenerated ? `newsletter generated (${res.newsletterHasEsp ? 'ESP ready' : 'manual copy'})` : 'skipped (fresh within 7d)', 'success');
+    return res;
   }
 };
 
@@ -3854,6 +4195,9 @@ function buildOverview() {
     marketplace: mp.getMarketplaceStatus(),
     model: { enabled: !!cfg.enabled, diagnosis: cfg.enabled ? 'AI layer enabled' : 'AI layer off' },
     readiness: { ok: ready.ok, ready: ready.ready, issues: ready.issues, summary: ready.summary },
+    marketing: (() => {
+      try { return require('./services/marketingMetrics').channelHealth(); } catch (e) { return { error: e.message }; }
+    })(),
     topTypes,
     topNiches,
     activity
@@ -4351,7 +4695,7 @@ app.post('/api/jobs/:id/approve', (req, res) => {
 
 app.post('/api/jobs/:id/reject', (req, res) => {
   try {
-    const job = jobEngine.rejectJob(parseInt(req.params.id));
+const job = jobEngine.rejectJob(parseInt(req.params.id), req.body && req.body.reason);
     if (job.error) return res.status(400).json(job);
     res.json({ ok: true, job });
   } catch (e) {

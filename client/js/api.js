@@ -121,6 +121,13 @@ export const dataApi = {
   optimization: (id) => request(`/products/${id}/optimization`),
   designScore: (id) => request(`/products/${id}/design-score`),
   designScores: () => request('/design/scores'),
+  // Design DNA pool: ingest a template image → vision-extracted lineage.
+  designReferences: (limit = 50) => request(`/design/references?limit=${limit}`),
+  analyzeReference: (image, opts = {}) => api.post('/design/references/analyze', { image, ...opts }),
+  addReference: (payload) => api.post('/design/references', payload),
+  bulkReferences: (items) => api.post('/design/references/bulk', { items }),
+  deleteReference: (id) => api.del(`/design/references/${id}`),
+  lessons: () => request('/command/lessons'),
   jobs: () => request('/jobs')
 };
 

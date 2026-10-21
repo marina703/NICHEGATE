@@ -45,6 +45,9 @@ const RUBRIC = [
 ];
 const COVER_RUBRIC = ['preview_composite_realism', 'focal_hierarchy', 'thumbnail_legibility', 'dna_consistency'];
 const COVER_THRESHOLD = 6.5;
+// Taste dimension: judged AGAINST the design_references lineage pool, not just
+// for legibility. Optional — a reply without it is still a valid score.
+const TASTE_THRESHOLD = Number(process.env.DESIGN_TASTE_THRESHOLD || 6.0);
 
 // ── parsing (defensive, mirrors conceptEngine.parseConcept) ─────────────
 
@@ -76,6 +79,9 @@ function parseCritique(text) {
   const mean = RUBRIC.reduce((a, k) => a + scores[k], 0) / RUBRIC.length;
   scores.overall = provided !== null ? provided : Math.round(mean * 10) / 10;
 
+  // Optional taste dimension — not required (a reply without it is still valid).
+  const taste = clampScore(obj.taste_alignment);
+  if (taste !== null) scores.taste_alignment = taste;
   const critique = String(obj.critique || '').slice(0, 1200).trim();
   return { scores, critique };
 }
@@ -219,7 +225,15 @@ async function renderPageShots(html, { limit = 2, width = 1080, height = 1350 } 
 
 // ── one vision scoring pass ─────────────────────────────────────────────
 
-function buildCritiquePrompt(product) {
+function buildCritiquePrompt(product, opts = {}) {
+  const references = opts.references || [];
+  const tasteSection = references.length
+    ? [
+        'Score taste_alignment 0-10: does this render belong in the LINEAGE of these references — their palette discipline, type feel, layout logic and overall taste — while still being its own design? 10 = clearly a descendant of this lineage and beautiful; 5 = generic, no relation; 0 = clashes with it.',
+        'Reference lineage (steer toward it, never copy pixels):',
+        ...references.map((r, i) => `  Ref ${i + 1}: "${r.title}" — palette ${r.palette}, layout ${r.layout}, motif ${r.motif}. Taste: ${r.taste_note}`)
+  ].join('\n')
+    : '';
   return [
     `Score this rendered digital product ("${String(product.name || '').slice(0, 80)}", type: ${product.type || 'document'}) as a harsh design director.`,
     'Score each dimension 0-10:',
@@ -236,19 +250,37 @@ function buildCritiquePrompt(product) {
     '- 7-8 strong design: distinctive and polished, excellent rhythm and contrast, premium feel',
     '- 9-10 exceptional: memorable, award-candidate design',
     'Note: checklists, spreadsheets and template packs are SUPPOSED to look like structured templates — judge the craft (hierarchy, spacing, type scale, palette discipline, polish), not the genre.',
+    tasteSection,
     'Reply with ONLY valid JSON, no markdown:',
-    '{"visual_hierarchy":0,"whitespace_rhythm":0,"typography_cohesion":0,"color_harmony":0,"uniqueness":0,"scroll_stop":0,"overall":0,',
-    '"critique":"2-3 sentences of specific, actionable design critique"}'
+    '{\"visual_hierarchy\":0,\"whitespace_rhythm\":0,\"typography_cohesion\":0,\"color_harmony\":0,\"uniqueness\":0,\"scroll_stop\":0,\"overall\":0,',
+    '\"taste_alignment\":0,\"critique\":\"2-3 sentences of specific, actionable design critique\"}'
   ].join('\n');
 }
 
 // One scoring call. Returns { scores, critique } or null. Never throws.
+// The reference lineage this product should be judged against. Best-effort:
+// never throws, returns [] if the product has no resolvable niche.
+function tastePoolFor(product) {
+  try {
+    const swipe = require('./swipeFileEngine');
+    const styles = require('./designStyles');
+    const prof = product && product.profession_id
+      ? db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id)
+      : null;
+    const profForNiche = prof || { name: product && product.prof_name, services: '' };
+    const nicheKey = styles.detectNicheCategory(profForNiche) || 'default';
+    return swipe.pickDesignReferences(nicheKey, 2);
+  } catch {
+    return [];
+  }
+}
+
 async function scoreVariant(product, shots) {
   if (!cfg.enabled) return null;
   if (!shots || !shots.length) return null;
   try {
     const raw = await router.callVision({
-      prompt: buildCritiquePrompt(product),
+      prompt: buildCritiquePrompt(product, { references: tastePoolFor(product) }),
       images: shots,
       system: 'You are a design director for premium digital products. Strict JSON only. Calibrated and blunt: use the full 0-10 range, judge only what the screenshots show, and never punish a product for its genre.',
       temperature: 0.2,
@@ -459,7 +491,8 @@ async function critiqueProduct(productOrId, opts = {}) {
     let best = { ...first, variant: 'original' };
     let revisedUsed = false;
 
-    if (opts.revise !== false && first.scores.overall < REVISION_THRESHOLD) {
+    const tasteMiss = Number.isFinite(first.scores.taste_alignment) && first.scores.taste_alignment < TASTE_THRESHOLD;
+    if (opts.revise !== false && (first.scores.overall < REVISION_THRESHOLD || tasteMiss)) {
       // ONE revision pass: critique-driven brief regen → re-render → re-score.
       try {
         const artDirector = require('./artDirector');
@@ -481,7 +514,9 @@ async function critiqueProduct(productOrId, opts = {}) {
           const second = await scoreVariant(product, newShots.length ? newShots : shots);
           if (second) {
             revisedUsed = true;
-            if (second.scores.overall > first.scores.overall) {
+            const tasteBetter = Number.isFinite(second.scores.taste_alignment) &&
+              second.scores.taste_alignment > (Number.isFinite(first.scores.taste_alignment) ? first.scores.taste_alignment : -1);
+            if (second.scores.overall > first.scores.overall || (tasteMiss && tasteBetter)) {
               best = { ...second, variant: 'revised' };
               // The revised brief won — keep the skin and re-render artifacts.
               if (opts.regenerate !== false) await regenerateArtifacts(product, brief);
@@ -523,6 +558,7 @@ async function critiqueProduct(productOrId, opts = {}) {
       status: revisedUsed ? 'revised' : 'scored',
       productId: product.id,
       scores: best.scores,
+      taste: Number.isFinite(best.scores.taste_alignment) ? best.scores.taste_alignment : null,
       critique: best.critique,
       variant: best.variant,
       improved: revisedUsed ? Math.round((best.scores.overall - first.scores.overall) * 10) / 10 : 0
@@ -742,6 +778,8 @@ module.exports = {
   overallFrom,
   renderPageShots,
   scoreVariant,
+  buildCritiquePrompt,
+  tastePoolFor,
   critiqueProduct,
   reskinProduct,
   regenerateArtifacts,

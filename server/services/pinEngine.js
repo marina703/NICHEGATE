@@ -70,9 +70,19 @@ function utmFor(product, boardHint) {
 }
 
 function attributedUrl(product, boardHint) {
-  const base = (product && product.buy_url) || (product && product.marketplace_id)
-    ? null : storeUrl();
-  const target = (product && product.buy_url) || base;
+  if (!product) return null;
+  let target = null;
+  // 1. An explicit buy_url always wins.
+  if (product.buy_url) target = String(product.buy_url);
+  // 2. A Gumroad short_url/url stored on the listing row (pinned products carry it).
+  if (!target) {
+    try {
+      const li = product.listing_json ? JSON.parse(product.listing_json) : null;
+      if (li && (li.short_url || li.url)) target = String(li.short_url || li.url);
+    } catch { /* ignore malformed listing_json */ }
+  }
+  // 3. The storefront URL is always a valid landing page.
+  if (!target) target = storeUrl();
   if (!target) return null;
   return `${target}${target.includes('?') ? '&' : '?'}${utmFor(product, boardHint)}`;
 }

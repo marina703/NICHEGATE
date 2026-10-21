@@ -22,6 +22,9 @@ const state = {
   setup: null, readiness: null, modelStatus: null, payments: null, branding: null,
   social: [], ads: null, calendarData: null, seasonal: null, passionNiches: [],
   searchQueue: null, opportunity: null, radarHealth: null, designScores: null,
+  references: [],
+  lessons: [],
+  designBusy: false,
   bi: null,
   newsletter: null, autoStatus: null, runs: [], actions: [],
   jobs: [],
@@ -126,6 +129,12 @@ async function loadViewData(view) {
       break;
     }
     case 'jobs': { const r = await safe(() => dataApi.jobs()); if (r) state.jobs = r.jobs || []; break; }
+    case 'design': {
+      const [refs, lessons] = await Promise.all([safe(() => dataApi.designReferences(100)), safe(() => dataApi.lessons())]);
+      if (refs) state.references = refs.references || [];
+      if (lessons) state.lessons = lessons.lessons || [];
+      break;
+    }
     case 'marketplace': { const r = await safe(() => dataApi.setup()); if (r) state.setup = r; break; }
     case 'system': {
       const [rd, ms, pay, br, runs, mem, allAsks, ws] = await Promise.all([
@@ -969,6 +978,29 @@ document.addEventListener('click', async (e) => {
       case 'batch-covers': await batchCovers(); break;
       case 'ai-ref': setAiRef(el.dataset.kind, Number(id)); break;
       case 'ai-clear': setAiRef(null); break;
+      case 'ref-ingest':
+        const file = document.getElementById("ref-file").files[0];
+        if (!file) { state.designBusy = false; render(); break; }
+        const reader = new FileReader();
+        reader.onload = async e => {
+          state.designBusy = true;
+          const data = e.target.result;
+          const res = await dataApi.analyzeReference(data, { allowFallback: true });
+          state.designBusy = false;
+          if (res.ok) { state.references.unshift(res.dna); state.references.length = Math.min(state.references.length, 200); }
+          else alert(res.error || "Could not analyze");
+          render();
+        };
+        reader.readAsDataURL(file);
+        break;
+      case 'ref-delete':
+        const id = id;
+        if (!id) break;
+        const ok = confirm("Remove reference " + id + "?");
+        if (!ok) break;
+        const res = await dataApi.deleteReference(id);
+        if (res.ok) { state.references = state.references.filter(r => r.id !== id); }
+        render(); break;
       case 'ai-ask': aiAskSelection(el.dataset.kind); break;
       case 'trend-toggle-select': {
         const tn = Number(id);

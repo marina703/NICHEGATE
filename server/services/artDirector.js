@@ -373,13 +373,14 @@ function buildBriefPrompt(product, prof, opts = {}) {
   const avoidSection = opts.avoid
     ? `Do NOT reuse this palette or mood: ${String(opts.avoid).slice(0, 300)}.\n`
     : '';
+const lessonsSection = (opts.lessons && opts.lessons.length) ? ('Past operator lessons (steer AWAY from these rejected directions):\n' + opts.lessons.map(l => '- ' + String(l.lesson || l).slice(0, 300)).join('\n') + '\n') : '';
 
   return [
     `Product: "${product.name}" (${product.type}, ${product.price || 'n/a'}) for ${prof.name}.`,
     `Niche category: ${nicheKey}.`,
     `Style lineage to fuse: ${blendDesc || 'editorial'}.`,
     `Target layout family: ${opts.layout || layoutFor(product)}.`,
-    refSection + critiqueSection + avoidSection,
+    refSection + critiqueSection + avoidSection + lessonsSection,
     `Niche motifs to draw from (adapt, don't just pick #1): ${motifs.map(m => m.motif).join(' | ')}.`,
     'Invent ONE coherent design direction for this exact product. Distinct beats pretty.',
     'Reply with ONLY valid JSON, no markdown:',
@@ -403,7 +404,14 @@ async function generateBrief(product, prof, opts = {}) {
     const nicheKey = designStyles.detectNicheCategory(prof);
     const references = opts.references ||
       (opts.useReferences === false ? [] : require('./swipeFileEngine').pickDesignReferences(nicheKey, 2));
-    const prompt = buildBriefPrompt(product, prof, { ...opts, references });
+    let lessons = opts.lessons;
+    if (lessons === undefined) {
+      try {
+        const { db } = require('../database');
+        lessons = db.prepare('SELECT lesson FROM agent_lessons ORDER BY created_at DESC LIMIT 5').all();
+      } catch (e) { lessons = []; }
+    }
+    const prompt = buildBriefPrompt(product, prof, { ...opts, references, lessons });
     const system = 'You are an art director for premium digital products. You design in strict JSON only. Your CSS is always editor-safe: hex colours and font declarations, never urls or imports.';
 
     let raw = await router.generateIdeas(prompt, system);

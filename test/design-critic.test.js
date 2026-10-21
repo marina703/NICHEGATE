@@ -551,3 +551,78 @@ test('cover QA failure blocks publishing even when the AI review passes', async 
     cleanup(pid, profId);
   }
 });
+
+
+// ── TASTE dimension: judged against the design_references lineage ─────────
+
+test('critic: parseCritique reads an optional taste_alignment and tolerates its absence', () => {
+  const withTaste = critic.parseCritique(JSON.stringify({
+    visual_hierarchy: 8, whitespace_rhythm: 8, typography_cohesion: 8,
+    color_harmony: 8, uniqueness: 8, scroll_stop: 8, overall: 8, taste_alignment: 7.5,
+    critique: 'Strong work, clearly in the reference lineage.'
+  }));
+  assert.equal(withTaste.scores.taste_alignment, 7.5);
+  const without = critic.parseCritique(goodScores(8));
+  assert.equal(without.scores.taste_alignment, undefined, 'taste is optional, not a required leg');
+});
+
+test('critic: buildCritiquePrompt injects the reference lineage when refs are passed', () => {
+  const product = { name: 'Roofing Checklist', type: 'checklist' };
+  const withRefs = critic.buildCritiquePrompt(product, {
+    references: [{ title: 'Letterpress broadside', palette: '["#211d1a","#e8dcc4"]', layout: 'type-scale hierarchy', motif: 'ornamental divider', taste_note: 'Hierarchy through type scale alone.' }]
+  });
+  assert.match(withRefs, /taste_alignment/);
+  assert.match(withRefs, /Letterpress broadside/);
+  assert.match(withRefs, /ornamental divider/);
+  const without = critic.buildCritiquePrompt(product, { references: [] });
+  assert.doesNotMatch(without, /Reference lineage/);
+});
+
+test('critic: tastePoolFor resolves references for the product niche', () => {
+  const swipe = require('../server/services/swipeFileEngine');
+  swipe.seedDesignReferences();
+  const profId = makeProfession('taste-pool');
+  const pid = makeProduct(profId);
+  try {
+    const pool = critic.tastePoolFor({ id: pid, profession_id: profId, prof_name: 'Test Trade' });
+    assert.ok(Array.isArray(pool));
+    assert.ok(pool.length >= 1, 'a seeded pool yields references');
+  } finally {
+    cleanup(pid, profId);
+  }
+});
+
+test('critic: a taste miss (strong craft, weak lineage) still triggers the revision pass', async () => {
+  const profId = makeProfession('taste-miss');
+  const pid = makeProduct(profId);
+  const ai = withAiOn();
+  const seen = [];
+  const restore = stubVision(async () => {
+    const first = seen.length === 0;
+    seen.push(1);
+    const scores = first
+      ? { ...JSON.parse(goodScores(9)), taste_alignment: 3 }  // craft 9, lineage 3
+      : { ...JSON.parse(goodScores(8)), taste_alignment: 9 };
+    return JSON.stringify(scores);
+  });
+  // The revision regenerates a brief via the ideation leg — stub it hermetically.
+  const restoreIdeas = (() => {
+    const original = router.generateIdeas;
+    router.generateIdeas = async () => JSON.stringify({
+      mood: ['calm', 'precise'], palette: { primary: '#1b3a5c', secondary: '#c46a5a', accent: '#e9c46a', bg: '#fdf6ec', surface: '#ffffff', border: '#e2d9c8' },
+      fonts: { heading: 'Fraunces', body: 'Public Sans', mono: 'Space Mono' }, font_reason: 'x',
+      motif: 'flight-path arcs', motif_css: 'background: linear-gradient(135deg, #1b3a5c, #0e2a40);',
+      layout: 'classic', whitespace: 'normal', texture: 'none', style_lineage: 'test'
+    });
+    return () => { router.generateIdeas = original; };
+  })();
+  try {
+    const res = await critic.critiqueProduct(pid, { shots: [SHOT], regenerate: false, allowWinner: false });
+    assert.equal(seen.length, 2, 'a taste miss must trigger the second scoring pass');
+    assert.equal(res.status, 'revised');
+    assert.equal(res.taste, 9, 'the revised variant carried the higher taste score');
+  } finally {
+    restore(); restoreIdeas(); ai();
+    cleanup(pid, profId);
+  }
+});
