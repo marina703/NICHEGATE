@@ -17,6 +17,8 @@ tmp/
 # ── Generated deliverables + previews ──
 generated/
 previews/
+covers-ai/
+.hermes/
 covers/ai/
 covers/heroes/
 covers/templates/
