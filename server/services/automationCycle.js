@@ -359,6 +359,7 @@ async function runFullCycle(deps) {
     safeTask(ctx, 'seasonal', () => taskSeasonal(ctx));
   }
   safeTask(ctx, 'quality-gate', () => taskQualityGate(ctx));
+  await safeTask(ctx, 'cover-studio', () => taskCoverStudio(ctx));
   await safeTask(ctx, 'publish-queue', () => taskPublishQueue(ctx));
   safeTask(ctx, 'pin-schedule', () => taskPinSchedule(ctx));
   await safeTask(ctx, 'pin-drain', () => taskPinDrain(ctx));
@@ -383,6 +384,53 @@ async function taskDesignReskin(ctx) {
     }
   } catch (e) {
     console.error('[AUTO] design-reskin:', e.message);
+  }
+  return ctx;
+}
+
+// ENDLESS COVERS: generate Style-DNA covers for a few products each cycle so
+// the catalog keeps producing fresh, unique looks (bounded to keep cost sane).
+// Runs BEFORE the publish queue so the gate sees the new cover.
+async function taskCoverStudio(ctx) {
+  ctx.coversGenerated = 0;
+  try {
+    const fs = require('fs');
+    const coverStudio = require('./coverStudio');
+    const heroArt = require('./heroArt');
+    const fileFactory = require('./fileFactory');
+    const limit = Number(ctx.coverStudioLimit || 3);
+    const rows = db.prepare(
+      `SELECT * FROM products
+       WHERE (preview_path IS NULL OR preview_path NOT LIKE '%covdna%')
+         AND status IN ('draft','approved','listed')
+       ORDER BY id DESC LIMIT ?`
+    ).all(limit);
+    for (const product of rows) {
+      try {
+        const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+        if (!prof) continue;
+        let heroDataUri = null;
+        try {
+          const hp = await heroArt.ensureHeroArt(product, prof, fileFactory.fallbackTheme(product));
+          if (hp && fs.existsSync(hp)) {
+            const b64 = fs.readFileSync(hp).toString('base64');
+            heroDataUri = 'data:' + (hp.match(/\.png$/i) ? 'image/png' : 'image/jpeg') + ';base64,' + b64;
+          }
+        } catch (e) { /* typographic/abstract needs no photo */ }
+        const out = await coverStudio.generateCover({ product, prof, heroDataUri });
+        if (out.qa && out.qa.ok) {
+          db.prepare('UPDATE products SET preview_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(out.pngPath, product.id);
+          ctx.coversGenerated++;
+        } else {
+          console.log('[AUTO] cover-studio #' + product.id + ' failed invariants: ' + ((out.qa && out.qa.failures.join('; ')) || 'unknown'));
+        }
+      } catch (e) {
+        console.error('[AUTO] cover-studio #' + product.id + ':', e.message);
+      }
+    }
+    if (ctx.coversGenerated) console.log('[AUTO] cover-studio generated ' + ctx.coversGenerated + ' DNA cover(s)');
+  } catch (e) {
+    console.error('[AUTO] cover-studio:', e.message);
   }
   return ctx;
 }
@@ -434,6 +482,7 @@ module.exports = {
   taskPublishQueue,
   taskPinDrain,
   taskDesignReskin,
+  taskCoverStudio,
   taskQualityGate,
   getWebhookUrl,
   TYPE_PRICES,

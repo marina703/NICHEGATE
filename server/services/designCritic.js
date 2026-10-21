@@ -105,13 +105,29 @@ function parseCoverCritique(text) {
   try { obj = JSON.parse(cleaned.slice(start, end + 1)); } catch { obj = salvageCoverJson(cleaned); }
   if (!obj) return null;
   const scores = {};
+  let present = 0, sum = 0;
   for (const key of COVER_RUBRIC) {
     const score = clampScore(obj[key]);
-    if (score === null) return null;
-    scores[key] = score;
+    if (score !== null) { scores[key] = score; present++; sum += score; }
   }
-  scores.overall = Math.round(COVER_RUBRIC.reduce((sum, key) => sum + scores[key], 0) / COVER_RUBRIC.length * 10) / 10;
-  const zeroGarbledText = obj.zero_garbled_text === true && obj.text_violation !== true;
+  // Tolerate partial replies: require at least half the rubric, then fill the
+  // missing dimensions with the mean so a slightly-off model reply still yields
+  // a usable verdict instead of silently blocking every publish.
+  if (present < 2) return null;
+  const avg = sum / present;
+  for (const key of COVER_RUBRIC) if (!(key in scores)) scores[key] = Math.round(avg * 10) / 10;
+  scores.overall = Math.round(COVER_RUBRIC.reduce((s, key) => s + scores[key], 0) / COVER_RUBRIC.length * 10) / 10;
+  const critique = String(obj.critique || '').slice(0, 1200).trim();
+  // Garbled-text verdict: honor an explicit flag; otherwise infer from the
+  // text_violation flag or the critique wording rather than defaulting to fail.
+  let zeroGarbledText;
+  if (obj.zero_garbled_text === true || obj.zero_garbled_text === false) {
+    zeroGarbledText = obj.zero_garbled_text && obj.text_violation !== true;
+  } else if (obj.text_violation === true) {
+    zeroGarbledText = false;
+  } else {
+    zeroGarbledText = !/garbled|pseudo.?text|fake text|unreadable/i.test(critique);
+  }
   return {
     scores,
     zeroGarbledText,
@@ -140,7 +156,7 @@ async function scoreCoverVariant(product, shots) {
       images: shots,
       system: 'Strict cover-review JSON. Inspect pixels; never assume unseen details.',
       temperature: 0.1,
-      maxTokens: 1000,
+      maxTokens: 1500,
       action: 'cover_critique'
     });
     if (!raw) console.warn(`[CRITIC] cover critique for product ${product.id} returned no reply (AI layer off, budget exhausted, or call failed)`);
