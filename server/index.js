@@ -58,7 +58,7 @@ function buildDesignContent(product, prof) {
       const services = ds.parseServices(prof);
       return {
         howToUse: [
-          'Print one copy per job site.',
+          'Print one copy to get started.',
           'Complete every step in order.',
           'Tick the box when done; note issues in the margin.',
           'Sign off at the bottom.'

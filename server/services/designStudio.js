@@ -810,7 +810,7 @@ function buildChecklistHTML(prof, theme, heroPath) {
     <div class="howto">
       <h2>How to use this checklist</h2>
       <ol>
-        <li><strong>Print</strong> one copy per job site or keep digital on tablet.</li>
+        <li><strong>Print</strong> one copy or keep it digital on a tablet.</li>
         <li><strong>Complete</strong> every step in order — each builds on the last.</li>
         <li><strong>Tick</strong> the box when done; note issues in the margin.</li>
         <li><strong>Sign off</strong> at the bottom — your quality record.</li>
