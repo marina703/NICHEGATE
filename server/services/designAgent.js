@@ -227,6 +227,13 @@ but use background-image: var(--hero-bg) so the factory can inject the actual im
 HERO IMAGE: NONE — render solid var(--navy) masthead with var(--gold) accent rule (no .hero section).`;
   }
   
+  if (Array.isArray(content && content.howToUse) && content.howToUse.length) {
+    prompt += `
+
+"HOW TO USE" SECTION — render these ${content.howToUse.length} steps VERBATIM, each in its own numbered box with the step text visible (never leave a box empty):
+${content.howToUse.map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
+  }
+
   prompt += `
 
 Generate the complete HTML document now.`;
@@ -388,6 +395,10 @@ async function generateHtmlWithFallback(params) {
 // Inject actual hero image into generated HTML (post-process)
 async function injectHeroImage(html, heroDataUri) {
   if (!heroDataUri) return html;
+  // Defensive: callers must await this (sharp is async). If a Promise or
+  // non-string slips in, return it untouched rather than corrupting the HTML
+  // (which would render a blank PDF).
+  if (typeof html !== 'string' || !html) return html;
   
   // Compress hero image to smaller data URI (max ~200KB for reliable rendering)
   const buffer = Buffer.from(heroDataUri.split(',')[1], 'base64');

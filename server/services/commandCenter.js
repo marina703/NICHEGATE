@@ -17,6 +17,7 @@ const heroArt = require('./heroArt');
 const pdfGenerator = require('./pdfGenerator');
 const fileFactory = require('./fileFactory');
 const marketplace = require('./marketplace');
+const capability = require('./capabilityEngine');
 const { db } = require('../database');
 
 const COMMAND_VERSION = 'cca-v1';
@@ -76,6 +77,30 @@ TOOLS YOU CAN CALL (via structured output)
 {
   "tool": "learn",
   "args": { "outcome": "success|failure", "context": "object", "lesson": "string" }
+}
+{
+  "tool": "propose_type",
+  "args": { "key": "string", "label": "string", "emoji": "string", "price": "number", "format": "pdf|xlsx|zip|html", "buyer": "business|personal|hobby", "cats": "string[]", "builder": "string", "reason": "string" }
+}
+{
+  "tool": "request_capability",
+  "args": { "kind": "type|builder|integration|tool|knowledge|other", "title": "string", "detail": "string", "needed": "string", "proposal": "object" }
+}
+{
+  "tool": "list_types",
+  "args": { }
+}
+{
+  "tool": "list_gaps",
+  "args": { "status": "open|approved|rejected|all" }
+}
+{
+  "tool": "approve_gap",
+  "args": { "id": "number" }
+}
+{
+  "tool": "reject_gap",
+  "args": { "id": "number" }
 }
 {
   "tool": "respond",
@@ -205,7 +230,7 @@ async function dispatchRender({ productId, designSpec }) {
   });
 
   let finalHtml = renderResult.html;
-  if (heroDataUri) finalHtml = designAgent.injectHeroImage(finalHtml, heroDataUri);
+  if (heroDataUri) finalHtml = await designAgent.injectHeroImage(finalHtml, heroDataUri);
 
   // Generate PDF
   const stamp = Date.now();
@@ -321,6 +346,12 @@ Execute the command. Use tools as needed. When complete, respond to operator.`;
         case 'dispatch_render': toolResult = await dispatchRender(action.args); break;
         case 'dispatch_qa': toolResult = await dispatchQa(action.args); break;
         case 'dispatch_publish': toolResult = await dispatchPublish(action.args); break;
+        case 'propose_type': toolResult = capability.registerType(action.args || {}, 'command-center'); break;
+        case 'request_capability': toolResult = await capability.requestCapability(action.args || {}); break;
+        case 'list_types': toolResult = { types: capability.getAllTypes() }; break;
+        case 'list_gaps': toolResult = { requests: capability.listCapabilityRequests({ status: action.args && action.args.status }) }; break;
+        case 'approve_gap': toolResult = capability.approveCapabilityRequest(parseInt(action.args && action.args.id), 'command-center'); break;
+        case 'reject_gap': toolResult = capability.rejectCapabilityRequest(parseInt(action.args && action.args.id), 'command-center'); break;
         case 'learn': toolResult = await learn(action.args); break;
         case 'respond': return { done: true, message: action.args.message, data: action.args.data };
         default: throw new Error(`Unknown tool: ${action.tool}`);

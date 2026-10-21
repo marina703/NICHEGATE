@@ -62,7 +62,8 @@ function formatAlert(type, data) {
     product_generated: `🤖 **Products Generated** — ${data.count} new products created across ${data.professions} professions.`,
     auto_listed: `📤 **Auto-Listed** — ${data.count} approved products pushed to marketplace.`,
     error: `❌ **Error** — ${data.message}. Check automation log for details.`,
-    sale: `💰 **Sale!** — ${data.product} sold for ${data.price}. Total revenue: ${data.revenue}.`
+    sale: `💰 **Sale!** — ${data.product} sold for ${data.price}. Total revenue: ${data.revenue}.`,
+    capability: `🧠 **Factory escalation** — ${data.message || 'needs attention'}`
   };
   return templates[type] || `**Alert**: ${type} — ${JSON.stringify(data)}`;
 }

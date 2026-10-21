@@ -389,6 +389,47 @@ function init() {
   `);
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_trend_snapshots_key_week ON trend_snapshots (trend_key, week DESC)'); } catch (e) { /* exists */ }
 
+  // ── DYNAMIC PRODUCT-TYPE REGISTRY + CAPABILITY REQUESTS ───────────────────
+  // The factory is meant to be ~95% autonomous AND self-expanding: instead of
+  // only ever making whatever is hard-coded in productTypes.js, it can PROPOSE
+  // new product types and register them at runtime (product_types_dynamic), and
+  // when it spots demand it can't serve with the tools it has, it raises a
+  // capability request (capability_requests) and notifies the operator. This is
+  // the "add to the list" + "tell me when you need tools/infrastructure" loop.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS product_types_dynamic (
+      key TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      emoji TEXT,
+      price INTEGER,
+      format TEXT NOT NULL,          -- pdf | xlsx | zip | html
+      buyer TEXT,                    -- business | personal | hobby
+      cats TEXT,                     -- JSON array of category hints
+      builder TEXT,                  -- fileFactory branch that renders it (null = needs one)
+      source TEXT DEFAULT 'factory', -- who added it
+      status TEXT DEFAULT 'active',  -- active | disabled
+      reason TEXT,                   -- why this type was added
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS capability_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,            -- type | builder | integration | tool | other
+      title TEXT NOT NULL,           -- short human summary
+      detail TEXT,                   -- what the factory wants to do
+      needed TEXT,                   -- the specific tool/infra/knowledge it lacks
+      proposal TEXT,                 -- the proposed new type or plan (JSON)
+      status TEXT DEFAULT 'open',    -- open | approved | rejected | resolved
+      notified INTEGER DEFAULT 0,    -- has the operator been pinged?
+      resolved_by TEXT,
+      resolved_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_capreq_status ON capability_requests (status);
+  `);
+
   // Newer trend columns (older DBs get them via additive ALTERs).
   try { db.exec('ALTER TABLE trends ADD COLUMN trend_key TEXT'); } catch (e) { /* column already exists */ }
   try { db.exec('ALTER TABLE trends ADD COLUMN first_seen_at DATETIME'); } catch (e) { /* column already exists */ }

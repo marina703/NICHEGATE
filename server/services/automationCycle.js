@@ -15,6 +15,21 @@ const productTypes = require('./productTypes');
 const TYPE_PRICES = {};
 const VARY_TYPES = ['invoice', 'checklist', 'spreadsheet', 'booking', 'social'];
 
+// The autonomous cycle should also be able to produce product types the factory
+// registered at RUNTIME (capabilityEngine), not just the static set above — that
+// is the whole point of being self-expanding. With an empty dynamic table this
+// returns exactly VARY_TYPES, so existing behavior/tests are unchanged.
+function getVaryTypes() {
+  const base = VARY_TYPES.slice();
+  try {
+    const cap = require('./capabilityEngine');
+    for (const t of cap.listDynamicTypes()) {
+      if (t.status === 'active' && !base.includes(t.key)) base.push(t.key);
+    }
+  } catch (e) { /* capability engine unavailable — fall back to static */ }
+  return base;
+}
+
 function getWebhookUrl() {
   const stored = db.prepare('SELECT value FROM settings WHERE key = ?').get('webhook_url');
   return [stored && stored.value, process.env.DISCORD_WEBHOOK_URL].find(runtimeConfig.isDiscordWebhookUrl) || '';
@@ -152,7 +167,7 @@ function taskGenerate(ctx) {
   let generated = 0;
   for (const prof of profs) {
     const have = new Set(db.prepare("SELECT type FROM products WHERE profession_id = ? AND status IN ('draft','pending-review','approved','listed','published')").all(prof.id).map(r => r.type));
-    const missing = VARY_TYPES.filter(t => !have.has(t));
+    const missing = getVaryTypes().filter(t => !have.has(t));
     if (!missing.length) continue;
     const type = missing[Math.floor(Math.random() * missing.length)];
     try {
@@ -407,6 +422,7 @@ async function taskPinDrain(ctx) {
 
 module.exports = {
   runFullCycle,
+  getVaryTypes,
   taskScan,
   taskFreshness,
   taskSalesSync,

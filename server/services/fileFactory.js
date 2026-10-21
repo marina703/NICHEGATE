@@ -239,6 +239,25 @@ async function ensureProductFile(product) {
     const bundleEngine = require('./bundleEngine');
     const res = await bundleEngine.rebuildBundleZip(product, prof);
     filePath = res || null;
+  } else {
+    // DYNAMIC TYPES: a type registered at runtime (capabilityEngine) isn't in the
+    // static chain above. Route it by its registered FORMAT so it still ships a
+    // real deliverable instead of a dead record with no file.
+    const cap = require('./capabilityEngine');
+    const dyn = cap.getType(type);
+    if (dyn && dyn.source === 'dynamic') {
+      const fmt = dyn.format;
+      if (fmt === 'pdf') {
+        filePath = await pdfGen.generatePDF(hasRealHtml ? product.html_content : pdfGen.buildChecklistHTML(prof, theme), `${prof.slug}-${type}-${stamp}.pdf`);
+      } else if (fmt === 'xlsx') {
+        filePath = xlsxGen.generateXLSX('spreadsheet', prof, `${prof.slug}-${type}-${stamp}.xlsx`);
+      } else if (fmt === 'zip') {
+        filePath = await zipGen.createSocialPack(prof, theme);
+      } else if (fmt === 'html') {
+        const webToolGen = require('./webToolGenerator');
+        filePath = webToolGen.generateWebToolFile(prof, { title: product.name, theme }, `${prof.slug}-${type}-${stamp}.html`);
+      }
+    }
   }
   if (filePath) {
     if (product.id != null) {

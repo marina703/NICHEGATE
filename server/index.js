@@ -57,6 +57,12 @@ function buildDesignContent(product, prof) {
     case 'checklist': {
       const services = ds.parseServices(prof);
       return {
+        howToUse: [
+          'Print one copy per job site.',
+          'Complete every step in order.',
+          'Tick the box when done; note issues in the margin.',
+          'Sign off at the bottom.'
+        ],
         services: services.map((s, g) => ({
           title: s[0],
           price: s[1],
@@ -3522,7 +3528,7 @@ async function jobToolDispatch(tool, args = {}) {
           // Inject hero if placeholder was used
           let finalHtml = result.html;
           if (heroDataUri) {
-            finalHtml = designAgent.injectHeroImage(finalHtml, heroDataUri);
+            finalHtml = await designAgent.injectHeroImage(finalHtml, heroDataUri);
           }
 
           // Generate PDF
@@ -3577,6 +3583,22 @@ async function jobToolDispatch(tool, args = {}) {
       const name = String(args.name || '');
       if (!actionRegistry || typeof actionRegistry.run !== 'function') return { error: 'action registry unavailable' };
       return await actionRegistry.run(name, args.input || {}, () => {});
+    }
+    case 'propose_type': {
+      const capability = require('./services/capabilityEngine');
+      return capability.registerType(args || {}, 'job');
+    }
+    case 'request_capability': {
+      const capability = require('./services/capabilityEngine');
+      return await capability.requestCapability(args || {});
+    }
+    case 'list_types': {
+      const capability = require('./services/capabilityEngine');
+      return { types: capability.getAllTypes() };
+    }
+    case 'list_gaps': {
+      const capability = require('./services/capabilityEngine');
+      return { requests: capability.listCapabilityRequests({ status: args && args.status }) };
     }
     default:
       return { error: `tool "${tool}" is not available to jobs` };
@@ -4352,6 +4374,51 @@ app.post('/api/command/design', commandCenter.handleDesign);
 app.post('/api/command/render', commandCenter.handleRender);
 app.post('/api/command/qa', commandCenter.handleQa);
 app.post('/api/command/publish', commandCenter.handlePublish);
+
+// ------------------------------------------------------------------------
+// CAPABILITY ENGINE — dynamic product types + operator escalation
+// The factory can add product types at runtime and raise capability requests
+// (with an operator ping) when it needs tools/infrastructure it doesn't have.
+// ------------------------------------------------------------------------
+const capabilityEngine = require('./services/capabilityEngine');
+
+app.get('/api/capabilities/types', (req, res) => {
+  try { res.json({ types: capabilityEngine.getAllTypes() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/capabilities/types', (req, res) => {
+  try {
+    const result = capabilityEngine.registerType(req.body || {}, 'operator');
+    if (!result.ok) return res.status(400).json(result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/capabilities/requests', (req, res) => {
+  try {
+    res.json({ requests: capabilityEngine.listCapabilityRequests({ status: req.query.status }) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/capabilities/requests', async (req, res) => {
+  try {
+    const result = await capabilityEngine.requestCapability(req.body || {});
+    if (!result.ok) return res.status(400).json(result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/capabilities/requests/:id/approve', (req, res) => {
+  try {
+    const result = capabilityEngine.approveCapabilityRequest(parseInt(req.params.id), 'operator');
+    if (!result.ok) return res.status(400).json(result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/capabilities/requests/:id/reject', (req, res) => {
+  try {
+    const result = capabilityEngine.rejectCapabilityRequest(parseInt(req.params.id), 'operator');
+    if (!result.ok) return res.status(400).json(result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 app.get('/api/command/state', async (req, res) => {
   try {
     const state = await commandCenter.queryFactory({ query: 'all' });
