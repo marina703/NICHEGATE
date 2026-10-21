@@ -49,13 +49,15 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const MAX_SPREADSHEET_PREVIEW_BYTES = 20 * 1024 * 1024;
 
 // Build content payload for design agent based on product type
-function buildDesignContent(product, prof) {
+async function buildDesignContent(product, prof) {
   const ds = require('./services/designStudio');
   const contentLib = require('./services/contentLibrary');
+  const serviceCopy = require('./services/serviceCopy');
 
   switch (product.type) {
     case 'checklist': {
       const services = ds.parseServices(prof);
+      const includes = await serviceCopy.includeDescriptions(prof, services);
       return {
         howToUse: [
           'Print one copy to get started.',
@@ -66,22 +68,23 @@ function buildDesignContent(product, prof) {
         services: services.map((s, g) => ({
           title: s[0],
           price: s[1],
+          includes: includes[g],
           steps: contentLib.checklistRowsFor(prof, s[0], g, 5) || []
         }))
       };
     }
     case 'invoice': {
-          const cat = contentLib.getContentFor(prof);
-          const safe = cat.invoice.length ? cat.invoice : ds.parseServices(prof).length ? ds.parseServices(prof) : [['Professional Consultation', '$50']];
-          const total = safe.reduce((a, s) => a + (ds.priceNum(s[1]) || 0), 0);
-          return {
-            lines: safe.map(s => ({ service: s[0], rate: ds.priceNum(s[1]) })),
-            total,
-            dueDate: 'Net 30'
-          };
-        }
+      const cat = contentLib.getContentFor(prof);
+      const safe = cat.invoice.length ? cat.invoice : ds.parseServices(prof).length ? ds.parseServices(prof) : [['Professional Consultation', '$50']];
+      const includes = await serviceCopy.includeDescriptions(prof, safe);
+      const total = safe.reduce((a, s) => a + (ds.priceNum(s[1]) || 0), 0);
+      return {
+        lines: safe.map((s, i) => ({ service: s[0], rate: ds.priceNum(s[1]), description: includes[i] })),
+        total,
+        dueDate: 'Net 30'
+      };
+    }
     case 'workbook': {
-      // Use existing workbook prompts if available
       return {
         sections: [
           { title: 'Foundations', prompts: ['What is your core offer?', 'Who is your ideal client?', 'What problem do you solve?'] },
@@ -91,12 +94,13 @@ function buildDesignContent(product, prof) {
       };
     }
     default: {
-      // Fallback: use checklist structure for any type
       const services = ds.parseServices(prof);
+      const includes = await serviceCopy.includeDescriptions(prof, services);
       return {
         services: services.map((s, g) => ({
           title: s[0],
           price: s[1],
+          includes: includes[g],
           steps: contentLib.checklistRowsFor(prof, s[0], g, 5) || []
         }))
       };
@@ -3500,7 +3504,7 @@ async function jobToolDispatch(tool, args = {}) {
           const theme = fileFactory.fallbackTheme(product);
 
           // Build content payload based on product type
-          const content = buildDesignContent(product, prof);
+          const content = await buildDesignContent(product, prof);
 
           // Get hero image
           const heroArt = require('./services/heroArt');

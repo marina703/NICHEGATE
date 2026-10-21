@@ -234,6 +234,12 @@ HERO IMAGE: NONE — render solid var(--navy) masthead with var(--gold) accent r
 ${content.howToUse.map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
   }
 
+  if (Array.isArray(content && content.services) && content.services.some(s => s && s.includes)) {
+    prompt += `
+
+SERVICE CARDS — each service has an "includes" field describing what the price buys. Render it as a small secondary line directly under the service title (e.g. "Includes: …"), ABOVE the checklist steps, so the buyer sees exactly what the price covers. Never invent one if absent.`;
+  }
+
   prompt += `
 
 Generate the complete HTML document now.`;
