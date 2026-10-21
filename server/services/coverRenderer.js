@@ -71,15 +71,15 @@ function heroLayer(dna, heroDataUri, content) {
   }
   if (mode === 'typographic') {
     const big = (content.title || 'NicheGate').split(/\s+/)[0].slice(0, 12).toUpperCase();
-    return `<div class="hero hero-typo" style="--a:${p.accent};--base:${p.base};--on:${p.onBase}">
+    return `<div class="hero hero-typo" style="--a:${p.accent};--base:${p.heroBg || p.base};--on:${p.onHero || p.onBase}">
       <div class="typo-big">${big}</div>
       <div class="hero-type">${heroType(content, dna)}</div>
     </div>`;
   }
   if (mode === 'vector') {
-    return `<div class="hero hero-vec" style="--a:${p.accent};--base:${p.base}">
+    return `<div class="hero hero-vec" style="--a:${p.accent};--base:${p.heroBg || p.base}">
       <svg viewBox="0 0 1200 620" preserveAspectRatio="xMidYMid slice" class="vec-art">
-        <rect width="1200" height="620" fill="${p.base}"/>
+        <rect width="1200" height="620" fill="${p.heroBg || p.base}"/>
         <circle cx="980" cy="120" r="300" fill="${p.accent}" opacity="0.95"/>
         <circle cx="980" cy="120" r="190" fill="${p.baseDeep}" opacity="0.35"/>
         <g stroke="${p.accent}" stroke-width="6" opacity="0.9">
@@ -90,7 +90,7 @@ function heroLayer(dna, heroDataUri, content) {
     </div>`;
   }
   // abstract
-  return `<div class="hero hero-abs" style="--a:${p.accent};--base:${p.base};--deep:${p.baseDeep}">
+  return `<div class="hero hero-abs" style="--a:${p.accent};--base:${p.heroBg || p.base};--deep:${p.heroDeep || p.baseDeep}">
     <div class="abs-a"></div><div class="abs-b"></div>
     <div class="hero-type">${heroType(content, dna)}</div>
   </div>`;
@@ -122,7 +122,7 @@ function buildCoverHTML(dna, content = {}, heroDataUri = null, opts = {}) {
 <style>
   :root{
     --base:${p.base}; --deep:${p.baseDeep}; --surface:${p.surface}; --ink:${p.ink};
-    --muted:${p.muted}; --accent:${p.accent}; --accent-ink:${p.accentInk}; --on:${p.onBase};
+    --muted:${p.muted}; --accent:${p.accent}; --accent-ink:${p.accentInk}; --on:${p.onHero || p.onBase};
     --r:${corner}px; --pad:${pad}px;
     --display:'${dna.fonts.display}',Georgia,serif; --body:'${dna.fonts.body}',system-ui,sans-serif;
   }

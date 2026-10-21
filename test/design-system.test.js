@@ -71,6 +71,38 @@ test('designInvariants: blank image fails, real layout passes', async () => {
   assert.ok(rl.metrics.strongEdges > 0.02);
 });
 
+test('styleDNA: heroPool restricts modality (covers avoid ai-photo scribble)', () => {
+  for (let i = 0; i < 20; i++) {
+    const d = styleDNA.composeDNA({ id: i }, HVAC, { heroPool: ['typographic', 'abstract', 'vector'] });
+    assert.notEqual(d.heroModality, 'photo', 'no photo heroes in the text-safe pool');
+    assert.notEqual(d.heroModality, 'illustration');
+    assert.ok(['typographic', 'abstract', 'vector'].includes(d.heroModality));
+  }
+});
+
+function hexLum(hex) {
+  const c = hex.replace('#', '');
+  const ch = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
+  const lin = v => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+  return 0.2126 * lin(ch[0]) + 0.7152 * lin(ch[1]) + 0.0722 * lin(ch[2]);
+}
+function ratio(a, b) {
+  const la = hexLum(a), lb = hexLum(b);
+  const hi = Math.max(la, lb), lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+test('styleDNA: hero anchor guarantees high text contrast even for light niches', () => {
+  for (const name of ['Massage Therapy', 'Beekeeping / Apiary', 'Wedding Photography', 'HVAC Technician', 'Freelance & Solo Business']) {
+    const prof = { name, slug: name.toLowerCase().replace(/[^a-z]+/g, '-') };
+    for (let i = 0; i < 6; i++) {
+      const d = styleDNA.composeDNA({ id: i }, prof);
+      const c = ratio(d.palette.heroBg, d.palette.onHero);
+      assert.ok(c >= 4.5, `${name} #${i} hero contrast ${c.toFixed(2)} < 4.5`);
+    }
+  }
+});
+
 test('coverRenderer: buildCoverHTML injects DNA palette, fonts and content', () => {
   const kit = brandKit.buildBrandKit(HVAC);
   const dna = styleDNA.composeDNA({ id: 3 }, HVAC, { kit });

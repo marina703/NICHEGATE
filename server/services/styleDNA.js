@@ -50,6 +50,16 @@ function derivePalette(kit, r) {
   const surface = baseIsDark ? '#fdfcf8' : hslToHex({ h: baseHsl.h, s: 20, l: 96 });
   const ink = baseIsDark ? '#1b2030' : hslToHex({ h: baseHsl.h, s: Math.min(60, baseHsl.s), l: 12 });
 
+  // Always provide a STRONG DARK hero anchor so every cover clears contrast
+  // regardless of how light the niche's base family is (light-on-light covers
+  // failed the invariant). Dark niches keep their base; light niches get a deep
+  // derivative of the same hue.
+  const heroBg = baseIsDark ? hslToHex(baseHsl) : hslToHex({ h: baseHsl.h, s: Math.min(55, baseHsl.s + 8), l: 16 });
+  const heroDeep = baseIsDark
+    ? hslToHex({ h: baseHsl.h, s: baseHsl.s, l: Math.max(6, baseHsl.l - 8) })
+    : hslToHex({ h: baseHsl.h, s: Math.min(55, baseHsl.s + 8), l: 10 });
+  const onHero = '#f7f5ef';
+
   const accent = hslToHex(accentHsl);
   // accentInk: readable text on top of the accent block.
   const accentDark = accentHsl.l < 55;
@@ -63,6 +73,9 @@ function derivePalette(kit, r) {
     muted: hslToHex({ h: baseHsl.h, s: Math.max(6, baseHsl.s * 0.5), l: baseIsDark ? 40 : 46 }),
     accent,
     accentInk,
+    heroBg,
+    heroDeep,
+    onHero,
     accentName: accentFamName,
     baseName: kit.palette.baseFamily,
     onBase: baseIsDark ? '#f7f5ef' : '#1b2030',
@@ -79,6 +92,8 @@ function composeDNA(product = {}, prof = {}, opts = {}) {
   // Try a few seeds until the resulting hash is not in recentHashes (endless
   // but non-repeating). Falls back after 6 tries.
   let dna = null;
+  const heroPool = Array.isArray(opts.heroPool) && opts.heroPool.length ? opts.heroPool : HERO_MODALITIES;
+  const heroPreferred = (kit.heroBias || []).find(x => heroPool.includes(x));
   for (let attempt = 0; attempt < 6; attempt++) {
     const r = rng((baseSeed + attempt * 2654435761) >>> 0);
     const palette = derivePalette(kit, r);
@@ -96,7 +111,7 @@ function composeDNA(product = {}, prof = {}, opts = {}) {
       layout: pick(LAYOUTS, r),
       density: pickBiased(DENSITIES, kit.densityBias, r),
       motif: pick(kit.motifs, r),
-      heroModality: pickBiased(HERO_MODALITIES, (kit.heroBias || [])[0], r, 0.55),
+      heroModality: pickBiased(heroPool, heroPreferred, r, 0.55),
       corner: pick(CORNERS, r),
       rule: pick(RULES, r),
       seed: (baseSeed + attempt * 2654435761) >>> 0,

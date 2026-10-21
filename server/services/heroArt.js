@@ -230,16 +230,20 @@ function buildHeroPrompt(prof, product, theme) {
 
   // Build the scene: specific object + lighting + materials + style
   const parts = [
+    'NO TEXT OR WRITING ANYWHERE — the subject must be blank/plain: no letters, numbers, handwriting, scribbles, doodles, labels or signage',
     `ultra-photorealistic product photography of ${template.subject}`,
     `lighting: ${template.lighting}`,
     `materials: ${template.material}`,
     `style: ${template.style}`,
     // Niche grounding — the scene must belong to this product's world
     prof && prof.name ? `the scene belongs to the ${prof.name} niche` : '',
+    // Any paper/page/screen in-frame is BLANK — this is what kills the
+    // "wingdings" pseudo-handwriting that image models love to add.
+    'any paper, page, notebook or screen in the scene is BLANK — blank paper, no handwriting, no scribbles, no doodles, no printed text',
     // Negative space instruction — left 45% stays clean for typography
     'leave the LEFT 45% of the frame as clean, uncluttered negative space — no props, no shadows, no texture on the left third',
     // Hard text ban — matches n8n rules
-    'NO TEXT, NO LETTERS, NO NUMBERS, NO LOGOS, NO WRITING, NO WATERMARKS, NO SCREEN CONTENT, NO UI ELEMENTS, NO CHARTS, NO GRAPHS, NO DOCUMENTS, NOTHING READABLE',
+    'NO TEXT, NO LETTERS, NO NUMBERS, NO LOGOS, NO WRITING, NO HANDWRITING, NO SCRIBBLES, NO DOODLES, NO WATERMARKS, NO SCREEN CONTENT, NO UI ELEMENTS, NO CHARTS, NO GRAPHS, NO DOCUMENTS, NOTHING READABLE',
     'photorealistic, professional product photography, 8K detail, full-frame DSLR, 35mm lens',
     'not an illustration, not a 3D render, not CGI, not clipart'
   ];

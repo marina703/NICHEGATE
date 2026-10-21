@@ -43,7 +43,11 @@ function coverContent(product = {}, prof = {}, extra = {}) {
 // Generate a cover for one product. Returns { dna, pngPath, htmlPath, dom, qa }.
 async function generateCover({ product = {}, prof = {}, content = {}, heroDataUri = null, recentHashes = [], outPath = null, size = 1200 } = {}) {
   const kit = brandKit.buildBrandKit(prof);
-  const dna = styleDNA.composeDNA(product, prof, { kit, recentHashes });
+  // Text-safe by default: AI photo heroes can contain pseudo-handwriting, so
+  // covers use typographic/abstract/vector unless photo is explicitly allowed.
+  const allowPhoto = String(process.env.COVER_ALLOW_PHOTO || '0') === '1';
+  const heroPool = allowPhoto ? styleDNA.HERO_MODALITIES : ['typographic', 'abstract', 'vector'];
+  const dna = styleDNA.composeDNA(product, prof, { kit, recentHashes, heroPool });
   const payload = coverContent(product, prof, content);
   const rendered = await coverRenderer.renderCover({ product, prof, dna, content: payload, heroDataUri, outPath, size });
   const qa = await invariants.analyzeFile(rendered.pngPath, { dom: rendered.dom });
