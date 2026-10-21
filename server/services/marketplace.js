@@ -705,6 +705,19 @@ function markGumroadQuotaExhausted(reason) {
 }
 
 async function requirePublishableCover(product) {
+  const gateMode = String(process.env.COVER_GATE_MODE || 'critic').toLowerCase();
+  if (gateMode === 'invariants') {
+    // Endless-design gate: judge QUALITY (legible/contrasted/un-clipped/non-blank)
+    // rather than similarity to one layout, so any style can pass.
+    const verdict = await require('./coverStudio').evaluateGate(product, { mode: 'invariants' });
+    if (!verdict || verdict.publishAllowed !== true) {
+      const error = new Error(`Marketplace cover rejected (invariants): ${(verdict && verdict.reason) || 'failed invariants'}`);
+      error.code = 'COVER_REVIEW_FAILED';
+      error.coverVerdict = verdict || null;
+      throw error;
+    }
+    return verdict;
+  }
   let coverVerdict = await require('./designCritic').critiqueCover(product && product.id);
   if (!coverVerdict || coverVerdict.publishAllowed !== true) {
     // Self-heal: the usual cause is a stale shared-cache cover (pre-product-key

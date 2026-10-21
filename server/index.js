@@ -3542,6 +3542,27 @@ async function jobToolDispatch(tool, args = {}) {
 
           return { id, htmlBytes: finalHtml.length, pdfPath, validation: result.validation, attempts: result.attempts };
         }
+        case 'cover': {
+          const id = parseInt(args.id);
+          const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+          if (!product) return { error: `product ${args.id} not found` };
+          const prof = db.prepare('SELECT * FROM professions WHERE id = ?').get(product.profession_id);
+          const coverStudio = require('./services/coverStudio');
+          const heroArt = require('./services/heroArt');
+          const _ff = require('./services/fileFactory');
+          const fsx = require('fs');
+          let heroDataUri = null;
+          try {
+            const hp = await heroArt.ensureHeroArt(product, prof, _ff.fallbackTheme(product));
+            if (hp && fsx.existsSync(hp)) {
+              const b64 = fsx.readFileSync(hp).toString('base64');
+              heroDataUri = 'data:' + (hp.match(/\.png$/i) ? 'image/png' : 'image/jpeg') + ';base64,' + b64;
+            }
+          } catch (e) { /* typographic/abstract fallback needs no photo */ }
+          const out = await coverStudio.generateCover({ product, prof, heroDataUri });
+          db.prepare('UPDATE products SET preview_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(out.pngPath, id);
+          return { id, dnaHash: out.dnaHash, pngPath: out.pngPath, qa: out.qa };
+        }
         case 'publish': {
       const id = parseInt(args.id);
       const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);

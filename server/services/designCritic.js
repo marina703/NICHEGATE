@@ -367,8 +367,19 @@ async function critiqueCover(productOrId, opts = {}) {
 }
 
 async function imageFileDataUri(filePath) {
-  const data = await fs.promises.readFile(filePath);
-  return require('./coverArt').imageDataUri(data);
+  const raw = await fs.promises.readFile(filePath);
+  // Downscale before sending to vision: full-size covers base64 to >1MB, which
+  // some vision endpoints reject (silent null). 768px JPEG ~80KB works reliably.
+  try {
+    const sharp = require('sharp');
+    const small = await sharp(raw)
+      .resize({ width: 768, height: 768, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+    return 'data:image/jpeg;base64,' + small.toString('base64');
+  } catch {
+    return require('./coverArt').imageDataUri(raw);
+  }
 }
 
 function latestScore(productId) {
