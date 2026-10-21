@@ -129,15 +129,22 @@ HARD CONSTRAINTS (violation = invalid output)
    - Palette: --navy/--cream/--gold/--sage/--slate/--ink/--muted — NO bright teal/cyan
    - Fonts: var(--display) for h1/h2, var(--body) for body, var(--mono) for numbers
 
-5. HERO IMAGE (CRITICAL): If PLACEHOLDER specified, you MUST render:
+HERO IMAGE (CRITICAL): If PLACEHOLDER specified, you MUST render:
    .hero { height: 300px; background-image: var(--hero-bg); background-size: cover; background-position: center right; }
-   with .hero-scrim (left 88% opaque var(--navy) → right transparent) and .hero-content.
+   with .hero-scrim (left 60% opaque var(--navy) at 0.3 → right transparent at 0.8) and .hero-content.
    The factory WILL inject the actual image by replacing var(--hero-bg).
    If NONE, render solid var(--navy) .masthead (no .hero).
 
-6. "HOW TO USE" SECTION (checklist): Must contain 4 numbered steps with REAL instructional text.
-   NEVER leave empty. Use: "Print one copy per job site", "Complete every step in order",
-   "Tick the box when done; note issues in margin", "Sign off at the bottom".
+   VALIDATION: The rendered HTML MUST contain a .hero element with background-image: var(--hero-bg) in its style attribute.
+
+   SCRIM SPEC: .hero-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.15) 40%, rgba(15,23,42,0) 80%); } — this ensures the hero photo is VISIBLE on the right 40%.
+
+   FORBIDDEN: Do NOT embed actual base64 image data in the CSS. Use ONLY var(--hero-bg). The factory handles injection.
+
+6. ALTERNATING CARD BACKGROUNDS (CRITICAL): For checklist type, you MUST generate:
+   .grp:nth-child(odd) { background: var(--surface); }
+   .grp:nth-child(even) { background: var(--cream); }
+   This creates the alternating white/cream striping. FAILURE TO INCLUDE THIS CSS = INVALID OUTPUT.
 
 7. WATERMARK: Always include <div class="watermark">TYPE</div> with:
    position: absolute; bottom: 50px; right: 28px; font-family: var(--display);
@@ -157,6 +164,7 @@ HARD CONSTRAINTS (violation = invalid output)
    - Navy text: var(--navy)
    - Ink body text: var(--ink)
    - Alternating cards: .grp:nth-child(odd){background:var(--surface)} .grp:nth-child(even){background:var(--cream)}
+   - Checkboxes: UNCHECKED (empty square) — use □ or ☐ — NEVER pre-checked
    - NEVER hardcode #2dd4bf, teal, cyan, or bright blue
 
 9. NO PLACEHOLDERS: No "Lorem ipsum", no "[Client Name]", no "[Date]". The
@@ -174,16 +182,39 @@ The HTML must be valid and render correctly in headless Chrome (Puppeteer).`;
 // ── USER PROMPT BUILDER ─────────────────────────────────────────────────────
 function buildUserPrompt(content, brandSpec, type, heroDataUri) {
   const schema = CONTENT_SCHEMAS[type] || { required: [], example: {} };
+  const palette = brandSpec.palette || {};
+  
+  const cssVars = `:root {
+  --primary: ${palette.primary || "#0f172a"};
+  --accent: ${palette.accent || "#d4a843"};
+  --secondary: ${palette.secondary || "#64748b"};
+  --background: ${palette.background || "#fdfbf7"};
+  --surface: ${palette.surface || "#ffffff"};
+  --muted: ${palette.muted || "#94a3b8"};
+  --sage: ${palette.sage || "#8fb8b0"};
+  --slate: ${palette.slate || "#334155"};
+  --ink: ${palette.ink || "#1e293b"};
+  --gold: ${palette.accent || "#d4a843"};
+  --cream: ${palette.background || "#fdfbf7"};
+  --navy: ${palette.primary || "#0f172a"};
+  --display-font: ${brandSpec.fonts?.display?.family || "'Playfair Display',Georgia,serif"};
+  --body-font: ${brandSpec.fonts?.body?.family || "'Inter',system-ui,sans-serif"};
+  --mono-font: ${brandSpec.fonts?.mono?.family || "'JetBrains Mono',monospace"};
+}`;
+  
   let prompt = `DOCUMENT TYPE: ${type.toUpperCase()}
 BRAND SPEC:
 ${JSON.stringify(brandSpec, null, 2)}
+
+MANDATORY CSS CUSTOM PROPERTIES (use these EXACT variable names in your CSS):
+${cssVars}
 
 CONTENT PAYLOAD (immutable — inject exactly):
 ${JSON.stringify(content, null, 2)}
 
 CONTENT SCHEMA (for reference):
 ${JSON.stringify(schema, null, 2)}`;
-
+  
   if (heroDataUri) {
     prompt += `
 
@@ -193,9 +224,9 @@ but use background-image: var(--hero-bg) so the factory can inject the actual im
   } else {
     prompt += `
 
-HERO IMAGE: NONE — render solid navy masthead with gold accent rule (no .hero section).`;
+HERO IMAGE: NONE — render solid var(--navy) masthead with var(--gold) accent rule (no .hero section).`;
   }
-
+  
   prompt += `
 
 Generate the complete HTML document now.`;
@@ -264,18 +295,68 @@ async function generateDesignedHtml({ content, theme, prof, type, heroDataUri })
 
   let html;
   let attempts = 0;
-  const maxAttempts = 2;
+  const maxAttempts = 3;
 
   while (attempts < maxAttempts) {
     attempts++;
     try {
       html = await callDesignAgent(DESIGN_AGENT_SYSTEM_PROMPT, userPrompt);
       const validation = validateContentLock(content, html, type);
-      if (validation.ok) {
-        return { html, brandSpec, attempts, validation: 'passed' };
+      if (!validation.ok) {
+        userPrompt += `\n\nVALIDATION FAILED (attempt ${attempts}): Missing content tokens: ${validation.missing.join(', ')}. Fix and regenerate.`;
+        continue;
       }
-      // Validation failed — append error context for retry
-      userPrompt += `\n\nVALIDATION FAILED (attempt ${attempts}): Missing content tokens: ${validation.missing.join(', ')}. Fix and regenerate.`;
+      
+      // Visual CSS validation for checklist type
+            if (type === 'checklist') {
+              const visualChecks = [];
+        
+              // Check 1: Hero section with var(--hero-bg) - NOT base64
+                      const hasHeroBgVar = html.includes('background-image: var(--hero-bg)') || html.includes('background-image:var(--hero-bg)');
+                      const hasHeroBgBase64 = html.includes('background-image: data:image');
+                      // Check hero element specifically
+                      const heroElementMatch = html.match(/<[^>]*class=[^>]*hero[^>]*>/i);
+                      const heroHasBase64 = heroElementMatch && heroElementMatch[0].includes('data:image');
+                      if (heroDataUri && (!hasHeroBgVar || hasHeroBgBase64 || heroHasBase64)) {
+                        visualChecks.push('Hero must use var(--hero-bg) NOT base64 data URI');
+                      }
+                      console.log('[VISUAL CHECK] Hero bg var:', hasHeroBgVar, 'Has base64:', hasHeroBgBase64, 'Hero element has base64:', heroHasBase64);
+        
+              // Check 2: Alternating card backgrounds CSS
+              const hasOdd = html.includes('.grp:nth-child(odd)');
+              const hasEven = html.includes('.grp:nth-child(even)');
+              const hasSurface = html.includes('background:var(--surface)') || html.includes('background: var(--surface)') || html.includes('var(--surface)');
+              const hasCream = html.includes('background:var(--cream)') || html.includes('background: var(--cream)') || html.includes('var(--cream)');
+              console.log('[VISUAL CHECK] Odd:', hasOdd, 'Even:', hasEven, 'Surface:', hasSurface, 'Cream:', hasCream);
+              if (!hasOdd || !hasEven || !hasSurface || !hasCream) {
+                visualChecks.push('Missing alternating card backgrounds CSS (.grp:nth-child(odd/even) with var(--surface)/var(--cream))');
+              }
+        
+              // Check 3: Watermark
+              const hasWatermark = html.includes('.watermark');
+              const hasGold = html.includes('var(--gold)');
+              const hasOpacity = html.includes('opacity: 0.025') || html.includes('opacity:0.025');
+              console.log('[VISUAL CHECK] Watermark:', hasWatermark, 'Gold:', hasGold, 'Opacity:', hasOpacity);
+              if (!hasWatermark || !hasGold || !hasOpacity) {
+                visualChecks.push('Missing watermark with var(--gold) and opacity 0.025');
+              }
+        
+              // Check 4: Empty checkboxes (not pre-checked)
+              const hasChecked = html.includes('checked') || html.includes('☑') || html.includes('✓');
+              console.log('[VISUAL CHECK] Has checked:', hasChecked);
+              if (hasChecked) {
+                visualChecks.push('Checkboxes are pre-checked (should be empty squares)');
+              }
+        
+              if (visualChecks.length > 0) {
+                console.log('[VISUAL VALIDATION] FAILED:', visualChecks.join('; '));
+                userPrompt += `\n\nVISUAL VALIDATION FAILED (attempt ${attempts}):\n${visualChecks.join('\n')}\nFix and regenerate.`;
+                continue;
+              }
+              console.log('[VISUAL VALIDATION] PASSED');
+            }
+      
+      return { html, brandSpec, attempts, validation: 'passed' };
     } catch (e) {
       if (attempts >= maxAttempts) throw e;
       userPrompt += `\n\nERROR (attempt ${attempts}): ${e.message}. Retry.`;
@@ -305,14 +386,45 @@ async function generateHtmlWithFallback(params) {
 }
 
 // Inject actual hero image into generated HTML (post-process)
-function injectHeroImage(html, heroDataUri) {
+async function injectHeroImage(html, heroDataUri) {
   if (!heroDataUri) return html;
-  return html.replace(/var\(--hero-bg\)/g, heroDataUri)
-             .replace(/background-image:\s*var\(--hero-bg\)/, `background-image: url('${heroDataUri}')`);
+  
+  // Compress hero image to smaller data URI (max ~200KB for reliable rendering)
+  const buffer = Buffer.from(heroDataUri.split(',')[1], 'base64');
+  
+  // Compress using sharp if available, otherwise use original
+  let compressedBase64 = heroDataUri.split(',')[1];
+  try {
+    const sharp = require('sharp');
+    const compressed = await sharp(buffer)
+      .jpeg({ quality: 60, progressive: true })
+      .resize({ width: 1200, withoutEnlargement: true })
+      .toBuffer();
+    compressedBase64 = compressed.toString('base64');
+  } catch (e) {
+    console.log('[injectHeroImage] Compression failed, using original:', e.message);
+  }
+  
+  const compressedDataUri = `data:image/jpeg;base64,${compressedBase64}`;
+  
+  // Replace var(--hero-bg) in CSS
+  let result = html.replace(/var\(--hero-bg\)/g, compressedDataUri)
+                   .replace(/background-image:\s*var\(--hero-bg\)/, `background-image: url('${compressedDataUri}')`);
+  
+  // ALSO fix hero element's style attribute if it has base64 directly
+  result = result.replace(
+    /(<[^>]*class=[^>]*hero[^>]*style="[^"]*)background-image:\s*data:image[^;]*;base64,[^"]*"/gi,
+    '$1background-image: url(\'' + compressedDataUri + '\')"'
+  );
+  
+  return result;
 }
 
 module.exports = {
   DESIGN_AGENT_VERSION,
+  DESIGN_AGENT_SYSTEM_PROMPT,
+  buildUserPrompt,
+  callDesignAgent,
   generateDesignedHtml,
   generateHtmlWithFallback,
   validateContentLock,
