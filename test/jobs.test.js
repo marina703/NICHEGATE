@@ -44,16 +44,18 @@ function makeDispatch(opts = {}) {
   };
 }
 
-test('defaultPlan produces a gated brainstorm→generate→optimize→publish plan', () => {
+test('defaultPlan produces a gated brainstorm→generate→optimize→design→publish plan', () => {
   const plan = engine.defaultPlan('tax season for bookkeepers');
-  assert.equal(plan.length, 4);
+  assert.equal(plan.length, 5);
   assert.equal(plan[0].tool, 'brainstorm');
   assert.equal(plan[1].tool, 'generate');
   assert.equal(plan[2].tool, 'optimize');
   assert.equal(plan[2].forEach, '$created');
-  assert.equal(plan[3].tool, 'publish');
-  assert.equal(plan[3].gate, true, 'publish must always be gated');
+  assert.equal(plan[3].tool, 'design');
   assert.equal(plan[3].forEach, '$created');
+  assert.equal(plan[4].tool, 'publish');
+  assert.equal(plan[4].gate, true, 'publish must always be gated');
+  assert.equal(plan[4].forEach, '$created');
 });
 
 test('parsePlan sanitizes AI output and force-gates publish steps', () => {
@@ -81,7 +83,7 @@ test('createJob inserts a running job with the default plan (AI off)', async () 
   assert.ok(job.id > 0);
   assert.equal(job.status, 'running');
   assert.equal(job.step_index, 0);
-  assert.equal(job.plan.length, 4);
+  assert.equal(job.plan.length, 5);
   clearJobs();
 });
 
@@ -119,8 +121,9 @@ test('runDueJobs pauses before the publish gate, then publishes after approval',
   await engine.runDueJobs(dispatch); // brainstorm
   await engine.runDueJobs(dispatch); // generate
   await engine.runDueJobs(dispatch); // optimize (forEach)
+  await engine.runDueJobs(dispatch); // design (forEach)
 
-  // Pass 4: publish is gated → must pause for approval
+  // Pass 5: publish is gated → must pause for approval
   let summary = await engine.runDueJobs(dispatch);
   assert.equal(summary[0].status, 'awaiting-approval');
   assert.equal(summary[0].tool, 'publish');
@@ -197,6 +200,7 @@ test('a gated job that is never approved stays paused (nothing leaks live)', asy
   await engine.runDueJobs(dispatch); // brainstorm
   await engine.runDueJobs(dispatch); // generate
   await engine.runDueJobs(dispatch); // optimize
+  await engine.runDueJobs(dispatch); // design
   await engine.runDueJobs(dispatch); // publish gate → pause
   await engine.runDueJobs(dispatch); // still paused, no publish
   assert.equal(calls.filter(c => c.tool === 'publish').length, 0);
