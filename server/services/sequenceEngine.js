@@ -12,11 +12,12 @@ const { db } = require('../database');
 // Email export payloads go ONLY to the configured ESP webhook — the owner's
 // automation (Zapier/Make/native ESP hook) performs the actual import.
 function espWebhook() {
+  const { isRealSecret } = require('./credentialGuard');
   try {
     const row = db.prepare("SELECT value FROM settings WHERE key = 'esp_webhook_url'").get();
-    if (row && row.value) return String(row.value);
+    if (row && isRealSecret(row.value)) return String(row.value).trim();
   } catch { /* none set */ }
-  return process.env.ESP_WEBHOOK_URL || null;
+  return isRealSecret(process.env.ESP_WEBHOOK_URL) ? process.env.ESP_WEBHOOK_URL : null;
 }
 
 const STRUCTURES = {

@@ -12,6 +12,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 const axios = require('axios');
 const { db } = require('../database');
+const { envIsReal, rowIsReal } = require('./credentialGuard');
 
 // ── Platform config ────────────────────────────────────────────────────────
 const REDDIT_USER_AGENT = 'NicheGate/1.0 (autonomous digital-product factory; contact: marketing@nichegate.com)';
@@ -169,24 +170,24 @@ async function scheduleForProducts(limitPerPlatform = 3) {
 // ── Reddit API client ───────────────────────────────────────────────────────
 function redditConfigured() {
   const token = db.prepare("SELECT access_token FROM marketplace_tokens WHERE platform = 'reddit'").get();
-  return !!(token && token.access_token) || !!process.env.REDDIT_ACCESS_TOKEN;
+  return rowIsReal(token) || envIsReal('REDDIT_ACCESS_TOKEN');
 }
 
 function redditHeaders() {
   const token = db.prepare("SELECT access_token FROM marketplace_tokens WHERE platform = 'reddit'").get();
-  const accessToken = token?.access_token || process.env.REDDIT_ACCESS_TOKEN;
+  const accessToken = (rowIsReal(token) ? token.access_token : null) || (envIsReal('REDDIT_ACCESS_TOKEN') ? process.env.REDDIT_ACCESS_TOKEN : null);
   return accessToken ? { Authorization: `Bearer ${accessToken}`, 'User-Agent': REDDIT_USER_AGENT } : { 'User-Agent': REDDIT_USER_AGENT };
 }
 
 // ── X API client ────────────────────────────────────────────────────────────
 function xConfigured() {
   const token = db.prepare("SELECT access_token FROM marketplace_tokens WHERE platform = 'x'").get();
-  return !!(token && token.access_token) || !!process.env.X_BEARER_TOKEN;
+  return rowIsReal(token) || envIsReal('X_BEARER_TOKEN');
 }
 
 function xHeaders() {
   const token = db.prepare("SELECT access_token FROM marketplace_tokens WHERE platform = 'x'").get();
-  const accessToken = token?.access_token || process.env.X_BEARER_TOKEN;
+  const accessToken = (rowIsReal(token) ? token.access_token : null) || (envIsReal('X_BEARER_TOKEN') ? process.env.X_BEARER_TOKEN : null);
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
 

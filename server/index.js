@@ -532,12 +532,16 @@ app.post('/api/etsy/push/:id', async (req, res) => {
       
       if (result && result.listing_id) {
         db.prepare("UPDATE products SET status = 'listed' WHERE id = ?").run(product.id);
-        db.prepare("UPDATE settings SET value = ? WHERE key = 'etsy_published_today'").run(String(pubNum + 1));
-      require('./services/pinEngine').pinNewProductAsync(product.id);
+        // Counter update must not 500 the request after a successful publish.
+        try { db.prepare("UPDATE settings SET value = ? WHERE key = 'etsy_published_today'").run(String(pubNum + 1)); }
+        catch (e) { console.error('[ETSY PUSH] counter update failed:', e.message); }
         res.json({ ok: true, listing_id: result.listing_id, remaining: capNum - pubNum - 1 });
       } else {
         res.status(500).json({ error: 'Failed to publish to Etsy', details: result });
       }
+      // Fire-and-forget pin schedule (never blocks the response).
+      try { require('./services/pinEngine').pinNewProductAsync(product.id); }
+      catch (e) { console.error('[ETSY PUSH] pin schedule failed:', e.message); }
     } catch (e) {
       console.error('[ETSY PUSH]', e.message);
       res.status(500).json({ error: e.message });
@@ -572,9 +576,13 @@ app.post('/api/etsy/push-batch', async (req, res) => {
         try {
           const result = await marketplace.publishToEtsy(product);
           if (result && result.listing_id) {
-            db.prepare("UPDATE products SET status = 'listed' WHERE id = ?").run(id);
-            pubNum++;
-            results.push({ id, status: 'published', listing_id: result.listing_id });
+            try {
+              db.prepare("UPDATE products SET status = 'listed' WHERE id = ?").run(id);
+              pubNum++;
+              results.push({ id, status: 'published', listing_id: result.listing_id });
+            } catch (e) {
+              results.push({ id, status: 'error', reason: 'DB update failed after publish: ' + e.message });
+            }
           } else {
             results.push({ id, status: 'error', reason: 'Publish failed' });
           }
@@ -583,8 +591,9 @@ app.post('/api/etsy/push-batch', async (req, res) => {
         }
       }
       
-      // Update cap counter
-      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_published_today', ?)").run(String(pubNum));
+      // Update cap counter — must not 500 the batch if this single row fails.
+      try { db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('etsy_published_today', ?)").run(String(pubNum)); }
+      catch (e) { console.error('[ETSY PUSH-BATCH] counter update failed:', e.message); }
       
       res.json({
         ok: true,

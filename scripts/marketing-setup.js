@@ -26,7 +26,11 @@ const buffer = require(path.join(__dirname, '..', 'server', 'services', 'bufferB
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const env = (k) => process.env[k];
-const envSet = (k) => !!(env(k) && env(k).trim() && !env(k).startsWith('your_'));
+// Single source of truth for "is this a real credential?" — see
+// server/services/credentialGuard.js. The old inline check only caught
+// `your_*` and treated PLACEHOLDER_FILL_IN / <fill-in> as live secrets, which
+// is why channels that had never authenticated reported as connected.
+const { envIsReal: envSet } = require(path.join(root, 'server', 'services', 'credentialGuard'));
 const tokenRow = (platform) => {
   try { return db.prepare('SELECT * FROM marketplace_tokens WHERE platform = ?').get(platform); }
   catch { return null; }

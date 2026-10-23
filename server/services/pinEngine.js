@@ -13,11 +13,12 @@ const { db } = require('../database');
 // exactly like the other channels so /api/marketing/dashboard & /api/setup/status
 // surface the true connection state instead of "always connected".
 function pinterestConfigured() {
+  const { envIsReal, rowIsReal } = require('./credentialGuard');
   try {
     const row = db.prepare("SELECT access_token FROM marketplace_tokens WHERE platform = 'pinterest'").get();
-    if (row && row.access_token) return true;
+    if (rowIsReal(row)) return true;
   } catch { /* table empty */ }
-  return !!process.env.PINTEREST_ACCESS_TOKEN || require('./bufferBridge').bufferStatus().configured;
+  return envIsReal('PINTEREST_ACCESS_TOKEN') || require('./bufferBridge').bufferStatus().configured;
 }
 
 // ── Optimal time slots ────────────────────────────────────────────────────

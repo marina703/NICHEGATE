@@ -46,6 +46,70 @@ extensions:
     env:
       TAVILY_API_KEY: "${TAVILY_API_KEY}"  # Get free key at https://tavily.com
 
+
+  # TikTok research via HasData
+  tiktok:
+    command: npx
+    args:
+      - '-y'
+      - '@hasdata/tiktok-mcp'
+    env:
+      HASDATA_API_KEY: '${HASDATA_API_KEY}'
+
+  # Instagram Graph API
+  instagram:
+    command: npx
+    args:
+      - '-y'
+      - 'instagram-mcp-ai'
+    env:
+      IG_ACCESS_TOKEN: '${INSTAGRAM_ACCESS_TOKEN}'
+
+  # YouTube search + transcripts
+  youtube:
+    command: npx
+    args:
+      - '-y'
+      - '@granitebps/youtube-mcp'
+
+  # Gumroad store operations
+  gumroad:
+    command: npx
+    args:
+      - '-y'
+      - 'gumroad-mcp'
+    env:
+      GUMROAD_ACCESS_TOKEN: '${GUMROAD_ACCESS_TOKEN}'
+
+  # Buffer social media scheduling
+  buffer:
+    command: npx
+    args:
+      - '-y'
+      - '@damusix/buffer-mcp'
+    env:
+      BUFFER_ACCESS_TOKEN: '${BUFFER_API_TOKEN}'
+
+  # Reddit research + posting
+  reddit:
+    command: npx
+    args:
+      - '-y'
+      - '@preaverage/reddit-mcp'
+      - 'serve'
+  # Pinterest API v5 (263/266 operations)
+  pinterest:
+    command: npx
+    args:
+      - '-y'
+      - '@nasdigitaluk/pinterest-mcp'
+    env:
+      PINTEREST_ACCESS_TOKEN: '${PINTEREST_ACCESS_TOKEN}'
+
+  # Etsy Open API v3 (hosted)
+  etsy:
+    url: https://mcp.api.etsycloud.com/mcp
+
   # Cloudflare R2 for image hosting (replace catbox.moe)
   cloudflare:
     command: npx

@@ -57,13 +57,14 @@ function mapGumroadAnchor(gp) {
 
 
 // ── KEY VALIDATION ──
+const { isRealSecret } = require('./credentialGuard');
 function checkEtsyKeys() {
   const clientId = process.env.ETSY_CLIENT_ID;
   const clientSecret = process.env.ETSY_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    return { ok: false, message: 'ETSY_CLIENT_ID and/or ETSY_CLIENT_SECRET missing in .env' };
+  if (!isRealSecret(clientId) || !isRealSecret(clientSecret)) {
+    return { ok: false, message: 'ETSY_CLIENT_ID and/or ETSY_CLIENT_SECRET missing or still a placeholder in .env' };
   }
-  if (clientId === clientSecret) {
+  if (clientId.trim() === clientSecret.trim()) {
     return { ok: false, misconfiguredKeys: true, message: 'ETSY_CLIENT_ID and ETSY_CLIENT_SECRET are identical — set the real keystring and secret (two different values).' };
   }
   return { ok: true };
@@ -71,8 +72,8 @@ function checkEtsyKeys() {
 
 function checkGumroadKey() {
   const token = process.env.GUMROAD_ACCESS_TOKEN;
-  if (!token) {
-    return { ok: false, message: 'GUMROAD_ACCESS_TOKEN missing in .env' };
+  if (!isRealSecret(token)) {
+    return { ok: false, message: 'GUMROAD_ACCESS_TOKEN missing or still a placeholder in .env' };
   }
   return { ok: true };
 }

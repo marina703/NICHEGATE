@@ -17,23 +17,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const { db } = require('../database');
+const { isRealSecret } = require('./credentialGuard');
 
 function bufferToken() {
   const row = db.prepare("SELECT value FROM settings WHERE key = 'buffer_api_token'").get();
-  if (row && row.value) return row.value.trim();
-  return process.env.BUFFER_API_TOKEN || null;
+  if (row && isRealSecret(row.value)) return row.value.trim();
+  return isRealSecret(process.env.BUFFER_API_TOKEN) ? process.env.BUFFER_API_TOKEN : null;
 }
 
 function bufferChannelId() {
   const row = db.prepare("SELECT value FROM settings WHERE key = 'buffer_channel_id'").get();
-  if (row && row.value) return row.value.trim();
-  return process.env.BUFFER_CHANNEL_ID || null;
+  if (row && isRealSecret(row.value)) return row.value.trim();
+  return isRealSecret(process.env.BUFFER_CHANNEL_ID) ? process.env.BUFFER_CHANNEL_ID : null;
 }
 
 function bufferBoardServiceId() {
   const row = db.prepare("SELECT value FROM settings WHERE key = 'buffer_board_service_id'").get();
-  if (row && row.value) return row.value.trim();
-  return process.env.BUFFER_BOARD_SERVICE_ID || null;
+  if (row && isRealSecret(row.value)) return row.value.trim();
+  return isRealSecret(process.env.BUFFER_BOARD_SERVICE_ID) ? process.env.BUFFER_BOARD_SERVICE_ID : null;
 }
 
 // Public base URL for serving pin images to Buffer (must be reachable from

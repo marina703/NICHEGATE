@@ -16,6 +16,7 @@ const axios = require('axios');
 const { db } = require('../database');
 
 const TIKTOK_API_BASE = 'https://business-api.tiktok.com/open_api/v2.0';
+const { envIsReal, rowIsReal } = require('./credentialGuard');
 
 // ── Token management (same table as Etsy/Pinterest) ───────────────────────
 function getTikTokToken() {
@@ -34,8 +35,8 @@ function getTikTokToken() {
 
 function tiktokConfigured() {
   const token = getTikTokToken();
-  if (token && token.access_token) return true;
-  if (process.env.TIKTOK_ACCESS_TOKEN) return true;
+  if (rowIsReal(token)) return true;
+  if (envIsReal('TIKTOK_ACCESS_TOKEN')) return true;
   return false;
 }
 

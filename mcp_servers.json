@@ -4,11 +4,41 @@
       "url": "https://mcp.api.etsycloud.com/mcp"
     },
     "pinterest": {
-      "command": "npx",
-      "args": ["-y", "pinterest-mcp@0.3.0"],
+      "command": "pinterest-mcp",
       "env": {
         "PINTEREST_ACCESS_TOKEN": "${PINTEREST_ACCESS_TOKEN}"
       }
+    },
+    "tiktok": {
+      "command": "hasdata-tiktok-mcp",
+      "env": {
+        "HASDATA_API_KEY": "${HASDATA_API_KEY}"
+      }
+    },
+    "instagram": {
+      "command": "instagram-mcp-ai",
+      "env": {
+        "IG_ACCESS_TOKEN": "${INSTAGRAM_ACCESS_TOKEN}"
+      }
+    },
+    "youtube": {
+      "command": "youtube-mcp"
+    },
+    "gumroad": {
+      "command": "gumroad-mcp",
+      "env": {
+        "GUMROAD_ACCESS_TOKEN": "${GUMROAD_ACCESS_TOKEN}"
+      }
+    },
+    "buffer": {
+      "command": "buffer-mcp",
+      "env": {
+        "BUFFER_ACCESS_TOKEN": "${BUFFER_API_TOKEN}"
+      }
+    },
+    "reddit": {
+      "command": "reddit-mcp",
+      "args": ["serve"]
     },
     "cloudflare": {
       "url": "https://mcp.cloudflare.com/mcp"
